@@ -1,7 +1,7 @@
 mod ring_items;
-use crate::ring_items::RingItem;
+
 fn main() {
-    let _item = RingItem {
+    let _item = ring_items::RingItem {
         size: 0,
         type_id: 0,
         body_header_size: 0,
