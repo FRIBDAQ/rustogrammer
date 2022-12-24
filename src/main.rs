@@ -11,4 +11,8 @@ fn main() {
     println!("Size: {}", item2.size());
     println!("Type: {}", item2.type_id());
     println!("Has body header:{}", item2.has_body_header());
+    let hdr = item2.get_bodyheader().unwrap();
+    println!(" timestamp: {:#08x}", hdr.timestamp);
+    println!("  sid     : {}", hdr.source_id);
+    println!(" barrier  : {}", hdr.barrier_type);
 }

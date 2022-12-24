@@ -14,6 +14,12 @@ pub struct RingItem {
     payload: Vec<u8>,
 }
 
+pub struct BodyHeader {
+    pub timestamp: u64,
+    pub source_id: u32,
+    pub barrier_type: u32,
+}
+
 pub enum RingItemError {
     HeaderReadFailed,
     InvalidHeader,
@@ -136,4 +142,36 @@ impl RingItem {
 
         Ok(item)
     }
+    /// Fetch the body header from the payload... if there is one.
+    ///
+    pub fn get_bodyheader(&self) -> Option<BodyHeader> {
+        println!("Payloed size {}", self.payload.len());
+        if self.has_body_header() {
+            return Some(BodyHeader {
+                timestamp: u64::from_ne_bytes(self.payload.as_slice()[0..8].try_into().unwrap()),
+                source_id: u32::from_ne_bytes(self.payload.as_slice()[8..12].try_into().unwrap()),
+                barrier_type: u32::from_ne_bytes(
+                    self.payload.as_slice()[12..16].try_into().unwrap(),
+                ),
+            });
+        } else {
+            return None;
+        }
+    }
+}
+///
+/// FromRaw trait is a mechanism to convert a raw ring item
+/// to a more specific ring item.  It gets implemented in specific
+/// ring item types.  Normal behavior is to check the type_Id of the
+/// raw item against that of the specific item.  If the raw item is not
+/// a proper type, None should be returned.
+/// If it is, then a new specific item should be created and
+/// filled in from data in the raw item.
+/// Because of how data are placed in raw item payload, implementers
+/// can assume that the payload is tight packed.
+/// The same cannot, obviously, be assumed about the
+/// header...rust can do what it wants with it.
+///
+pub trait FromRaw {
+    fn from_raw<T>(raw: &RingItem) -> Option<T>;
 }
