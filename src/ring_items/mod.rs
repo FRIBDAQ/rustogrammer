@@ -172,5 +172,6 @@ impl RingItem {
 /// header...rust can do what it wants with it.
 ///
 pub trait FromRaw {
-    fn from_raw<T>(raw: &RingItem) -> Option<T>;
+    type ConcreteItem;
+    fn from_raw(raw: &RingItem) -> Option<Self::ConcreteItem>;
 }
