@@ -1,4 +1,5 @@
 mod ring_items;
+use std::fs::File;
 
 fn main() {
     let item = ring_items::RingItem::new(1);
@@ -15,4 +16,34 @@ fn main() {
     println!(" timestamp: {:#08x}", hdr.timestamp);
     println!("  sid     : {}", hdr.source_id);
     println!(" barrier  : {}", hdr.barrier_type);
+
+    if let Ok(mut f) = File::open("run-0000-00.evt") {
+        dump_items(&mut f);
+    } else {
+        println!("Failed to open input file");
+    }
+}
+fn dump_items(f: &mut File) {
+    println!("Dumping");
+    loop {
+        if let Ok(item) = ring_items::RingItem::read_item(f) {
+            println!("----------------------");
+            println!("Size: {}", item.size());
+            println!("type: {}", item.type_id());
+
+            if item.has_body_header() {
+                dump_body_header(&item);
+            }
+        } else {
+            println!("done");
+            break;
+        }
+    }
+}
+fn dump_body_header(item: &ring_items::RingItem) {
+    let header = item.get_bodyheader().unwrap();
+    println!("Body header:");
+    println!("   timestamp: {:#08x}", header.timestamp);
+    println!("   sourceid:  {}", header.source_id);
+    println!("   barrier:   {}", header.barrier_type);
 }
