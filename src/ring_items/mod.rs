@@ -145,7 +145,6 @@ impl RingItem {
     /// Fetch the body header from the payload... if there is one.
     ///
     pub fn get_bodyheader(&self) -> Option<BodyHeader> {
-        println!("Payloed size {}", self.payload.len());
         if self.has_body_header() {
             return Some(BodyHeader {
                 timestamp: u64::from_ne_bytes(self.payload.as_slice()[0..8].try_into().unwrap()),
