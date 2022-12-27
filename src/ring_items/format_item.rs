@@ -5,15 +5,11 @@ use crate::ring_items;
 /// and were introduced in NSCLDAQ-11.x
 ///
 pub struct FormatItem {
-    type_id: u32,
     major: u16,
     minor: u16,
 }
 
 impl FormatItem {
-    pub fn type_id(&self) -> u32 {
-        self.type_id
-    }
     pub fn major(&self) -> u16 {
         self.major
     }
@@ -22,7 +18,6 @@ impl FormatItem {
     }
     pub fn new(major: u16, minor: u16) -> FormatItem {
         FormatItem {
-            type_id: ring_items::FORMAT_ITEM,
             major: major,
             minor: minor,
         }
