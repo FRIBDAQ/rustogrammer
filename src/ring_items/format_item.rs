@@ -41,4 +41,10 @@ impl FormatItem {
         result.minor = u16::from_ne_bytes(payload.as_slice()[2..4].try_into().unwrap());
         Some(result)
     }
+    pub fn to_raw(&self) -> ring_items::RingItem {
+        let mut result = ring_items::RingItem::new(ring_items::FORMAT_ITEM);
+        result.add(self.major);
+        result.add(self.minor);
+        result
+    }
 }

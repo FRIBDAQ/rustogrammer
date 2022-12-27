@@ -37,6 +37,11 @@ fn dump_items(f: &mut File) {
             }
             if let Some(fmt) = format_item::FormatItem::from_raw(&item) {
                 println!("Format Item: {}.{}", fmt.major(), fmt.minor());
+                let raw = fmt.to_raw();
+                println!(
+                    "When re-created size: {} type: {} {}", 
+                    raw.size(), raw.type_id(), raw.has_body_header()
+                );
             }
         } else {
             println!("done");
