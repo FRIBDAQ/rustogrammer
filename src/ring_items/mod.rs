@@ -2,6 +2,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::mem;
 
+pub mod format_item;
+
 /// This is an raw ring item.   Raw in the
 /// sense that the payload is just a soup of bytes.
 /// However it wil have methods that allow conversion of this item
@@ -157,21 +159,11 @@ impl RingItem {
             return None;
         }
     }
+    pub fn payload(&self) -> &Vec<u8> {
+        &(self.payload)
+    }
 }
-///
-/// FromRaw trait is a mechanism to convert a raw ring item
-/// to a more specific ring item.  It gets implemented in specific
-/// ring item types.  Normal behavior is to check the type_Id of the
-/// raw item against that of the specific item.  If the raw item is not
-/// a proper type, None should be returned.
-/// If it is, then a new specific item should be created and
-/// filled in from data in the raw item.
-/// Because of how data are placed in raw item payload, implementers
-/// can assume that the payload is tight packed.
-/// The same cannot, obviously, be assumed about the
-/// header...rust can do what it wants with it.
-///
-pub trait FromRaw {
-    type ConcreteItem;
-    fn from_raw(raw: &RingItem) -> Option<Self::ConcreteItem>;
-}
+
+// Ring item types:
+
+const FORMAT_ITEM: u32 = 12;

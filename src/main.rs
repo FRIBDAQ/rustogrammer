@@ -1,4 +1,5 @@
 mod ring_items;
+use ring_items::format_item;
 use std::fs::File;
 
 fn main() {
@@ -33,6 +34,9 @@ fn dump_items(f: &mut File) {
 
             if item.has_body_header() {
                 dump_body_header(&item);
+            }
+            if let Some(fmt) = format_item::FormatItem::from_raw(&item) {
+                println!("Format Item: {}.{}", fmt.major(), fmt.minor());
             }
         } else {
             println!("done");
