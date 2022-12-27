@@ -3,6 +3,7 @@ use std::io::prelude::*;
 use std::mem;
 
 pub mod format_item;
+pub mod state_change;
 
 /// This is an raw ring item.   Raw in the
 /// sense that the payload is just a soup of bytes.
@@ -167,3 +168,8 @@ impl RingItem {
 // Ring item types:
 
 const FORMAT_ITEM: u32 = 12;
+const BEGIN_RUN:   u32 = 1;
+const END_RUN:     u32 = 2;
+const PAUSE_RUN:   u32 = 3;
+const RESUME_RUN:  u32 = 4;
+
