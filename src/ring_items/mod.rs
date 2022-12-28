@@ -16,7 +16,7 @@ pub struct RingItem {
     body_header_size: u32,
     payload: Vec<u8>,
 }
-
+#[derive(Clone, Copy)]
 pub struct BodyHeader {
     pub timestamp: u64,
     pub source_id: u32,
@@ -168,8 +168,7 @@ impl RingItem {
 // Ring item types:
 
 const FORMAT_ITEM: u32 = 12;
-const BEGIN_RUN:   u32 = 1;
-const END_RUN:     u32 = 2;
-const PAUSE_RUN:   u32 = 3;
-const RESUME_RUN:  u32 = 4;
-
+const BEGIN_RUN: u32 = 1;
+const END_RUN: u32 = 2;
+const PAUSE_RUN: u32 = 3;
+const RESUME_RUN: u32 = 4;
