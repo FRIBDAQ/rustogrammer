@@ -38,7 +38,7 @@ fn dump_items(f: &mut File) {
                 dump_body_header(&item);
             }
             if let Some(fmt) = format_item::FormatItem::from_raw(&item) {
-                println!("Format Item: {}.{}", fmt.major(), fmt.minor());
+                dump_format(&fmt);
                 let raw = fmt.to_raw();
                 println!(
                     "When re-created size: {} type: {} {}",
@@ -48,17 +48,7 @@ fn dump_items(f: &mut File) {
                 );
             }
             if let Some(state) = state_change::StateChange::from_raw(&item) {
-                println!("State Change: {}", state.change_type_string());
-                println!(
-                    " run: {} offset {} seconds  ",
-                    state.run_number(),
-                    state.time_offset(),
-                );
-                println!("Title: {}", state.title());
-                println!(
-                    " Stamp {}",
-                    humantime::format_rfc3339(state.absolute_time())
-                );
+                dump_state_change(&state);
             }
         } else {
             println!("done");
@@ -72,4 +62,22 @@ fn dump_body_header(item: &ring_items::RingItem) {
     println!("   timestamp: {:#08x}", header.timestamp);
     println!("   sourceid:  {}", header.source_id);
     println!("   barrier:   {}", header.barrier_type);
+}
+
+fn dump_format(fmt : &format_item::FormatItem) {
+    println!("Format Item: {}.{}", fmt.major(), fmt.minor());
+}
+
+fn dump_state_change(state : &state_change::StateChange) {
+    println!("State Change: {}", state.change_type_string());
+    println!(
+        " run: {} offset {} seconds  ",
+        state.run_number(),
+        state.time_offset(),
+    );
+    println!("Title: {}", state.title());
+    println!(
+        " Stamp {}",
+        humantime::format_rfc3339(state.absolute_time())
+    );
 }
