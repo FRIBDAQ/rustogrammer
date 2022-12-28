@@ -1,5 +1,7 @@
 mod ring_items;
+use humantime;
 use ring_items::format_item;
+use ring_items::state_change;
 use std::fs::File;
 
 fn main() {
@@ -39,8 +41,23 @@ fn dump_items(f: &mut File) {
                 println!("Format Item: {}.{}", fmt.major(), fmt.minor());
                 let raw = fmt.to_raw();
                 println!(
-                    "When re-created size: {} type: {} {}", 
-                    raw.size(), raw.type_id(), raw.has_body_header()
+                    "When re-created size: {} type: {} {}",
+                    raw.size(),
+                    raw.type_id(),
+                    raw.has_body_header()
+                );
+            }
+            if let Some(state) = state_change::StateChange::from_raw(&item) {
+                println!("State Change: {}", state.change_type_string());
+                println!(
+                    " run: {} offset {} seconds  ",
+                    state.run_number(),
+                    state.time_offset(),
+                );
+                println!("Title: {}", state.title());
+                println!(
+                    " Stamp {}",
+                    humantime::format_rfc3339(state.absolute_time())
                 );
             }
         } else {
