@@ -170,14 +170,14 @@ impl StateChange {
             )
         } else {
             ring_items::RingItem::new(self.type_id())
-            
         };
         // Put in the other stuff:
         item.add(self.run_number);
         item.add(self.time_offset);
         let unix_stamp = self.absolute_time.duration_since(time::UNIX_EPOCH).unwrap();
         let secs = unix_stamp.as_secs();
-        item.add((secs & 0xffffffff) as u32);
+        let secsu32: u32 = (secs & 0xffffffff) as u32;
+        item.add(secsu32);
         item.add(self.offset_divisor);
 
         // Need the string as bytes -- truncate to 80 and put in as bytes
