@@ -185,9 +185,12 @@ impl StateChange {
 
         let mut title = self.run_title.clone();
         title.truncate(79);
-        item.add(title.as_bytes());
+        let title_bytes = String::into_bytes(title.clone());
+        for c in title_bytes {
+            item.add(c);
+        }
 
-        for _i in title.len()..78 {
+        for _i in title.len()..81 {
             item.add(0 as u8);
         }
         item

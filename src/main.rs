@@ -49,6 +49,15 @@ fn dump_items(f: &mut File) {
             }
             if let Some(state) = state_change::StateChange::from_raw(&item) {
                 dump_state_change(&state);
+                let raw = state.to_raw();
+                println!(
+                    "Recereated size: {} type: {} {}",
+                    raw.size(),
+                    raw.type_id(),
+                    raw.has_body_header()
+                );
+                let s = state_change::StateChange::from_raw(&raw).unwrap();
+                dump_state_change(&s);
             }
         } else {
             println!("done");
@@ -64,11 +73,11 @@ fn dump_body_header(item: &ring_items::RingItem) {
     println!("   barrier:   {}", header.barrier_type);
 }
 
-fn dump_format(fmt : &format_item::FormatItem) {
+fn dump_format(fmt: &format_item::FormatItem) {
     println!("Format Item: {}.{}", fmt.major(), fmt.minor());
 }
 
-fn dump_state_change(state : &state_change::StateChange) {
+fn dump_state_change(state: &state_change::StateChange) {
     println!("State Change: {}", state.change_type_string());
     println!(
         " run: {} offset {} seconds  ",
