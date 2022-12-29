@@ -160,9 +160,38 @@ impl StateChange {
         }
     }
     // new raw item from this:
-    //pub fn to_raw(&self) -> ring_items::RingItem {
-    //
-    //}
+    pub fn to_raw(&self) -> ring_items::RingItem {
+        let mut item = if self.has_body_header {
+            ring_items::RingItem::new_with_body_header(
+                self.type_id(),
+                self.body_header.timestamp,
+                self.body_header.source_id,
+                self.body_header.barrier_type,
+            )
+        } else {
+            ring_items::RingItem::new(self.type_id())
+            
+        };
+        // Put in the other stuff:
+        item.add(self.run_number);
+        item.add(self.time_offset);
+        let unix_stamp = self.absolute_time.duration_since(time::UNIX_EPOCH).unwrap();
+        let secs = unix_stamp.as_secs();
+        item.add((secs & 0xffffffff) as u32);
+        item.add(self.offset_divisor);
+
+        // Need the string as bytes -- truncate to 80 and put in as bytes
+        // with null terminator.
+
+        let mut title = self.run_title.clone();
+        title.truncate(79);
+        item.add(title.as_bytes());
+
+        for _i in title.len()..78 {
+            item.add(0 as u8);
+        }
+        item
+    }
 
     // getters:
 
