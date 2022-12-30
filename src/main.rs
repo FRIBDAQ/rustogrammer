@@ -47,7 +47,9 @@ fn dump_items(f: &mut File) {
                     raw.has_body_header()
                 );
             }
-            if let Some(state) = state_change::StateChange::from_raw(&item) {
+            if let Some(state) =
+                state_change::StateChange::from_raw(&item, ring_items::RingVersion::V11)
+            {
                 dump_state_change(&state);
                 let raw = state.to_raw();
                 println!(
@@ -56,7 +58,8 @@ fn dump_items(f: &mut File) {
                     raw.type_id(),
                     raw.has_body_header()
                 );
-                let s = state_change::StateChange::from_raw(&raw).unwrap();
+                let s = state_change::StateChange::from_raw(&raw, ring_items::RingVersion::V11)
+                    .unwrap();
                 dump_state_change(&s);
             }
         } else {
@@ -84,6 +87,9 @@ fn dump_state_change(state: &state_change::StateChange) {
         state.run_number(),
         state.time_offset(),
     );
+    if let Some(osid) = state.original_sid() {
+        println!(" original sid: {}", osid);
+    }
     println!("Title: {}", state.title());
     println!(
         " Stamp {}",
