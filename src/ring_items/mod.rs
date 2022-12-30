@@ -3,6 +3,7 @@ use std::io::prelude::*;
 use std::mem;
 
 pub mod format_item;
+pub mod scaler_item;
 pub mod state_change;
 
 /// This is an raw ring item.   Raw in the
@@ -163,6 +164,15 @@ impl RingItem {
     pub fn payload(&self) -> &Vec<u8> {
         &(self.payload)
     }
+}
+///
+/// Some items have variant shapes depending on their version.
+///
+
+#[derive(PartialEq)]
+pub enum RingVersion {
+    V11,
+    V12,
 }
 
 // Ring item types:
