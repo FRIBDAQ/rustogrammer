@@ -25,6 +25,7 @@ pub struct StateChange {
     offset_divisor: u32,
     absolute_time: time::SystemTime,
     run_title: String,
+    original_sid: Option<u32>,
 }
 
 impl StateChange {
@@ -73,6 +74,7 @@ impl StateChange {
         offset: u32,
         divisor: u32,
         title: &str,
+        original_sid: Option<u32>,
     ) -> StateChange {
         StateChange {
             change_type: type_id,
@@ -87,6 +89,7 @@ impl StateChange {
             offset_divisor: divisor,
             absolute_time: time::SystemTime::now(),
             run_title: String::from(title),
+            original_sid: original_sid,
         }
     }
     /// new state change item with body header.
@@ -97,6 +100,7 @@ impl StateChange {
         offset: u32,
         divisor: u32,
         title: &str,
+        original_sid: Option<u32>,
     ) -> StateChange {
         StateChange {
             change_type: type_id,
@@ -107,6 +111,7 @@ impl StateChange {
             offset_divisor: divisor,
             absolute_time: time::SystemTime::now(),
             run_title: String::from(title),
+            original_sid: original_sid,
         }
     }
     pub fn new(
@@ -116,17 +121,22 @@ impl StateChange {
         offset: u32,
         divisor: u32,
         title: &str,
+        original_sid: Option<u32>,
     ) -> StateChange {
         match body_header {
-            Some(h) => Self::new_with_body_header(type_id, &h, run, offset, divisor, title),
-            None => Self::new_without_body_header(type_id, run, offset, divisor, title),
+            Some(h) => {
+                Self::new_with_body_header(type_id, &h, run, offset, divisor, title, original_sid)
+            }
+            None => {
+                Self::new_without_body_header(type_id, run, offset, divisor, title, original_sid)
+            }
         }
     }
     /// new state change item from a raw item:
-    pub fn from_raw(raw: &ring_items::RingItem) -> Option<Self> {
+    pub fn from_raw(raw: &ring_items::RingItem, version: ring_items::RingVersion) -> Option<Self> {
         let body_header = raw.get_bodyheader(); // Option of body header.
         if let Some(type_enum) = Self::type_from_type_id(raw.type_id()) {
-            let mut result = Self::new(type_enum, body_header, 0, 0, 1, "");
+            let mut result = Self::new(type_enum, body_header, 0, 0, 1, "", None);
             // Body position depends on if body_header is defined:
 
             let body_pos = if result.has_body_header {
@@ -147,9 +157,19 @@ impl StateChange {
             result.absolute_time = time::UNIX_EPOCH.add(stamp);
             result.offset_divisor =
                 u32::from_ne_bytes(payload[body_pos + 12..body_pos + 16].try_into().unwrap());
-            let title_len = Self::string_len(&payload[body_pos + 16..]);
+            // Might have an original sid:
+
+            let mut title_pos = body_pos + 16;
+            if version == ring_items::RingVersion::V12 {
+                result.original_sid = Some(u32::from_ne_bytes(
+                    payload[title_pos..title_pos + 4].try_into().unwrap(),
+                ));
+                title_pos = title_pos + 4;
+            }
+
+            let title_len = Self::string_len(&payload[title_pos..]);
             result.run_title = String::from_utf8(
-                payload[body_pos + 16..body_pos + 16 + title_len]
+                payload[title_pos..title_pos + title_len]
                     .try_into()
                     .unwrap(),
             )
@@ -179,6 +199,12 @@ impl StateChange {
         let secsu32: u32 = (secs & 0xffffffff) as u32;
         item.add(secsu32);
         item.add(self.offset_divisor);
+
+        // If there's an original sid it goes here:
+
+        if let Some(osid) = self.original_sid {
+            item.add(osid);
+        }
 
         // Need the string as bytes -- truncate to 80 and put in as bytes
         // with null terminator.
@@ -229,5 +255,8 @@ impl StateChange {
     }
     pub fn title(&self) -> String {
         self.run_title.clone()
+    }
+    pub fn original_sid(&self) -> Option<u32> {
+        self.original_sid
     }
 }
