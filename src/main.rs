@@ -63,9 +63,12 @@ fn dump_items(f: &mut File) {
                     .unwrap();
                 dump_state_change(&s);
             }
-            if let Some(mut sc) = scaler_item::ScalerItem::from_raw(&item, ring_items::RingVersion::V11)
+            if let Some(mut sc) =
+                scaler_item::ScalerItem::from_raw(&item, ring_items::RingVersion::V11)
             {
                 dump_scaler(&mut sc);
+                let raw = sc.to_raw();
+                println!("Recreated size {} type: {}", raw.size(), raw.type_id());
             }
         } else {
             println!("done");

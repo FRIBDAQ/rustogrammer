@@ -82,9 +82,9 @@ impl ScalerItem {
 
             let body_header = raw.get_bodyheader();
             let offset = if let Some(_b) = body_header {
-                 mem::size_of::<u64>() + 2 * mem::size_of::<u32>()
+                mem::size_of::<u64>() + 2 * mem::size_of::<u32>()
             } else {
-               0
+                0
             };
             let p = raw.payload().as_slice();
             let start = u32::from_ne_bytes(p[offset..offset + 4].try_into().unwrap());
@@ -123,5 +123,34 @@ impl ScalerItem {
         } else {
             None
         }
+    }
+    pub fn to_raw(&self) -> ring_items::RingItem {
+        let mut result = if let Some(bh) = self.body_header {
+            ring_items::RingItem::new_with_body_header(
+                ring_items::PERIODIC_SCALERS,
+                bh.timestamp,
+                bh.source_id,
+                bh.barrier_type,
+            )
+        } else {
+            ring_items::RingItem::new(ring_items::PERIODIC_SCALERS)
+        };
+
+        // Now the rest of the item:
+
+        result.add(self.start_offset);
+        result.add(self.end_offset);
+        result.add(ring_items::systime_to_raw(self.absolute_time));
+        result.add(self.divisor);
+        result.add(self.scalers.len() as u32);
+        result.add(self.is_incremental);
+        if let Some(osid) = self.original_sid {
+            result.add(osid);
+        }
+        for sc in &self.scalers {
+            result.add(*sc);
+        }
+
+        result
     }
 }
