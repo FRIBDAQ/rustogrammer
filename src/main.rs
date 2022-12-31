@@ -63,6 +63,10 @@ fn dump_items(f: &mut File) {
                     .unwrap();
                 dump_state_change(&s);
             }
+            if let Some(mut sc) = scaler_item::ScalerItem::from_raw(&item, ring_items::RingVersion::V11)
+            {
+                dump_scaler(&mut sc);
+            }
         } else {
             println!("done");
             break;
@@ -96,4 +100,22 @@ fn dump_state_change(state: &state_change::StateChange) {
         " Stamp {}",
         humantime::format_rfc3339(state.absolute_time())
     );
+}
+
+fn dump_scaler(sc: &mut scaler_item::ScalerItem) {
+    println!(" Scaler: ");
+    println!("  Start: {} End {}", sc.get_start_secs(), sc.get_end_secs());
+    println!(
+        "  At: {}",
+        humantime::format_rfc3339(sc.get_absolute_time())
+    );
+    if let Some(osid) = sc.original_sid() {
+        println!(" Original source id {}", osid);
+    }
+    let mut scalers: Vec<u32> = Vec::new();
+    sc.scaler_values(&mut scalers);
+    println!(" {} scalers:", scalers.len());
+    for s in &scalers {
+        println!("    {} counts", *s);
+    }
 }
