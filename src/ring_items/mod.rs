@@ -1,6 +1,8 @@
 use std::fs::File;
 use std::io::prelude::*;
 use std::mem;
+use std::ops::Add;
+use std::time;
 
 pub mod format_item;
 pub mod scaler_item;
@@ -165,9 +167,22 @@ impl RingItem {
         &(self.payload)
     }
 }
+/// convert a u32 into a SystemTime:
+
 ///
 /// Some items have variant shapes depending on their version.
 ///
+pub fn raw_to_systime(raw: u32) -> time::SystemTime {
+    let stamp = time::Duration::from_secs(raw as u64);
+    time::UNIX_EPOCH.add(stamp)
+}
+/// convert a SystemTime into  a u32 for inclusion in to a raw item:
+///
+pub fn systime_to_raw(stamp: time::SystemTime) -> u32 {
+    let unix_stamp = stamp.duration_since(time::UNIX_EPOCH).unwrap();
+    let secs = unix_stamp.as_secs();
+    (secs & 0xffffffff) as u32
+}
 
 #[derive(PartialEq)]
 pub enum RingVersion {
@@ -182,3 +197,4 @@ const BEGIN_RUN: u32 = 1;
 const END_RUN: u32 = 2;
 const PAUSE_RUN: u32 = 3;
 const RESUME_RUN: u32 = 4;
+const PERIODIC_SCALERS: u32 = 20;

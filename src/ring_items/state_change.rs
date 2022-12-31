@@ -1,6 +1,5 @@
 use crate::ring_items;
 use std::mem;
-use std::ops::Add;
 use std::time;
 ///
 /// provide support for state change items.
@@ -151,10 +150,9 @@ impl StateChange {
                 u32::from_ne_bytes(payload[body_pos..body_pos + 4].try_into().unwrap());
             result.time_offset =
                 u32::from_ne_bytes(payload[body_pos + 4..body_pos + 8].try_into().unwrap());
-            let stamp = time::Duration::from_secs(u32::from_ne_bytes(
-                payload[body_pos + 8..body_pos + 12].try_into().unwrap(),
-            ) as u64);
-            result.absolute_time = time::UNIX_EPOCH.add(stamp);
+            let raw_stamp =
+                u32::from_ne_bytes(payload[body_pos + 8..body_pos + 12].try_into().unwrap());
+            result.absolute_time = ring_items::raw_to_systime(raw_stamp);
             result.offset_divisor =
                 u32::from_ne_bytes(payload[body_pos + 12..body_pos + 16].try_into().unwrap());
             // Might have an original sid:
@@ -194,9 +192,7 @@ impl StateChange {
         // Put in the other stuff:
         item.add(self.run_number);
         item.add(self.time_offset);
-        let unix_stamp = self.absolute_time.duration_since(time::UNIX_EPOCH).unwrap();
-        let secs = unix_stamp.as_secs();
-        let secsu32: u32 = (secs & 0xffffffff) as u32;
+        let secsu32 = ring_items::systime_to_raw(self.absolute_time);
         item.add(secsu32);
         item.add(self.offset_divisor);
 
