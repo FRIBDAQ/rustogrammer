@@ -1,6 +1,6 @@
 use crate::ring_items;
 use std::mem;
-use std::ops::Add;
+
 use std::time;
 ///
 /// Provide an internalt representation of scaler items
@@ -46,5 +46,82 @@ impl ScalerItem {
     }
     pub fn scaler_values(&mut self, scalers: &mut Vec<u32>) {
         scalers.append(&mut self.scalers);
+    }
+
+    pub fn new(
+        body_header: Option<ring_items::BodyHeader>,
+        start: u32,
+        end: u32,
+        time: time::SystemTime,
+        divisor: u32,
+        incremental: bool,
+        orsid: Option<u32>,
+        scalers: &mut Vec<u32>,
+    ) -> ScalerItem {
+        let mut result = ScalerItem {
+            body_header: body_header,
+            start_offset: start,
+            end_offset: end,
+            absolute_time: time,
+            divisor: divisor,
+            is_incremental: incremental,
+            original_sid: orsid,
+            scalers: Vec::<u32>::new(),
+        };
+        result.scalers.append(scalers);
+
+        result
+    }
+
+    pub fn from_raw(
+        raw: &ring_items::RingItem,
+        fmt: ring_items::RingVersion,
+    ) -> Option<ScalerItem> {
+        if raw.type_id() == ring_items::PERIODIC_SCALERS {
+            // Pull parameters from the raw item:
+
+            let body_header = raw.get_bodyheader();
+            let offset = if let Some(_b) = body_header {
+                 mem::size_of::<u64>() + 2 * mem::size_of::<u32>()
+            } else {
+               0
+            };
+            let p = raw.payload().as_slice();
+            let start = u32::from_ne_bytes(p[offset..offset + 4].try_into().unwrap());
+            let end = u32::from_ne_bytes(p[offset + 4..offset + 8].try_into().unwrap());
+            let raw_stamp = u32::from_ne_bytes(p[offset + 8..offset + 12].try_into().unwrap());
+            let divisor = u32::from_ne_bytes(p[offset + 12..offset + 16].try_into().unwrap());
+            let nscalers = u32::from_ne_bytes(p[offset + 16..offset + 20].try_into().unwrap());
+            let incr = u32::from_ne_bytes(p[offset + 20..offset + 24].try_into().unwrap()) != 0;
+            let mut orsid: Option<u32> = None;
+            let mut offset = offset; // new offset.
+            if fmt == ring_items::RingVersion::V12 {
+                orsid = Some(u32::from_ne_bytes(
+                    p[offset..offset + 4].try_into().unwrap(),
+                ));
+                offset = offset + 4;
+            }
+            // Offset now points at the scalers regardless of the format:
+
+            let mut scalers: Vec<u32> = Vec::new();
+            for _ in 0..nscalers {
+                scalers.push(u32::from_ne_bytes(
+                    p[offset..offset + 4].try_into().unwrap(),
+                ));
+                offset = offset + 4;
+            }
+            Some(Self::new(
+                body_header,
+                start,
+                end,
+                ring_items::raw_to_systime(raw_stamp),
+                divisor,
+                incr,
+                orsid,
+                &mut scalers,
+            ))
+        } else {
+            None
+        }
     }
 }
