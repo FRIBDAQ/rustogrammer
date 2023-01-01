@@ -29,16 +29,7 @@ pub struct StateChange {
 
 impl StateChange {
     fn string_len(d: &[u8]) -> usize {
-        let mut result = 0;
-        for c in d {
-            if *c == (0 as u8) {
-                break;
-            } else {
-                result = result + 1;
-            }
-        }
-
-        return result;
+        ring_items::string_len(d)
     }
     fn string_from_type(&self) -> String {
         match self.change_type {
@@ -139,7 +130,7 @@ impl StateChange {
             // Body position depends on if body_header is defined:
 
             let body_pos = if result.has_body_header {
-                mem::size_of::<u64>() + 2 * mem::size_of::<u32>()
+                ring_items::body_header_size()
             } else {
                 0
             };

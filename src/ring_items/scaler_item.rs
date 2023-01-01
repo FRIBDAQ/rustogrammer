@@ -1,6 +1,5 @@
 use crate::ring_items;
 use std::mem;
-
 use std::time;
 ///
 /// Provide an internalt representation of scaler items
@@ -82,7 +81,7 @@ impl ScalerItem {
 
             let body_header = raw.get_bodyheader();
             let offset = if let Some(_b) = body_header {
-                mem::size_of::<u64>() + 2 * mem::size_of::<u32>()
+                ring_items::body_header_size()
             } else {
                 0
             };
