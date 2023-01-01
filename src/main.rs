@@ -3,6 +3,7 @@ use humantime;
 use ring_items::format_item;
 use ring_items::scaler_item;
 use ring_items::state_change;
+use ring_items::text_item;
 use std::fs::File;
 
 fn main() {

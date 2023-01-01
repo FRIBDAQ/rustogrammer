@@ -7,6 +7,7 @@ use std::time;
 pub mod format_item;
 pub mod scaler_item;
 pub mod state_change;
+pub mod text_item;
 
 /// This is an raw ring item.   Raw in the
 /// sense that the payload is just a soup of bytes.
@@ -63,7 +64,7 @@ impl RingItem {
     ///
     pub fn new_with_body_header(t: u32, stamp: u64, source: u32, barrier: u32) -> RingItem {
         let mut result = RingItem::new(t);
-        result.body_header_size = (3 * mem::size_of::<u32>() + mem::size_of::<u64>()) as u32;
+        result.body_header_size = (body_header_size() + mem::size_of::<u32>()) as u32;
 
         result.add(stamp);
         result.add(source);
@@ -184,6 +185,23 @@ pub fn systime_to_raw(stamp: time::SystemTime) -> u32 {
     (secs & 0xffffffff) as u32
 }
 
+pub fn body_header_size() -> usize {
+    (mem::size_of::<u64>() + 2 * mem::size_of::<u32>())
+}
+
+pub fn string_len(d: &[u8]) -> usize {
+    let mut result = 0;
+    for c in d {
+        if *c == (0 as u8) {
+            break;
+        } else {
+            result = result + 1;
+        }
+    }
+
+    return result;
+}
+
 #[derive(PartialEq)]
 pub enum RingVersion {
     V11,
@@ -192,9 +210,11 @@ pub enum RingVersion {
 
 // Ring item types:
 
-const FORMAT_ITEM: u32 = 12;
 const BEGIN_RUN: u32 = 1;
 const END_RUN: u32 = 2;
 const PAUSE_RUN: u32 = 3;
 const RESUME_RUN: u32 = 4;
+const PACKET_TYPES: u32 = 10;
+const MONITORED_VARIABLES: u32 = 11;
+const FORMAT_ITEM: u32 = 12;
 const PERIODIC_SCALERS: u32 = 20;
