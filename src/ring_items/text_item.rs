@@ -102,7 +102,7 @@ impl TextItem {
 
     // Conversions.
 
-    pub fn from_raw(raw: &ring_items::RingItem, vers : ring_items::RingVersion) -> Option<TextItem> {
+    pub fn from_raw(raw: &ring_items::RingItem, vers: ring_items::RingVersion) -> Option<TextItem> {
         // figure out the correct value for the
         // type:
 
@@ -155,5 +155,42 @@ impl TextItem {
         } else {
             None
         }
+    }
+    /// Covert to a raw type
+
+    pub fn to_raw(&self) -> ring_items::RingItem {
+        // Create the base raw item with the body header if needed.
+
+        let type_id = Self::item_type_to_int(self.item_type);
+        let mut result = if let Some(hdr) = self.body_header {
+            ring_items::RingItem::new_with_body_header(
+                type_id,
+                hdr.timestamp,
+                hdr.source_id,
+                hdr.barrier_type,
+            )
+        } else {
+            ring_items::RingItem::new(type_id)
+        };
+        // Add all the fields that a text item needs in the raw item:
+
+        result.add(self.time_offset);
+        result.add(ring_items::systime_to_raw(self.absolute_time));
+        result.add(self.strings.len() as u32);
+        result.add(self.offset_divisor);
+        if let Some(sid) = self.original_sid {
+            result.add(sid);
+        }
+        // Now add the strings with a null terimantor separating each:
+        // note that into_bytes consumes the string so we clone
+        // and that it does not have a null terminator so we add one
+
+        for s in &self.strings {
+            let mut bytes = String::into_bytes(s.clone());
+            bytes.push(0); // Null terminator.
+            result.add_byte_vec(&bytes);
+        }
+
+        result
     }
 }
