@@ -80,8 +80,8 @@ impl ScalerItem {
             // Pull parameters from the raw item:
 
             let body_header = raw.get_bodyheader();
-            let offset : usize = if let Some(_b) = body_header {
-                ring_items::body_header_size() 
+            let offset: usize = if let Some(_b) = body_header {
+                ring_items::body_header_size()
             } else {
                 0
             };
