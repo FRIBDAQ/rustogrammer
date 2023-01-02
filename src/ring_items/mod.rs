@@ -167,6 +167,11 @@ impl RingItem {
     pub fn payload(&self) -> &Vec<u8> {
         &(self.payload)
     }
+    pub fn add_byte_vec(&mut self, v: &Vec<u8>) {
+        for b in v {
+            self.add(*b);
+        }
+    }
 }
 /// convert a u32 into a SystemTime:
 
