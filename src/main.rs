@@ -71,6 +71,11 @@ fn dump_items(f: &mut File) {
                 let raw = sc.to_raw();
                 println!("Recreated size {} type: {}", raw.size(), raw.type_id());
             }
+            if let Some(t) = text_item::TextItem::from_raw(&item, ring_items::RingVersion::V11) {
+                dump_text(&t);
+                let raw = t.to_raw();
+                println!("Recreated size {} type: {}", raw.size(), raw.type_id());
+            }
         } else {
             println!("done");
             break;
@@ -122,4 +127,19 @@ fn dump_scaler(sc: &mut scaler_item::ScalerItem) {
     for s in &scalers {
         println!("    {} counts", *s);
     }
+}
+
+fn dump_text(t : & text_item::TextItem) {
+    println!("Text Item: ");
+    println!("  type: {}", t.get_item_type_string());
+    println!("  Offset {} secs , time {} " , 
+        t.get_offset_secs(), humantime::format_rfc3339(t.get_absolute_time())
+    );
+    if let Some(sid) = t.get_original_sid() {
+        println!("Original sid:  {}", sid);
+    }
+    for i in 0..t.get_string_count() {
+        println!("String: {} : {}", i, t.get_string(i).unwrap());
+    }
+
 }
