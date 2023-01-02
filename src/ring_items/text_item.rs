@@ -38,7 +38,7 @@ impl TextItem {
             TextItemType::MonitoredVariables => ring_items::MONITORED_VARIABLES,
         }
     }
-    fn string_from_item_type(item_type: TextItemType, vers: ring_items::RingVersion) -> String {
+    fn string_from_item_type(item_type: TextItemType) -> String {
         match item_type {
             TextItemType::PacketTypes => String::from("Packet Types"),
             TextItemType::MonitoredVariables => String::from("Monitored variables"),
@@ -77,6 +77,9 @@ impl TextItem {
     pub fn get_item_type(&self) -> TextItemType {
         self.item_type
     }
+    pub fn get_item_type_string(&self) -> String {
+        Self::string_from_item_type(self.item_type)
+    }
     pub fn get_body_header(&self) -> Option<ring_items::BodyHeader> {
         self.body_header
     }
@@ -86,8 +89,14 @@ impl TextItem {
     pub fn get_offset_secs(&self) -> f32 {
         (self.time_offset as f32) / (self.offset_divisor as f32)
     }
+    pub fn get_absolute_time(&self) -> time::SystemTime {
+        self.absolute_time
+    }
     pub fn get_original_sid(&self) -> Option<u32> {
         self.original_sid
+    }
+    pub fn get_string_count(&self) -> usize {
+        self.strings.len()
     }
     pub fn get_strings(&self) -> Vec<String> {
         self.strings.clone()
