@@ -199,10 +199,10 @@ impl StateChange {
         let mut title = self.run_title.clone();
         title.truncate(79);
         let title_bytes = String::into_bytes(title.clone());
-        for c in title_bytes {
-            item.add(c);
-        }
+        item.add_byte_vec(&title_bytes);
 
+        // Pad out with nulls and ensure there's a null terminator
+        // which  is not put in title_bytes by into_bytes.
         for _i in title.len()..81 {
             item.add(0 as u8);
         }
