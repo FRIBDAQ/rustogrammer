@@ -22,7 +22,7 @@ fn main() {
     println!("  sid     : {}", hdr.source_id);
     println!(" barrier  : {}", hdr.barrier_type);
 
-    if let Ok(mut f) = File::open("run-0000-00.evt") {
+    if let Ok(mut f) = File::open("run-0088-00.evt") {
         dump_items(&mut f);
     } else {
         println!("Failed to open input file");
@@ -129,11 +129,13 @@ fn dump_scaler(sc: &mut scaler_item::ScalerItem) {
     }
 }
 
-fn dump_text(t : & text_item::TextItem) {
+fn dump_text(t: &text_item::TextItem) {
     println!("Text Item: ");
     println!("  type: {}", t.get_item_type_string());
-    println!("  Offset {} secs , time {} " , 
-        t.get_offset_secs(), humantime::format_rfc3339(t.get_absolute_time())
+    println!(
+        "  Offset {} secs , time {} ",
+        t.get_offset_secs(),
+        humantime::format_rfc3339(t.get_absolute_time())
     );
     if let Some(sid) = t.get_original_sid() {
         println!("Original sid:  {}", sid);
@@ -141,5 +143,4 @@ fn dump_text(t : & text_item::TextItem) {
     for i in 0..t.get_string_count() {
         println!("String: {} : {}", i, t.get_string(i).unwrap());
     }
-
 }
