@@ -4,6 +4,7 @@ use ring_items::format_item;
 use ring_items::scaler_item;
 use ring_items::state_change;
 use ring_items::text_item;
+use ring_items::event_item;
 use std::fs::File;
 
 fn main() {
@@ -129,21 +130,11 @@ fn dump_scaler(sc: &mut scaler_item::ScalerItem) {
     }
 }
 
-<<<<<<< HEAD
-fn dump_text(t: &text_item::TextItem) {
-    println!("Text Item: ");
-    println!("  type: {}", t.get_item_type_string());
-    println!(
-        "  Offset {} secs , time {} ",
-        t.get_offset_secs(),
-        humantime::format_rfc3339(t.get_absolute_time())
-=======
 fn dump_text(t : & text_item::TextItem) {
     println!("Text Item: ");
     println!("  type: {}", t.get_item_type_string());
     println!("  Offset {} secs , time {} " , 
         t.get_offset_secs(), humantime::format_rfc3339(t.get_absolute_time())
->>>>>>> 0ee98910b927470db7be51d0ee5f1dc167931cb7
     );
     if let Some(sid) = t.get_original_sid() {
         println!("Original sid:  {}", sid);
@@ -151,9 +142,4 @@ fn dump_text(t : & text_item::TextItem) {
     for i in 0..t.get_string_count() {
         println!("String: {} : {}", i, t.get_string(i).unwrap());
     }
-<<<<<<< HEAD
 }
-=======
-
-}
->>>>>>> 0ee98910b927470db7be51d0ee5f1dc167931cb7

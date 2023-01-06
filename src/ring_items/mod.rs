@@ -4,6 +4,7 @@ use std::mem;
 use std::ops::Add;
 use std::time;
 
+pub mod event_item;
 pub mod format_item;
 pub mod scaler_item;
 pub mod state_change;
@@ -167,6 +168,9 @@ impl RingItem {
     pub fn payload(&self) -> &Vec<u8> {
         &(self.payload)
     }
+    pub fn payload_mut(&mut self) -> &mut Vec<u8> {
+        &mut (self.payload)
+    }
     pub fn add_byte_vec(&mut self, v: &Vec<u8>) {
         for b in v {
             self.add(*b);
@@ -223,3 +227,4 @@ const PACKET_TYPES: u32 = 10;
 const MONITORED_VARIABLES: u32 = 11;
 const FORMAT_ITEM: u32 = 12;
 const PERIODIC_SCALERS: u32 = 20;
+const PHYSICS_EVENT: u32 = 30;
