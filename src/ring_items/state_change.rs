@@ -181,11 +181,9 @@ impl StateChange {
             ring_items::RingItem::new(self.type_id())
         };
         // Put in the other stuff:
-        item.add(self.run_number);
-        item.add(self.time_offset);
+        item.add(self.run_number).add(self.time_offset);
         let secsu32 = ring_items::systime_to_raw(self.absolute_time);
-        item.add(secsu32);
-        item.add(self.offset_divisor);
+        item.add(secsu32).add(self.offset_divisor);
 
         // If there's an original sid it goes here:
 
