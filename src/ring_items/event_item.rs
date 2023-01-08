@@ -1,5 +1,7 @@
 use crate::ring_items;
+use std::iter;
 use std::mem;
+
 ///
 /// This module contains code to handle physics event items.
 /// What we're going to do is treat an event item body as a vector
@@ -120,5 +122,18 @@ impl PhysicsEvent {
     ///
     pub fn body_size(&self) -> usize {
         self.event_data.len()
+    }
+}
+
+impl Iterator for PhysicsEvent {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(result) = self.get() {
+            Some(result)
+        } else {
+            self.rewind();
+            None
+        }
     }
 }
