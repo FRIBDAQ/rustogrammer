@@ -7,7 +7,7 @@ use std::mem;
 /// fetch generically from the soup of bytes with cursor movement.
 ///  We'll also provide for insertion as the raw item can do.
 
-struct PhysicsEvent {
+pub struct PhysicsEvent {
     body_header: Option<ring_items::BodyHeader>,
     get_cursor: usize,
     event_data: Vec<u8>,
@@ -63,8 +63,7 @@ impl PhysicsEvent {
         };
         // Now just Append our data to the payload:
 
-        result.payload_mut().append(&mut self.event_data);
-
+        result.add_byte_vec(&mut self.event_data);
         result
     }
     // Add data to the payload:
@@ -87,10 +86,10 @@ impl PhysicsEvent {
     // Get an item of a type from the event_data incrementing the
     // cursor.  T must implement a copy trait.
 
-    pub fn get<T : Copy>(&mut self) -> Option<T> {
+    pub fn get<T: Copy>(&mut self) -> Option<T> {
         // Make sure there;s enough stuff in the event for item T.
 
-        if (self.get_cursor < (self.event_data.len() + 1 - mem::size_of::<T>())) {
+        if self.get_cursor < (self.event_data.len() + 1 - mem::size_of::<T>()) {
             let mut p = self.event_data.as_ptr();
             unsafe {
                 p = p.offset(self.get_cursor as isize);
@@ -104,5 +103,22 @@ impl PhysicsEvent {
         } else {
             None // Out of range.
         }
+    }
+    ///
+    /// Reset the get -cursor to  the beginning.
+    ///
+    pub fn rewind(&mut self) {
+        self.get_cursor = 0;
+    }
+    ///
+    /// Return the body header:
+    ///
+    pub fn get_bodyheader(&self) -> Option<ring_items::BodyHeader> {
+        self.body_header
+    }
+    ///  Size of event body:
+    ///
+    pub fn body_size(&self) -> usize {
+        self.event_data.len()
     }
 }
