@@ -195,7 +195,7 @@ pub fn systime_to_raw(stamp: time::SystemTime) -> u32 {
 }
 
 pub fn body_header_size() -> usize {
-    (mem::size_of::<u64>() + 2 * mem::size_of::<u32>())
+    mem::size_of::<u64>() + 2 * mem::size_of::<u32>()
 }
 
 pub fn string_len(d: &[u8]) -> usize {
