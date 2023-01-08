@@ -137,7 +137,8 @@ impl ScalerItem {
 
         // Now the rest of the item:
 
-        result.add(self.start_offset)
+        result
+            .add(self.start_offset)
             .add(self.end_offset)
             .add(ring_items::systime_to_raw(self.absolute_time))
             .add(self.divisor)
