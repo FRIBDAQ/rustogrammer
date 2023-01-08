@@ -1,10 +1,10 @@
 mod ring_items;
 use humantime;
+use ring_items::event_item;
 use ring_items::format_item;
 use ring_items::scaler_item;
 use ring_items::state_change;
 use ring_items::text_item;
-use ring_items::event_item;
 use std::fs::File;
 
 fn main() {
@@ -77,6 +77,11 @@ fn dump_items(f: &mut File) {
                 let raw = t.to_raw();
                 println!("Recreated size {} type: {}", raw.size(), raw.type_id());
             }
+            if let Some(mut e) = event_item::PhysicsEvent::from_raw(&item) {
+                dump_event(&mut e);
+                let raw = e.to_raw();
+                println!("Recreated size {} type: {}", raw.size(), raw.type_id());
+            }
         } else {
             println!("done");
             break;
@@ -130,16 +135,44 @@ fn dump_scaler(sc: &mut scaler_item::ScalerItem) {
     }
 }
 
-fn dump_text(t : & text_item::TextItem) {
+fn dump_text(t: &text_item::TextItem) {
     println!("Text Item: ");
     println!("  type: {}", t.get_item_type_string());
-    println!("  Offset {} secs , time {} " , 
-        t.get_offset_secs(), humantime::format_rfc3339(t.get_absolute_time())
+    println!(
+        "  Offset {} secs , time {} ",
+        t.get_offset_secs(),
+        humantime::format_rfc3339(t.get_absolute_time())
     );
     if let Some(sid) = t.get_original_sid() {
         println!("Original sid:  {}", sid);
     }
     for i in 0..t.get_string_count() {
         println!("String: {} : {}", i, t.get_string(i).unwrap());
+    }
+}
+
+fn dump_event(e: &mut event_item::PhysicsEvent) {
+    println!("Physics Event:");
+    if let Some(bh) = e.get_bodyheader() {
+        println!(
+            "There's a body header {} {} {}",
+            bh.timestamp, bh.source_id, bh.barrier_type
+        );
+    }
+    let mut in_line = 0;
+    loop {
+        if let Some::<u16>(word) = e.get() {
+            print!("{:#04x} ", word);
+            in_line = in_line + 1;
+            if in_line == 8 {
+                println!("");
+                in_line = 0;
+            }
+        } else {
+            break;
+        }
+    }
+    if in_line != 0 {
+        println!("");
     }
 }
