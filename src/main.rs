@@ -91,7 +91,7 @@ fn dump_items(f: &mut File) {
 fn dump_body_header(item: &ring_items::RingItem) {
     let header = item.get_bodyheader().unwrap();
     println!("Body header:");
-    println!("   timestamp: {:#08x}", header.timestamp);
+    println!("   timestamp: {:0>8x}", header.timestamp);
     println!("   sourceid:  {}", header.source_id);
     println!("   barrier:   {}", header.barrier_type);
 }
@@ -162,7 +162,7 @@ fn dump_event(e: &mut event_item::PhysicsEvent) {
     let mut in_line = 0;
     loop {
         if let Some::<u16>(word) = e.get() {
-            print!("{:#04x} ", word);
+            print!("{:0>4x} ", word);
             in_line = in_line + 1;
             if in_line == 8 {
                 println!("");
@@ -170,6 +170,20 @@ fn dump_event(e: &mut event_item::PhysicsEvent) {
             }
         } else {
             break;
+        }
+    }
+    if in_line != 0 {
+        println!("");
+    }
+    e.rewind();
+
+    in_line = 0;
+    for x in e {
+        print!("{:0>2x} ", x);
+        in_line = in_line + 1;
+        if in_line == 8 {
+            println!("");
+            in_line = 0;
         }
     }
     if in_line != 0 {
