@@ -9,6 +9,7 @@ pub mod format_item;
 pub mod scaler_item;
 pub mod state_change;
 pub mod text_item;
+pub mod triggers_item;
 
 /// This is an raw ring item.   Raw in the
 /// sense that the payload is just a soup of bytes.
