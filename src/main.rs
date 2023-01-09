@@ -83,6 +83,11 @@ fn dump_items(f: &mut File) {
                 let raw = e.to_raw();
                 println!("Recreated size {} type: {}", raw.size(), raw.type_id());
             }
+            if let Some(count) = triggers_item::PhysicsEventCountItem::from_raw(&item, ring_items::RingVersion::V11) {
+                dump_count_item(&count);
+                let raw = count.to_raw();
+                println!("Recreate size: {} type: {}", raw.size(), raw.type_id());
+            }
         } else {
             println!("done");
             break;
@@ -189,5 +194,21 @@ fn dump_event(e: &mut event_item::PhysicsEvent) {
     }
     if in_line != 0 {
         println!("");
+    }
+}
+fn dump_count_item(c : &triggers_item::PhysicsEventCountItem) {
+    println!("Trigger count information: ");
+    if let Some(bh) = c.get_bodyheader() {
+        println!("bodyheader : ts {:0>8x} sid {} barrier {}",
+            bh.timestamp, bh.source_id, bh.barrier_type
+        );
+    }
+    println!("{} Seconds in the run at {} : {} Triggers",
+        c.get_offset_time(),  
+        humantime::format_rfc3339(c.get_absolute_time()),
+        c.get_event_count()
+    );
+    if let Some(sid) = c.get_original_sid() {
+        println!("Original sid: {}", sid);
     }
 }
