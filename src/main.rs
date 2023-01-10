@@ -2,6 +2,7 @@ mod ring_items;
 use humantime;
 use ring_items::event_item;
 use ring_items::format_item;
+use ring_items::glom_parameters;
 use ring_items::scaler_item;
 use ring_items::state_change;
 use ring_items::text_item;
@@ -9,20 +10,6 @@ use ring_items::triggers_item;
 use std::fs::File;
 
 fn main() {
-    let item = ring_items::RingItem::new(1);
-    let item2 = ring_items::RingItem::new_with_body_header(2, 0x123456789, 2, 0);
-
-    println!("Size: {}", item.size());
-    println!("Type: {}", item.type_id());
-    println!("Has body header: {}", item.has_body_header());
-
-    println!("Size: {}", item2.size());
-    println!("Type: {}", item2.type_id());
-    println!("Has body header:{}", item2.has_body_header());
-    let hdr = item2.get_bodyheader().unwrap();
-    println!(" timestamp: {:#08x}", hdr.timestamp);
-    println!("  sid     : {}", hdr.source_id);
-    println!(" barrier  : {}", hdr.barrier_type);
 
     if let Ok(mut f) = File::open("run-0088-00.evt") {
         dump_items(&mut f);
@@ -83,10 +70,17 @@ fn dump_items(f: &mut File) {
                 let raw = e.to_raw();
                 println!("Recreated size {} type: {}", raw.size(), raw.type_id());
             }
-            if let Some(count) = triggers_item::PhysicsEventCountItem::from_raw(&item, ring_items::RingVersion::V11) {
+            if let Some(count) =
+                triggers_item::PhysicsEventCountItem::from_raw(&item, ring_items::RingVersion::V11)
+            {
                 dump_count_item(&count);
                 let raw = count.to_raw();
                 println!("Recreate size: {} type: {}", raw.size(), raw.type_id());
+            }
+            if let Some(gp) = glom_parameters::GlomParameters::from_raw(&item) {
+                dump_glom_parameters(&gp);
+                let raw = gp.to_raw();
+                println!("Recreate size: {} type:{}", raw.size(), raw.type_id());
             }
         } else {
             println!("done");
@@ -196,19 +190,27 @@ fn dump_event(e: &mut event_item::PhysicsEvent) {
         println!("");
     }
 }
-fn dump_count_item(c : &triggers_item::PhysicsEventCountItem) {
+fn dump_count_item(c: &triggers_item::PhysicsEventCountItem) {
     println!("Trigger count information: ");
     if let Some(bh) = c.get_bodyheader() {
-        println!("bodyheader : ts {:0>8x} sid {} barrier {}",
+        println!(
+            "bodyheader : ts {:0>8x} sid {} barrier {}",
             bh.timestamp, bh.source_id, bh.barrier_type
         );
     }
-    println!("{} Seconds in the run at {} : {} Triggers",
-        c.get_offset_time(),  
+    println!(
+        "{} Seconds in the run at {} : {} Triggers",
+        c.get_offset_time(),
         humantime::format_rfc3339(c.get_absolute_time()),
         c.get_event_count()
     );
     if let Some(sid) = c.get_original_sid() {
         println!("Original sid: {}", sid);
     }
+}
+fn dump_glom_parameters(gp : &glom_parameters::GlomParameters) {
+    println!("Glom Parameters item");
+    println!("Coincidence interval {}, building? {}, ts policy {}",
+        gp.get_coincidence_interval(), gp.is_building(), gp.policy_string()
+    );
 }
