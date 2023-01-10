@@ -6,6 +6,7 @@ use std::time;
 
 pub mod event_item;
 pub mod format_item;
+pub mod glom_parameters;
 pub mod scaler_item;
 pub mod state_change;
 pub mod text_item;
@@ -230,3 +231,4 @@ const FORMAT_ITEM: u32 = 12;
 const PERIODIC_SCALERS: u32 = 20;
 const PHYSICS_EVENT: u32 = 30;
 const PHYSICS_EVENT_COUNT: u32 = 31;
+const GLOM_INFO: u32 = 42;
