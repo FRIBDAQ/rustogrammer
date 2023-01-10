@@ -4,6 +4,8 @@ use std::mem;
 use std::ops::Add;
 use std::time;
 
+pub mod abnormal_end;
+pub mod analysis_ring_items;
 pub mod event_item;
 pub mod format_item;
 pub mod glom_parameters;
@@ -232,3 +234,13 @@ const PERIODIC_SCALERS: u32 = 20;
 const PHYSICS_EVENT: u32 = 30;
 const PHYSICS_EVENT_COUNT: u32 = 31;
 const GLOM_INFO: u32 = 42;
+const ABNORMAL_END: u32 = 5;
+
+// These ring item types are products of the FRIB analysis pipeline:
+
+/// Contains the correspondences between parameter names and ids.
+const PARAMETER_DEFINITIONS: u32 = 32768;
+/// Contains the values of steering variables
+const VARIABLE_VALUES: u32 = 32769;
+/// Contains the actual parameter_id:value pairs for an event.
+const PARAMETER_DATA: u32 = 32770;
