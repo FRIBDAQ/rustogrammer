@@ -74,7 +74,7 @@ impl ParameterDefinitions {
 
         result
     }
-
+    /// provide an iterator over the variable defs.
     pub fn iter(&self) -> Iter<'_, ParameterDefinition> {
         self.defs.iter()
     }
@@ -138,6 +138,8 @@ impl VariableValues {
             defs: Vec::<VariableValue>::new(),
         }
     }
+    /// Provide an iterator over the variable value records.
+
     pub fn iter(&self) -> Iter<'_, VariableValue> {
         self.defs.iter()
     }
@@ -185,5 +187,11 @@ impl VariableValues {
             result.add_byte_vec(&title_bytes);
         }
         result
+    }
+    /// Add a new variable value/def.
+
+    pub fn add_def(&mut self, def: VariableValue) -> &mut Self {
+        self.defs.push(def);
+        self
     }
 }
