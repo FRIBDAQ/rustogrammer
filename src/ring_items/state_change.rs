@@ -156,13 +156,7 @@ impl StateChange {
                 title_pos = title_pos + 4;
             }
 
-            let title_len = Self::string_len(&payload[title_pos..]);
-            result.run_title = String::from_utf8(
-                payload[title_pos..title_pos + title_len]
-                    .try_into()
-                    .unwrap(),
-            )
-            .unwrap();
+            result.run_title = ring_items::get_c_string(&mut title_pos, &payload);
             return Some(result);
         } else {
             return None;

@@ -214,6 +214,12 @@ pub fn string_len(d: &[u8]) -> usize {
 
     return result;
 }
+pub fn get_c_string(offset: &mut usize, bytes: &[u8]) -> String {
+    let o: usize = *offset;
+    let slen = string_len(&bytes[o..]);
+    *offset = o + slen + 1;
+    String::from_utf8(bytes[o..o + slen].try_into().unwrap()).unwrap()
+}
 
 #[derive(PartialEq)]
 pub enum RingVersion {

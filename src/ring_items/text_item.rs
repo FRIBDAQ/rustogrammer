@@ -153,11 +153,9 @@ impl TextItem {
             // offset is the offset of the first string.
 
             for _ in 0..num_string {
-                let slen = ring_items::string_len(&p[offset..]);
                 result
                     .strings
-                    .push(String::from_utf8(p[offset..offset + slen].try_into().unwrap()).unwrap());
-                offset = offset + slen;
+                    .push(ring_items::get_c_string(&mut offset, &p));
             }
 
             Some(result)
