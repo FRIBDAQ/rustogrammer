@@ -1,6 +1,7 @@
 mod ring_items;
 use humantime;
 use ring_items::abnormal_end;
+use ring_items::analysis_ring_items;
 use ring_items::event_item;
 use ring_items::format_item;
 use ring_items::glom_parameters;
@@ -86,6 +87,11 @@ fn dump_items(f: &mut File) {
                 println!("Abnormal end");
                 let raw = ae.to_raw();
                 println!("Recreate size: {} type {}", raw.size(), raw.type_id());
+            }
+            if let Some(pd) = analysis_ring_items::ParameterDefinitions::from_raw(&item) {
+                dump_parameter_defs(&pd);
+                let raw = pd.to_raw();
+                println!("Recreate: size: {} type: {}", raw.size(), raw.type_id());
             }
         } else {
             println!("done");
@@ -221,4 +227,11 @@ fn dump_glom_parameters(gp: &glom_parameters::GlomParameters) {
         gp.is_building(),
         gp.policy_string()
     );
+}
+
+fn dump_parameter_defs(pd: &analysis_ring_items::ParameterDefinitions) {
+    println!("Parameter definiions item:");
+    for d in pd.iter() {
+        println!("Name: {}, id {}", d.name(), d.id());
+    }
 }
