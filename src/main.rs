@@ -98,6 +98,11 @@ fn dump_items(f: &mut File) {
                 let raw = vd.to_raw();
                 println!("Recreate size: {} type {}", raw.size(), raw.type_id());
             }
+            if let Some(pv) = analysis_ring_items::ParameterItem::from_raw(&item) {
+                dump_parameter_values(&pv);
+                let raw = pv.to_raw();
+                println!("Recreate size {} type {}", raw.size(), raw.type_id());
+            }
         } else {
             println!("done");
             break;
@@ -250,5 +255,11 @@ fn dump_variables(vd: &analysis_ring_items::VariableValues) {
             def.value(),
             def.units()
         );
+    }
+}
+fn dump_parameter_values(pv: &analysis_ring_items::ParameterItem) {
+    println!("Parameters for trigger # {}", pv.trigger());
+    for p in pv.iter() {
+        println!("   ID: {} Value {}", p.id(), p.value());
     }
 }

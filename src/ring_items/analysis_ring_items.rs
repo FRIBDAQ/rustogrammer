@@ -195,3 +195,86 @@ impl VariableValues {
         self
     }
 }
+//---------------------------------------------------------------
+// Parameter values from an event:
+//---------------------------------------------------------------
+#[derive(Clone, Copy)]
+pub struct ParameterValue {
+    id: u32,
+    value: f64,
+}
+
+impl ParameterValue {
+    pub fn new(id: u32, value: f64) -> ParameterValue {
+        ParameterValue {
+            id: id,
+            value: value,
+        }
+    }
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+    pub fn value(&self) -> f64 {
+        self.value
+    }
+}
+
+pub struct ParameterItem {
+    trigger: u64,
+    parameters: Vec<ParameterValue>,
+}
+
+impl ParameterItem {
+    pub fn new(trigger: u64) -> ParameterItem {
+        ParameterItem {
+            trigger: trigger,
+            parameters: Vec::<ParameterValue>::new(),
+        }
+    }
+    /// Create a new item from a raw ring item if possible.
+
+    pub fn from_raw(raw: &ring_items::RingItem) -> Option<ParameterItem> {
+        if raw.type_id() == ring_items::PARAMETER_DATA {
+            let payload = raw.payload().as_slice();
+            let trigger: u64 = u64::from_ne_bytes(payload[0..8].try_into().unwrap());
+            let mut result = Self::new(trigger);
+            let num = u32::from_ne_bytes(payload[8..12].try_into().unwrap());
+            let mut offset = 12; // First id/value pair.
+            for _ in 0..num {
+                let id = u32::from_ne_bytes(payload[offset..offset + 4].try_into().unwrap());
+                let value =
+                    f64::from_ne_bytes(payload[offset + 4..offset + 20].try_into().unwrap());
+                result.parameters.push(ParameterValue::new(id, value));
+                offset = offset + 20;
+            }
+
+            Some(result)
+        } else {
+            None
+        }
+    }
+    /// Convert a parameter values item into a raw one.
+    pub fn to_raw(&self) -> ring_items::RingItem {
+        // Never any body header so:
+
+        let mut result = ring_items::RingItem::new(ring_items::PARAMETER_DATA);
+        result.add(self.trigger).add(self.parameters.len() as u32);
+        for p in &self.parameters {
+            result.add(p.id()).add(p.value());
+        }
+
+        result
+    }
+    pub fn add(&mut self, id: u32, value: f64) {
+        self.parameters.push(ParameterValue::new(id, value));
+    }
+    pub fn add_parameter(&mut self, p: ParameterValue) {
+        self.parameters.push(p);
+    }
+    pub fn iter(&self) -> Iter<'_, ParameterValue> {
+        self.parameters.iter()
+    }
+    pub fn trigger(&self) -> u64 {
+        self.trigger
+    }
+}
