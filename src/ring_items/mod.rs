@@ -263,4 +263,33 @@ mod tests {
         assert_eq!(0, item.payload.len());
         assert_eq!(3 * mem::size_of::<u32>() as u32, item.size);
     }
+    #[test]
+    fn new2() {
+        let item = RingItem::new_with_body_header(1234, 0xffffffffffffffff, 2, 0);
+        assert_eq!(1234, item.type_id);
+        assert_eq!(
+            (3 * mem::size_of::<u32>() + mem::size_of::<u64>()) as u32,
+            item.body_header_size
+        );
+        assert_eq!(
+            (5 * mem::size_of::<u32>() + mem::size_of::<u64>()) as u32,
+            item.size
+        );
+        assert_eq!(
+            2 * mem::size_of::<u32>() + mem::size_of::<u64>(),
+            item.payload.len()
+        );
+    
+    }
+    #[test]
+    fn new3() {
+        let item = RingItem::new_with_body_header(1234, 0xffffffffffffffff, 2, 0);
+        let p = item.payload().as_slice();
+        assert_eq!(
+            0xffffffffffffffff,
+            u64::from_ne_bytes(p[0..8].try_into().unwrap())
+        );
+        assert_eq!(2, u32::from_ne_bytes(p[8..12].try_into().unwrap()));
+        assert_eq!(0, u32::from_ne_bytes(p[12..16].try_into().unwrap()));
+    }
 }
