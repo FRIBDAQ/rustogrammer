@@ -87,6 +87,28 @@ impl RingItem {
     pub fn has_body_header(&self) -> bool {
         self.body_header_size > mem::size_of::<u32>() as u32
     }
+    /// Fetch the body header from the payload... if there is one.
+    ///
+    pub fn get_bodyheader(&self) -> Option<BodyHeader> {
+        if self.has_body_header() {
+            return Some(BodyHeader {
+                timestamp: u64::from_ne_bytes(self.payload.as_slice()[0..8].try_into().unwrap()),
+                source_id: u32::from_ne_bytes(self.payload.as_slice()[8..12].try_into().unwrap()),
+                barrier_type: u32::from_ne_bytes(
+                    self.payload.as_slice()[12..16].try_into().unwrap(),
+                ),
+            });
+        } else {
+            return None;
+        }
+    }
+    pub fn payload(&self) -> &Vec<u8> {
+        &(self.payload)
+    }
+    pub fn payload_mut(&mut self) -> &mut Vec<u8> {
+        &mut (self.payload)
+    }
+
     ///  Add an object of type T to the ring buffer.  Note
     /// That the raw bytes are added therefore the item must
     /// not contain e.g. pointers.
@@ -106,6 +128,11 @@ impl RingItem {
         }
         self.size = self.size + mem::size_of::<T>() as u32;
         self
+    }
+    pub fn add_byte_vec(&mut self, v: &Vec<u8>) {
+        for b in v {
+            self.add(*b);
+        }
     }
     /// Read a ring item from file.
 
@@ -153,32 +180,6 @@ impl RingItem {
         }
 
         Ok(item)
-    }
-    /// Fetch the body header from the payload... if there is one.
-    ///
-    pub fn get_bodyheader(&self) -> Option<BodyHeader> {
-        if self.has_body_header() {
-            return Some(BodyHeader {
-                timestamp: u64::from_ne_bytes(self.payload.as_slice()[0..8].try_into().unwrap()),
-                source_id: u32::from_ne_bytes(self.payload.as_slice()[8..12].try_into().unwrap()),
-                barrier_type: u32::from_ne_bytes(
-                    self.payload.as_slice()[12..16].try_into().unwrap(),
-                ),
-            });
-        } else {
-            return None;
-        }
-    }
-    pub fn payload(&self) -> &Vec<u8> {
-        &(self.payload)
-    }
-    pub fn payload_mut(&mut self) -> &mut Vec<u8> {
-        &mut (self.payload)
-    }
-    pub fn add_byte_vec(&mut self, v: &Vec<u8>) {
-        for b in v {
-            self.add(*b);
-        }
     }
 }
 /// convert a u32 into a SystemTime:
@@ -279,7 +280,6 @@ mod tests {
             2 * mem::size_of::<u32>() + mem::size_of::<u64>(),
             item.payload.len()
         );
-    
     }
     #[test]
     fn new3() {
@@ -291,5 +291,21 @@ mod tests {
         );
         assert_eq!(2, u32::from_ne_bytes(p[8..12].try_into().unwrap()));
         assert_eq!(0, u32::from_ne_bytes(p[12..16].try_into().unwrap()));
+    }
+    #[test]
+    fn getters_1() {
+        let item = RingItem::new(1234);
+        assert_eq!(item.size, item.size());
+        assert_eq!(item.type_id, item.type_id());
+        assert_eq!(false, item.has_body_header());
+        if let Some(bh) = item.get_bodyheader() {
+            assert!(false);
+        }
+    }
+    #[test]
+    fn getters_2() {
+        let mut item = RingItem::new(1234);
+        assert_eq!(item.payload.len(), item.payload().len());
+        assert_eq!(item.payload.len(), item.payload_mut().len());
     }
 }
