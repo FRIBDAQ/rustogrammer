@@ -256,6 +256,7 @@ const PARAMETER_DATA: u32 = 32770;
 mod tests {
     use crate::ring_items::RingItem;
     use std::mem;
+    use std::ptr;
     #[test]
     fn new1() {
         let item = RingItem::new(1234);
@@ -307,5 +308,15 @@ mod tests {
         let mut item = RingItem::new(1234);
         assert_eq!(item.payload.len(), item.payload().len());
         assert_eq!(item.payload.len(), item.payload_mut().len());
+    }
+    #[test]
+    fn payload_1() {
+        let item = RingItem::new(1234);
+        assert!(ptr::eq(&item.payload, item.payload()));
+    }
+    #[test]
+    fn payload_2() {
+        let mut item = RingItem::new(2134);
+        assert!(ptr::eq(&mut item.payload, item.payload_mut()));
     }
 }
