@@ -250,3 +250,17 @@ const PARAMETER_DEFINITIONS: u32 = 32768;
 const VARIABLE_VALUES: u32 = 32769;
 /// Contains the actual parameter_id:value pairs for an event.
 const PARAMETER_DATA: u32 = 32770;
+
+#[cfg(test)]
+mod tests {
+    use crate::ring_items::RingItem;
+    use std::mem;
+    #[test]
+    fn new1() {
+        let item = RingItem::new(1234);
+        assert_eq!(1234, item.type_id);
+        assert_eq!(mem::size_of::<u32>() as u32, item.body_header_size);
+        assert_eq!(0, item.payload.len());
+        assert_eq!(3 * mem::size_of::<u32>() as u32, item.size);
+    }
+}

@@ -12,7 +12,7 @@ use ring_items::triggers_item;
 use std::fs::File;
 
 fn main() {
-    if let Ok(mut f) = File::open("run-0088-00.evt") {
+    if let Ok(mut f) = File::open("outfile.evt") {
         dump_items(&mut f);
     } else {
         println!("Failed to open input file");
