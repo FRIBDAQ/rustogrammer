@@ -256,10 +256,12 @@ const PARAMETER_DATA: u32 = 32770;
 #[cfg(test)]
 mod tests {
     use crate::ring_items::RingItem;
+    use std::io;
     use std::mem;
     use std::ptr;
+    use tempfile::tempfile;
     #[test]
-    fn new1() {
+    fn new_1() {
         let item = RingItem::new(1234);
         assert_eq!(1234, item.type_id);
         assert_eq!(mem::size_of::<u32>() as u32, item.body_header_size);
@@ -267,7 +269,7 @@ mod tests {
         assert_eq!(3 * mem::size_of::<u32>() as u32, item.size);
     }
     #[test]
-    fn new2() {
+    fn new_2() {
         let item = RingItem::new_with_body_header(1234, 0xffffffffffffffff, 2, 0);
         assert_eq!(1234, item.type_id);
         assert_eq!(
@@ -284,7 +286,7 @@ mod tests {
         );
     }
     #[test]
-    fn new3() {
+    fn new_3() {
         let item = RingItem::new_with_body_header(1234, 0xffffffffffffffff, 2, 0);
         let p = item.payload().as_slice();
         assert_eq!(

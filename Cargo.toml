@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 ndhistogram = "0.8.0"
 humantime = "2.1.0"
+tempfile  = "3.3.0"    # For tests that create ring item files.
 
