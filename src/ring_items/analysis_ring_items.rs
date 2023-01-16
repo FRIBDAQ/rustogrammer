@@ -278,3 +278,23 @@ impl ParameterItem {
         self.trigger
     }
 }
+#[cfg(test)]
+mod test_paramdef {
+    use crate::analysis_ring_items::ParameterDefinition;
+    #[test]
+    fn new_1() {
+        let def = ParameterDefinition::new(12, "Item");
+        assert_eq!(12, def.id);
+        assert_eq!(String::from("Item"), def.name);
+    }
+    #[test]
+    fn getter_1() {
+        let def = ParameterDefinition::new(12, "Item");
+        assert_eq!(String::from("Item"), def.name());
+    }
+    #[test]
+    fn getter_2() {
+        let def = ParameterDefinition::new(12, "Item");
+        assert_eq!(12, def.id());
+    }
+}
