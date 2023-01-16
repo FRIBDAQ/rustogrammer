@@ -280,9 +280,11 @@ const PARAMETER_DATA: u32 = 32770;
 #[cfg(test)]
 mod tests {
     use crate::ring_items::RingItem;
+    use humantime;
     use std::io::{Seek, Write};
     use std::mem;
     use std::ptr;
+    use std::time;
     use tempfile::tempfile;
     #[test]
     fn new_1() {
@@ -609,5 +611,19 @@ mod tests {
         assert_eq!(out_item.type_id, in_item.type_id);
         assert_eq!(out_item.body_header_size, in_item.body_header_size);
         assert_eq!(out_item.payload, in_item.payload);
+    }
+    // Unbound functions:
+    // Round time time conversion:
+
+    #[test]
+    fn time_1() {
+        let now = time::SystemTime::now();
+        let stamp = crate::ring_items::systime_to_raw(now);
+        let now2 = crate::ring_items::raw_to_systime(stamp);
+
+        assert_eq!(
+            format!("{}", humantime::format_rfc3339_seconds(now)),
+            format!("{}", humantime::format_rfc3339_seconds(now2))
+        );
     }
 }
