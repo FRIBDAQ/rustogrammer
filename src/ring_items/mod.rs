@@ -19,6 +19,7 @@ pub mod triggers_item;
 /// However it wil have methods that allow conversion of this item
 /// to more structured ring items based on the 'type' field.
 ///
+
 pub struct RingItem {
     size: u32,
     type_id: u32,
@@ -31,11 +32,20 @@ pub struct BodyHeader {
     pub source_id: u32,
     pub barrier_type: u32,
 }
-
+#[derive(Debug)]
 pub enum RingItemError {
     HeaderReadFailed,
     InvalidHeader,
     FileTooSmall,
+}
+impl RingItemError {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::HeaderReadFailed => String::from("Header read failed"),
+            Self::InvalidHeader => String::from("Invalid header"),
+            Self::FileTooSmall => String::from("File not large enough for ring item"),
+        }
+    }
 }
 pub type RingItemResult = Result<RingItem, RingItemError>;
 
@@ -499,7 +509,7 @@ mod tests {
         file.write(&out_item.payload).unwrap();
         file.rewind().unwrap();
 
-        let item = RingItem::read_item(&mut file).ok().unwrap();
+        let item = RingItem::read_item(&mut file).unwrap();
         assert_eq!(out_item.size, item.size);
         assert_eq!(out_item.type_id, item.type_id);
         assert_eq!(out_item.body_header_size, item.body_header_size);
@@ -520,7 +530,7 @@ mod tests {
         file.write(&out_item.payload).unwrap();
         file.rewind().unwrap();
 
-        let item = RingItem::read_item(&mut file).ok().unwrap();
+        let item = RingItem::read_item(&mut file).unwrap();
         assert_eq!(out_item.size, item.size);
         assert_eq!(out_item.type_id, item.type_id);
         assert_eq!(out_item.body_header_size, item.body_header_size);
@@ -534,12 +544,50 @@ mod tests {
         let mut file = tempfile().unwrap();
         let s = out_item.write_item(&mut file).unwrap();
         assert_eq!(s as u32, out_item.size);
-        
+
         file.rewind().unwrap();
-        let in_item = RingItem::read_item(&mut file).ok().unwrap();
+        let in_item = RingItem::read_item(&mut file).unwrap();
 
         assert_eq!(out_item.size, in_item.size);
         assert_eq!(out_item.type_id, in_item.type_id);
         assert_eq!(out_item.body_header_size, in_item.body_header_size);
+        assert_eq!(out_item.payload, in_item.payload);
+    }
+    #[test]
+    fn write_2() {
+        // write minimal item with body header.
+
+        let out_item = RingItem::new_with_body_header(1, 0x8877665544332211, 2, 0);
+        let mut file = tempfile().unwrap();
+        let s = out_item.write_item(&mut file).unwrap();
+        assert_eq!(s as u32, out_item.size);
+
+        file.rewind().unwrap();
+        let in_item = RingItem::read_item(&mut file).unwrap();
+
+        assert_eq!(out_item.size, in_item.size);
+        assert_eq!(out_item.type_id, in_item.type_id);
+        assert_eq!(out_item.body_header_size, in_item.body_header_size);
+        assert_eq!(out_item.payload, in_item.payload);
+    }
+    #[test]
+    fn write_3() {
+        // Write ring item with payload:
+
+        let mut out_item = RingItem::new(1);
+        let payload: Vec<u8> = vec![5, 4, 3, 2, 1, 0];
+        out_item.add_byte_vec(&payload);
+
+        let mut file = tempfile().unwrap();
+        let s = out_item.write_item(&mut file).unwrap();
+        assert_eq!(s as u32, out_item.size);
+
+        file.rewind().unwrap();
+        let in_item = RingItem::read_item(&mut file).unwrap();
+
+        assert_eq!(out_item.size, in_item.size);
+        assert_eq!(out_item.type_id, in_item.type_id);
+        assert_eq!(out_item.body_header_size, in_item.body_header_size);
+        assert_eq!(out_item.payload, in_item.payload);
     }
 }
