@@ -647,4 +647,16 @@ mod tests {
         bvec.push(0);
         assert_eq!(test_string.len(), crate::ring_items::string_len(&bvec));
     }
+    #[test]
+    fn getcstr_1() {
+        let test_string = String::from("Hello world");
+        let mut bvec = test_string.as_bytes().to_vec();
+        bvec.push(0);
+        let mut offset = 0;
+        assert_eq!(
+            test_string,
+            crate::ring_items::get_c_string(&mut offset, &bvec)
+        );
+        assert_eq!(test_string.len() + 1, offset);
+    }
 }
