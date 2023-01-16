@@ -526,4 +526,20 @@ mod tests {
         assert_eq!(out_item.body_header_size, item.body_header_size);
         assert_eq!(out_item.payload, item.payload);
     }
+    #[test]
+    fn write_1() {
+        // Write minimal item should read bnack the same.
+
+        let out_item = RingItem::new(1);
+        let mut file = tempfile().unwrap();
+        let s = out_item.write_item(&mut file).unwrap();
+        assert_eq!(s as u32, out_item.size);
+        
+        file.rewind().unwrap();
+        let in_item = RingItem::read_item(&mut file).ok().unwrap();
+
+        assert_eq!(out_item.size, in_item.size);
+        assert_eq!(out_item.type_id, in_item.type_id);
+        assert_eq!(out_item.body_header_size, in_item.body_header_size);
+    }
 }
