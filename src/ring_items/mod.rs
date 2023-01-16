@@ -391,4 +391,11 @@ mod tests {
         item.add(data[0]).add(data[1]).add(data[2]).add(data[3]);
         assert_eq!(data, item.payload);
     }
+    #[test]
+    fn addbvec_1() {
+        let data: Vec<u8> = vec![1, 2, 3, 4]; // So simple test:
+        let mut item = RingItem::new(1234);
+        item.add_byte_vec(&data);
+        assert_eq!(data, item.payload);
+    }
 }
