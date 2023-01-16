@@ -232,7 +232,11 @@ pub fn systime_to_raw(stamp: time::SystemTime) -> u32 {
 pub fn body_header_size() -> usize {
     mem::size_of::<u64>() + 2 * mem::size_of::<u32>()
 }
-
+///
+/// Given a slice of bytes that is known to contain a c_string,
+/// returnst the length of this string  This length does not
+/// include the terminating null.
+///
 pub fn string_len(d: &[u8]) -> usize {
     let mut result = 0;
     for c in d {
@@ -635,5 +639,12 @@ mod tests {
     fn bhdrsize_1() {
         let item = RingItem::new_with_body_header(1, 0, 0, 0);
         assert_eq!(crate::ring_items::body_header_size(), item.payload.len());
+    }
+    #[test]
+    fn strlen_1() {
+        let test_string = String::from("Hello world");
+        let mut bvec = test_string.as_bytes().to_vec();
+        bvec.push(0);
+        assert_eq!(test_string.len(), crate::ring_items::string_len(&bvec));
     }
 }
