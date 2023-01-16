@@ -302,7 +302,7 @@ mod test_paramdef {
 mod test_paramdefs {
     use crate::analysis_ring_items::*;
     use crate::ring_items::*;
-
+    use std::mem::size_of;
     #[test]
     fn new_1() {
         let item = ParameterDefinitions::new();
@@ -328,5 +328,50 @@ mod test_paramdefs {
         assert_eq!(2, item.defs[1].id());
         assert_eq!(String::from("item1"), item.defs[0].name());
         assert_eq!(String::from("item2"), item.defs[1].name());
+    }
+    #[test]
+    fn toraw_1() {
+        // empty (no defs).
+
+        let item = ParameterDefinitions::new();
+        let raw = item.to_raw();
+        assert_eq!(PARAMETER_DEFINITIONS, raw.type_id());
+        assert!(!raw.has_body_header());
+        // Body should say there are no items.
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(raw.payload().as_slice()[0..4].try_into().unwrap())
+        );
+        // Size:
+
+        assert_eq!(4 * size_of::<u32>() as u32, raw.size());
+    }
+    #[test]
+    fn to_raw_2() {
+        // Put in two defs:
+
+        let mut item = ParameterDefinitions::new();
+        item.add_definition(ParameterDefinition::new(1, "item1"))
+            .add_definition(ParameterDefinition::new(2, "item2"));
+        let raw = item.to_raw();
+
+        // Since add is used we'll assume the fields are right and only
+        // look at the payload:
+
+        let p = raw.payload().as_slice();
+        assert_eq!(2, u32::from_ne_bytes(p[0..4].try_into().unwrap()));
+
+        // First def:
+
+        let mut o = 4;
+        assert_eq!(1, u32::from_ne_bytes(p[o..o + 4].try_into().unwrap()));
+        o += 4; // Name offset:
+        assert_eq!(String::from("item1"), get_c_string(&mut o, p));
+
+        // Second def:
+
+        assert_eq!(2, u32::from_ne_bytes(p[o..o + 4].try_into().unwrap()));
+        o += 4;
+        assert_eq!(String::from("item2"), get_c_string(&mut o, p));
     }
 }
