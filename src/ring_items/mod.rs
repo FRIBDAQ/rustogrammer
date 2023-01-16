@@ -112,7 +112,8 @@ impl RingItem {
     ///  Add an object of type T to the ring buffer.  Note
     /// That the raw bytes are added therefore the item must
     /// not contain e.g. pointers.
-    ///
+    ///   This is best used to put primitive types into the
+    ///   payload
     pub fn add<T>(&mut self, item: T) -> &mut RingItem {
         let pt = &item as *const T;
         let mut p = pt.cast::<u8>();
@@ -318,5 +319,76 @@ mod tests {
     fn payload_2() {
         let mut item = RingItem::new(2134);
         assert!(ptr::eq(&mut item.payload, item.payload_mut()));
+    }
+    #[test]
+    fn add_1() {
+        let mut item = RingItem::new(1234);
+        item.add(0xa5 as u8);
+        let s = mem::size_of::<u8>();
+        assert_eq!(s, item.payload.len());
+        assert_eq!(0xa5 as u8, item.payload[0]);
+    }
+    #[test]
+    fn add_2() {
+        let mut item = RingItem::new(1234);
+        item.add(0xa55a as u16);
+        let s = mem::size_of::<u16>();
+        assert_eq!(s, item.payload.len());
+        assert_eq!(
+            0xa55a as u16,
+            u16::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn add_3() {
+        let mut item = RingItem::new(1234);
+        item.add(0x12345678 as u32);
+        let s = mem::size_of::<u32>();
+        assert_eq!(s, item.payload.len());
+        assert_eq!(
+            0x12345678 as u32,
+            u32::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn add_4() {
+        let mut item = RingItem::new(1234);
+        item.add(0x1234567876543210 as u64);
+        let s = mem::size_of::<u64>();
+        assert_eq!(s, item.payload.len());
+        assert_eq!(
+            0x1234567876543210 as u64,
+            u64::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn add_5() {
+        let mut item = RingItem::new(1234);
+        item.add(3.14159 as f32);
+        let s = mem::size_of::<f32>();
+        assert_eq!(s, item.payload.len());
+        assert_eq!(
+            3.14159 as f32,
+            f32::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn add_6() {
+        let mut item = RingItem::new(1234);
+        item.add(2.71828182 as f64);
+        let s = mem::size_of::<f64>();
+        assert_eq!(s, item.payload.len());
+        assert_eq!(
+            2.71828182 as f64,
+            f64::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn add_7() {
+        // test add chaining:
+        let data: Vec<u8> = vec![1, 2, 3, 4]; // So simple test:
+        let mut item = RingItem::new(1234);
+        item.add(data[0]).add(data[1]).add(data[2]).add(data[3]);
+        assert_eq!(data, item.payload);
     }
 }
