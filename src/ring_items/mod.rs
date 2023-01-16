@@ -590,4 +590,24 @@ mod tests {
         assert_eq!(out_item.body_header_size, in_item.body_header_size);
         assert_eq!(out_item.payload, in_item.payload);
     }
+    #[test]
+    fn write_4() {
+        // Write ring item with body header and payload.
+
+        let mut out_item = RingItem::new_with_body_header(1, 0x1245123412, 2, 0);
+        let payload: Vec<u8> = vec![5, 4, 3, 2, 1, 0];
+        out_item.add_byte_vec(&payload);
+
+        let mut file = tempfile().unwrap();
+        let s = out_item.write_item(&mut file).unwrap();
+        assert_eq!(s as u32, out_item.size);
+
+        file.rewind().unwrap();
+        let in_item = RingItem::read_item(&mut file).unwrap();
+
+        assert_eq!(out_item.size, in_item.size);
+        assert_eq!(out_item.type_id, in_item.type_id);
+        assert_eq!(out_item.body_header_size, in_item.body_header_size);
+        assert_eq!(out_item.payload, in_item.payload);
+    }
 }
