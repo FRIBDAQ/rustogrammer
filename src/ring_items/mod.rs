@@ -635,7 +635,7 @@ mod tests {
 
         assert_eq!(
             format!("{}", humantime::format_rfc3339_seconds(now)),
-            format!("{}", humantime::format_rfc3339_seconds(now2))
+            format!("{}", humantime::format_rfc3339(now2))
         );
     }
     #[test]
