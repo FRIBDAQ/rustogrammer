@@ -298,3 +298,35 @@ mod test_paramdef {
         assert_eq!(12, def.id());
     }
 }
+#[cfg(test)]
+mod test_paramdefs {
+    use crate::analysis_ring_items::*;
+    use crate::ring_items::*;
+
+    #[test]
+    fn new_1() {
+        let item = ParameterDefinitions::new();
+        assert_eq!(0, item.defs.len());
+    }
+    #[test]
+    fn add_1() {
+        let mut item = ParameterDefinitions::new();
+        let def = ParameterDefinition::new(1, "Item");
+        item.add_definition(def);
+        assert_eq!(1, item.defs.len());
+        assert_eq!(1, item.defs[0].id());
+        assert_eq!(String::from("Item"), item.defs[0].name());
+    }
+    #[test]
+    fn add_2() {
+        let mut item = ParameterDefinitions::new();
+        item.add_definition(ParameterDefinition::new(1, "item1"))
+            .add_definition(ParameterDefinition::new(2, "item2"));
+        assert_eq!(2, item.defs.len());
+
+        assert_eq!(1, item.defs[0].id());
+        assert_eq!(2, item.defs[1].id());
+        assert_eq!(String::from("item1"), item.defs[0].name());
+        assert_eq!(String::from("item2"), item.defs[1].name());
+    }
+}
