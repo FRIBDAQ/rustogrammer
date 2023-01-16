@@ -182,6 +182,20 @@ impl RingItem {
 
         Ok(item)
     }
+    /// write the current ring item to file:
+    /// The return value on success is the total number of
+    /// bytes written.
+
+    pub fn write_item(&self, file: &mut File) -> std::io::Result<usize> {
+        let mut bytes_written: usize = 0;
+
+        bytes_written = bytes_written + file.write(&u32::to_ne_bytes(self.size))?;
+        bytes_written = bytes_written + file.write(&u32::to_ne_bytes(self.type_id))?;
+        bytes_written = bytes_written + file.write(&u32::to_ne_bytes(self.body_header_size))?;
+        bytes_written = bytes_written + file.write(&self.payload)?;
+
+        Ok(bytes_written)
+    }
 }
 /// convert a u32 into a SystemTime:
 
