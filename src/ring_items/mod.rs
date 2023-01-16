@@ -223,7 +223,12 @@ pub fn systime_to_raw(stamp: time::SystemTime) -> u32 {
     let secs = unix_stamp.as_secs();
     (secs & 0xffffffff) as u32
 }
-
+/// Returns the number of bytes of body header size that are
+/// required of the payload.  Note that the actual value of
+/// the body header size will be one mem::size_of::<u32>()
+/// larger to account for the size field itself which is held in the
+/// formal fields of a ring_items::RingItem.
+///
 pub fn body_header_size() -> usize {
     mem::size_of::<u64>() + 2 * mem::size_of::<u32>()
 }
@@ -625,5 +630,10 @@ mod tests {
             format!("{}", humantime::format_rfc3339_seconds(now)),
             format!("{}", humantime::format_rfc3339_seconds(now2))
         );
+    }
+    #[test]
+    fn bhdrsize_1() {
+        let item = RingItem::new_with_body_header(1, 0, 0, 0);
+        assert_eq!(crate::ring_items::body_header_size(), item.payload.len());
     }
 }
