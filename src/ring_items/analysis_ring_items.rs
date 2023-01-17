@@ -563,7 +563,7 @@ mod test_vars {
 mod param_tests {
     use crate::analysis_ring_items::*;
     use crate::ring_items::*;
-
+    use std::mem::size_of;
     // Tests for ParameterValue type
 
     #[test]
@@ -585,5 +585,128 @@ mod param_tests {
     fn trigger() {
         let item = ParameterItem::new(12345);
         assert_eq!(12345, item.trigger()); // getter.
+    }
+    // add method
+    #[test]
+    fn add_1() {
+        let mut item = ParameterItem::new(2345);
+        item.add(1, 3.14);
+        item.add(3, 5.7);
+
+        assert_eq!(2, item.parameters.len());
+        assert_eq!(1, item.parameters[0].id());
+        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3, item.parameters[1].id());
+        assert_eq!(5.7, item.parameters[1].value());
+    }
+    #[test]
+    fn add_2() {
+        // chaining adds:
+
+        let mut item = ParameterItem::new(234560);
+        item.add(1, 3.14).add(3, 5.7);
+
+        assert_eq!(2, item.parameters.len());
+        assert_eq!(1, item.parameters[0].id());
+        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3, item.parameters[1].id());
+        assert_eq!(5.7, item.parameters[1].value());
+    }
+    // add_parameter method:
+
+    #[test]
+    fn add_3() {
+        let mut item = ParameterItem::new(111);
+
+        item.add_parameter(ParameterValue::new(1, 3.14));
+        item.add_parameter(ParameterValue::new(3, 5.7));
+
+        assert_eq!(2, item.parameters.len());
+        assert_eq!(1, item.parameters[0].id());
+        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3, item.parameters[1].id());
+        assert_eq!(5.7, item.parameters[1].value());
+    }
+    #[test]
+    fn add_4() {
+        // chaining:
+
+        let mut item = ParameterItem::new(111);
+
+        item.add_parameter(ParameterValue::new(1, 3.14))
+            .add_parameter(ParameterValue::new(3, 5.7));
+
+        assert_eq!(2, item.parameters.len());
+        assert_eq!(1, item.parameters[0].id());
+        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3, item.parameters[1].id());
+        assert_eq!(5.7, item.parameters[1].value());
+    }
+    #[test]
+    fn add_5() {
+        // chaining
+
+        let mut item = ParameterItem::new(111);
+
+        item.add_parameter(ParameterValue::new(1, 3.14)).add(3, 5.7);
+
+        assert_eq!(2, item.parameters.len());
+        assert_eq!(1, item.parameters[0].id());
+        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3, item.parameters[1].id());
+        assert_eq!(5.7, item.parameters[1].value());
+    }
+    #[test]
+    fn add_6() {
+        // chaining:
+
+        let mut item = ParameterItem::new(111);
+
+        item.add(1, 3.14).add_parameter(ParameterValue::new(3, 5.7));
+
+        assert_eq!(2, item.parameters.len());
+        assert_eq!(1, item.parameters[0].id());
+        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3, item.parameters[1].id());
+        assert_eq!(5.7, item.parameters[1].value());
+    }
+    #[test]
+    fn iter() {
+        let mut item = ParameterItem::new(111);
+
+        item.add(1, 3.14).add_parameter(ParameterValue::new(3, 5.7));
+        let mut i = 0;
+
+        for p in item.iter() {
+            assert_eq!(item.parameters[i].id(), p.id());
+            assert_eq!(item.parameters[i].value(), p.value());
+            i += 1;
+        }
+    }
+    // Tests for to_raw;  Once that workw we can test from_raw using to_raw
+    // to painlessly create our raw items.
+    #[test]
+    fn to_raw() {
+        let item = ParameterItem::new(12345);
+        let raw = item.to_raw();
+
+        assert!(!raw.has_body_header());
+        assert_eq!(PARAMETER_DATA, raw.type_id());
+
+        // Trigger count:
+
+        let p = raw.payload().as_slice();
+        assert_eq!(
+            12345,
+            u64::from_ne_bytes(p[0..size_of::<u64>()].try_into().unwrap())
+        );
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(
+                p[size_of::<u64>()..size_of::<u64>() + size_of::<u32>()]
+                    .try_into()
+                    .unwrap()
+            )
+        );
     }
 }
