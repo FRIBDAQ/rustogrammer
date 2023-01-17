@@ -406,7 +406,7 @@ mod test_paramdefs {
     fn from_raw_3() {
         // wrong  type -> None:
 
-        let raw = ring_items::RingItem::new(ring_items::PARAMETER_DEFINITIONS - 1);
+        let raw = ring_items::RingItem::new(PARAMETER_DEFINITIONS - 1);
         assert!(ParameterDefinitions::from_raw(&raw).is_none());
     }
     #[test]
@@ -423,4 +423,9 @@ mod test_paramdefs {
             i += 1;
         }
     }
+}
+#[cfg(test)]
+mod test_varvalue {
+    use crate::analysis_ring_items::*;
+    use crate::ring_items::*;
 }
