@@ -49,8 +49,9 @@ impl ParameterDefinitions {
             let mut result = ParameterDefinitions::new();
             let payload = raw.payload().as_slice();
             let num = u32::from_ne_bytes(payload[0..4].try_into().unwrap());
+            
             let mut offset = 4;
-            for _ in 1..num {
+            for _ in 0..num {
                 result
                     .defs
                     .push(Self::get_parameter_def(&mut offset, &payload));
@@ -373,5 +374,34 @@ mod test_paramdefs {
         assert_eq!(2, u32::from_ne_bytes(p[o..o + 4].try_into().unwrap()));
         o += 4;
         assert_eq!(String::from("item2"), get_c_string(&mut o, p));
+    }
+    // Now that to_raw works we can use it to generate items for
+    // from _raw.
+
+    #[test]
+    fn from_raw_1() {
+        let item = ParameterDefinitions::new();
+        let raw = item.to_raw();
+        let recons = ParameterDefinitions::from_raw(&raw);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+        assert_eq!(0, recons.defs.len());
+    }
+    #[test]
+    fn from_raw_2() {
+        let mut item = ParameterDefinitions::new();
+        item.add_definition(ParameterDefinition::new(1, "item1"))
+            .add_definition(ParameterDefinition::new(2, "item2"));
+        let raw = item.to_raw();
+        let recons = ParameterDefinitions::from_raw(&raw);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+        assert_eq!(2, recons.defs.len());
+        assert_eq!(item.defs[0].id(), recons.defs[0].id());
+        assert_eq!(item.defs[0].name(), recons.defs[0].name());
+        assert_eq!(item.defs[1].id(), recons.defs[1].id());
+        assert_eq!(item.defs[1].name(), recons.defs[1].name());
+        
+        
     }
 }
