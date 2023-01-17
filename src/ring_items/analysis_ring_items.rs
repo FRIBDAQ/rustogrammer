@@ -428,4 +428,12 @@ mod test_paramdefs {
 mod test_varvalue {
     use crate::analysis_ring_items::*;
     use crate::ring_items::*;
+
+    #[test]
+    fn new_1() {
+        let val = VariableValue::new(3.1416, "Angle", "radians");
+        assert_eq!(3.1416, val.value());
+        assert_eq!(String::from("Angle"), val.name());
+        assert_eq!(String::from("radians"), val.units());
+    }
 }
