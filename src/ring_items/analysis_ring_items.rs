@@ -245,11 +245,19 @@ impl ParameterItem {
             let num = u32::from_ne_bytes(payload[8..12].try_into().unwrap());
             let mut offset = 12; // First id/value pair.
             for _ in 0..num {
-                let id = u32::from_ne_bytes(payload[offset..offset + 4].try_into().unwrap());
-                let value =
-                    f64::from_ne_bytes(payload[offset + 4..offset + 20].try_into().unwrap());
+                let id = u32::from_ne_bytes(
+                    payload[offset..offset + mem::size_of::<u32>()]
+                        .try_into()
+                        .unwrap(),
+                );
+                offset += mem::size_of::<u32>();
+                let value = f64::from_ne_bytes(
+                    payload[offset..offset + mem::size_of::<f64>()]
+                        .try_into()
+                        .unwrap(),
+                );
                 result.parameters.push(ParameterValue::new(id, value));
-                offset = offset + 20;
+                offset = offset + mem::size_of::<f64>();
             }
 
             Some(result)
@@ -745,6 +753,40 @@ mod param_tests {
                 f64::from_ne_bytes(p[offset..offset + size_of::<f64>()].try_into().unwrap())
             );
             offset += size_of::<f64>();
+        }
+    }
+    // from_raw tests can use to_raw to produce the raw item that is the
+    // source of the conversion. We'll also need to be sure that wrong
+    // type gives None back.
+
+    #[test]
+    fn from_raw_1() {
+        let orig = ParameterItem::new(124);
+        let raw = orig.to_raw();
+        let copy = ParameterItem::from_raw(&raw);
+
+        assert!(copy.is_some());
+        let copy = copy.unwrap();
+
+        assert_eq!(orig.trigger(), copy.trigger());
+        assert_eq!(0, copy.parameters.len());
+    }
+    #[test]
+    fn from_raw_2() {
+        let mut orig = ParameterItem::new(12345);
+        orig.add(1, 1.2345).add(65, 5.555);
+        let raw = orig.to_raw();
+        let copy = ParameterItem::from_raw(&raw);
+
+        assert!(copy.is_some());
+        let copy = copy.unwrap();
+
+        assert_eq!(orig.trigger(), copy.trigger());
+        assert_eq!(orig.parameters.len(), copy.parameters.len());
+
+        for i in 0..orig.parameters.len() {
+            assert_eq!(orig.parameters[i].id(), copy.parameters[i].id());
+            assert_eq!(orig.parameters[i].value(), copy.parameters[i].value());
         }
     }
 }
