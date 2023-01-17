@@ -269,11 +269,13 @@ impl ParameterItem {
 
         result
     }
-    pub fn add(&mut self, id: u32, value: f64) {
+    pub fn add(&mut self, id: u32, value: f64) -> &mut ParameterItem {
         self.parameters.push(ParameterValue::new(id, value));
+        self
     }
-    pub fn add_parameter(&mut self, p: ParameterValue) {
+    pub fn add_parameter(&mut self, p: ParameterValue) -> &mut ParameterItem {
         self.parameters.push(p);
+        self
     }
     pub fn iter(&self) -> Iter<'_, ParameterValue> {
         self.parameters.iter()
@@ -555,5 +557,33 @@ mod test_vars {
 
         let raw = RingItem::new(VARIABLE_VALUES + 1); // wrong type.
         assert!(VariableValues::from_raw(&raw).is_none());
+    }
+}
+#[cfg(test)]
+mod param_tests {
+    use crate::analysis_ring_items::*;
+    use crate::ring_items::*;
+
+    // Tests for ParameterValue type
+
+    #[test]
+    fn pv_new() {
+        let p = ParameterValue::new(2, 1.234);
+        assert_eq!(2, p.id());
+        assert_eq!(1.234, p.value());
+    }
+
+    // Tests for ParameterItem type:
+
+    #[test]
+    fn pi_new() {
+        let item = ParameterItem::new(12345);
+        assert_eq!(12345, item.trigger);
+        assert_eq!(0, item.parameters.len());
+    }
+    #[test]
+    fn trigger() {
+        let item = ParameterItem::new(12345);
+        assert_eq!(12345, item.trigger()); // getter.
     }
 }
