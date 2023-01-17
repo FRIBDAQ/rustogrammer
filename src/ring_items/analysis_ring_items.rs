@@ -552,5 +552,8 @@ mod test_vars {
     #[test]
     fn from_raw_3() {
         // wrong type of raw item.
+
+        let raw = RingItem::new(VARIABLE_VALUES + 1); // wrong type.
+        assert!(VariableValues::from_raw(&raw).is_none());
     }
 }
