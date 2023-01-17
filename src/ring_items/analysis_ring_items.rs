@@ -686,7 +686,7 @@ mod param_tests {
     // Tests for to_raw;  Once that workw we can test from_raw using to_raw
     // to painlessly create our raw items.
     #[test]
-    fn to_raw() {
+    fn to_raw_1() {
         let item = ParameterItem::new(12345);
         let raw = item.to_raw();
 
@@ -708,5 +708,43 @@ mod param_tests {
                     .unwrap()
             )
         );
+    }
+    #[test]
+    fn to_raw_2() {
+        let mut item = ParameterItem::new(111);
+        item.add(1, 3.14).add_parameter(ParameterValue::new(3, 5.7));
+        let raw = item.to_raw();
+
+        let p = raw.payload().as_slice();
+        let mut offset = 0;
+
+        // Trigger number:
+
+        assert_eq!(
+            111,
+            u64::from_ne_bytes(p[offset..offset + size_of::<u64>()].try_into().unwrap())
+        );
+        // Number of parameter items:
+
+        offset += size_of::<u64>();
+        assert_eq!(
+            2,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        // The items:
+
+        for i in 0..2 {
+            assert_eq!(
+                item.parameters[i].id(),
+                u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+            );
+            offset += size_of::<u32>();
+            assert_eq!(
+                item.parameters[i].value(),
+                f64::from_ne_bytes(p[offset..offset + size_of::<f64>()].try_into().unwrap())
+            );
+            offset += size_of::<f64>();
+        }
     }
 }
