@@ -1,5 +1,7 @@
+#![allow(dead_code)]
 use crate::ring_items;
 use std::slice::Iter;
+
 ///  This module contains definitions and implementations for the internal
 ///  structure of
 
@@ -435,5 +437,10 @@ mod test_vars {
         assert_eq!(3.1416, val.value());
         assert_eq!(String::from("Angle"), val.name());
         assert_eq!(String::from("radians"), val.units());
+    }
+    #[test]
+    fn newvars_1() {
+        let vars = VariableValues::new();
+        assert_eq!(0, vars.defs.len());
     }
 }
