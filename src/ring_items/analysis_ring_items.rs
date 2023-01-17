@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::ring_items;
 use std::slice::Iter;
 
@@ -442,5 +441,35 @@ mod test_vars {
     fn newvars_1() {
         let vars = VariableValues::new();
         assert_eq!(0, vars.defs.len());
+    }
+    #[test]
+    fn add_1() {
+        let mut vars = VariableValues::new();
+        vars.add_def(VariableValue::new(3.1416, "Angle", "radians"))
+            .add_def(VariableValue::new(1.5, "Measure", "mm"));
+        assert_eq!(2, vars.defs.len());
+
+        assert_eq!(3.1416, vars.defs[0].value());
+        assert_eq!(String::from("Angle"), vars.defs[0].name());
+        assert_eq!(String::from("radians"), vars.defs[0].units());
+
+        assert_eq!(1.5, vars.defs[1].value());
+        assert_eq!(String::from("Measure"), vars.defs[1].name());
+        assert_eq!(String::from("mm"), vars.defs[1].units());
+    }
+    #[test]
+    fn iter_1() {
+        let mut vars = VariableValues::new();
+        vars.add_def(VariableValue::new(3.1416, "Angle", "radians"))
+            .add_def(VariableValue::new(1.5, "Measure", "mm"));
+
+        let mut i = 0;
+        for v in vars.iter() {
+            assert_eq!(vars.defs[i].value(), v.value());
+            assert_eq!(vars.defs[i].name(), v.name());
+            assert_eq!(vars.defs[i].units(), v.units());
+
+            i += 1;
+        }
     }
 }
