@@ -49,7 +49,7 @@ impl ParameterDefinitions {
             let mut result = ParameterDefinitions::new();
             let payload = raw.payload().as_slice();
             let num = u32::from_ne_bytes(payload[0..4].try_into().unwrap());
-            
+
             let mut offset = 4;
             for _ in 0..num {
                 result
@@ -331,7 +331,7 @@ mod test_paramdefs {
         assert_eq!(String::from("item2"), item.defs[1].name());
     }
     #[test]
-    fn toraw_1() {
+    fn to_raw_1() {
         // empty (no defs).
 
         let item = ParameterDefinitions::new();
@@ -401,7 +401,12 @@ mod test_paramdefs {
         assert_eq!(item.defs[0].name(), recons.defs[0].name());
         assert_eq!(item.defs[1].id(), recons.defs[1].id());
         assert_eq!(item.defs[1].name(), recons.defs[1].name());
-        
-        
+    }
+    #[test]
+    fn from_raw_3() {
+        // wrong  type -> None:
+
+        let raw = ring_items::RingItem::new(ring_items::PARAMETER_DEFINITIONS - 1);
+        assert!(ParameterDefinitions::from_raw(&raw).is_none());
     }
 }
