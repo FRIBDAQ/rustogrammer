@@ -409,4 +409,18 @@ mod test_paramdefs {
         let raw = ring_items::RingItem::new(ring_items::PARAMETER_DEFINITIONS - 1);
         assert!(ParameterDefinitions::from_raw(&raw).is_none());
     }
+    #[test]
+    fn getdef_1() {
+        let mut item = ParameterDefinitions::new();
+        item.add_definition(ParameterDefinition::new(1, "item1"))
+            .add_definition(ParameterDefinition::new(2, "item2"));
+
+        let mut i = 0;
+        for p in item.iter() {
+            assert_eq!(item.defs[i].id(), p.id());
+            assert_eq!(item.defs[i].name(), p.name());
+
+            i += 1;
+        }
+    }
 }
