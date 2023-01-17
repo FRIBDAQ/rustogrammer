@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::mem;
 use std::slice::Iter;
 
 ///  This module contains definitions and implementations for the internal
@@ -156,7 +157,8 @@ impl VariableValues {
             for _ in 0..nvars {
                 let value: f64 =
                     f64::from_ne_bytes(payload[offset..offset + 8].try_into().unwrap());
-                let mut off = offset + 8;
+                offset += mem::size_of::<f64>();
+                let mut off = offset;
                 let units = ring_items::get_c_string(&mut off, &payload);
                 offset = offset + MAX_UNITS_LENGTH;
                 let name = ring_items::get_c_string(&mut offset, &payload);
@@ -429,6 +431,7 @@ mod test_paramdefs {
 mod test_vars {
     use crate::analysis_ring_items::*;
     use crate::ring_items::*;
+    use std::mem::size_of;
 
     #[test]
     fn newvar_1() {
@@ -471,5 +474,83 @@ mod test_vars {
 
             i += 1;
         }
+    }
+    #[test]
+    fn to_raw_1() {
+        // Empty item:
+
+        let vars = VariableValues::new();
+        let raw = vars.to_raw();
+
+        assert_eq!(VARIABLE_VALUES, raw.type_id());
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(raw.payload().as_slice()[0..4].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn to_raw_2() {
+        // Item with def/values:
+
+        let mut vars = VariableValues::new();
+        vars.add_def(VariableValue::new(3.1416, "Angle", "radians"))
+            .add_def(VariableValue::new(1.5, "Measure", "mm"));
+
+        let raw = vars.to_raw();
+        assert_eq!(
+            2,
+            u32::from_ne_bytes(raw.payload().as_slice()[0..4].try_into().unwrap())
+        );
+        let mut offset = 4;
+        let p = raw.payload.as_slice();
+        for i in 0..2 {
+            assert_eq!(
+                vars.defs[i].value(),
+                f64::from_ne_bytes(p[offset..offset + size_of::<f64>()].try_into().unwrap())
+            );
+            offset += size_of::<f64>();
+            let mut o = offset; // units are fixed size:
+            assert_eq!(vars.defs[i].units(), get_c_string(&mut o, &p));
+            offset += MAX_UNITS_LENGTH;
+            assert_eq!(vars.defs[i].name(), get_c_string(&mut offset, &p));
+        }
+    }
+
+    // With to_raw tested we can use it to generate raw items for
+    // from_raw for testing:
+
+    #[test]
+    fn from_raw_1() {
+        // empty defs.
+
+        let vars = VariableValues::new();
+        let raw = vars.to_raw();
+        let recons = VariableValues::from_raw(&raw);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+        assert_eq!(0, recons.defs.len());
+    }
+    #[test]
+    fn from_raw_2() {
+        // with defs.
+        let mut vars = VariableValues::new();
+        vars.add_def(VariableValue::new(3.1416, "Angle", "radians"))
+            .add_def(VariableValue::new(1.5, "Measure", "mm"));
+
+        let raw = vars.to_raw();
+        let recons = VariableValues::from_raw(&raw);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert_eq!(vars.defs.len(), recons.defs.len());
+        for i in 0..vars.defs.len() {
+            assert_eq!(vars.defs[i].value(), recons.defs[i].value());
+            assert_eq!(vars.defs[i].units(), recons.defs[i].units());
+            assert_eq!(vars.defs[i].name(), recons.defs[i].name());
+        }
+    }
+    #[test]
+    fn from_raw_3() {
+        // wrong type of raw item.
     }
 }
