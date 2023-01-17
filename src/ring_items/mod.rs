@@ -341,7 +341,7 @@ mod tests {
         assert_eq!(item.size, item.size());
         assert_eq!(item.type_id, item.type_id());
         assert_eq!(false, item.has_body_header());
-        if let Some(bh) = item.get_bodyheader() {
+        if let Some(_bh) = item.get_bodyheader() {
             assert!(false);
         }
     }

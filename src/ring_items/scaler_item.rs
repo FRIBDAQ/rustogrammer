@@ -1,5 +1,4 @@
 use crate::ring_items;
-use std::mem;
 use std::time;
 ///
 /// Provide an internalt representation of scaler items

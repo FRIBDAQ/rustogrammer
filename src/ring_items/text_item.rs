@@ -1,5 +1,4 @@
 use crate::ring_items;
-use std::mem;
 use std::time;
 ///
 ///  This module provides support for ring items that have
