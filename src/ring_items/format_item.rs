@@ -43,3 +43,9 @@ impl FormatItem {
         result
     }
 }
+#[cfg(test)]
+mod fmt_tests {
+    use crate::ring_items::*;
+    use crate::format_item::*;
+    
+}
