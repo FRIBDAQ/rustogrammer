@@ -224,4 +224,70 @@ mod test_event {
             u32::from_ne_bytes(s[offset..offset + size_of::<u32>()].try_into().unwrap())
         );
     }
+    // getting data from the event:
+
+    #[test]
+    fn get_1() {
+        let mut item = PhysicsEvent::new(None);
+        assert!(item.get::<u8>().is_none());
+    }
+    #[test]
+    fn get_2() {
+        let mut item = PhysicsEvent::new(None);
+        item.add(0xa5 as u8);
+        let gotten = item.get::<u8>();
+        assert!(gotten.is_some());
+        let gotten = gotten.unwrap();
+        assert_eq!(0xa5 as u8, gotten);
+        assert!(item.get::<u8>().is_none()); // Nothing more to get.
+        assert_eq!(item.event_data.len(), item.get_cursor);
+    }
+    #[test]
+    fn get_3() {
+        let mut item = PhysicsEvent::new(None);
+        item.add(0xa5a5 as u16);
+        let gotten = item.get::<u16>();
+        assert!(gotten.is_some());
+        let gotten = gotten.unwrap();
+        assert_eq!(0xa5a5 as u16, gotten);
+        assert!(item.get::<u8>().is_none()); // Nothing more to get.
+        assert_eq!(item.event_data.len(), item.get_cursor);
+    }
+    #[test]
+    fn get_4() {
+        let mut item = PhysicsEvent::new(None);
+        item.add(0xa5a5a5a5 as u32);
+        let gotten = item.get::<u32>();
+        assert!(gotten.is_some());
+        let gotten = gotten.unwrap();
+        assert_eq!(0xa5a5a5a5 as u32, gotten);
+        assert!(item.get::<u8>().is_none()); // Nothing more to get.
+        assert_eq!(item.event_data.len(), item.get_cursor);
+    }
+    #[test]
+    fn get_5() {
+        // Several things to get:
+
+        let mut item = PhysicsEvent::new(None);
+
+        item.add(0xa5 as u8)
+            .add(0xa5a5 as u16)
+            .add(0xa5a5a5a5 as u32);
+
+        let got = item.get::<u8>();
+        assert!(got.is_some());
+        assert_eq!(0xa5 as u8, got.unwrap());
+
+        let got = item.get::<u16>();
+        assert!(got.is_some());
+        assert_eq!(0xa5a5 as u16, got.unwrap());
+
+        let got = item.get::<u32>();
+        assert!(got.is_some());
+        assert_eq!(0xa5a5a5a5 as u32, got.unwrap());
+
+        // Nothing left:
+
+        assert!(item.get::<u8>().is_none());
+    }
 }
