@@ -8,6 +8,7 @@ use std::mem;
 /// fetch generically from the soup of bytes with cursor movement.
 ///  We'll also provide for insertion as the raw item can do.
 
+#[derive(Clone)]
 pub struct PhysicsEvent {
     body_header: Option<ring_items::BodyHeader>,
     get_cursor: usize,
@@ -350,5 +351,88 @@ mod test_event {
         assert_eq!(PHYSICS_EVENT, raw.type_id());
         assert!(!raw.has_body_header());
         assert_eq!(0, raw.payload().len());
+    }
+    #[test]
+    fn to_raw_2() {
+        // Empty but with a body header:
+
+        let item = PhysicsEvent::new(Some(BodyHeader {
+            timestamp: 0x12345,
+            source_id: 1,
+            barrier_type: 0,
+        }));
+        let raw = item.clone().to_raw();
+        assert!(raw.has_body_header());
+        let bh = raw.get_bodyheader().unwrap();
+        assert_eq!(item.body_header.unwrap().timestamp, bh.timestamp);
+        assert_eq!(item.body_header.unwrap().source_id, bh.source_id);
+        assert_eq!(item.body_header.unwrap().barrier_type, bh.barrier_type);
+        assert_eq!(size_of::<u64>() + 2 * size_of::<u32>(), raw.payload().len());
+    }
+    #[test]
+    fn to_raw_3() {
+        // no body header but contents:
+
+        let mut item = PhysicsEvent::new(None);
+        item.add(0xa5 as u8)
+            .add(0xa5a5 as u16)
+            .add(0xa5a5a5a5 as u32);
+        let raw = item.clone().to_raw();
+        assert_eq!(
+            size_of::<u32>() + size_of::<u16>() + size_of::<u8>(),
+            raw.payload().len()
+        );
+
+        let mut offset = 0;
+        let p = raw.payload().as_slice();
+        assert_eq!(
+            0xa5 as u8,
+            u8::from_ne_bytes(p[offset..offset + size_of::<u8>()].try_into().unwrap())
+        );
+        offset += size_of::<u8>();
+        assert_eq!(
+            0xa5a5 as u16,
+            u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
+        );
+        offset += size_of::<u16>();
+        assert_eq!(
+            0xa5a5a5a5 as u32,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn to_raw_4() {
+        // body header with contents:
+
+        let mut item = PhysicsEvent::new(Some(BodyHeader {
+            timestamp: 0x1234567890,
+            source_id: 2,
+            barrier_type: 0,
+        }));
+        item.add(0xa5 as u8)
+            .add(0xa5a5 as u16)
+            .add(0xa5a5a5a5 as u32);
+        let raw = item.clone().to_raw();
+
+        assert_eq!(
+            body_header_size() +  size_of::<u32>() + size_of::<u16>() + size_of::<u8>(),
+            raw.payload().len()
+        );
+        let mut offset = body_header_size();
+        let p = raw.payload().as_slice();
+        assert_eq!(
+            0xa5 as u8,
+            u8::from_ne_bytes(p[offset..offset + size_of::<u8>()].try_into().unwrap())
+        );
+        offset += size_of::<u8>();
+        assert_eq!(
+            0xa5a5 as u16,
+            u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
+        );
+        offset += size_of::<u16>();
+        assert_eq!(
+            0xa5a5a5a5 as u32,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
     }
 }
