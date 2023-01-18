@@ -290,4 +290,42 @@ mod test_event {
 
         assert!(item.get::<u8>().is_none());
     }
+    #[test]
+    fn rewind_1() {
+        // Several things to get:
+
+        let mut item = PhysicsEvent::new(None);
+
+        item.add(1 as u8).add(2 as u16).add(3 as u32);
+
+        // Consume the data:
+
+        let _got = item.get::<u8>();
+        let _got = item.get::<u16>();
+        let _got = item.get::<u32>();
+
+        item.rewind(); // Reset the cursor.
+        let got = item.get::<u8>();
+        assert!(got.is_some());
+        assert_eq!(1 as u8, got.unwrap());
+    }
+    #[test]
+    fn get_bodyheader_1() {
+        let item = PhysicsEvent::new(None);
+        assert!(item.get_bodyheader().is_none());
+    }
+    #[test]
+    fn get_bodyheader_2() {
+        let item = PhysicsEvent::new(Some(BodyHeader {
+            timestamp: 0x1234567890,
+            source_id: 2,
+            barrier_type: 0,
+        }));
+        let bh = item.get_bodyheader();
+        assert!(bh.is_some());
+        let bh = bh.unwrap();
+        assert_eq!(0x1234567890 as u64, bh.timestamp);
+        assert_eq!(2, bh.source_id);
+        assert_eq!(0, bh.barrier_type);
+    }
 }
