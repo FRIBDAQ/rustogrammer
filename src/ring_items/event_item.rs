@@ -148,6 +148,7 @@ mod test_event {
         assert_eq!(0, item.get_cursor);
         assert_eq!(0, item.event_data.len());
     }
+    #[test]
     fn new_2() {
         let item = PhysicsEvent::new(Some(BodyHeader {
             timestamp: 0x1234567890,
@@ -159,5 +160,68 @@ mod test_event {
         assert_eq!(0x1234567890, bh.timestamp);
         assert_eq!(2, bh.source_id);
         assert_eq!(0, bh.barrier_type);
+    }
+    // Adding data to the event:
+    #[test]
+    fn add_1() {
+        let mut item = PhysicsEvent::new(None);
+
+        item.add(0xa5 as u8);
+
+        assert_eq!(1, item.event_data.len());
+        assert_eq!(0xa5, item.event_data[0]);
+    }
+    #[test]
+    fn add_2() {
+        let mut item = PhysicsEvent::new(None);
+
+        item.add(0xa5a5 as u16);
+        assert_eq!(size_of::<u16>(), item.event_data.len());
+        let s = item.event_data.as_slice();
+        assert_eq!(
+            0xa5a5 as u16,
+            u16::from_ne_bytes(s[0..size_of::<u16>()].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn add_3() {
+        let mut item = PhysicsEvent::new(None);
+
+        item.add(0xa5a5a5a5 as u32);
+        assert_eq!(size_of::<u32>(), item.event_data.len());
+        let s = item.event_data.as_slice();
+        assert_eq!(
+            0xa5a5a5a5 as u32,
+            u32::from_ne_bytes(s[0..size_of::<u32>()].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn add_4() {
+        //chaining:
+
+        let mut item = PhysicsEvent::new(None);
+
+        item.add(0xa5 as u8)
+            .add(0xa5a5 as u16)
+            .add(0xa5a5a5a5 as u32);
+        assert_eq!(
+            size_of::<u8>() + size_of::<u16>() + size_of::<u32>(),
+            item.event_data.len()
+        );
+
+        let mut offset = 0;
+        assert_eq!(0xa5 as u8, item.event_data[offset]);
+        offset += size_of::<u8>();
+        let s = item.event_data.as_slice();
+
+        assert_eq!(
+            0xa5a5 as u16,
+            u16::from_ne_bytes(s[offset..offset + size_of::<u16>()].try_into().unwrap())
+        );
+        offset += size_of::<u16>();
+        assert_eq!(
+            0xa5a5a5a5 as u32,
+            u32::from_ne_bytes(s[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
     }
 }
