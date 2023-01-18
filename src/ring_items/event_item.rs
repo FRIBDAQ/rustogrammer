@@ -328,4 +328,14 @@ mod test_event {
         assert_eq!(2, bh.source_id);
         assert_eq!(0, bh.barrier_type);
     }
+    #[test]
+    fn body_size_1() {
+        let mut item = PhysicsEvent::new(None);
+
+        item.add(0xa5 as u8)
+            .add(0xa5a5 as u16)
+            .add(0xa5a5a5a5 as u32);
+            
+        assert_eq!(item.event_data.len(),  item.body_size());
+    }
 }
