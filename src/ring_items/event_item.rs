@@ -51,7 +51,7 @@ impl PhysicsEvent {
     ///
     /// Convert self to a raw ring item.
     ///
-    pub fn to_raw(&mut self) -> ring_items::RingItem {
+    pub fn to_raw(self) -> ring_items::RingItem {
         let mut result = if let Some(bh) = self.body_header {
             ring_items::RingItem::new_with_body_header(
                 ring_items::PHYSICS_EVENT,
@@ -64,7 +64,7 @@ impl PhysicsEvent {
         };
         // Now just Append our data to the payload:
 
-        result.add_byte_vec(&mut self.event_data);
+        result.add_byte_vec(&self.event_data);
         result
     }
     // Add data to the payload:
@@ -335,7 +335,20 @@ mod test_event {
         item.add(0xa5 as u8)
             .add(0xa5a5 as u16)
             .add(0xa5a5a5a5 as u32);
-            
-        assert_eq!(item.event_data.len(),  item.body_size());
+
+        assert_eq!(item.event_data.len(), item.body_size());
+    }
+    // First we'll test to_raw because then we can use it to generate
+    // raw items that we can use to test from_raw with:
+
+    #[test]
+    fn to_raw_1() {
+        // Empty no body header:
+
+        let item = PhysicsEvent::new(None);
+        let raw = item.to_raw();
+        assert_eq!(PHYSICS_EVENT, raw.type_id());
+        assert!(!raw.has_body_header());
+        assert_eq!(0, raw.payload().len());
     }
 }

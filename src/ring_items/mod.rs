@@ -287,6 +287,7 @@ const VARIABLE_VALUES: u32 = 32769;
 /// Contains the actual parameter_id:value pairs for an event.
 const PARAMETER_DATA: u32 = 32770;
 
+
 //---------------------------------------------------------------
 // unit tests
 //
