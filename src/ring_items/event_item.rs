@@ -136,3 +136,28 @@ impl Iterator for PhysicsEvent {
         }
     }
 }
+#[cfg(test)]
+mod test_event {
+    use crate::event_item::*;
+    use crate::ring_items::*;
+    use std::mem::size_of;
+    #[test]
+    fn new_1() {
+        let item = PhysicsEvent::new(None);
+        assert!(item.body_header.is_none());
+        assert_eq!(0, item.get_cursor);
+        assert_eq!(0, item.event_data.len());
+    }
+    fn new_2() {
+        let item = PhysicsEvent::new(Some(BodyHeader {
+            timestamp: 0x1234567890,
+            source_id: 2,
+            barrier_type: 0,
+        }));
+        assert!(item.body_header.is_some());
+        let bh = item.body_header.unwrap();
+        assert_eq!(0x1234567890, bh.timestamp);
+        assert_eq!(2, bh.source_id);
+        assert_eq!(0, bh.barrier_type);
+    }
+}
