@@ -52,7 +52,7 @@ impl PhysicsEvent {
     ///
     /// Convert self to a raw ring item.
     ///
-    pub fn to_raw(self) -> ring_items::RingItem {
+    pub fn to_raw(&self) -> ring_items::RingItem {
         let mut result = if let Some(bh) = self.body_header {
             ring_items::RingItem::new_with_body_header(
                 ring_items::PHYSICS_EVENT,
@@ -361,7 +361,7 @@ mod test_event {
             source_id: 1,
             barrier_type: 0,
         }));
-        let raw = item.clone().to_raw();
+        let raw = item.to_raw();
         assert!(raw.has_body_header());
         let bh = raw.get_bodyheader().unwrap();
         assert_eq!(item.body_header.unwrap().timestamp, bh.timestamp);
@@ -377,7 +377,7 @@ mod test_event {
         item.add(0xa5 as u8)
             .add(0xa5a5 as u16)
             .add(0xa5a5a5a5 as u32);
-        let raw = item.clone().to_raw();
+        let raw = item.to_raw();
         assert_eq!(
             size_of::<u32>() + size_of::<u16>() + size_of::<u8>(),
             raw.payload().len()
@@ -412,10 +412,10 @@ mod test_event {
         item.add(0xa5 as u8)
             .add(0xa5a5 as u16)
             .add(0xa5a5a5a5 as u32);
-        let raw = item.clone().to_raw();
+        let raw = item.to_raw();
 
         assert_eq!(
-            body_header_size() +  size_of::<u32>() + size_of::<u16>() + size_of::<u8>(),
+            body_header_size() + size_of::<u32>() + size_of::<u16>() + size_of::<u8>(),
             raw.payload().len()
         );
         let mut offset = body_header_size();
@@ -434,5 +434,86 @@ mod test_event {
             0xa5a5a5a5 as u32,
             u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
         );
+    }
+    // to_raw works so generate raw items and go full circle:
+
+    #[test]
+    fn from_raw_1() {
+        // empty no body header:
+
+        let item = PhysicsEvent::new(None);
+        let raw = item.to_raw();
+        let event = PhysicsEvent::from_raw(&raw);
+        assert!(event.is_some());
+        let event = event.unwrap();
+
+        assert!(event.body_header.is_none());
+        assert_eq!(0, event.get_cursor);
+        assert_eq!(0, event.event_data.len());
+    }
+    #[test]
+    fn from_raw_2() {
+        //empty but with body header:
+
+        let item = PhysicsEvent::new(Some(BodyHeader {
+            timestamp: 0xabcdef012345,
+            source_id: 2,
+            barrier_type: 0,
+        }));
+        let raw = item.to_raw();
+        let event = PhysicsEvent::from_raw(&raw);
+        assert!(event.is_some());
+        let event = event.unwrap();
+        assert!(event.body_header.is_some());
+        let bh = event.body_header.unwrap();
+        assert_eq!(item.body_header.unwrap().timestamp, bh.timestamp);
+        assert_eq!(item.body_header.unwrap().source_id, bh.source_id);
+        assert_eq!(item.body_header.unwrap().barrier_type, bh.barrier_type);
+    }
+    #[test]
+    fn from_raw_3() {
+        // no body header but a payload:
+
+        let mut item = PhysicsEvent::new(None);
+        item.add(0xa5 as u8)
+            .add(0xa5a5 as u16)
+            .add(0xa5a5a5a5 as u32);
+        let raw = item.to_raw();
+        let event = PhysicsEvent::from_raw(&raw);
+        assert!(event.is_some());
+        let mut event = event.unwrap();
+
+        assert_eq!(
+            size_of::<u8>() + size_of::<u16>() + size_of::<u32>(),
+            event.event_data.len()
+        );
+        assert_eq!(0xa5 as u8, event.get::<u8>().unwrap());
+        assert_eq!(0xa5a5 as u16, event.get::<u16>().unwrap());
+        assert_eq!(0xa5a5a5a5 as u32, event.get::<u32>().unwrap());
+        assert!(event.get::<u8>().is_none());
+    }
+    #[test]
+    fn from_raw_4() {
+        // body header and payload:
+
+        let mut item = PhysicsEvent::new(Some(BodyHeader {
+            timestamp: 0x12345678abdeef,
+            source_id: 2,
+            barrier_type: 5,
+        }));
+        item.add(0x1 as u8).add(0x2 as u16).add(0x3 as u32);
+        let raw = item.to_raw();
+        let event = PhysicsEvent::from_raw(&raw);
+        assert!(event.is_some());
+        let mut event = event.unwrap();
+        assert!(event.get_bodyheader().is_some());
+        assert_eq!(
+            size_of::<u8>() + size_of::<u16>() + size_of::<u32>(),
+            event.event_data.len()
+        );
+        assert_eq!(1 as u8, event.get::<u8>().unwrap());
+        assert_eq!(2 as u16, event.get::<u16>().unwrap());
+        assert_eq!(3 as u32, event.get::<u32>().unwrap());
+        assert!(event.get::<u8>().is_none());
     }
 }
