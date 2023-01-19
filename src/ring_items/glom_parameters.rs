@@ -2,7 +2,7 @@ use crate::ring_items;
 
 /// These are the strategies glom uses to assign timestamps to events:
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TimestampPolicy {
     First,
     Last,
@@ -103,4 +103,22 @@ impl GlomParameters {
     }
 }
 #[cfg(test)]
-mod glom_tests {}
+mod glom_tests {
+    use crate::glom_parameters::*;
+
+    #[test]
+    fn new_1() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::First);
+        assert_eq!(1000, item.coincidence_ticks);
+        assert!(item.is_building);
+        assert_eq!(TimestampPolicy::First, item.timestamp_policy);
+    }
+    #[test]
+    fn getters_1() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::First);
+
+        assert_eq!(1000, item.get_coincidence_interval());
+        assert!(item.is_building());
+        assert_eq!(TimestampPolicy::First, item.get_ts_policy());
+    }
+}
