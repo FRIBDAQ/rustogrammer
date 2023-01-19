@@ -115,10 +115,22 @@ mod glom_tests {
     }
     #[test]
     fn getters_1() {
+        
         let item = GlomParameters::new(1000, true, TimestampPolicy::First);
-
         assert_eq!(1000, item.get_coincidence_interval());
         assert!(item.is_building());
         assert_eq!(TimestampPolicy::First, item.get_ts_policy());
+    }
+    #[test]
+    fn getters_2() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::First);
+        assert_eq!(String::from ("First"), item.policy_string());
+
+        let item = GlomParameters::new(1000, true, TimestampPolicy::Last);
+        assert_eq!(String::from ("Last"), item.policy_string());
+
+        let item = GlomParameters::new(1000, true, TimestampPolicy::Average);
+        assert_eq!(String::from ("Averaged"), item.policy_string());
+
     }
 }
