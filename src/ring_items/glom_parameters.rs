@@ -103,6 +103,4 @@ impl GlomParameters {
     }
 }
 #[cfg(test)]
-mod glom_tests {
-    
-}
+mod glom_tests {}
