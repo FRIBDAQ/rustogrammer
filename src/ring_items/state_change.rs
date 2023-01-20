@@ -351,7 +351,7 @@ mod state_tests {
             source_id: 2,
             barrier_type: 1,
         };
-        let t = SystemTime::now();
+        let _t = SystemTime::now();
         let item = StateChange::new(
             StateChangeType::End,
             Some(bh),
@@ -363,5 +363,108 @@ mod state_tests {
         );
         assert_eq!(StateChangeType::End, item.change_type());
         assert_eq!(String::from("End"), item.change_type_string());
+    }
+    #[test]
+    fn getter_2() {
+        // Raw items:
+
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let _t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            1,
+            "Some title",
+            Some(5),
+        );
+
+        assert_eq!(13, item.run_number());
+        assert_eq!(100, item.raw_time_offset());
+        assert_eq!(1, item.offset_divisor());
+        assert_eq!(String::from("Some title"), item.title());
+    }
+    #[test]
+    fn getter_3() {
+        // absolute time:
+
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            1,
+            "Some title",
+            Some(5),
+        );
+        assert!(item.absolute_time().duration_since(t).unwrap().as_secs() <= 1);
+    }
+    #[test]
+    fn getter_4() {
+        // time in seconds into run.
+
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let _t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            Some(5),
+        );
+        assert_eq!(50.0, item.time_offset());
+    }
+    fn getter_5() {
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let _t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            Some(5),
+        );
+        assert!(item.original_sid().is_some());
+        assert_eq!(5, item.original_sid().unwrap());
+
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            None,
+        );
+        assert!(item.original_sid().is_none());
     }
 }
