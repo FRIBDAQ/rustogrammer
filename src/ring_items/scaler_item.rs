@@ -347,4 +347,58 @@ mod scaler_tests {
             i += 1;
         }
     }
+    #[test]
+    fn append_1() {
+        // append single scaler:
+
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0xabcdef987654321,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let mut item = ScalerItem::new(Some(bh), 1, 10, t, 2, true, Some(5), &mut scalers);
+
+        item.append_scaler(1234);
+        assert_eq!(1, item.len());
+        assert_eq!(1234, item.get_scaler_values()[0]);
+    }
+    #[test]
+    fn append_2() {
+        // chain:
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0xabcdef987654321,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let mut item = ScalerItem::new(Some(bh), 1, 10, t, 2, true, Some(5), &mut scalers);
+
+        item.append_scaler(0).append_scaler(1).append_scaler(2);
+        assert_eq!(3, item.len());
+        for i in 0..3 {
+            assert_eq!(i as u32, item.get_scaler_values()[i]);
+        }
+    }
+    #[test]
+    fn append_3() {
+        //Appends to existing values:
+
+        let mut scalers: Vec<u32> = vec![1, 2, 3, 4, 5, 6];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0xabcdef987654321,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let mut item = ScalerItem::new(Some(bh), 1, 10, t, 2, true, Some(5), &mut scalers);
+
+        item.append_scaler(7).append_scaler(8);
+        assert_eq!(8, item.len());
+        for i in 0..item.len() {
+            assert_eq!((i + 1) as u32, item.get_scaler_values()[i]);
+        }
+    }
 }
