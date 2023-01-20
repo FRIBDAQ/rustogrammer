@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::slice::Iter;
 use std::time;
 ///
 /// Provide an internalt representation of scaler items
@@ -42,10 +43,24 @@ impl ScalerItem {
     pub fn original_sid(&self) -> Option<u32> {
         self.original_sid
     }
-    pub fn scaler_values(&mut self, scalers: &mut Vec<u32>) {
-        scalers.append(&mut self.scalers);
+
+    pub fn get_scaler_values(&self) -> &Vec<u32> {
+        &self.scalers
+    }
+    pub fn len(&self) -> usize {
+        self.scalers.len()
+    }
+    pub fn iter(&self) -> Iter<'_, u32> {
+        self.scalers.iter()
     }
 
+    pub fn append_scaler(&mut self, sc: u32) -> &mut Self {
+        self.scalers.push(sc);
+        self
+    }
+    /// Note that the scalers are consumed by this method
+    /// because append is used to block append them to an empty vector.
+    ///
     pub fn new(
         body_header: Option<ring_items::BodyHeader>,
         start: u32,
@@ -229,7 +244,7 @@ mod scaler_tests {
         let item = ScalerItem::new(None, 0, 10, t, 1, true, None, &mut scalers);
 
         assert_eq!(6, item.scalers.len());
-        for i  in 0..6   {
+        for i in 0..6 {
             assert_eq!((i + 1) as u32, item.scalers[i]);
         }
     }
@@ -241,9 +256,10 @@ mod scaler_tests {
         let item = ScalerItem::new(None, 0, 10, t, 1, true, Some(5), &mut scalers);
 
         assert_eq!(6, item.scalers.len());
-        for i  in 0..6   {
+        for i in 0..6 {
             assert_eq!((i + 1) as u32, item.scalers[i]);
         }
-
     }
+    #[test]
+    fn getters_1() {}
 }
