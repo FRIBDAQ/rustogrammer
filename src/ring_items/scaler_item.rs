@@ -867,4 +867,115 @@ mod scaler_tests {
         assert_eq!(5, recons.original_sid().unwrap());
         assert_eq!(0, recons.len());
     }
+    #[test]
+    fn from_raw_4() {
+        // no body header, v11, some scalers:
+
+        let scalers: Vec<u32> = vec![1, 2, 3, 4, 5, 6];
+        let t = SystemTime::now();
+        let item = ScalerItem::new(None, 0, 10, t, 1, true, None, &mut scalers.clone());
+
+        let raw = item.to_raw();
+        let recons = ScalerItem::from_raw(&raw, RingVersion::V11);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap(); // The scaler item itself:
+
+        assert!(recons.get_body_header().is_none());
+        assert_eq!(0, recons.get_start_offset());
+        assert_eq!(10, recons.get_end_offset());
+        assert_eq!(
+            systime_to_raw(t),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.is_incremental());
+        assert!(recons.original_sid().is_none());
+        assert_eq!(6, recons.len()); // 6 scalers:
+        for i in 0..recons.len() {
+            assert_eq!(scalers[i], recons.get_scaler_values()[i]);
+        }
+    }
+    #[test]
+    fn from_raw_5() {
+        // body header, scalers and v11:
+
+        let scalers: Vec<u32> = vec![1, 2, 3, 4, 5, 6];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0xacdef0123456789,
+            source_id: 1,
+            barrier_type: 0,
+        };
+        let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, None, &mut scalers.clone());
+
+        let raw = item.to_raw();
+
+        let recons = ScalerItem::from_raw(&raw, RingVersion::V11);
+        assert!(recons.is_some());
+        let recons = recons.unwrap(); // The scaler item itself:
+
+        assert!(recons.get_body_header().is_some());
+        let rbh = recons.get_body_header().unwrap();
+        assert_eq!(bh.timestamp, rbh.timestamp);
+        assert_eq!(bh.source_id, rbh.source_id);
+        assert_eq!(bh.barrier_type, rbh.barrier_type);
+
+        assert_eq!(0, recons.get_start_offset());
+        assert_eq!(10, recons.get_end_offset());
+        assert_eq!(
+            systime_to_raw(t),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.is_incremental());
+        assert!(recons.original_sid().is_none());
+        assert_eq!(6, recons.len()); // 6 scalers:
+        for i in 0..recons.len() {
+            assert_eq!(scalers[i], recons.get_scaler_values()[i]);
+        }
+    }
+    #[test]
+    fn from_raw_6() {
+        let scalers: Vec<u32> = vec![1, 2, 3, 4, 5, 6];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0xacdef0123456789,
+            source_id: 1,
+            barrier_type: 0,
+        };
+        let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, Some(5), &mut scalers.clone());
+
+        let raw = item.to_raw();
+        let recons = ScalerItem::from_raw(&raw, RingVersion::V12);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap(); // The scaler item itself:
+
+        assert!(recons.get_body_header().is_some());
+        let rbh = recons.get_body_header().unwrap();
+        assert_eq!(bh.timestamp, rbh.timestamp);
+        assert_eq!(bh.source_id, rbh.source_id);
+        assert_eq!(bh.barrier_type, rbh.barrier_type);
+
+        assert_eq!(0, recons.get_start_offset());
+        assert_eq!(10, recons.get_end_offset());
+        assert_eq!(
+            systime_to_raw(t),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.is_incremental());
+        assert!(recons.original_sid().is_some());
+        assert_eq!(5, recons.original_sid().unwrap());
+        assert_eq!(6, recons.len()); // 6 scalers:
+        for i in 0..recons.len() {
+            assert_eq!(scalers[i], recons.get_scaler_values()[i]);
+        }
+    }
+    #[test]
+    fn from_raw_7() {
+        // Give none if the type is wrong:
+
+        let raw = RingItem::new(PERIODIC_SCALERS + 1); // bad type.
+        assert!(ScalerItem::from_raw(&raw, RingVersion::V11).is_none());
+        assert!(ScalerItem::from_raw(&raw, RingVersion::V12).is_none());
+    }
 }
