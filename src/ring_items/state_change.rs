@@ -340,4 +340,28 @@ mod state_tests {
         assert_eq!(5, item.original_sid.unwrap());
         assert_eq!(String::from("Some title"), item.run_title);
     }
+    #[test]
+    fn getter_1() {
+        // change types:
+
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            1,
+            "Some title",
+            Some(5),
+        );
+        assert_eq!(StateChangeType::End, item.change_type());
+        assert_eq!(String::from("End"), item.change_type_string());
+    }
 }
