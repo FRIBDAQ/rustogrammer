@@ -153,3 +153,97 @@ impl ScalerItem {
         result
     }
 }
+
+#[cfg(test)]
+mod scaler_tests {
+    use crate::ring_items::*;
+    use crate::scaler_item::*;
+    use std::mem::size_of;
+    use std::time::*;
+    #[test]
+    fn new_1() {
+        // Empty scaler item with no body header:
+        // 11.x style.
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let item = ScalerItem::new(None, 0, 10, t, 1, true, None, &mut scalers);
+        assert!(item.body_header.is_none());
+        assert_eq!(0, item.start_offset);
+        assert_eq!(10, item.end_offset);
+        assert_eq!(t, item.absolute_time);
+        assert_eq!(1, item.divisor);
+        assert!(item.original_sid.is_none());
+        assert_eq!(0, item.scalers.len());
+    }
+    #[test]
+    fn new_2() {
+        // empty scaler item with body header, 11.x style:
+
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, None, &mut scalers);
+        assert!(item.body_header.is_some());
+        let ibh = item.body_header.unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+    }
+    #[test]
+    fn new_3() {
+        // Empty scaler no body header, 12.x format.
+
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let item = ScalerItem::new(None, 0, 10, t, 1, true, Some(5), &mut scalers);
+
+        assert!(item.original_sid.is_some());
+        assert_eq!(5, item.original_sid.unwrap());
+    }
+    #[test]
+    fn new_4() {
+        // empty scaler body header, 12.x format:
+
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, Some(5), &mut scalers);
+
+        assert!(item.original_sid.is_some());
+        assert_eq!(5, item.original_sid.unwrap());
+    }
+    #[test]
+    fn new_5() {
+        // nonempty 11.x form:
+
+        let mut scalers: Vec<u32> = vec![1, 2, 3, 4, 5, 6];
+        let t = SystemTime::now();
+        let item = ScalerItem::new(None, 0, 10, t, 1, true, None, &mut scalers);
+
+        assert_eq!(6, item.scalers.len());
+        for i  in 0..6   {
+            assert_eq!((i + 1) as u32, item.scalers[i]);
+        }
+    }
+    #[test]
+    fn new_6() {
+        // nonempty 12.x form
+        let mut scalers: Vec<u32> = vec![1, 2, 3, 4, 5, 6];
+        let t = SystemTime::now();
+        let item = ScalerItem::new(None, 0, 10, t, 1, true, Some(5), &mut scalers);
+
+        assert_eq!(6, item.scalers.len());
+        for i  in 0..6   {
+            assert_eq!((i + 1) as u32, item.scalers[i]);
+        }
+
+    }
+}
