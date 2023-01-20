@@ -238,3 +238,5 @@ impl StateChange {
         self.original_sid
     }
 }
+#[cfg(test)]
+mod state_change_tests {}
