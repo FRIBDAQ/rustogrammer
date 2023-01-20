@@ -156,8 +156,9 @@ impl ScalerItem {
             .add(self.end_offset)
             .add(ring_items::systime_to_raw(self.absolute_time))
             .add(self.divisor)
-            .add(self.scalers.len() as u32)
-            .add(self.is_incremental);
+            .add(self.scalers.len() as u32);
+        let incr: u32 = if self.is_incremental { 1 } else { 0 };
+        result.add(incr);
         if let Some(osid) = self.original_sid {
             result.add(osid);
         }
@@ -400,5 +401,57 @@ mod scaler_tests {
         for i in 0..item.len() {
             assert_eq!((i + 1) as u32, item.get_scaler_values()[i]);
         }
+    }
+    // Test to_raw so that we can use it to generate raw items. for
+    // from_raw tests:
+
+    #[test]
+    fn to_raw_1() {
+        // Empty scaler item with no body header:
+        // 11.x style.
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let item = ScalerItem::new(None, 0, 10, t, 1, true, None, &mut scalers);
+
+        let raw = item.to_raw();
+        assert_eq!(PERIODIC_SCALERS, raw.type_id());
+        assert!(!raw.has_body_header());
+
+        let p = raw.payload().as_slice();
+        let mut offset = 0;
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            0, // there are no scalers.
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        // V11 has no original sid so with no scalers that's the end of
+        // the item .
+
+        offset += size_of::<u32>();
+        assert_eq!(offset, p.len());
     }
 }
