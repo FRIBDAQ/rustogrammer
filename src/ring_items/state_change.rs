@@ -5,7 +5,7 @@ use std::time;
 /// these are actually four different item types.
 
 /// Types of run state transitions in rustly form:
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum StateChangeType {
     Begin,
     End,
@@ -239,4 +239,105 @@ impl StateChange {
     }
 }
 #[cfg(test)]
-mod state_change_tests {}
+mod state_tests {
+    use crate::ring_items::*;
+    use crate::state_change::*;
+    use std::mem::size_of;
+    use std::time::*;
+
+    // just test new, rather than the qualified versions
+    // since they delegate -- considser making the qualified
+    // versions private?
+
+    #[test]
+    fn new_1() {
+        // V11, no body header.
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::Begin,
+            None,
+            12,
+            0,
+            1,
+            "This is a title",
+            None,
+        ); // will be a later time.
+
+        assert_eq!(StateChangeType::Begin, item.change_type);
+        assert_eq!(false, item.has_body_header);
+        assert_eq!(12, item.run_number);
+        assert_eq!(0, item.time_offset);
+        assert_eq!(1, item.offset_divisor);
+        // >Should< be less than a second between t and the absolute_time stamp.
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert_eq!(String::from("This is a title"), item.run_title);
+        assert!(item.original_sid.is_none());
+    }
+    #[test]
+    fn new_2() {
+        // V11 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            1,
+            "Some title",
+            None,
+        );
+        assert_eq!(StateChangeType::End, item.change_type);
+        assert_eq!(true, item.has_body_header);
+        assert_eq!(bh.timestamp, item.body_header.timestamp);
+        assert_eq!(bh.source_id, item.body_header.source_id);
+        assert_eq!(bh.barrier_type, item.body_header.barrier_type);
+
+        assert_eq!(13, item.run_number);
+        assert_eq!(100, item.time_offset);
+        assert_eq!(1, item.offset_divisor);
+        // >Should< be less than a second between t and the absolute_time stamp.
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert!(item.original_sid.is_none());
+        assert_eq!(String::from("Some title"), item.run_title);
+    }
+    #[test]
+    fn new_3() {
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            1,
+            "Some title",
+            Some(5),
+        );
+        assert_eq!(StateChangeType::End, item.change_type);
+        assert_eq!(true, item.has_body_header);
+        assert_eq!(bh.timestamp, item.body_header.timestamp);
+        assert_eq!(bh.source_id, item.body_header.source_id);
+        assert_eq!(bh.barrier_type, item.body_header.barrier_type);
+
+        assert_eq!(13, item.run_number);
+        assert_eq!(100, item.time_offset);
+        assert_eq!(1, item.offset_divisor);
+        // >Should< be less than a second between t and the absolute_time stamp.
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert!(item.original_sid.is_some());
+        assert_eq!(5, item.original_sid.unwrap());
+        assert_eq!(String::from("Some title"), item.run_title);
+    }
+}
