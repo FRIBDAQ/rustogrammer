@@ -106,8 +106,9 @@ impl ScalerItem {
             let divisor = u32::from_ne_bytes(p[offset + 12..offset + 16].try_into().unwrap());
             let nscalers = u32::from_ne_bytes(p[offset + 16..offset + 20].try_into().unwrap());
             let incr = u32::from_ne_bytes(p[offset + 20..offset + 24].try_into().unwrap()) != 0;
+            let mut offset = offset + 24; // new offset.
+
             let mut orsid: Option<u32> = None;
-            let mut offset = offset; // new offset.
             if fmt == ring_items::RingVersion::V12 {
                 orsid = Some(u32::from_ne_bytes(
                     p[offset..offset + 4].try_into().unwrap(),
@@ -769,5 +770,101 @@ mod scaler_tests {
         // offset should now be off the end so:
 
         assert_eq!(offset, p.len());
+    }
+    // We know we can now use to_raw to generate raw items for
+    // from_raw:
+
+    #[test]
+    fn from_raw_1() {
+        // no body header, v11, no scalers:
+
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let item = ScalerItem::new(None, 0, 10, t, 1, true, None, &mut scalers);
+
+        let raw = item.to_raw();
+        let recons = ScalerItem::from_raw(&raw, RingVersion::V11);
+        assert!(recons.is_some());
+        let recons = recons.unwrap(); // The scaler item itself:
+
+        assert!(recons.get_body_header().is_none());
+        assert_eq!(0, recons.get_start_offset());
+        assert_eq!(10, recons.get_end_offset());
+        assert_eq!(
+            systime_to_raw(t),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.is_incremental());
+        assert!(recons.original_sid().is_none());
+        assert_eq!(0, recons.len());
+    }
+    #[test]
+    fn from_raw_2() {
+        // body header, v11, no scalers:
+
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, None, &mut scalers);
+
+        let raw = item.to_raw();
+        let recons = ScalerItem::from_raw(&raw, RingVersion::V11);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert!(recons.get_body_header().is_some());
+        let rbh = recons.get_body_header().unwrap();
+        assert_eq!(bh.timestamp, rbh.timestamp);
+        assert_eq!(bh.source_id, rbh.source_id);
+        assert_eq!(bh.barrier_type, rbh.barrier_type);
+
+        assert_eq!(0, recons.get_start_offset());
+        assert_eq!(10, recons.get_end_offset());
+        assert_eq!(
+            systime_to_raw(t),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.is_incremental());
+        assert!(recons.original_sid().is_none());
+        assert_eq!(0, recons.len());
+    }
+    #[test]
+    fn from_raw_3() {
+        // no scalers, body header and v12 version:
+
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, Some(5), &mut scalers);
+
+        let raw = item.to_raw();
+        let recons = ScalerItem::from_raw(&raw, RingVersion::V12);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert!(recons.get_body_header().is_some());
+        let rbh = recons.get_body_header().unwrap();
+        assert_eq!(bh.timestamp, rbh.timestamp);
+        assert_eq!(bh.source_id, rbh.source_id);
+        assert_eq!(bh.barrier_type, rbh.barrier_type);
+
+        assert_eq!(0, recons.get_start_offset());
+        assert_eq!(10, recons.get_end_offset());
+        assert_eq!(
+            systime_to_raw(t),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.is_incremental());
+        assert!(recons.original_sid().is_some());
+        assert_eq!(5, recons.original_sid().unwrap());
+        assert_eq!(0, recons.len());
     }
 }
