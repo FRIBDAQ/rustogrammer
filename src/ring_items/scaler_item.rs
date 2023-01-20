@@ -454,4 +454,320 @@ mod scaler_tests {
         offset += size_of::<u32>();
         assert_eq!(offset, p.len());
     }
+    #[test]
+    fn to_raw_2() {
+        // body header empty, v11
+
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, None, &mut scalers);
+
+        let raw = item.to_raw();
+        assert!(raw.has_body_header());
+        let bhr = raw.get_bodyheader().unwrap(); //Ok since it has one.
+        assert_eq!(bh.timestamp, bhr.timestamp);
+        assert_eq!(bh.source_id, bhr.source_id);
+        assert_eq!(bh.barrier_type, bhr.barrier_type);
+
+        let p = raw.payload().as_slice();
+        let mut offset = body_header_size();
+
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            0, // there are no scalers.
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        // V11 has no original sid so with no scalers that's the end of
+        // the item .
+
+        offset += size_of::<u32>();
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_3() {
+        // No scalers, body header and v 12 style
+
+        let mut scalers = Vec::<u32>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, Some(5), &mut scalers);
+
+        let raw = item.to_raw();
+        assert!(raw.has_body_header());
+        let bhr = raw.get_bodyheader().unwrap(); //Ok since it has one.
+        assert_eq!(bh.timestamp, bhr.timestamp);
+        assert_eq!(bh.source_id, bhr.source_id);
+        assert_eq!(bh.barrier_type, bhr.barrier_type);
+
+        let p = raw.payload().as_slice();
+        let mut offset = body_header_size();
+
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            0, // there are no scalers.
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+
+        // V12 has an original sid here:
+
+        offset += size_of::<u32>();
+        assert_eq!(
+            5,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+
+        // should be nothing more:
+
+        offset += size_of::<u32>();
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_4() {
+        // no body header v11, some scalers:
+
+        let mut scalers: Vec<u32> = vec![1, 2, 3, 4, 5, 6];
+        let t = SystemTime::now();
+        let item = ScalerItem::new(None, 0, 10, t, 1, true, None, &mut scalers);
+
+        let raw = item.to_raw();
+
+        let p = raw.payload().as_slice();
+        let mut offset = 0;
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            6, // there are 6 scalers:
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+
+        // scaler values:
+
+        offset += size_of::<u32>(); // First scaler offset:
+
+        for i in 0..6 {
+            let expected: u32 = i + 1;
+            assert_eq!(
+                expected,
+                u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+            );
+            offset += size_of::<u32>();
+        }
+        // offset should now be off the end so:
+
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_5() {
+        // body header, scalers and v11:
+
+        let mut scalers: Vec<u32> = vec![1, 2, 3, 4, 5, 6];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0xacdef0123456789,
+            source_id: 1,
+            barrier_type: 0,
+        };
+        let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, None, &mut scalers);
+
+        let raw = item.to_raw();
+
+        let p = raw.payload().as_slice();
+        let mut offset = body_header_size(); // all starts after bh.
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            6, // there are 6 scalers:
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+
+        // scaler values:
+
+        offset += size_of::<u32>(); // First scaler offset:
+
+        for i in 0..6 {
+            let expected: u32 = i + 1;
+            assert_eq!(
+                expected,
+                u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+            );
+            offset += size_of::<u32>();
+        }
+        // offset should now be off the end so:
+
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_6() {
+        // body header, v12, contents:
+
+        let mut scalers: Vec<u32> = vec![1, 2, 3, 4, 5, 6];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0xacdef0123456789,
+            source_id: 1,
+            barrier_type: 0,
+        };
+        let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, Some(5), &mut scalers);
+
+        let raw = item.to_raw();
+
+        let p = raw.payload().as_slice();
+        let mut offset = body_header_size(); // all starts after bh.
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            6, // there are 6 scalers:
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+        offset += size_of::<u32>();
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+
+        // osid:
+
+        offset += size_of::<u32>();
+        assert_eq!(
+            5,
+            u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+        );
+
+        // scaler values:
+
+        offset += size_of::<u32>(); // First scaler offset:
+
+        for i in 0..6 {
+            let expected: u32 = i + 1;
+            assert_eq!(
+                expected,
+                u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
+            );
+            offset += size_of::<u32>();
+        }
+        // offset should now be off the end so:
+
+        assert_eq!(offset, p.len());
+    }
 }
