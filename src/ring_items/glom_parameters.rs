@@ -206,4 +206,50 @@ mod glom_tests {
             u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
         );
     }
+    // to_raw works we can use it to generate raw items for from_raw:
+
+    #[test]
+    fn from_raw_1() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::First);
+        let raw = item.to_raw();
+        let back = GlomParameters::from_raw(&raw);
+        assert!(back.is_some());
+        let back = back.unwrap();
+
+        assert_eq!(1000, back.get_coincidence_interval());
+        assert!(back.is_building());
+        assert_eq!(TimestampPolicy::First, back.get_ts_policy());
+    }
+    #[test]
+    fn from_raw_2() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::Last);
+        let raw = item.to_raw();
+        let back = GlomParameters::from_raw(&raw);
+        assert!(back.is_some());
+        let back = back.unwrap();
+
+        assert_eq!(1000, back.get_coincidence_interval());
+        assert!(back.is_building());
+        assert_eq!(TimestampPolicy::Last, back.get_ts_policy());
+    }
+    #[test]
+    fn from_raw_3() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::Average);
+        let raw = item.to_raw();
+        let back = GlomParameters::from_raw(&raw);
+        assert!(back.is_some());
+        let back = back.unwrap();
+
+        assert_eq!(1000, back.get_coincidence_interval());
+        assert!(back.is_building());
+        assert_eq!(TimestampPolicy::Average, back.get_ts_policy());
+    }
+    #[test]
+    fn from_raw_4() {
+        // invalid type -> None:
+
+        let raw = RingItem::new(GLOM_INFO + 1);
+        let bad = GlomParameters::from_raw(&raw);
+        assert!(bad.is_none());
+    }
 }
