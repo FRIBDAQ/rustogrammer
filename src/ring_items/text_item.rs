@@ -200,3 +200,11 @@ impl TextItem {
         result
     }
 }
+#[cfg(test)]
+mod text_tests {
+    use crate::text_item::*;
+    use crate::ring_items::*;
+    use std::time::SystemTime;
+    use std::mem::size_of;
+
+}
