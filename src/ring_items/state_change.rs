@@ -189,12 +189,12 @@ impl StateChange {
 
         let mut title = self.run_title.clone();
         title.truncate(79);
-        let title_bytes = String::into_bytes(title.clone());
+        let title_bytes = title.into_bytes();
         item.add_byte_vec(&title_bytes);
 
         // Pad out with nulls and ensure there's a null terminator
         // which  is not put in title_bytes by into_bytes.
-        for _i in title.len()..81 {
+        for _i in title_bytes.len()..81 {
             item.add(0 as u8);
         }
         item
@@ -466,5 +466,192 @@ mod state_tests {
             None,
         );
         assert!(item.original_sid().is_none());
+    }
+    // as has become ususal...test to_raw first so that it
+    // can be used to generate raw items for from_raw tests.
+    #[test]
+    fn to_raw_1() {
+        // No body header V11 format:
+
+        let _t = SystemTime::now();
+        let item = StateChange::new(StateChangeType::End, None, 13, 100, 2, "Some title", None);
+        let raw = item.to_raw();
+        assert_eq!(END_RUN, raw.type_id());
+        assert!(!raw.has_body_header());
+
+        let p = raw.payload().as_slice();
+        let mut offset = 0; // payload
+        let u32s = size_of::<u32>();
+        assert_eq!(
+            13,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            100,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            systime_to_raw(item.absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            2,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        // there's no original sid so the title is next:
+
+        offset += u32s;
+        let mut o = offset;
+        let title = get_c_string(&mut o, p);
+        assert_eq!(String::from("Some title"), title);
+
+        // The title is a fixed size block so:
+
+        offset += 81;
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_2() {
+        // V11 body header .
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            None,
+        );
+        let raw = item.to_raw();
+
+        assert_eq!(END_RUN, raw.type_id());
+        assert!(raw.has_body_header());
+        let rbh = raw.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, rbh.timestamp);
+        assert_eq!(bh.source_id, rbh.source_id);
+        assert_eq!(bh.barrier_type, rbh.barrier_type);
+
+        let p = raw.payload().as_slice();
+        let mut offset = body_header_size();  // Payload starts here:
+        let u32s = size_of::<u32>();
+        
+        assert_eq!(
+            13,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            100,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            systime_to_raw(t),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            2,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        // there's no original sid so the title is next:
+
+        offset += u32s;
+        let mut o = offset;
+        let title = get_c_string(&mut o, p);
+        assert_eq!(String::from("Some title"), title);
+
+        // The title is a fixed size block so:
+
+        offset += 81;
+        assert_eq!(offset, p.len());
+        
+    }
+    #[test]
+    fn to_raw_3() {
+        // Body header in v12+ format:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            Some(5),
+        );
+
+        let raw = item.to_raw();
+
+        assert_eq!(END_RUN, raw.type_id());
+
+        assert!(raw.has_body_header());
+        let rbh = raw.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, rbh.timestamp);
+        assert_eq!(bh.source_id, rbh.source_id);
+        assert_eq!(bh.barrier_type, rbh.barrier_type);
+
+        let p = raw.payload().as_slice();
+        let mut offset = body_header_size();  // Payload starts here:
+        let u32s = size_of::<u32>();
+        
+        assert_eq!(
+            13,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            100,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            systime_to_raw(t),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            2,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        // there's an original sid so 
+        offset += u32s;
+        assert_eq!(
+            5, 
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        
+        // The title is next:
+
+        offset += u32s;
+        let mut o = offset;
+        let title = get_c_string(&mut o, p);
+        assert_eq!(String::from("Some title"), title);
+
+        // The title is a fixed size block so:
+
+        offset += 81;
+        assert_eq!(offset, p.len());
+        
+        
     }
 }
