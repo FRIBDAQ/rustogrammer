@@ -472,8 +472,51 @@ mod text_tests {
             assert_eq!(strings[i], istrings[i]);
             assert_eq!(strings[i], item.get_string(i).unwrap());
         }
-        assert!(item.get_string(strings.len()).is_none())
+        assert!(item.get_string(strings.len()).is_none());
+    }
+    #[test]
+    pub fn getters_2() {
+        // no body header v11:
+        // body header and v12 format:
 
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+        
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            None,
+            10,
+            t,
+            2,
+            None,
+            &strings,
+        );
 
+        assert_eq!(TextItemType::MonitoredVariables, item.get_item_type());
+        assert_eq!(
+            String::from("Monitored variables"),
+            item.get_item_type_string()
+        );
+
+        assert!(item.get_body_header().is_none());
+        
+        assert_eq!(10, item.get_time_offset());
+        assert_eq!(5.0, item.get_offset_secs());
+        assert_eq!(t, item.get_absolute_time());
+
+        assert!(item.get_original_sid().is_none());
+
+        assert_eq!(strings.len(), item.get_string_count());
+        let istrings = item.get_strings();
+        for i  in 0..strings.len() {
+            assert_eq!(strings[i], istrings[i]);
+            assert_eq!(strings[i], item.get_string(i).unwrap());
+        }
+        assert!(item.get_string(strings.len()).is_none());
     }
 }
