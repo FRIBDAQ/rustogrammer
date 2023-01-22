@@ -8,7 +8,7 @@ use std::time;
 
 /// More than one type of raw item may be a text item.  This
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum TextItemType {
     PacketTypes,
     MonitoredVariables,
@@ -202,9 +202,25 @@ impl TextItem {
 }
 #[cfg(test)]
 mod text_tests {
-    use crate::text_item::*;
     use crate::ring_items::*;
-    use std::time::SystemTime;
+    use crate::text_item::*;
     use std::mem::size_of;
+    use std::time::SystemTime;
 
+    #[test]
+    fn new_1() {
+        // No strings attached, V11, no body header.
+
+        let strings = Vec::<String>::new();
+        let t = SystemTime::now();
+        let item = TextItem::new(TextItemType::PacketTypes, None, 10, t, 1, None, &strings);
+
+        assert_eq!(TextItemType::PacketTypes, item.item_type);
+        assert!(item.body_header.is_none());
+        assert_eq!(10, item.time_offset);
+        assert_eq!(t, item.absolute_time);
+        assert_eq!(1, item.offset_divisor);
+        assert!(item.original_sid.is_none());
+        assert_eq!(0, strings.len());
+    }
 }
