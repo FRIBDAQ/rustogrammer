@@ -612,10 +612,8 @@ mod text_tests {
             &strings,
         );
 
-        let mut i = 0;
-        for s in item.iter() {
+        for (i, s) in item.iter().enumerate() {
             assert_eq!(strings[i], *s);
-            i += 1;
         }
     }
     // as with our other types; we test to_raw() first and then
@@ -914,7 +912,7 @@ mod text_tests {
         );
         let raw = item.to_raw();
         assert_eq!(MONITORED_VARIABLES, raw.type_id());
-        
+
         assert!(raw.has_body_header());
         let ibh = raw.get_bodyheader().unwrap();
         assert_eq!(bh.timestamp, ibh.timestamp);
@@ -995,7 +993,7 @@ mod text_tests {
         let raw = item.to_raw();
 
         assert_eq!(MONITORED_VARIABLES, raw.type_id());
-        
+
         assert!(raw.has_body_header());
         let ibh = raw.get_bodyheader().unwrap();
         assert_eq!(bh.timestamp, ibh.timestamp);
@@ -1037,7 +1035,7 @@ mod text_tests {
             u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
         );
         offset += u32s;
-        
+
         // Before the strings is an original sid in V12:
 
         assert_eq!(
@@ -1055,5 +1053,278 @@ mod text_tests {
         // Should be at the item end
 
         assert_eq!(offset, p.len());
+    }
+    // we're on a firm footing with to_raw so we can use it to
+    // test from _raw:
+
+    #[test]
+    fn from_raw_1() {
+        // no strings, v11 no body header:
+
+        let strings = Vec::<String>::new();
+        let t = SystemTime::now();
+        let item = TextItem::new(TextItemType::PacketTypes, None, 10, t, 1, None, &strings);
+        let raw = item.to_raw();
+        let recons = TextItem::from_raw(&raw, RingVersion::V11);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert_eq!(item.get_item_type(), recons.get_item_type());
+        assert!(recons.get_body_header().is_none());
+        assert_eq!(item.get_time_offset(), recons.get_time_offset());
+        assert_eq!(
+            // must use raw format since to_raw truncates to seconds
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.get_original_sid().is_none());
+        assert_eq!(0, recons.get_string_count());
+    }
+    #[test]
+    fn from_raw_2() {
+        // no strings, v11, body header.
+
+        let strings = Vec::<String>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::PacketTypes,
+            Some(bh),
+            10,
+            t,
+            1,
+            None,
+            &strings,
+        );
+
+        let raw = item.to_raw();
+        let recons = TextItem::from_raw(&raw, RingVersion::V11);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert_eq!(item.get_item_type(), recons.get_item_type());
+        assert!(recons.get_body_header().is_some());
+        let ibh = recons.get_body_header().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(item.get_time_offset(), recons.get_time_offset());
+        assert_eq!(
+            // must use raw format since to_raw truncates to seconds
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.get_original_sid().is_none());
+        assert_eq!(0, recons.get_string_count());
+    }
+    #[test]
+    fn from_raw_3() {
+        // no strings v12, body header.
+
+        let strings = Vec::<String>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::PacketTypes,
+            Some(bh),
+            10,
+            t,
+            1,
+            Some(5),
+            &strings,
+        );
+        let raw = item.to_raw();
+        let recons = TextItem::from_raw(&raw, RingVersion::V12);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert_eq!(item.get_item_type(), recons.get_item_type());
+        assert!(recons.get_body_header().is_some());
+        let ibh = recons.get_body_header().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(item.get_time_offset(), recons.get_time_offset());
+        assert_eq!(
+            // must use raw format since to_raw truncates to seconds
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.get_original_sid().is_some());
+        assert_eq!(5, recons.get_original_sid().unwrap());
+        assert_eq!(0, recons.get_string_count());
+    }
+    #[test]
+    fn from_raw_4() {
+        // no body header, v11 with strings:
+
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            None,
+            10,
+            t,
+            1,
+            None,
+            &strings,
+        );
+        let raw = item.to_raw();
+        let recons = TextItem::from_raw(&raw, RingVersion::V11);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert_eq!(item.get_item_type(), recons.get_item_type());
+        assert!(recons.get_body_header().is_none());
+
+        assert_eq!(item.get_time_offset(), recons.get_time_offset());
+        assert_eq!(
+            // must use raw format since to_raw truncates to seconds
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.get_original_sid().is_none());
+        assert_eq!(item.get_string_count(), recons.get_string_count());
+
+        // This is a more rusty way to compare strings than
+        // using enumerate I think?
+
+        for it in item.iter().zip(recons.iter()) {
+            assert_eq!(*it.0, *it.1);
+        }
+    }
+    #[test]
+    fn from_raw_5() {
+        // body header, v11 with strings:
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            Some(bh),
+            10,
+            t,
+            1,
+            None,
+            &strings,
+        );
+        let raw = item.to_raw();
+        let recons = TextItem::from_raw(&raw, RingVersion::V11);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert_eq!(item.get_item_type(), recons.get_item_type());
+        assert!(recons.get_body_header().is_some());
+        let ibh = recons.get_body_header().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(item.get_time_offset(), recons.get_time_offset());
+        assert_eq!(
+            // must use raw format since to_raw truncates to seconds
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.get_original_sid().is_none());
+        assert_eq!(item.get_string_count(), recons.get_string_count());
+
+        // This is a more rusty way to compare strings than
+        // using enumerate I think?
+
+        for it in item.iter().zip(recons.iter()) {
+            assert_eq!(*it.0, *it.1);
+        }
+    }
+    #[test]
+    fn from_raw_6() {
+        // body header and v12 format:
+
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            Some(bh),
+            10,
+            t,
+            1,
+            Some(5),
+            &strings,
+        );
+
+        let raw = item.to_raw();
+        let recons = TextItem::from_raw(&raw, RingVersion::V12);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert_eq!(item.get_item_type(), recons.get_item_type());
+        assert!(recons.get_body_header().is_some());
+        let ibh = recons.get_body_header().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(item.get_time_offset(), recons.get_time_offset());
+        assert_eq!(
+            // must use raw format since to_raw truncates to seconds
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
+        assert!(recons.get_original_sid().is_some());
+        assert_eq!(5, recons.get_original_sid().unwrap());
+        assert_eq!(item.get_string_count(), recons.get_string_count());
+
+        // This is a more rusty way to compare strings than
+        // using enumerate I think?
+
+        for it in item.iter().zip(recons.iter()) {
+            assert_eq!(*it.0, *it.1);
+        }
+    }
+    #[test]
+    fn from_raw_7() {
+        // Must be a valid item type:
+
+        let raw = RingItem::new(BEGIN_RUN); // not a text item.
+        assert!(TextItem::from_raw(&raw, RingVersion::V11).is_none());
+        assert!(TextItem::from_raw(&raw, RingVersion::V12).is_none());
     }
 }
