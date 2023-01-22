@@ -107,7 +107,13 @@ impl TextItem {
             None
         }
     }
-
+    /// add another string to the array of strings.
+    /// returning a &mut Self supports chaining to other
+    /// methods or multiple adds.
+    pub fn add(&mut self, str: &str) -> &mut Self {
+        self.strings.push(String::from(str));
+        self
+    }
     // Conversions.
 
     pub fn from_raw(raw: &ring_items::RingItem, vers: ring_items::RingVersion) -> Option<TextItem> {
@@ -162,6 +168,8 @@ impl TextItem {
             None
         }
     }
+    
+
     /// Covert to a raw type
 
     pub fn to_raw(&self) -> ring_items::RingItem {
@@ -410,5 +418,62 @@ mod text_tests {
         for i in 0..strings.len() {
             assert_eq!(strings[i], item.strings[i]);
         }
+    }
+    // test getters:
+
+    #[test]
+    fn getters_1() {
+        // body header and v12 format:
+
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            Some(bh),
+            10,
+            t,
+            2,
+            Some(5),
+            &strings,
+        );
+
+        assert_eq!(TextItemType::MonitoredVariables, item.get_item_type());
+        assert_eq!(
+            String::from("Monitored variables"),
+            item.get_item_type_string()
+        );
+
+        assert!(item.get_body_header().is_some());
+        let ibh = item.get_body_header().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(10, item.get_time_offset());
+        assert_eq!(5.0, item.get_offset_secs());
+        assert_eq!(t, item.get_absolute_time());
+
+        assert!(item.get_original_sid().is_some());
+        assert_eq!(5, item.get_original_sid().unwrap());
+        
+        assert_eq!(strings.len(), item.get_string_count());
+        let istrings = item.get_strings();
+        for i  in 0..strings.len() {
+            assert_eq!(strings[i], istrings[i]);
+            assert_eq!(strings[i], item.get_string(i).unwrap());
+        }
+        assert!(item.get_string(strings.len()).is_none())
+
+
     }
 }
