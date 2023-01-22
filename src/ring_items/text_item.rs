@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::slice::Iter;
 use std::time;
 ///
 ///  This module provides support for ring items that have
@@ -107,6 +108,12 @@ impl TextItem {
             None
         }
     }
+    /// Support iteration of the strings:
+
+    pub fn iter(&self) -> Iter<String> {
+        self.strings.iter()
+    }
+
     /// add another string to the array of strings.
     /// returning a &mut Self supports chaining to other
     /// methods or multiple adds.
@@ -168,7 +175,6 @@ impl TextItem {
             None
         }
     }
-    
 
     /// Covert to a raw type
 
@@ -465,10 +471,10 @@ mod text_tests {
 
         assert!(item.get_original_sid().is_some());
         assert_eq!(5, item.get_original_sid().unwrap());
-        
+
         assert_eq!(strings.len(), item.get_string_count());
         let istrings = item.get_strings();
-        for i  in 0..strings.len() {
+        for i in 0..strings.len() {
             assert_eq!(strings[i], istrings[i]);
             assert_eq!(strings[i], item.get_string(i).unwrap());
         }
@@ -486,7 +492,7 @@ mod text_tests {
             String::from("Last one"),
         ];
         let t = SystemTime::now();
-        
+
         let item = TextItem::new(
             TextItemType::MonitoredVariables,
             None,
@@ -504,7 +510,7 @@ mod text_tests {
         );
 
         assert!(item.get_body_header().is_none());
-        
+
         assert_eq!(10, item.get_time_offset());
         assert_eq!(5.0, item.get_offset_secs());
         assert_eq!(t, item.get_absolute_time());
@@ -513,10 +519,43 @@ mod text_tests {
 
         assert_eq!(strings.len(), item.get_string_count());
         let istrings = item.get_strings();
-        for i  in 0..strings.len() {
+        for i in 0..strings.len() {
             assert_eq!(strings[i], istrings[i]);
             assert_eq!(strings[i], item.get_string(i).unwrap());
         }
         assert!(item.get_string(strings.len()).is_none());
     }
+    #[test]
+    fn add_1() {
+        // add string to an item:
+
+        let mut strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+
+        let mut item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            None,
+            10,
+            t,
+            2,
+            None,
+            &strings,
+        );
+
+        let next = "One more string";
+        item.add(&next);
+        strings.push(String::from(next));
+
+        assert_eq!(strings.len(), item.get_string_count());
+        for i in 0..strings.len() {
+            assert_eq!(strings[i], item.get_string(i).unwrap());
+        }
+        assert!(item.get_string(strings.len()).is_none());
+    }
 }
+
