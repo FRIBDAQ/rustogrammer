@@ -557,5 +557,33 @@ mod text_tests {
         }
         assert!(item.get_string(strings.len()).is_none());
     }
-}
+    #[test]
+    fn add_2() {
+        // check chaining:
 
+        // add string to an item:
+
+        let mut strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+
+        let mut item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            None,
+            10,
+            t,
+            2,
+            None,
+            &strings,
+        );
+
+        let next = "One more string";
+        let n = item.add(&next).get_string_count();
+        strings.push(String::from(next));
+        assert_eq!(strings.len(), n);
+    }
+}
