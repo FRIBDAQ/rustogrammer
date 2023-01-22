@@ -223,4 +223,192 @@ mod text_tests {
         assert!(item.original_sid.is_none());
         assert_eq!(0, strings.len());
     }
+    #[test]
+    fn new_2() {
+        // no strings, V11 body header:
+
+        let strings = Vec::<String>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::PacketTypes,
+            Some(bh),
+            10,
+            t,
+            1,
+            None,
+            &strings,
+        );
+
+        assert_eq!(TextItemType::PacketTypes, item.item_type);
+        assert!(item.body_header.is_some());
+        let ibh = item.body_header.unwrap(); // assertion  says this is ok.
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(10, item.time_offset);
+        assert_eq!(t, item.absolute_time);
+        assert_eq!(1, item.offset_divisor);
+        assert!(item.original_sid.is_none());
+        assert_eq!(0, strings.len());
+    }
+    #[test]
+    fn new_3() {
+        // no strings v12, body header.
+
+        let strings = Vec::<String>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::PacketTypes,
+            Some(bh),
+            10,
+            t,
+            1,
+            Some(5),
+            &strings,
+        );
+
+        assert_eq!(TextItemType::PacketTypes, item.item_type);
+        assert!(item.body_header.is_some());
+        let ibh = item.body_header.unwrap(); // assertion  says this is ok.
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(10, item.time_offset);
+        assert_eq!(t, item.absolute_time);
+        assert_eq!(1, item.offset_divisor);
+        assert!(item.original_sid.is_some());
+        assert_eq!(5, item.original_sid.unwrap());
+        assert_eq!(0, strings.len());
+    }
+    // These tests attach strings to the item.
+
+    #[test]
+    fn new_4() {
+        // no body header, v11 with strings:
+
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            None,
+            10,
+            t,
+            1,
+            None,
+            &strings,
+        );
+
+        assert_eq!(TextItemType::MonitoredVariables, item.item_type);
+        assert!(item.body_header.is_none());
+        assert_eq!(10, item.time_offset);
+        assert_eq!(t, item.absolute_time);
+        assert_eq!(1, item.offset_divisor);
+        assert!(item.original_sid.is_none());
+        assert_eq!(strings.len(), item.strings.len());
+        for i in 0..strings.len() {
+            assert_eq!(strings[i], item.strings[i]);
+        }
+    }
+    #[test]
+    fn new_5() {
+        // body header, v11 with strings:
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            Some(bh),
+            10,
+            t,
+            1,
+            None,
+            &strings,
+        );
+
+        assert_eq!(TextItemType::MonitoredVariables, item.item_type);
+        assert!(item.body_header.is_some());
+        let ibh = item.body_header.unwrap(); // assertion  says this is ok.
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(10, item.time_offset);
+        assert_eq!(t, item.absolute_time);
+        assert_eq!(1, item.offset_divisor);
+        assert!(item.original_sid.is_none());
+        assert_eq!(strings.len(), item.strings.len());
+        for i in 0..strings.len() {
+            assert_eq!(strings[i], item.strings[i]);
+        }
+    }
+    #[test]
+    fn new_6() {
+        // body header and v12 format:
+
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            Some(bh),
+            10,
+            t,
+            1,
+            Some(5),
+            &strings,
+        );
+
+        assert_eq!(TextItemType::MonitoredVariables, item.item_type);
+        assert!(item.body_header.is_some());
+        let ibh = item.body_header.unwrap(); // assertion  says this is ok.
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(10, item.time_offset);
+        assert_eq!(t, item.absolute_time);
+        assert_eq!(1, item.offset_divisor);
+        assert!(item.original_sid.is_some());
+        assert_eq!(5, item.original_sid.unwrap());
+        assert_eq!(strings.len(), item.strings.len());
+        for i in 0..strings.len() {
+            assert_eq!(strings[i], item.strings[i]);
+        }
+    }
 }
