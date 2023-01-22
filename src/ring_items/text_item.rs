@@ -594,7 +594,7 @@ mod text_tests {
 
         // add string to an item:
 
-        let mut strings = vec![
+        let strings = vec![
             String::from("one"),
             String::from("two"),
             String::from("three"),
@@ -602,7 +602,7 @@ mod text_tests {
         ];
         let t = SystemTime::now();
 
-        let mut item = TextItem::new(
+        let item = TextItem::new(
             TextItemType::MonitoredVariables,
             None,
             10,
@@ -617,5 +617,443 @@ mod text_tests {
             assert_eq!(strings[i], *s);
             i += 1;
         }
+    }
+    // as with our other types; we test to_raw() first and then
+    // use it to generate raw items to test with from_raw.
+
+    #[test]
+    fn to_raw_1() {
+        // no strings, no body header, v11:
+
+        let strings = Vec::<String>::new();
+        let t = SystemTime::now();
+        let item = TextItem::new(TextItemType::PacketTypes, None, 10, t, 1, None, &strings);
+        let raw = item.to_raw();
+        assert_eq!(PACKET_TYPES, raw.type_id());
+        assert!(!raw.has_body_header());
+
+        let p = raw.payload().as_slice();
+        let u32s = size_of::<u32>();
+        let mut offset = 0;
+
+        // Time offset:
+
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // absolute timestamp:
+
+        assert_eq!(
+            systime_to_raw(t),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // No strings:
+
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // offset divisor:
+
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // In V11 there should be no more bytes:
+
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_2() {
+        // no strings. v11 body header:
+
+        let strings = Vec::<String>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::PacketTypes,
+            Some(bh),
+            10,
+            t,
+            1,
+            None,
+            &strings,
+        );
+        let raw = item.to_raw();
+        assert_eq!(PACKET_TYPES, raw.type_id());
+        assert!(raw.has_body_header());
+        let ibh = raw.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        let p = raw.payload().as_slice();
+        let u32s = size_of::<u32>();
+        let mut offset = body_header_size();
+
+        // Time offset:
+
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // absolute timestamp:
+
+        assert_eq!(
+            systime_to_raw(t),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // No strings:
+
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // offset divisor:
+
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // In V11 there should be no more bytes:
+
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_3() {
+        // No strings, v12, body header:
+
+        let strings = Vec::<String>::new();
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::PacketTypes,
+            Some(bh),
+            10,
+            t,
+            1,
+            Some(5),
+            &strings,
+        );
+        let raw = item.to_raw();
+        assert_eq!(PACKET_TYPES, raw.type_id());
+        assert!(raw.has_body_header());
+        let ibh = raw.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        let p = raw.payload().as_slice();
+        let u32s = size_of::<u32>();
+        let mut offset = body_header_size();
+
+        // Time offset:
+
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // absolute timestamp:
+
+        assert_eq!(
+            systime_to_raw(t),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // No strings:
+
+        assert_eq!(
+            0,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // offset divisor:
+
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // V12 - original sid:
+        assert_eq!(
+            5,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // In V12 there should be no more bytes:
+
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_4() {
+        // No body header, v11 with strings:
+
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            None,
+            10,
+            t,
+            1,
+            None,
+            &strings,
+        );
+        let raw = item.to_raw();
+
+        assert_eq!(MONITORED_VARIABLES, raw.type_id());
+        assert!(!raw.has_body_header());
+
+        let p = raw.payload().as_slice();
+        let u32s = size_of::<u32>();
+        let mut offset = 0;
+
+        // Time offset:
+
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // absolute timestamp:
+
+        assert_eq!(
+            systime_to_raw(t),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // No strings:
+
+        assert_eq!(
+            strings.len() as u32,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // offset divisor:
+
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // strings start here:
+
+        for i in 0..strings.len() {
+            assert_eq!(strings[i], get_c_string(&mut offset, p));
+        }
+
+        // Should be at the item end
+
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_5() {
+        // Body header, strings v11.
+
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            Some(bh),
+            10,
+            t,
+            1,
+            None,
+            &strings,
+        );
+        let raw = item.to_raw();
+        assert_eq!(MONITORED_VARIABLES, raw.type_id());
+        
+        assert!(raw.has_body_header());
+        let ibh = raw.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        let p = raw.payload().as_slice();
+        let u32s = size_of::<u32>();
+        let mut offset = body_header_size();
+
+        // Time offset:
+
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // absolute timestamp:
+
+        assert_eq!(
+            systime_to_raw(t),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // No strings:
+
+        assert_eq!(
+            strings.len() as u32,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // offset divisor:
+
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // strings start here:
+
+        for i in 0..strings.len() {
+            assert_eq!(strings[i], get_c_string(&mut offset, p));
+        }
+
+        // Should be at the item end
+
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_6() {
+        // body header, v12 and strings
+
+        let strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            Some(bh),
+            10,
+            t,
+            1,
+            Some(5),
+            &strings,
+        );
+        let raw = item.to_raw();
+
+        assert_eq!(MONITORED_VARIABLES, raw.type_id());
+        
+        assert!(raw.has_body_header());
+        let ibh = raw.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        let p = raw.payload().as_slice();
+        let u32s = size_of::<u32>();
+        let mut offset = body_header_size();
+
+        // Time offset:
+
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // absolute timestamp:
+
+        assert_eq!(
+            systime_to_raw(t),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // No strings:
+
+        assert_eq!(
+            strings.len() as u32,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // offset divisor:
+
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        
+        // Before the strings is an original sid in V12:
+
+        assert_eq!(
+            5,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        // strings start here:
+
+        for i in 0..strings.len() {
+            assert_eq!(strings[i], get_c_string(&mut offset, p));
+        }
+
+        // Should be at the item end
+
+        assert_eq!(offset, p.len());
     }
 }
