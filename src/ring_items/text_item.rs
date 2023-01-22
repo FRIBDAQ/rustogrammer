@@ -586,4 +586,36 @@ mod text_tests {
         strings.push(String::from(next));
         assert_eq!(strings.len(), n);
     }
+    #[test]
+    fn iter_1() {
+        // test iteration:
+
+        // check chaining:
+
+        // add string to an item:
+
+        let mut strings = vec![
+            String::from("one"),
+            String::from("two"),
+            String::from("three"),
+            String::from("Last one"),
+        ];
+        let t = SystemTime::now();
+
+        let mut item = TextItem::new(
+            TextItemType::MonitoredVariables,
+            None,
+            10,
+            t,
+            2,
+            None,
+            &strings,
+        );
+
+        let mut i = 0;
+        for s in item.iter() {
+            assert_eq!(strings[i], *s);
+            i += 1;
+        }
+    }
 }
