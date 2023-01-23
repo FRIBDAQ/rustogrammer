@@ -188,4 +188,44 @@ mod triggers_test {
         assert_eq!(5, item.original_sid.unwrap());
         assert_eq!(100, item.event_count);
     }
+    // Getters:
+    #[test]
+    fn getters_1() {
+        // NO body header v11:
+        let t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(None, 10, 2, None, 100);
+
+        assert!(item.get_bodyheader().is_none());
+        assert_eq!(10, item.get_timeoffset());
+        assert_eq!(2, item.get_time_divisor());
+        assert_eq!(5.0, item.get_offset_time());
+        assert!(item.get_original_sid().is_none());
+        assert_eq!(100, item.get_event_count());
+        assert!(item.get_absolute_time().duration_since(t).unwrap().as_secs() <=1);
+
+    }
+    #[test]
+    fn getters_2() {
+        // v12 with body header:
+
+        // body header, v12:
+
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, Some(5), 100);
+        assert!(item.get_bodyheader().is_some());
+        let ibh = item.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert!(item.get_original_sid().is_some());
+        assert_eq!(5, item.get_original_sid().unwrap());
+    }
+
+
 }
