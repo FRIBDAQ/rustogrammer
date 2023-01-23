@@ -17,14 +17,20 @@ pub struct PhysicsEventCountItem {
 }
 
 impl PhysicsEventCountItem {
-    pub fn new() -> PhysicsEventCountItem {
+    pub fn new(
+        bheader: Option<ring_items::BodyHeader>,
+        offset: u32,
+        divisor: u32,
+        orsid: Option<u32>,
+        evtcount: u64,
+    ) -> PhysicsEventCountItem {
         PhysicsEventCountItem {
-            body_header: None,
-            time_offset: 0,
-            time_divisor: 1,
+            body_header: bheader,
+            time_offset: offset,
+            time_divisor: divisor,
             absolute_time: time::SystemTime::now(),
-            original_sid: None,
-            event_count: 0,
+            original_sid: orsid,
+            event_count: evtcount,
         }
     }
     pub fn get_bodyheader(&self) -> Option<ring_items::BodyHeader> {
@@ -58,7 +64,7 @@ impl PhysicsEventCountItem {
         version: ring_items::RingVersion,
     ) -> Option<PhysicsEventCountItem> {
         if raw.type_id() == ring_items::PHYSICS_EVENT_COUNT {
-            let mut result = Self::new();
+            let mut result = Self::new(None, 0, 1, None, 0);
             result.body_header = raw.get_bodyheader();
             let offset = if let Some(_) = result.body_header {
                 ring_items::body_header_size()
@@ -114,5 +120,25 @@ impl PhysicsEventCountItem {
         result.add(self.event_count);
 
         result
+    }
+}
+#[cfg(test)]
+mod triggers_test {
+    use crate::ring_items::*;
+    use crate::triggers_item::*;
+    use std::mem::size_of;
+    use std::time::SystemTime;
+
+    #[test]
+    fn new_1() {
+        // NO body header v11:
+        let t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(None, 10, 1, None, 100);
+        assert!(item.body_header.is_none());
+        assert_eq!(10, item.time_offset);
+        assert_eq!(1, item.time_divisor);
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert!(item.original_sid.is_none());
+        assert_eq!(100, item.event_count);
     }
 }
