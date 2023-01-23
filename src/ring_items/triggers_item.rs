@@ -141,4 +141,51 @@ mod triggers_test {
         assert!(item.original_sid.is_none());
         assert_eq!(100, item.event_count);
     }
+    #[test]
+    fn new_2() {
+        // body header, v11:
+
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, None, 100);
+        assert!(item.body_header.is_some());
+        let ibh = item.body_header.unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(10, item.time_offset);
+        assert_eq!(1, item.time_divisor);
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert!(item.original_sid.is_none());
+        assert_eq!(100, item.event_count);
+    }
+    #[test]
+    fn new_3() {
+        // body header, v12:
+
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, Some(5), 100);
+        assert!(item.body_header.is_some());
+        let ibh = item.body_header.unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(10, item.time_offset);
+        assert_eq!(1, item.time_divisor);
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert!(item.original_sid.is_some());
+        assert_eq!(5, item.original_sid.unwrap());
+        assert_eq!(100, item.event_count);
+    }
 }
