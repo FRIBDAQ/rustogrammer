@@ -12,6 +12,12 @@ use ring_items::triggers_item;
 use std::fs::File;
 
 fn main() {
+    let mut v = analysis_ring_items::VariableValues::new();
+    v.add_def(analysis_ring_items::VariableValue::new(3.1416, "pi", "rad"));
+    v.add_def(analysis_ring_items::VariableValue::new(
+        2.0, "location", "mm",
+    ));
+    println!("{}", v);
     if let Ok(mut f) = File::open("run-0088-00.evt") {
         dump_items(&mut f);
     } else {
@@ -85,9 +91,7 @@ fn dump_items(f: &mut File) {
                 println!("{}", pd);
             }
             if let Some(vd) = analysis_ring_items::VariableValues::from_raw(&item) {
-                dump_variables(&vd);
-                let raw = vd.to_raw();
-                println!("Recreate size: {} type {}", raw.size(), raw.type_id());
+                println!("{}", vd);
             }
             if let Some(pv) = analysis_ring_items::ParameterItem::from_raw(&item) {
                 dump_parameter_values(&pv);
@@ -220,18 +224,6 @@ fn dump_glom_parameters(gp: &glom_parameters::GlomParameters) {
         gp.is_building(),
         gp.policy_string()
     );
-}
-
-fn dump_variables(vd: &analysis_ring_items::VariableValues) {
-    println!("Variable definitions:");
-    for def in vd.iter() {
-        println!(
-            "Name: {} value: {} {}",
-            def.name(),
-            def.value(),
-            def.units()
-        );
-    }
 }
 fn dump_parameter_values(pv: &analysis_ring_items::ParameterItem) {
     println!("Parameters for trigger # {}", pv.trigger());

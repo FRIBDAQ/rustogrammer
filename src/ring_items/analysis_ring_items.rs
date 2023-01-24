@@ -144,6 +144,16 @@ impl VariableValue {
     }
 }
 
+impl fmt::Display for VariableValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Name: {} Value: {} {}",
+            self.name, self.value, self.units
+        )
+    }
+}
+
 ///
 /// The variable item is really just a sequence of variable values:
 ///
@@ -212,6 +222,15 @@ impl VariableValues {
     pub fn add_def(&mut self, def: VariableValue) -> &mut Self {
         self.defs.push(def);
         self
+    }
+}
+impl fmt::Display for VariableValues {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Variable values items:\n").unwrap();
+        for v in &self.defs {
+            write!(f, "{}\n", *v).unwrap();
+        }
+        write!(f, "")
     }
 }
 //---------------------------------------------------------------
