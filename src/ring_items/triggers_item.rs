@@ -393,4 +393,69 @@ mod triggers_test {
             systime_to_raw(recons.get_absolute_time())
         );
     }
+    #[test]
+    fn from_raw_2() {
+        // V11, body header.
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let _t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, None, 100);
+        let raw = item.to_raw();
+        let recons = PhysicsEventCountItem::from_raw(&raw, RingVersion::V11);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+        assert!(recons.get_bodyheader().is_some());
+        let ibh = recons.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(item.get_timeoffset(), recons.get_timeoffset());
+        assert_eq!(item.get_time_divisor(), recons.get_time_divisor());
+        assert!(recons.get_original_sid().is_none());
+        assert_eq!(item.get_event_count(), recons.get_event_count());
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
+    }
+    #[test]
+    fn from_raw_3() {
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let _t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, Some(5), 100);
+        let raw = item.to_raw();
+        let recons = PhysicsEventCountItem::from_raw(&raw, RingVersion::V12);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+        assert!(recons.get_bodyheader().is_some());
+        let ibh = recons.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(item.get_timeoffset(), recons.get_timeoffset());
+        assert_eq!(item.get_time_divisor(), recons.get_time_divisor());
+        assert!(recons.get_original_sid().is_some());
+        assert_eq!(
+            item.get_original_sid().unwrap(),
+            recons.get_original_sid().unwrap()
+        );
+        assert_eq!(item.get_event_count(), recons.get_event_count());
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
+    }
 }
