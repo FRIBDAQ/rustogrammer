@@ -34,6 +34,14 @@ pub struct BodyHeader {
     pub source_id: u32,
     pub barrier_type: u32,
 }
+impl fmt::Display for BodyHeader {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Body header:\n").unwrap();
+        write!(f, "   timestamp: {:0>8x}\n", self.timestamp).unwrap();
+        write!(f, "   sourceid:  {}\n", self.source_id).unwrap();
+        write!(f, "   barrier:   {}\n", self.barrier_type)
+    }
+}
 #[derive(Debug)]
 pub enum RingItemError {
     HeaderReadFailed,
@@ -220,10 +228,7 @@ impl fmt::Display for RingItem {
         let mut offset = 0;
         if self.has_body_header() {
             let header = self.get_bodyheader().unwrap();
-            write!(f, "Body header:\n").unwrap();
-            write!(f, "   timestamp: {:0>8x}\n", header.timestamp).unwrap();
-            write!(f, "   sourceid:  {}\n", header.source_id).unwrap();
-            write!(f, "   barrier:   {}\n", header.barrier_type).unwrap();
+            write!(f, "{}\n", header).unwrap();
             offset = body_header_size();
         }
 
