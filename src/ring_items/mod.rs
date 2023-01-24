@@ -214,6 +214,7 @@ impl RingItem {
 
 impl fmt::Display for RingItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Raw ring item").unwrap();
         write!(f, "Size: {}\n", self.size()).unwrap();
         write!(f, "type: {}\n", self.type_id()).unwrap();
         let mut offset = 0;

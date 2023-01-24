@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::fmt;
 use std::mem;
 use std::slice::Iter;
 
@@ -34,6 +35,11 @@ impl ParameterDefinition {
     }
     pub fn id(&self) -> u32 {
         self.id
+    }
+}
+impl fmt::Display for ParameterDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Name: {} id: {}", self.name, self.id)
     }
 }
 
@@ -94,6 +100,15 @@ impl ParameterDefinitions {
         *offset = offset.checked_add(4).unwrap();
         let name = ring_items::get_c_string(offset, &bytes);
         ParameterDefinition::new(id, &name)
+    }
+}
+impl fmt::Display for ParameterDefinitions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Parameter definition item:\n").unwrap();
+        for p in &self.defs {
+            write!(f, "{}\n", *p).unwrap();
+        }
+        write!(f, "")
     }
 }
 //-------------------------------------------------------------
