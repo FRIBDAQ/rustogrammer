@@ -16,8 +16,7 @@ pub enum StateChangeType {
 ///
 pub struct StateChange {
     change_type: StateChangeType,
-    has_body_header: bool,
-    body_header: ring_items::BodyHeader, // only valid if has_body_header true
+    body_header: Option<ring_items::BodyHeader>, // issue 2 make an option of this.
     run_number: u32,
     time_offset: u32,
     offset_divisor: u32,
@@ -67,12 +66,7 @@ impl StateChange {
     ) -> StateChange {
         StateChange {
             change_type: type_id,
-            has_body_header: false,
-            body_header: ring_items::BodyHeader {
-                timestamp: 0,
-                source_id: 0,
-                barrier_type: 0,
-            },
+            body_header: None,
             run_number: run,
             time_offset: offset,
             offset_divisor: divisor,
@@ -93,8 +87,7 @@ impl StateChange {
     ) -> StateChange {
         StateChange {
             change_type: type_id,
-            has_body_header: true,
-            body_header: *body_header,
+            body_header: Some(*body_header),
             run_number: run,
             time_offset: offset,
             offset_divisor: divisor,
@@ -128,7 +121,7 @@ impl StateChange {
             let mut result = Self::new(type_enum, body_header, 0, 0, 1, "", None);
             // Body position depends on if body_header is defined:
 
-            let body_pos = if result.has_body_header {
+            let body_pos = if result.has_body_header() {
                 ring_items::body_header_size()
             } else {
                 0
@@ -163,12 +156,12 @@ impl StateChange {
     }
     // new raw item from this:
     pub fn to_raw(&self) -> ring_items::RingItem {
-        let mut item = if self.has_body_header {
+        let mut item = if self.has_body_header() {
             ring_items::RingItem::new_with_body_header(
                 self.type_id(),
-                self.body_header.timestamp,
-                self.body_header.source_id,
-                self.body_header.barrier_type,
+                self.body_header.unwrap().timestamp,
+                self.body_header.unwrap().source_id,
+                self.body_header.unwrap().barrier_type,
             )
         } else {
             ring_items::RingItem::new(self.type_id())
@@ -210,11 +203,10 @@ impl StateChange {
         self.string_from_type()
     }
     pub fn body_header(&self) -> Option<ring_items::BodyHeader> {
-        if self.has_body_header {
-            return Some(self.body_header);
-        } else {
-            return None;
-        }
+        self.body_header
+    }
+    pub fn has_body_header(&self) -> bool {
+        self.body_header.is_some()
     }
     pub fn run_number(&self) -> u32 {
         self.run_number
@@ -264,7 +256,7 @@ mod state_tests {
         ); // will be a later time.
 
         assert_eq!(StateChangeType::Begin, item.change_type);
-        assert_eq!(false, item.has_body_header);
+        assert_eq!(false, item.has_body_header());
         assert_eq!(12, item.run_number);
         assert_eq!(0, item.time_offset);
         assert_eq!(1, item.offset_divisor);
@@ -293,10 +285,11 @@ mod state_tests {
             None,
         );
         assert_eq!(StateChangeType::End, item.change_type);
-        assert_eq!(true, item.has_body_header);
-        assert_eq!(bh.timestamp, item.body_header.timestamp);
-        assert_eq!(bh.source_id, item.body_header.source_id);
-        assert_eq!(bh.barrier_type, item.body_header.barrier_type);
+        assert_eq!(true, item.body_header.is_some());
+        let ibh = item.body_header.unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
 
         assert_eq!(13, item.run_number);
         assert_eq!(100, item.time_offset);
@@ -326,10 +319,11 @@ mod state_tests {
             Some(5),
         );
         assert_eq!(StateChangeType::End, item.change_type);
-        assert_eq!(true, item.has_body_header);
-        assert_eq!(bh.timestamp, item.body_header.timestamp);
-        assert_eq!(bh.source_id, item.body_header.source_id);
-        assert_eq!(bh.barrier_type, item.body_header.barrier_type);
+        assert_eq!(true, item.body_header.is_some());
+        let ibh = item.body_header.unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
 
         assert_eq!(13, item.run_number);
         assert_eq!(100, item.time_offset);
