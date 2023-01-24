@@ -12,12 +12,7 @@ use ring_items::triggers_item;
 use std::fs::File;
 
 fn main() {
-    let mut v = analysis_ring_items::VariableValues::new();
-    v.add_def(analysis_ring_items::VariableValue::new(3.1416, "pi", "rad"));
-    v.add_def(analysis_ring_items::VariableValue::new(
-        2.0, "location", "mm",
-    ));
-    println!("{}", v);
+    
     if let Ok(mut f) = File::open("run-0088-00.evt") {
         dump_items(&mut f);
     } else {
@@ -94,9 +89,7 @@ fn dump_items(f: &mut File) {
                 println!("{}", vd);
             }
             if let Some(pv) = analysis_ring_items::ParameterItem::from_raw(&item) {
-                dump_parameter_values(&pv);
-                let raw = pv.to_raw();
-                println!("Recreate size {} type {}", raw.size(), raw.type_id());
+                println!("{}", pv);
             }
         } else {
             println!("done");
@@ -224,10 +217,4 @@ fn dump_glom_parameters(gp: &glom_parameters::GlomParameters) {
         gp.is_building(),
         gp.policy_string()
     );
-}
-fn dump_parameter_values(pv: &analysis_ring_items::ParameterItem) {
-    println!("Parameters for trigger # {}", pv.trigger());
-    for p in pv.iter() {
-        println!("   ID: {} Value {}", p.id(), p.value());
-    }
 }

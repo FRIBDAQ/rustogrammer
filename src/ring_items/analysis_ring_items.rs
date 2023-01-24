@@ -256,6 +256,11 @@ impl ParameterValue {
         self.value
     }
 }
+impl fmt::Display for ParameterValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "id: {} value: {}", self.id, self.value)
+    }
+}
 
 pub struct ParameterItem {
     trigger: u64,
@@ -324,6 +329,16 @@ impl ParameterItem {
     }
     pub fn trigger(&self) -> u64 {
         self.trigger
+    }
+}
+impl fmt::Display for ParameterItem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Parameter Item\n").unwrap();
+        write!(f, "  trigger number{}\n", self.trigger).unwrap();
+        for p in &self.parameters {
+            write!(f, "   {}\n", *p).unwrap();
+        }
+        write!(f, "")
     }
 }
 #[cfg(test)]
