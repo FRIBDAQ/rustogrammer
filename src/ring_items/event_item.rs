@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::fmt;
 use std::mem;
 
 ///
@@ -135,6 +136,49 @@ impl Iterator for PhysicsEvent {
             self.rewind();
             None
         }
+    }
+}
+
+impl fmt::Display for PhysicsEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Physics Event:").unwrap();
+        if let Some(bh) = self.get_bodyheader() {
+            write!(f, "{}\n", bh).unwrap();
+        }
+
+        // We're a bit hampered by the fact that the signature
+        // requires immutability so:
+
+        let mut offset = 0;
+        let u32s = mem::size_of::<u16>();
+
+        let mut in_line = 0;
+        loop {
+            if offset >= self.event_data.len() {
+                break;
+            } else {
+                let mut p = self.event_data.as_ptr();
+                unsafe {
+                    p = p.offset(offset as isize);
+                }
+                let pt = p.cast::<u16>();
+                let word = { unsafe { *pt } };
+                offset += u32s;
+
+                write!(f, "{:0>4x} ", word).unwrap();
+                in_line = in_line + 1;
+                if in_line == 8 {
+                    write!(f, "\n").unwrap();
+                    ();
+                    in_line = 0;
+                }
+            }
+        }
+        if in_line != 0 {
+            write!(f, "\n").unwrap();
+        }
+
+        write!(f, "")
     }
 }
 #[cfg(test)]

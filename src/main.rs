@@ -12,7 +12,6 @@ use ring_items::triggers_item;
 use std::fs::File;
 
 fn main() {
-    
     if let Ok(mut f) = File::open("run-0088-00.evt") {
         dump_items(&mut f);
     } else {
@@ -62,10 +61,8 @@ fn dump_items(f: &mut File) {
                 let raw = t.to_raw();
                 println!("Recreated size {} type: {}", raw.size(), raw.type_id());
             }
-            if let Some(mut e) = event_item::PhysicsEvent::from_raw(&item) {
-                dump_event(&mut e);
-                let raw = e.to_raw();
-                println!("Recreated size {} type: {}", raw.size(), raw.type_id());
+            if let Some(e) = event_item::PhysicsEvent::from_raw(&item) {
+                println!("{}", e);
             }
             if let Some(count) =
                 triggers_item::PhysicsEventCountItem::from_raw(&item, ring_items::RingVersion::V11)
@@ -152,45 +149,6 @@ fn dump_text(t: &text_item::TextItem) {
     }
 }
 
-fn dump_event(e: &mut event_item::PhysicsEvent) {
-    println!("Physics Event:");
-    if let Some(bh) = e.get_bodyheader() {
-        println!(
-            "There's a body header {} {} {}",
-            bh.timestamp, bh.source_id, bh.barrier_type
-        );
-    }
-    let mut in_line = 0;
-    loop {
-        if let Some::<u16>(word) = e.get() {
-            print!("{:0>4x} ", word);
-            in_line = in_line + 1;
-            if in_line == 8 {
-                println!("");
-                in_line = 0;
-            }
-        } else {
-            break;
-        }
-    }
-    if in_line != 0 {
-        println!("");
-    }
-    e.rewind();
-
-    in_line = 0;
-    for x in e {
-        print!("{:0>2x} ", x);
-        in_line = in_line + 1;
-        if in_line == 8 {
-            println!("");
-            in_line = 0;
-        }
-    }
-    if in_line != 0 {
-        println!("");
-    }
-}
 fn dump_count_item(c: &triggers_item::PhysicsEventCountItem) {
     println!("Trigger count information: ");
     if let Some(bh) = c.get_bodyheader() {
