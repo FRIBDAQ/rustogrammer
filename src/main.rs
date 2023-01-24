@@ -79,9 +79,7 @@ fn dump_items(f: &mut File) {
                 println!("Recreate size: {} type:{}", raw.size(), raw.type_id());
             }
             if let Some(ae) = abnormal_end::AbnormalEnd::from_raw(&item) {
-                println!("Abnormal end");
-                let raw = ae.to_raw();
-                println!("Recreate size: {} type {}", raw.size(), raw.type_id());
+                println!("{}", ae);
             }
             if let Some(pd) = analysis_ring_items::ParameterDefinitions::from_raw(&item) {
                 dump_parameter_defs(&pd);

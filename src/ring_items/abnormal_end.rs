@@ -1,5 +1,5 @@
 use crate::ring_items;
-
+use std::fmt;
 ///
 /// Abnormal ends are empty actually.
 ///
@@ -18,6 +18,11 @@ impl AbnormalEnd {
     }
     pub fn to_raw(&self) -> ring_items::RingItem {
         ring_items::RingItem::new(ring_items::ABNORMAL_END)
+    }
+}
+impl fmt::Display for AbnormalEnd {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Abnormal end Item")
     }
 }
 
