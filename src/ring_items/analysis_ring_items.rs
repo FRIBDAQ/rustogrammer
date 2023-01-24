@@ -793,7 +793,7 @@ mod param_tests {
     fn from_raw_3() {
         // Bad type gives None:
 
-        let raw = RingItem::new(PARAMETER_DATA+1);
+        let raw = RingItem::new(PARAMETER_DATA + 1);
         assert!(ParameterItem::from_raw(&raw).is_none());
     }
 }

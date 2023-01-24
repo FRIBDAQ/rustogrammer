@@ -5,7 +5,7 @@ use std::time;
 /// these are actually four different item types.
 
 /// Types of run state transitions in rustly form:
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum StateChangeType {
     Begin,
     End,
@@ -189,12 +189,12 @@ impl StateChange {
 
         let mut title = self.run_title.clone();
         title.truncate(79);
-        let title_bytes = String::into_bytes(title.clone());
+        let title_bytes = title.into_bytes();
         item.add_byte_vec(&title_bytes);
 
         // Pad out with nulls and ensure there's a null terminator
         // which  is not put in title_bytes by into_bytes.
-        for _i in title.len()..81 {
+        for _i in title_bytes.len()..81 {
             item.add(0 as u8);
         }
         item
@@ -236,5 +236,520 @@ impl StateChange {
     }
     pub fn original_sid(&self) -> Option<u32> {
         self.original_sid
+    }
+}
+#[cfg(test)]
+mod state_tests {
+    use crate::ring_items::*;
+    use crate::state_change::*;
+    use std::mem::size_of;
+    use std::time::*;
+
+    // just test new, rather than the qualified versions
+    // since they delegate -- considser making the qualified
+    // versions private?
+
+    #[test]
+    fn new_1() {
+        // V11, no body header.
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::Begin,
+            None,
+            12,
+            0,
+            1,
+            "This is a title",
+            None,
+        ); // will be a later time.
+
+        assert_eq!(StateChangeType::Begin, item.change_type);
+        assert_eq!(false, item.has_body_header);
+        assert_eq!(12, item.run_number);
+        assert_eq!(0, item.time_offset);
+        assert_eq!(1, item.offset_divisor);
+        // >Should< be less than a second between t and the absolute_time stamp.
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert_eq!(String::from("This is a title"), item.run_title);
+        assert!(item.original_sid.is_none());
+    }
+    #[test]
+    fn new_2() {
+        // V11 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            1,
+            "Some title",
+            None,
+        );
+        assert_eq!(StateChangeType::End, item.change_type);
+        assert_eq!(true, item.has_body_header);
+        assert_eq!(bh.timestamp, item.body_header.timestamp);
+        assert_eq!(bh.source_id, item.body_header.source_id);
+        assert_eq!(bh.barrier_type, item.body_header.barrier_type);
+
+        assert_eq!(13, item.run_number);
+        assert_eq!(100, item.time_offset);
+        assert_eq!(1, item.offset_divisor);
+        // >Should< be less than a second between t and the absolute_time stamp.
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert!(item.original_sid.is_none());
+        assert_eq!(String::from("Some title"), item.run_title);
+    }
+    #[test]
+    fn new_3() {
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            1,
+            "Some title",
+            Some(5),
+        );
+        assert_eq!(StateChangeType::End, item.change_type);
+        assert_eq!(true, item.has_body_header);
+        assert_eq!(bh.timestamp, item.body_header.timestamp);
+        assert_eq!(bh.source_id, item.body_header.source_id);
+        assert_eq!(bh.barrier_type, item.body_header.barrier_type);
+
+        assert_eq!(13, item.run_number);
+        assert_eq!(100, item.time_offset);
+        assert_eq!(1, item.offset_divisor);
+        // >Should< be less than a second between t and the absolute_time stamp.
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert!(item.original_sid.is_some());
+        assert_eq!(5, item.original_sid.unwrap());
+        assert_eq!(String::from("Some title"), item.run_title);
+    }
+    #[test]
+    fn getter_1() {
+        // change types:
+
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let _t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            1,
+            "Some title",
+            Some(5),
+        );
+        assert_eq!(StateChangeType::End, item.change_type());
+        assert_eq!(String::from("End"), item.change_type_string());
+    }
+    #[test]
+    fn getter_2() {
+        // Raw items:
+
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let _t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            1,
+            "Some title",
+            Some(5),
+        );
+
+        assert_eq!(13, item.run_number());
+        assert_eq!(100, item.raw_time_offset());
+        assert_eq!(1, item.offset_divisor());
+        assert_eq!(String::from("Some title"), item.title());
+    }
+    #[test]
+    fn getter_3() {
+        // absolute time:
+
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            1,
+            "Some title",
+            Some(5),
+        );
+        assert!(item.absolute_time().duration_since(t).unwrap().as_secs() <= 1);
+    }
+    #[test]
+    fn getter_4() {
+        // time in seconds into run.
+
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let _t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            Some(5),
+        );
+        assert_eq!(50.0, item.time_offset());
+    }
+    fn getter_5() {
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let _t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            Some(5),
+        );
+        assert!(item.original_sid().is_some());
+        assert_eq!(5, item.original_sid().unwrap());
+
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            None,
+        );
+        assert!(item.original_sid().is_none());
+    }
+    // as has become ususal...test to_raw first so that it
+    // can be used to generate raw items for from_raw tests.
+    #[test]
+    fn to_raw_1() {
+        // No body header V11 format:
+
+        let _t = SystemTime::now();
+        let item = StateChange::new(StateChangeType::End, None, 13, 100, 2, "Some title", None);
+        let raw = item.to_raw();
+        assert_eq!(END_RUN, raw.type_id());
+        assert!(!raw.has_body_header());
+
+        let p = raw.payload().as_slice();
+        let mut offset = 0; // payload
+        let u32s = size_of::<u32>();
+        assert_eq!(
+            13,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            100,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            systime_to_raw(item.absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            2,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        // there's no original sid so the title is next:
+
+        offset += u32s;
+        let mut o = offset;
+        let title = get_c_string(&mut o, p);
+        assert_eq!(String::from("Some title"), title);
+
+        // The title is a fixed size block so:
+
+        offset += 81;
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_2() {
+        // V11 body header .
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            None,
+        );
+        let raw = item.to_raw();
+
+        assert_eq!(END_RUN, raw.type_id());
+        assert!(raw.has_body_header());
+        let rbh = raw.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, rbh.timestamp);
+        assert_eq!(bh.source_id, rbh.source_id);
+        assert_eq!(bh.barrier_type, rbh.barrier_type);
+
+        let p = raw.payload().as_slice();
+        let mut offset = body_header_size(); // Payload starts here:
+        let u32s = size_of::<u32>();
+
+        assert_eq!(
+            13,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            100,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            systime_to_raw(t),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            2,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        // there's no original sid so the title is next:
+
+        offset += u32s;
+        let mut o = offset;
+        let title = get_c_string(&mut o, p);
+        assert_eq!(String::from("Some title"), title);
+
+        // The title is a fixed size block so:
+
+        offset += 81;
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_3() {
+        // Body header in v12+ format:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            Some(5),
+        );
+
+        let raw = item.to_raw();
+
+        assert_eq!(END_RUN, raw.type_id());
+
+        assert!(raw.has_body_header());
+        let rbh = raw.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, rbh.timestamp);
+        assert_eq!(bh.source_id, rbh.source_id);
+        assert_eq!(bh.barrier_type, rbh.barrier_type);
+
+        let p = raw.payload().as_slice();
+        let mut offset = body_header_size(); // Payload starts here:
+        let u32s = size_of::<u32>();
+
+        assert_eq!(
+            13,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            100,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        assert_eq!(
+            systime_to_raw(t),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            2,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        // there's an original sid so
+        offset += u32s;
+        assert_eq!(
+            5,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+
+        // The title is next:
+
+        offset += u32s;
+        let mut o = offset;
+        let title = get_c_string(&mut o, p);
+        assert_eq!(String::from("Some title"), title);
+
+        // The title is a fixed size block so:
+
+        offset += 81;
+        assert_eq!(offset, p.len());
+    }
+    // Ok so to_raw seems to work.  We can use it to produce
+    // raw items for from_raw to work on for testing:
+
+    #[test]
+    fn from_raw_1() {
+        // no body header, v11 format:
+
+        let t = SystemTime::now();
+        let item = StateChange::new(StateChangeType::End, None, 13, 100, 2, "Some title", None);
+        let raw = item.to_raw();
+        let recons = StateChange::from_raw(&raw, RingVersion::V11);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert_eq!(StateChangeType::End, recons.change_type());
+        assert!(recons.body_header().is_none());
+        assert_eq!(13, recons.run_number());
+        assert_eq!(100, recons.raw_time_offset());
+        assert_eq!(2, recons.offset_divisor());
+        assert_eq!(systime_to_raw(t), systime_to_raw(recons.absolute_time()));
+        assert_eq!(String::from("Some title"), recons.title());
+        assert!(recons.original_sid().is_none());
+    }
+    #[test]
+    fn from_raw_2() {
+        // v11 with body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            None,
+        );
+        let raw = item.to_raw();
+        let recons = StateChange::from_raw(&raw, RingVersion::V11);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert_eq!(StateChangeType::End, recons.change_type());
+        assert!(recons.body_header().is_some());
+        let rbh = recons.body_header().unwrap();
+        assert_eq!(bh.timestamp, rbh.timestamp);
+        assert_eq!(bh.source_id, rbh.source_id);
+        assert_eq!(bh.barrier_type, rbh.barrier_type);
+
+        assert_eq!(13, recons.run_number());
+        assert_eq!(100, recons.raw_time_offset());
+        assert_eq!(2, recons.offset_divisor());
+        assert_eq!(systime_to_raw(t), systime_to_raw(recons.absolute_time()));
+        assert_eq!(String::from("Some title"), recons.title());
+        assert!(recons.original_sid().is_none());
+    }
+    #[test]
+    fn from_raw_3() {
+        // v12 with body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x123456789abcdef,
+            source_id: 2,
+            barrier_type: 1,
+        };
+        let t = SystemTime::now();
+        let item = StateChange::new(
+            StateChangeType::End,
+            Some(bh),
+            13,
+            100,
+            2,
+            "Some title",
+            Some(5),
+        );
+
+        let raw = item.to_raw();
+        let recons = StateChange::from_raw(&raw, RingVersion::V12);
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+
+        assert_eq!(StateChangeType::End, recons.change_type());
+        assert!(recons.body_header().is_some());
+        let rbh = recons.body_header().unwrap();
+        assert_eq!(bh.timestamp, rbh.timestamp);
+        assert_eq!(bh.source_id, rbh.source_id);
+        assert_eq!(bh.barrier_type, rbh.barrier_type);
+
+        assert_eq!(13, recons.run_number());
+        assert_eq!(100, recons.raw_time_offset());
+        assert_eq!(2, recons.offset_divisor());
+        assert_eq!(systime_to_raw(t), systime_to_raw(recons.absolute_time()));
+        assert_eq!(String::from("Some title"), recons.title());
+        assert!(recons.original_sid().is_some());
+        assert_eq!(5, recons.original_sid().unwrap());
     }
 }

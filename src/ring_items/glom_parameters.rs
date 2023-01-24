@@ -2,7 +2,7 @@ use crate::ring_items;
 
 /// These are the strategies glom uses to assign timestamps to events:
 ///
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TimestampPolicy {
     First,
     Last,
@@ -96,9 +96,160 @@ impl GlomParameters {
         let mut result = ring_items::RingItem::new(ring_items::GLOM_INFO);
 
         let building: u16 = if self.is_building { 1 } else { 0 };
-        let policy = Self::policy_to_code;
+        let policy: u16 = self.policy_to_code();
         result.add(self.coincidence_ticks).add(building).add(policy);
 
         result
+    }
+}
+#[cfg(test)]
+mod glom_tests {
+    use crate::glom_parameters::*;
+    use crate::ring_items::*;
+    use std::mem::size_of;
+    #[test]
+    fn new_1() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::First);
+        assert_eq!(1000, item.coincidence_ticks);
+        assert!(item.is_building);
+        assert_eq!(TimestampPolicy::First, item.timestamp_policy);
+    }
+    #[test]
+    fn getters_1() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::First);
+        assert_eq!(1000, item.get_coincidence_interval());
+        assert!(item.is_building());
+        assert_eq!(TimestampPolicy::First, item.get_ts_policy());
+    }
+    #[test]
+    fn getters_2() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::First);
+        assert_eq!(String::from("First"), item.policy_string());
+
+        let item = GlomParameters::new(1000, true, TimestampPolicy::Last);
+        assert_eq!(String::from("Last"), item.policy_string());
+
+        let item = GlomParameters::new(1000, true, TimestampPolicy::Average);
+        assert_eq!(String::from("Averaged"), item.policy_string());
+    }
+    // Test for to_raw - so that we can use it to generate raw items to
+    // test from_raw.
+
+    fn to_raw_1() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::Last);
+        let raw = item.to_raw();
+
+        assert_eq!(GLOM_INFO, raw.type_id());
+        assert!(!raw.has_body_header());
+        let p = raw.payload().as_slice();
+        let mut offset = 0;
+        assert_eq!(
+            1000,
+            u64::from_ne_bytes(p[offset..offset + size_of::<u64>()].try_into().unwrap())
+        );
+        offset += size_of::<u64>();
+        assert_eq!(
+            1,
+            u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
+        );
+        offset += size_of::<u16>();
+        assert_eq!(
+            GLOM_TIMESTAMP_LAST,
+            u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn to_raw_2() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::First);
+        let raw = item.to_raw();
+
+        assert_eq!(GLOM_INFO, raw.type_id());
+        assert!(!raw.has_body_header());
+        let p = raw.payload().as_slice();
+        let mut offset = 0;
+        assert_eq!(
+            1000,
+            u64::from_ne_bytes(p[offset..offset + size_of::<u64>()].try_into().unwrap())
+        );
+        offset += size_of::<u64>();
+        assert_eq!(
+            1,
+            u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
+        );
+        offset += size_of::<u16>();
+        assert_eq!(
+            GLOM_TIMESTAMP_FIRST,
+            u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
+        );
+    }
+    #[test]
+    fn to_raw_3() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::Average);
+        let raw = item.to_raw();
+
+        assert_eq!(GLOM_INFO, raw.type_id());
+        assert!(!raw.has_body_header());
+        let p = raw.payload().as_slice();
+        let mut offset = 0;
+        assert_eq!(
+            1000,
+            u64::from_ne_bytes(p[offset..offset + size_of::<u64>()].try_into().unwrap())
+        );
+        offset += size_of::<u64>();
+        assert_eq!(
+            1,
+            u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
+        );
+        offset += size_of::<u16>();
+        assert_eq!(
+            GLOM_TIMESTAMP_AVERAGE,
+            u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
+        );
+    }
+    // to_raw works we can use it to generate raw items for from_raw:
+
+    #[test]
+    fn from_raw_1() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::First);
+        let raw = item.to_raw();
+        let back = GlomParameters::from_raw(&raw);
+        assert!(back.is_some());
+        let back = back.unwrap();
+
+        assert_eq!(1000, back.get_coincidence_interval());
+        assert!(back.is_building());
+        assert_eq!(TimestampPolicy::First, back.get_ts_policy());
+    }
+    #[test]
+    fn from_raw_2() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::Last);
+        let raw = item.to_raw();
+        let back = GlomParameters::from_raw(&raw);
+        assert!(back.is_some());
+        let back = back.unwrap();
+
+        assert_eq!(1000, back.get_coincidence_interval());
+        assert!(back.is_building());
+        assert_eq!(TimestampPolicy::Last, back.get_ts_policy());
+    }
+    #[test]
+    fn from_raw_3() {
+        let item = GlomParameters::new(1000, true, TimestampPolicy::Average);
+        let raw = item.to_raw();
+        let back = GlomParameters::from_raw(&raw);
+        assert!(back.is_some());
+        let back = back.unwrap();
+
+        assert_eq!(1000, back.get_coincidence_interval());
+        assert!(back.is_building());
+        assert_eq!(TimestampPolicy::Average, back.get_ts_policy());
+    }
+    #[test]
+    fn from_raw_4() {
+        // invalid type -> None:
+
+        let raw = RingItem::new(GLOM_INFO + 1);
+        let bad = GlomParameters::from_raw(&raw);
+        assert!(bad.is_none());
     }
 }

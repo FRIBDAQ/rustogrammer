@@ -17,14 +17,20 @@ pub struct PhysicsEventCountItem {
 }
 
 impl PhysicsEventCountItem {
-    pub fn new() -> PhysicsEventCountItem {
+    pub fn new(
+        bheader: Option<ring_items::BodyHeader>,
+        offset: u32,
+        divisor: u32,
+        orsid: Option<u32>,
+        evtcount: u64,
+    ) -> PhysicsEventCountItem {
         PhysicsEventCountItem {
-            body_header: None,
-            time_offset: 0,
-            time_divisor: 1,
+            body_header: bheader,
+            time_offset: offset,
+            time_divisor: divisor,
             absolute_time: time::SystemTime::now(),
-            original_sid: None,
-            event_count: 0,
+            original_sid: orsid,
+            event_count: evtcount,
         }
     }
     pub fn get_bodyheader(&self) -> Option<ring_items::BodyHeader> {
@@ -58,7 +64,7 @@ impl PhysicsEventCountItem {
         version: ring_items::RingVersion,
     ) -> Option<PhysicsEventCountItem> {
         if raw.type_id() == ring_items::PHYSICS_EVENT_COUNT {
-            let mut result = Self::new();
+            let mut result = Self::new(None, 0, 1, None, 0);
             result.body_header = raw.get_bodyheader();
             let offset = if let Some(_) = result.body_header {
                 ring_items::body_header_size()
@@ -114,5 +120,342 @@ impl PhysicsEventCountItem {
         result.add(self.event_count);
 
         result
+    }
+}
+#[cfg(test)]
+mod triggers_test {
+    use crate::ring_items::*;
+    use crate::triggers_item::*;
+    use std::mem::size_of;
+    use std::time::SystemTime;
+
+    #[test]
+    fn new_1() {
+        // NO body header v11:
+        let t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(None, 10, 1, None, 100);
+        assert!(item.body_header.is_none());
+        assert_eq!(10, item.time_offset);
+        assert_eq!(1, item.time_divisor);
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert!(item.original_sid.is_none());
+        assert_eq!(100, item.event_count);
+    }
+    #[test]
+    fn new_2() {
+        // body header, v11:
+
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, None, 100);
+        assert!(item.body_header.is_some());
+        let ibh = item.body_header.unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(10, item.time_offset);
+        assert_eq!(1, item.time_divisor);
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert!(item.original_sid.is_none());
+        assert_eq!(100, item.event_count);
+    }
+    #[test]
+    fn new_3() {
+        // body header, v12:
+
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, Some(5), 100);
+        assert!(item.body_header.is_some());
+        let ibh = item.body_header.unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(10, item.time_offset);
+        assert_eq!(1, item.time_divisor);
+        assert!(item.absolute_time.duration_since(t).unwrap().as_secs() <= 1);
+        assert!(item.original_sid.is_some());
+        assert_eq!(5, item.original_sid.unwrap());
+        assert_eq!(100, item.event_count);
+    }
+    // Getters:
+    #[test]
+    fn getters_1() {
+        // NO body header v11:
+        let t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(None, 10, 2, None, 100);
+
+        assert!(item.get_bodyheader().is_none());
+        assert_eq!(10, item.get_timeoffset());
+        assert_eq!(2, item.get_time_divisor());
+        assert_eq!(5.0, item.get_offset_time());
+        assert!(item.get_original_sid().is_none());
+        assert_eq!(100, item.get_event_count());
+        assert!(
+            item.get_absolute_time()
+                .duration_since(t)
+                .unwrap()
+                .as_secs()
+                <= 1
+        );
+    }
+    #[test]
+    fn getters_2() {
+        // v12 with body header:
+
+        // body header, v12:
+
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let _t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, Some(5), 100);
+        assert!(item.get_bodyheader().is_some());
+        let ibh = item.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert!(item.get_original_sid().is_some());
+        assert_eq!(5, item.get_original_sid().unwrap());
+    }
+    // As usual we test the to_raw method so that later, we can
+    // use it to generate raw items for from_raw tests.
+    #[test]
+    fn to_raw_1() {
+        // No body header v11:
+
+        let _t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(None, 10, 1, None, 100);
+        let raw = item.to_raw();
+        assert_eq!(PHYSICS_EVENT_COUNT, raw.type_id());
+        assert!(!raw.has_body_header());
+
+        let u32s = size_of::<u32>();
+        let p = raw.payload().as_slice();
+        let mut offset = 0;
+
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset = offset + u32s;
+
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            100,
+            u64::from_ne_bytes(p[offset..offset + size_of::<u64>()].try_into().unwrap())
+        );
+        offset += size_of::<u64>();
+
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_2() {
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let _t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, None, 100);
+        let raw = item.to_raw();
+
+        assert_eq!(PHYSICS_EVENT_COUNT, raw.type_id());
+        assert!(raw.has_body_header());
+
+        let ibh = raw.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        let u32s = size_of::<u32>();
+        let p = raw.payload().as_slice();
+        let mut offset = body_header_size();
+
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset = offset + u32s;
+
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            100,
+            u64::from_ne_bytes(p[offset..offset + size_of::<u64>()].try_into().unwrap())
+        );
+        offset += size_of::<u64>();
+
+        assert_eq!(offset, p.len());
+    }
+    #[test]
+    fn to_raw_3() {
+        // body header and original source id:
+
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let _t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, Some(5), 100);
+        let raw = item.to_raw();
+
+        let u32s = size_of::<u32>();
+        let p = raw.payload().as_slice();
+        let mut offset = body_header_size();
+
+        assert_eq!(
+            10,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset = offset + u32s;
+
+        assert_eq!(
+            1,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+        // has original sid:
+        assert_eq!(
+            5,
+            u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
+        );
+        offset += u32s;
+
+        assert_eq!(
+            100,
+            u64::from_ne_bytes(p[offset..offset + size_of::<u64>()].try_into().unwrap())
+        );
+        offset += size_of::<u64>();
+
+        assert_eq!(offset, p.len());
+    }
+    // can now test from_raw().
+
+    #[test]
+    fn from_raw_1() {
+        // no body header v11
+        let _t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(None, 10, 1, None, 100);
+        let raw = item.to_raw();
+        let recons = PhysicsEventCountItem::from_raw(&raw, RingVersion::V11);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+        assert!(recons.get_bodyheader().is_none());
+        assert_eq!(item.get_timeoffset(), recons.get_timeoffset());
+        assert_eq!(item.get_time_divisor(), recons.get_time_divisor());
+        assert!(recons.get_original_sid().is_none());
+        assert_eq!(item.get_event_count(), recons.get_event_count());
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
+    }
+    #[test]
+    fn from_raw_2() {
+        // V11, body header.
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let _t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, None, 100);
+        let raw = item.to_raw();
+        let recons = PhysicsEventCountItem::from_raw(&raw, RingVersion::V11);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+        assert!(recons.get_bodyheader().is_some());
+        let ibh = recons.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(item.get_timeoffset(), recons.get_timeoffset());
+        assert_eq!(item.get_time_divisor(), recons.get_time_divisor());
+        assert!(recons.get_original_sid().is_none());
+        assert_eq!(item.get_event_count(), recons.get_event_count());
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
+    }
+    #[test]
+    fn from_raw_3() {
+        // V12 body header:
+
+        let bh = BodyHeader {
+            timestamp: 0x12345abdef,
+            source_id: 2,
+            barrier_type: 0,
+        };
+        let _t = SystemTime::now();
+        let item = PhysicsEventCountItem::new(Some(bh), 10, 1, Some(5), 100);
+        let raw = item.to_raw();
+        let recons = PhysicsEventCountItem::from_raw(&raw, RingVersion::V12);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+        assert!(recons.get_bodyheader().is_some());
+        let ibh = recons.get_bodyheader().unwrap();
+        assert_eq!(bh.timestamp, ibh.timestamp);
+        assert_eq!(bh.source_id, ibh.source_id);
+        assert_eq!(bh.barrier_type, ibh.barrier_type);
+
+        assert_eq!(item.get_timeoffset(), recons.get_timeoffset());
+        assert_eq!(item.get_time_divisor(), recons.get_time_divisor());
+        assert!(recons.get_original_sid().is_some());
+        assert_eq!(
+            item.get_original_sid().unwrap(),
+            recons.get_original_sid().unwrap()
+        );
+        assert_eq!(item.get_event_count(), recons.get_event_count());
+        assert_eq!(
+            systime_to_raw(item.get_absolute_time()),
+            systime_to_raw(recons.get_absolute_time())
+        );
     }
 }

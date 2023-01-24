@@ -43,3 +43,54 @@ impl FormatItem {
         result
     }
 }
+#[cfg(test)]
+mod fmt_tests {
+    use crate::format_item::*;
+    use crate::ring_items::*;
+    use std::mem::size_of;
+    #[test]
+    fn new_1() {
+        // Also tests getters.
+
+        let item = FormatItem::new(11, 5);
+        assert_eq!(11, item.major());
+        assert_eq!(5, item.minor());
+    }
+    #[test]
+    fn to_raw_1() {
+        let item = FormatItem::new(11, 26);
+        let raw = item.to_raw();
+
+        assert_eq!(FORMAT_ITEM, raw.type_id());
+        assert!(!raw.has_body_header());
+        let p = raw.payload().as_slice();
+        assert_eq!(
+            11,
+            u16::from_ne_bytes(p[0..size_of::<u16>()].try_into().unwrap())
+        );
+        assert_eq!(
+            26,
+            u16::from_ne_bytes(
+                p[size_of::<u16>()..2 * size_of::<u16>()]
+                    .try_into()
+                    .unwrap()
+            )
+        );
+    }
+    #[test]
+    fn from_raw_1() {
+        let item = FormatItem::new(11, 26);
+        let raw = item.to_raw();
+        let recons = FormatItem::from_raw(&raw);
+
+        assert!(recons.is_some());
+        let recons = recons.unwrap();
+        assert_eq!(11, recons.major());
+        assert_eq!(26, recons.minor());
+    }
+    #[test]
+    fn from_raw_2() {
+        let raw = RingItem::new(FORMAT_ITEM + 1); // should fail.
+        assert!(FormatItem::from_raw(&raw).is_none());
+    }
+}

@@ -148,10 +148,9 @@ fn dump_scaler(sc: &mut scaler_item::ScalerItem) {
     if let Some(osid) = sc.original_sid() {
         println!(" Original source id {}", osid);
     }
-    let mut scalers: Vec<u32> = Vec::new();
-    sc.scaler_values(&mut scalers);
-    println!(" {} scalers:", scalers.len());
-    for s in &scalers {
+
+    println!(" {} scalers:", sc.len());
+    for s in sc.iter() {
         println!("    {} counts", *s);
     }
 }
