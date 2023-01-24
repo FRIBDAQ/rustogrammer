@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::mem;
@@ -208,6 +209,36 @@ impl RingItem {
         Ok(bytes_written)
     }
 }
+
+/// provide for textual formatting of a raw ring item:
+
+impl fmt::Display for RingItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Size: {}\n", self.size()).unwrap();
+        write!(f, "type: {}\n", self.type_id()).unwrap();
+        let mut offset = 0;
+        if self.has_body_header() {
+            let header = self.get_bodyheader().unwrap();
+            write!(f, "Body header:\n").unwrap();
+            write!(f, "   timestamp: {:0>8x}\n", header.timestamp).unwrap();
+            write!(f, "   sourceid:  {}\n", header.source_id).unwrap();
+            write!(f, "   barrier:   {}\n", header.barrier_type).unwrap();
+            offset = body_header_size();
+        }
+
+        let payload = self.payload().as_slice();
+        if offset < payload.len() {
+            for (i, p) in payload[offset..].into_iter().enumerate() {
+                if i % 8 == 0 {
+                    write!(f, "\n").unwrap();
+                }
+                write!(f, "{:0>2x} ", p).unwrap();
+            }
+        }
+        write!(f, "\n")
+    }
+}
+
 /// convert a u32 into a SystemTime:
 
 ///

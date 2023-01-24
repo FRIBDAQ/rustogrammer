@@ -22,13 +22,8 @@ fn dump_items(f: &mut File) {
     println!("Dumping");
     loop {
         if let Ok(item) = ring_items::RingItem::read_item(f) {
-            println!("----------------------");
-            println!("Size: {}", item.size());
-            println!("type: {}", item.type_id());
-
-            if item.has_body_header() {
-                dump_body_header(&item);
-            }
+            println!("{}", item);
+            println!("---------");
             if let Some(fmt) = format_item::FormatItem::from_raw(&item) {
                 dump_format(&fmt);
                 let raw = fmt.to_raw();
@@ -108,13 +103,6 @@ fn dump_items(f: &mut File) {
             break;
         }
     }
-}
-fn dump_body_header(item: &ring_items::RingItem) {
-    let header = item.get_bodyheader().unwrap();
-    println!("Body header:");
-    println!("   timestamp: {:0>8x}", header.timestamp);
-    println!("   sourceid:  {}", header.source_id);
-    println!("   barrier:   {}", header.barrier_type);
 }
 
 fn dump_format(fmt: &format_item::FormatItem) {
