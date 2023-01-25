@@ -1,4 +1,6 @@
 use crate::ring_items;
+use humantime;
+use std::fmt;
 use std::time;
 ///
 /// EventCountItems count the nunmber of triggers that have
@@ -120,6 +122,26 @@ impl PhysicsEventCountItem {
         result.add(self.event_count);
 
         result
+    }
+}
+impl fmt::Display for PhysicsEventCountItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Trigger count information: \n").unwrap();
+        if let Some(bh) = self.get_bodyheader() {
+            write!(f, "BodyHeader: \n   {}", bh).unwrap();
+        }
+        write!(
+            f,
+            "{} Seconds in the run at {} : {} Triggers\n",
+            self.get_offset_time(),
+            humantime::format_rfc3339(self.get_absolute_time()),
+            self.get_event_count()
+        )
+        .unwrap();
+        if let Some(sid) = self.get_original_sid() {
+            write!(f, "Original sid: {}\n", sid).unwrap();
+        }
+        write!(f, "")
     }
 }
 #[cfg(test)]

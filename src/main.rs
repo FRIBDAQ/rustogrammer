@@ -13,26 +13,6 @@ use std::fs::File;
 use std::time::SystemTime;
 
 fn main() {
-    let strings = vec![
-        String::from("one string"),
-        String::from("two string"),
-        String::from("three string"),
-        String::from("Four"),
-    ];
-    let item = text_item::TextItem::new(
-        text_item::TextItemType::PacketTypes,
-        Some(ring_items::BodyHeader {
-            timestamp: 1245,
-            source_id: 5,
-            barrier_type: 0,
-        }),
-        10,
-        SystemTime::now(),
-        2,
-        Some(1),
-        &strings,
-    );
-    println!("{}", item);
     if let Ok(mut f) = File::open("run-0088-00.evt") {
         dump_items(&mut f);
     } else {
@@ -65,9 +45,7 @@ fn dump_items(f: &mut File) {
             if let Some(count) =
                 triggers_item::PhysicsEventCountItem::from_raw(&item, ring_items::RingVersion::V11)
             {
-                dump_count_item(&count);
-                let raw = count.to_raw();
-                println!("Recreate size: {} type: {}", raw.size(), raw.type_id());
+                println!("{}", count);
             }
             if let Some(gp) = glom_parameters::GlomParameters::from_raw(&item) {
                 println!("{}", gp);
@@ -88,24 +66,5 @@ fn dump_items(f: &mut File) {
             println!("done");
             break;
         }
-    }
-}
-
-fn dump_count_item(c: &triggers_item::PhysicsEventCountItem) {
-    println!("Trigger count information: ");
-    if let Some(bh) = c.get_bodyheader() {
-        println!(
-            "bodyheader : ts {:0>8x} sid {} barrier {}",
-            bh.timestamp, bh.source_id, bh.barrier_type
-        );
-    }
-    println!(
-        "{} Seconds in the run at {} : {} Triggers",
-        c.get_offset_time(),
-        humantime::format_rfc3339(c.get_absolute_time()),
-        c.get_event_count()
-    );
-    if let Some(sid) = c.get_original_sid() {
-        println!("Original sid: {}", sid);
     }
 }
