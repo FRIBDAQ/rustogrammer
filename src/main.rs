@@ -22,17 +22,9 @@ fn dump_items(f: &mut File) {
     println!("Dumping");
     loop {
         if let Ok(item) = ring_items::RingItem::read_item(f) {
-            println!("{}", item);
             println!("---------");
             if let Some(fmt) = format_item::FormatItem::from_raw(&item) {
-                dump_format(&fmt);
-                let raw = fmt.to_raw();
-                println!(
-                    "When re-created size: {} type: {} {}",
-                    raw.size(),
-                    raw.type_id(),
-                    raw.has_body_header()
-                );
+                println!("{}", fmt);
             }
             if let Some(state) =
                 state_change::StateChange::from_raw(&item, ring_items::RingVersion::V11)
@@ -93,10 +85,6 @@ fn dump_items(f: &mut File) {
             break;
         }
     }
-}
-
-fn dump_format(fmt: &format_item::FormatItem) {
-    println!("Format Item: {}.{}", fmt.major(), fmt.minor());
 }
 
 fn dump_state_change(state: &state_change::StateChange) {

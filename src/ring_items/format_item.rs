@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::fmt;
 ///
 /// Provides a format item and interface:
 /// Format items provide the ring buffer format level.
@@ -43,6 +44,13 @@ impl FormatItem {
         result
     }
 }
+
+impl fmt::Display for FormatItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Format item for version: {}.{}", self.major, self.minor)
+    }
+}
+
 #[cfg(test)]
 mod fmt_tests {
     use crate::format_item::*;
