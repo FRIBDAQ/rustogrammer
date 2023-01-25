@@ -12,7 +12,6 @@ use ring_items::triggers_item;
 use std::fs::File;
 
 fn main() {
-    
     if let Ok(mut f) = File::open("run-0088-00.evt") {
         dump_items(&mut f);
     } else {
@@ -30,20 +29,9 @@ fn dump_items(f: &mut File) {
             if let Some(state) =
                 state_change::StateChange::from_raw(&item, ring_items::RingVersion::V11)
             {
-                dump_state_change(&state);
-                let raw = state.to_raw();
-                println!(
-                    "Recereated size: {} type: {} {}",
-                    raw.size(),
-                    raw.type_id(),
-                    raw.has_body_header()
-                );
-                let s = state_change::StateChange::from_raw(&raw, ring_items::RingVersion::V11)
-                    .unwrap();
-                dump_state_change(&s);
+                println!("{}", state);
             }
-            if let Some(sc) =
-                scaler_item::ScalerItem::from_raw(&item, ring_items::RingVersion::V11)
+            if let Some(sc) = scaler_item::ScalerItem::from_raw(&item, ring_items::RingVersion::V11)
             {
                 println!("{}", sc);
             }
@@ -64,7 +52,6 @@ fn dump_items(f: &mut File) {
             }
             if let Some(gp) = glom_parameters::GlomParameters::from_raw(&item) {
                 println!("{}", gp);
-        
             }
             if let Some(ae) = abnormal_end::AbnormalEnd::from_raw(&item) {
                 println!("{}", ae);
@@ -83,23 +70,6 @@ fn dump_items(f: &mut File) {
             break;
         }
     }
-}
-
-fn dump_state_change(state: &state_change::StateChange) {
-    println!("State Change: {}", state.change_type_string());
-    println!(
-        " run: {} offset {} seconds  ",
-        state.run_number(),
-        state.time_offset(),
-    );
-    if let Some(osid) = state.original_sid() {
-        println!(" original sid: {}", osid);
-    }
-    println!("Title: {}", state.title());
-    println!(
-        " Stamp {}",
-        humantime::format_rfc3339(state.absolute_time())
-    );
 }
 
 fn dump_text(t: &text_item::TextItem) {

@@ -231,6 +231,28 @@ impl StateChange {
         self.original_sid
     }
 }
+
+impl fmt::Display for StateChange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "State Change: {}\n", self.change_type_string()).unwrap();
+        write!(
+            f,
+            " run: {} offset {} seconds\n",
+            self.run_number(),
+            self.time_offset(),
+        )
+        .unwrap();
+        if let Some(osid) = self.original_sid() {
+            write!(f, " original sid: {}\n", osid).unwrap();
+        }
+        write!(f, "Title: {}\n", self.title()).unwrap();
+        write!(
+            f,
+            " Stamp {}",
+            humantime::format_rfc3339(self.absolute_time())
+        )
+    }
+}
 #[cfg(test)]
 mod state_tests {
     use crate::ring_items::*;
