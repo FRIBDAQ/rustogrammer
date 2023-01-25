@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::fmt;
 
 /// These are the strategies glom uses to assign timestamps to events:
 ///
@@ -100,6 +101,19 @@ impl GlomParameters {
         result.add(self.coincidence_ticks).add(building).add(policy);
 
         result
+    }
+}
+impl fmt::Display for GlomParameters {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Glom parameters\n").unwrap();
+        let building = if self.is_building { "On" } else { "Off" };
+        write!(
+            f,
+            "  Coincidence interval {} ticks, Event building is {} Timestamp Policy {}",
+            self.coincidence_ticks,
+            building,
+            self.policy_string()
+        )
     }
 }
 #[cfg(test)]
