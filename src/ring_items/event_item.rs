@@ -141,9 +141,9 @@ impl Iterator for PhysicsEvent {
 
 impl fmt::Display for PhysicsEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Physics Event:").unwrap();
+        write!(f, "Physics Event:\n").unwrap();
         if let Some(bh) = self.get_bodyheader() {
-            write!(f, "{}\n", bh).unwrap();
+            write!(f, "Body Header:\n {}\n", bh).unwrap();
         }
 
         // We're a bit hampered by the fact that the signature
