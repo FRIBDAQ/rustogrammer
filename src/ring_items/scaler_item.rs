@@ -176,6 +176,9 @@ impl ScalerItem {
 impl fmt::Display for ScalerItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, " Scaler: \n").unwrap();
+        if let Some(bh) = self.body_header {
+            write!(f, "Body header:\n  {}\n", bh).unwrap();
+        }
         write!(
             f,
             "  Start: {} End {}\n",
