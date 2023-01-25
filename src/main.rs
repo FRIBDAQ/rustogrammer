@@ -10,8 +10,29 @@ use ring_items::state_change;
 use ring_items::text_item;
 use ring_items::triggers_item;
 use std::fs::File;
+use std::time::SystemTime;
 
 fn main() {
+    let strings = vec![
+        String::from("one string"),
+        String::from("two string"),
+        String::from("three string"),
+        String::from("Four"),
+    ];
+    let item = text_item::TextItem::new(
+        text_item::TextItemType::PacketTypes,
+        Some(ring_items::BodyHeader {
+            timestamp: 1245,
+            source_id: 5,
+            barrier_type: 0,
+        }),
+        10,
+        SystemTime::now(),
+        2,
+        Some(1),
+        &strings,
+    );
+    println!("{}", item);
     if let Ok(mut f) = File::open("run-0088-00.evt") {
         dump_items(&mut f);
     } else {
@@ -36,9 +57,7 @@ fn dump_items(f: &mut File) {
                 println!("{}", sc);
             }
             if let Some(t) = text_item::TextItem::from_raw(&item, ring_items::RingVersion::V11) {
-                dump_text(&t);
-                let raw = t.to_raw();
-                println!("Recreated size {} type: {}", raw.size(), raw.type_id());
+                println!("{}", t);
             }
             if let Some(e) = event_item::PhysicsEvent::from_raw(&item) {
                 println!("{}", e);
@@ -69,22 +88,6 @@ fn dump_items(f: &mut File) {
             println!("done");
             break;
         }
-    }
-}
-
-fn dump_text(t: &text_item::TextItem) {
-    println!("Text Item: ");
-    println!("  type: {}", t.get_item_type_string());
-    println!(
-        "  Offset {} secs , time {} ",
-        t.get_offset_secs(),
-        humantime::format_rfc3339(t.get_absolute_time())
-    );
-    if let Some(sid) = t.get_original_sid() {
-        println!("Original sid:  {}", sid);
-    }
-    for i in 0..t.get_string_count() {
-        println!("String: {} : {}", i, t.get_string(i).unwrap());
     }
 }
 

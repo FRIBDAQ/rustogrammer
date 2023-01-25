@@ -1,4 +1,6 @@
 use crate::ring_items;
+use humantime;
+use std::fmt;
 use std::slice::Iter;
 use std::time;
 ///
@@ -214,6 +216,31 @@ impl TextItem {
         result
     }
 }
+
+impl fmt::Display for TextItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Text Item: \n").unwrap();
+        write!(f, "  type: {}\n", self.get_item_type_string()).unwrap();
+        if let Some(bh) = self.body_header {
+            write!(f, "Body header: \n {}\n", bh).unwrap();
+        }
+        write!(
+            f,
+            "  Offset {} secs , time {}\n",
+            self.get_offset_secs(),
+            humantime::format_rfc3339(self.get_absolute_time())
+        )
+        .unwrap();
+        if let Some(sid) = self.get_original_sid() {
+            write!(f, "Original sid:  {}\n", sid).unwrap();
+        }
+        for i in 0..self.get_string_count() {
+            write!(f, "String: {} : {}\n", i, self.get_string(i).unwrap()).unwrap();
+        }
+        write!(f, "")
+    }
+}
+
 #[cfg(test)]
 mod text_tests {
     use crate::ring_items::*;
