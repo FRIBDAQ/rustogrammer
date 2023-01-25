@@ -1,4 +1,6 @@
 use crate::ring_items;
+use humantime;
+use std::fmt;
 use std::slice::Iter;
 use std::time;
 ///
@@ -168,6 +170,34 @@ impl ScalerItem {
         }
 
         result
+    }
+}
+
+impl fmt::Display for ScalerItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " Scaler: \n").unwrap();
+        write!(
+            f,
+            "  Start: {} End {}\n",
+            self.get_start_secs(),
+            self.get_end_secs()
+        )
+        .unwrap();
+        write!(
+            f,
+            "  At: {}\n",
+            humantime::format_rfc3339(self.get_absolute_time())
+        )
+        .unwrap();
+        if let Some(osid) = self.original_sid() {
+            write!(f, " Original source id {}\n", osid).unwrap();
+        }
+
+        write!(f, " {} scalers:\n", self.len()).unwrap();
+        for s in self.iter() {
+            write!(f, "    {} counts\n", *s).unwrap();
+        }
+        write!(f, "")
     }
 }
 

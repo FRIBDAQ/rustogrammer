@@ -42,12 +42,10 @@ fn dump_items(f: &mut File) {
                     .unwrap();
                 dump_state_change(&s);
             }
-            if let Some(mut sc) =
+            if let Some(sc) =
                 scaler_item::ScalerItem::from_raw(&item, ring_items::RingVersion::V11)
             {
-                dump_scaler(&mut sc);
-                let raw = sc.to_raw();
-                println!("Recreated size {} type: {}", raw.size(), raw.type_id());
+                println!("{}", sc);
             }
             if let Some(t) = text_item::TextItem::from_raw(&item, ring_items::RingVersion::V11) {
                 dump_text(&t);
@@ -102,23 +100,6 @@ fn dump_state_change(state: &state_change::StateChange) {
         " Stamp {}",
         humantime::format_rfc3339(state.absolute_time())
     );
-}
-
-fn dump_scaler(sc: &mut scaler_item::ScalerItem) {
-    println!(" Scaler: ");
-    println!("  Start: {} End {}", sc.get_start_secs(), sc.get_end_secs());
-    println!(
-        "  At: {}",
-        humantime::format_rfc3339(sc.get_absolute_time())
-    );
-    if let Some(osid) = sc.original_sid() {
-        println!(" Original source id {}", osid);
-    }
-
-    println!(" {} scalers:", sc.len());
-    for s in sc.iter() {
-        println!("    {} counts", *s);
-    }
 }
 
 fn dump_text(t: &text_item::TextItem) {
