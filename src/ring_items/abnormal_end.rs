@@ -9,13 +9,6 @@ impl AbnormalEnd {
     pub fn new() -> AbnormalEnd {
         AbnormalEnd {}
     }
-    pub fn from_raw(item: &ring_items::RingItem) -> Option<AbnormalEnd> {
-        if item.type_id() == ring_items::ABNORMAL_END {
-            Some(Self::new())
-        } else {
-            None
-        }
-    }
 }
 impl fmt::Display for AbnormalEnd {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -36,22 +29,21 @@ impl ring_items::ToRaw for AbnormalEnd {
 //
 #[cfg(test)]
 mod abend_tests {
-    use crate::abnormal_end::AbnormalEnd;
     use crate::ring_items::*;
     use std::mem::size_of;
     #[test]
     fn fromraw_1() {
         let raw = RingItem::new(crate::ring_items::ABNORMAL_END);
-        assert!(AbnormalEnd::from_raw(&raw).is_some());
+        assert!(raw.to_specific(RingVersion::V11).is_some());
     }
     #[test]
     fn fromraw_2() {
         let raw = RingItem::new(crate::ring_items::BEGIN_RUN);
-        assert!(AbnormalEnd::from_raw(&raw).is_none());
+        assert!(raw.to_specific(RingVersion::V11).is_none());
     }
     #[test]
     fn toraw_1() {
-        let end = AbnormalEnd::new();
+        let end = abnormal_end::AbnormalEnd::new();
         let raw = end.to_raw();
         assert_eq!(crate::ring_items::ABNORMAL_END, raw.type_id());
         assert!(!raw.has_body_header());

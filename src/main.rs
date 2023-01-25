@@ -1,5 +1,5 @@
 mod ring_items;
-use ring_items::abnormal_end;
+use ring_items::FromRaw;
 use ring_items::analysis_ring_items;
 use ring_items::event_item;
 use ring_items::format_item;
@@ -48,7 +48,9 @@ fn dump_items(f: &mut File) {
             if let Some(gp) = glom_parameters::GlomParameters::from_raw(&item) {
                 println!("{}", gp);
             }
-            if let Some(ae) = abnormal_end::AbnormalEnd::from_raw(&item) {
+            if let Some(ae) =
+                item.to_specific(ring_items::RingVersion::V11)
+            {
                 println!("{}", ae);
             }
             if let Some(pd) = analysis_ring_items::ParameterDefinitions::from_raw(&item) {

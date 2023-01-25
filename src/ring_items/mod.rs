@@ -257,8 +257,20 @@ trait ToRaw {
 /// e.g. ConvertRaw<StateChange> for RingItem to convert a raw
 /// item to a ring item if possible (correct type_id).
 ///
-trait ConvertRaw<T> {
-    fn from_raw(&self) -> Option<T>;
+pub trait FromRaw<T> {
+    fn to_specific(&self, vers: RingVersion) -> Option<T>;
+}
+
+/// Implementations for conversions to concrete ring items:
+
+impl FromRaw<abnormal_end::AbnormalEnd> for RingItem {
+    fn to_specific(self: &RingItem, _v: RingVersion) -> Option<abnormal_end::AbnormalEnd> {
+        if self.type_id() == ABNORMAL_END {
+            Some(abnormal_end::AbnormalEnd::new())
+        } else {
+            None
+        }
+    }
 }
 
 /// convert a u32 into a SystemTime:
