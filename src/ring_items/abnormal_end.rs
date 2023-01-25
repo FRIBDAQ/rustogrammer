@@ -16,13 +16,18 @@ impl AbnormalEnd {
             None
         }
     }
-    pub fn to_raw(&self) -> ring_items::RingItem {
-        ring_items::RingItem::new(ring_items::ABNORMAL_END)
-    }
 }
 impl fmt::Display for AbnormalEnd {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Abnormal end Item")
+    }
+}
+/// ToRaw trait allows the abnormal end items to convert to
+/// ring_items::RingItem  This cannot fail:
+
+impl ring_items::ToRaw for AbnormalEnd {
+    fn to_raw(&self) -> ring_items::RingItem {
+        ring_items::RingItem::new(ring_items::ABNORMAL_END)
     }
 }
 
@@ -30,9 +35,9 @@ impl fmt::Display for AbnormalEnd {
 // unit tests
 //
 #[cfg(test)]
-mod tests {
+mod abend_tests {
     use crate::abnormal_end::AbnormalEnd;
-    use crate::ring_items::RingItem;
+    use crate::ring_items::*;
     use std::mem::size_of;
     #[test]
     fn fromraw_1() {

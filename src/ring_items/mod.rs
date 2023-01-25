@@ -244,6 +244,22 @@ impl fmt::Display for RingItem {
         write!(f, "\n")
     }
 }
+/// This trait defines conversion to raw.  I'd love to use From
+/// however it's not true that to_raw is reflexive... it can only
+/// convert to the ring item types for which its type_id is
+/// valid. e.g. while ou can convert a StateChangeItem into a RingItem,
+/// You can't always convert a RingItem into a StateChangeItem.
+///
+trait ToRaw {
+    fn to_raw(&self) -> RingItem;
+}
+/// This can be implemented for each destination type
+/// e.g. ConvertRaw<StateChange> for RingItem to convert a raw
+/// item to a ring item if possible (correct type_id).
+///
+trait ConvertRaw<T> {
+    fn from_raw(&self) -> Option<T>;
+}
 
 /// convert a u32 into a SystemTime:
 

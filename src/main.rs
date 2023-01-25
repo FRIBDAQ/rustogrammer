@@ -1,5 +1,4 @@
 mod ring_items;
-use humantime;
 use ring_items::abnormal_end;
 use ring_items::analysis_ring_items;
 use ring_items::event_item;
@@ -10,7 +9,6 @@ use ring_items::state_change;
 use ring_items::text_item;
 use ring_items::triggers_item;
 use std::fs::File;
-use std::time::SystemTime;
 
 fn main() {
     if let Ok(mut f) = File::open("run-0088-00.evt") {
