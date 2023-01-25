@@ -235,6 +235,9 @@ impl StateChange {
 impl fmt::Display for StateChange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "State Change: {}\n", self.change_type_string()).unwrap();
+        if let Some(bh) = self.body_header {
+            write!(f, "Body header\n  {}", bh).unwrap();
+        }
         write!(
             f,
             " run: {} offset {} seconds\n",
