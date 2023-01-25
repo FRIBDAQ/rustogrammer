@@ -250,7 +250,7 @@ impl fmt::Display for RingItem {
 /// valid. e.g. while ou can convert a StateChangeItem into a RingItem,
 /// You can't always convert a RingItem into a StateChangeItem.
 ///
-trait ToRaw {
+pub trait ToRaw {
     fn to_raw(&self) -> RingItem;
 }
 /// This can be implemented for each destination type
@@ -263,15 +263,6 @@ pub trait FromRaw<T> {
 
 /// Implementations for conversions to concrete ring items:
 
-impl FromRaw<abnormal_end::AbnormalEnd> for RingItem {
-    fn to_specific(self: &RingItem, _v: RingVersion) -> Option<abnormal_end::AbnormalEnd> {
-        if self.type_id() == ABNORMAL_END {
-            Some(abnormal_end::AbnormalEnd::new())
-        } else {
-            None
-        }
-    }
-}
 
 /// convert a u32 into a SystemTime:
 

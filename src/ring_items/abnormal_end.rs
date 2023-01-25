@@ -23,6 +23,15 @@ impl ring_items::ToRaw for AbnormalEnd {
         ring_items::RingItem::new(ring_items::ABNORMAL_END)
     }
 }
+impl ring_items::FromRaw<AbnormalEnd> for ring_items::RingItem {
+    fn to_specific(self: &ring_items::RingItem, _v: ring_items::RingVersion) -> Option<AbnormalEnd> {
+        if self.type_id() == ring_items::ABNORMAL_END {
+            Some(AbnormalEnd::new())
+        } else {
+            None
+        }
+    }
+}
 
 //------------------------------------------------------------------
 // unit tests
