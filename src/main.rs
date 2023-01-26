@@ -32,8 +32,8 @@ fn dump_items(f: &mut File) {
             {
                 println!("{}", state);
             }
-            if let Some(sc) = scaler_item::ScalerItem::from_raw(&item, ring_items::RingVersion::V11)
-            {
+            let s: Option<scaler_item::ScalerItem> = item.to_specific(ring_items::RingVersion::V11);
+            if let Some(sc) = s {
                 println!("{}", sc);
             }
             if let Some(t) = text_item::TextItem::from_raw(&item, ring_items::RingVersion::V11) {
@@ -49,7 +49,8 @@ fn dump_items(f: &mut File) {
             {
                 println!("{}", count);
             }
-            let g : Option<glom_parameters::GlomParameters> = item.to_specific(ring_items::RingVersion::V11);
+            let g: Option<glom_parameters::GlomParameters> =
+                item.to_specific(ring_items::RingVersion::V11);
             if let Some(gp) = g {
                 println!("{}", gp);
             }
