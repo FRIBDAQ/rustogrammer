@@ -181,32 +181,28 @@ impl VariableValues {
     pub fn iter(&self) -> Iter<'_, VariableValue> {
         self.defs.iter()
     }
-    /// Convert from raw if possible:
 
-    pub fn from_raw(raw: &ring_items::RingItem) -> Option<VariableValues> {
-        if raw.type_id() == ring_items::VARIABLE_VALUES {
-            let mut result = Self::new();
-            let payload = raw.payload().as_slice();
-            let nvars = u32::from_ne_bytes(payload[0..4].try_into().unwrap());
-            let mut offset = 4;
-            for _ in 0..nvars {
-                let value: f64 =
-                    f64::from_ne_bytes(payload[offset..offset + 8].try_into().unwrap());
-                offset += mem::size_of::<f64>();
-                let mut off = offset;
-                let units = ring_items::get_c_string(&mut off, &payload);
-                offset = offset + MAX_UNITS_LENGTH;
-                let name = ring_items::get_c_string(&mut offset, &payload);
-                result.defs.push(VariableValue::new(value, &name, &units));
-            }
-            Some(result)
-        } else {
-            None
-        }
+    /// Add a new variable value/def.
+
+    pub fn add_def(&mut self, def: VariableValue) -> &mut Self {
+        self.defs.push(def);
+        self
     }
-    /// Convert to a raw ring item.
+}
+impl fmt::Display for VariableValues {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Variable values items:\n").unwrap();
+        for v in &self.defs {
+            write!(f, "{}\n", *v).unwrap();
+        }
+        write!(f, "")
+    }
+}
 
-    pub fn to_raw(&self) -> ring_items::RingItem {
+/// The ToRaw trait converts VariableValues into a Ringitem
+
+impl ring_items::ToRaw for VariableValues {
+    fn to_raw(&self) -> ring_items::RingItem {
         // These never have a body  header:
 
         let mut result = ring_items::RingItem::new(ring_items::VARIABLE_VALUES);
@@ -227,20 +223,35 @@ impl VariableValues {
         }
         result
     }
-    /// Add a new variable value/def.
-
-    pub fn add_def(&mut self, def: VariableValue) -> &mut Self {
-        self.defs.push(def);
-        self
-    }
 }
-impl fmt::Display for VariableValues {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Variable values items:\n").unwrap();
-        for v in &self.defs {
-            write!(f, "{}\n", *v).unwrap();
+
+/// The FromRaw trait supports conversion from Raw->VariableValues
+/// If that's possible:
+
+impl ring_items::FromRaw<VariableValues> for ring_items::RingItem {
+    fn to_specific(
+        self: &ring_items::RingItem,
+        _v: ring_items::RingVersion,
+    ) -> Option<VariableValues> {
+        if self.type_id() == ring_items::VARIABLE_VALUES {
+            let mut result = VariableValues::new();
+            let payload = self.payload().as_slice();
+            let nvars = u32::from_ne_bytes(payload[0..4].try_into().unwrap());
+            let mut offset = 4;
+            for _ in 0..nvars {
+                let value: f64 =
+                    f64::from_ne_bytes(payload[offset..offset + 8].try_into().unwrap());
+                offset += mem::size_of::<f64>();
+                let mut off = offset;
+                let units = ring_items::get_c_string(&mut off, &payload);
+                offset = offset + MAX_UNITS_LENGTH;
+                let name = ring_items::get_c_string(&mut offset, &payload);
+                result.defs.push(VariableValue::new(value, &name, &units));
+            }
+            Some(result)
+        } else {
+            None
         }
-        write!(f, "")
     }
 }
 //---------------------------------------------------------------
@@ -595,7 +606,7 @@ mod test_vars {
 
         let vars = VariableValues::new();
         let raw = vars.to_raw();
-        let recons = VariableValues::from_raw(&raw);
+        let recons: Option<VariableValues> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
         assert_eq!(0, recons.defs.len());
@@ -608,7 +619,7 @@ mod test_vars {
             .add_def(VariableValue::new(1.5, "Measure", "mm"));
 
         let raw = vars.to_raw();
-        let recons = VariableValues::from_raw(&raw);
+        let recons: Option<VariableValues> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
 
@@ -624,7 +635,8 @@ mod test_vars {
         // wrong type of raw item.
 
         let raw = RingItem::new(VARIABLE_VALUES + 1); // wrong type.
-        assert!(VariableValues::from_raw(&raw).is_none());
+        let recons: Option<VariableValues> = raw.to_specific(RingVersion::V11);
+        assert!(recons.is_none());
     }
 }
 #[cfg(test)]
