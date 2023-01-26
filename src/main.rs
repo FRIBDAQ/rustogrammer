@@ -1,5 +1,5 @@
 mod ring_items;
-use ring_items::FromRaw;
+use ring_items::abnormal_end;
 use ring_items::analysis_ring_items;
 use ring_items::event_item;
 use ring_items::format_item;
@@ -8,6 +8,7 @@ use ring_items::scaler_item;
 use ring_items::state_change;
 use ring_items::text_item;
 use ring_items::triggers_item;
+use ring_items::FromRaw;
 use std::fs::File;
 
 fn main() {
@@ -48,12 +49,14 @@ fn dump_items(f: &mut File) {
             if let Some(gp) = glom_parameters::GlomParameters::from_raw(&item) {
                 println!("{}", gp);
             }
-            if let Some(ae) =
-                item.to_specific(ring_items::RingVersion::V11)
-            {
+            let a: Option<abnormal_end::AbnormalEnd> =
+                item.to_specific(ring_items::RingVersion::V11);
+            if let Some(ae) = a {
                 println!("{}", ae);
             }
-            if let Some(pd) = analysis_ring_items::ParameterDefinitions::from_raw(&item) {
+            let p: Option<analysis_ring_items::ParameterDefinitions> =
+                item.to_specific(ring_items::RingVersion::V11);
+            if let Some(pd) = p {
                 println!("{}", pd);
             }
             if let Some(vd) = analysis_ring_items::VariableValues::from_raw(&item) {

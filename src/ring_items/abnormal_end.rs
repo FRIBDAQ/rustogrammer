@@ -24,7 +24,10 @@ impl ring_items::ToRaw for AbnormalEnd {
     }
 }
 impl ring_items::FromRaw<AbnormalEnd> for ring_items::RingItem {
-    fn to_specific(self: &ring_items::RingItem, _v: ring_items::RingVersion) -> Option<AbnormalEnd> {
+    fn to_specific(
+        self: &ring_items::RingItem,
+        _v: ring_items::RingVersion,
+    ) -> Option<AbnormalEnd> {
         if self.type_id() == ring_items::ABNORMAL_END {
             Some(AbnormalEnd::new())
         } else {
@@ -39,16 +42,19 @@ impl ring_items::FromRaw<AbnormalEnd> for ring_items::RingItem {
 #[cfg(test)]
 mod abend_tests {
     use crate::ring_items::*;
+    use abnormal_end::*;
     use std::mem::size_of;
     #[test]
     fn fromraw_1() {
         let raw = RingItem::new(crate::ring_items::ABNORMAL_END);
-        assert!(raw.to_specific(RingVersion::V11).is_some());
+        let result: Option<AbnormalEnd> = raw.to_specific(RingVersion::V11);
+        assert!(result.is_some());
     }
     #[test]
     fn fromraw_2() {
         let raw = RingItem::new(crate::ring_items::BEGIN_RUN);
-        assert!(raw.to_specific(RingVersion::V11).is_none());
+        let result: Option<AbnormalEnd> = raw.to_specific(RingVersion::V11);
+        assert!(result.is_none());
     }
     #[test]
     fn toraw_1() {

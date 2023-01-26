@@ -261,9 +261,6 @@ pub trait FromRaw<T> {
     fn to_specific(&self, vers: RingVersion) -> Option<T>;
 }
 
-/// Implementations for conversions to concrete ring items:
-
-
 /// convert a u32 into a SystemTime:
 
 ///

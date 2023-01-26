@@ -49,40 +49,7 @@ impl ParameterDefinitions {
             defs: Vec::<ParameterDefinition>::new(),
         }
     }
-    /// Make a ParameterDefinitions from a raw ring item if possible.
-    /// Note that parameter definitions never have body headers.
-    ///
-    pub fn from_raw(raw: &ring_items::RingItem) -> Option<ParameterDefinitions> {
-        if raw.type_id() == ring_items::PARAMETER_DEFINITIONS {
-            let mut result = ParameterDefinitions::new();
-            let payload = raw.payload().as_slice();
-            let num = u32::from_ne_bytes(payload[0..4].try_into().unwrap());
 
-            let mut offset = 4;
-            for _ in 0..num {
-                result
-                    .defs
-                    .push(Self::get_parameter_def(&mut offset, &payload));
-            }
-            Some(result)
-        } else {
-            None
-        }
-    }
-    /// Convert the set of definitions to a raw ring item.
-    ///
-    pub fn to_raw(&self) -> ring_items::RingItem {
-        let mut result = ring_items::RingItem::new(ring_items::PARAMETER_DEFINITIONS);
-        result.add(self.defs.len() as u32);
-        for def in &self.defs {
-            result.add(def.id);
-            let mut bytes = String::into_bytes(def.name.clone());
-            bytes.push(0);
-            result.add_byte_vec(&bytes);
-        }
-
-        result
-    }
     /// provide an iterator over the variable defs.
     pub fn iter(&self) -> Iter<'_, ParameterDefinition> {
         self.defs.iter()
@@ -111,6 +78,49 @@ impl fmt::Display for ParameterDefinitions {
         write!(f, "")
     }
 }
+
+/// Trait implementations that support conversions: (Per gitlab issue #5).
+/// Convert a parameter definitions item to a raw item:
+///
+impl ring_items::ToRaw for ParameterDefinitions {
+    fn to_raw(&self) -> ring_items::RingItem {
+        let mut result = ring_items::RingItem::new(ring_items::PARAMETER_DEFINITIONS);
+        result.add(self.defs.len() as u32);
+        for def in &self.defs {
+            result.add(def.id);
+            let mut bytes = String::into_bytes(def.name.clone());
+            bytes.push(0);
+            result.add_byte_vec(&bytes);
+        }
+
+        result
+    }
+}
+/// FromRaw trait with ParameterDefitions target:
+impl ring_items::FromRaw<ParameterDefinitions> for ring_items::RingItem {
+    fn to_specific(
+        self: &ring_items::RingItem,
+        _v: ring_items::RingVersion,
+    ) -> Option<ParameterDefinitions> {
+        if self.type_id() == ring_items::PARAMETER_DEFINITIONS {
+            let mut result = ParameterDefinitions::new();
+            let payload = self.payload().as_slice();
+            let num = u32::from_ne_bytes(payload[0..4].try_into().unwrap());
+
+            let mut offset = 4;
+            for _ in 0..num {
+                result.defs.push(ParameterDefinitions::get_parameter_def(
+                    &mut offset,
+                    &payload,
+                ));
+            }
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
 //-------------------------------------------------------------
 // Variable values.
 //-------------------------------------------------------------
@@ -444,7 +454,7 @@ mod test_paramdefs {
     fn from_raw_1() {
         let item = ParameterDefinitions::new();
         let raw = item.to_raw();
-        let recons = ParameterDefinitions::from_raw(&raw);
+        let recons: Option<ParameterDefinitions> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
         assert_eq!(0, recons.defs.len());
@@ -455,7 +465,7 @@ mod test_paramdefs {
         item.add_definition(ParameterDefinition::new(1, "item1"))
             .add_definition(ParameterDefinition::new(2, "item2"));
         let raw = item.to_raw();
-        let recons = ParameterDefinitions::from_raw(&raw);
+        let recons: Option<ParameterDefinitions> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
         assert_eq!(2, recons.defs.len());
@@ -469,7 +479,8 @@ mod test_paramdefs {
         // wrong  type -> None:
 
         let raw = ring_items::RingItem::new(PARAMETER_DEFINITIONS - 1);
-        assert!(ParameterDefinitions::from_raw(&raw).is_none());
+        let recons: Option<ParameterDefinitions> = raw.to_specific(RingVersion::V11);
+        assert!(recons.is_none());
     }
     #[test]
     fn getdef_1() {
