@@ -38,7 +38,9 @@ fn dump_items(f: &mut File) {
             if let Some(t) = text_item::TextItem::from_raw(&item, ring_items::RingVersion::V11) {
                 println!("{}", t);
             }
-            if let Some(e) = event_item::PhysicsEvent::from_raw(&item) {
+            let ev: Option<event_item::PhysicsEvent> =
+                item.to_specific(ring_items::RingVersion::V11);
+            if let Some(e) = ev {
                 println!("{}", e);
             }
             if let Some(count) =
