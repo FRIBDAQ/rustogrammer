@@ -49,7 +49,8 @@ fn dump_items(f: &mut File) {
             {
                 println!("{}", count);
             }
-            if let Some(gp) = glom_parameters::GlomParameters::from_raw(&item) {
+            let g : Option<glom_parameters::GlomParameters> = item.to_specific(ring_items::RingVersion::V11);
+            if let Some(gp) = g {
                 println!("{}", gp);
             }
             let a: Option<abnormal_end::AbnormalEnd> =
