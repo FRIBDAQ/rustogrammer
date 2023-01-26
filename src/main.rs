@@ -23,7 +23,8 @@ fn dump_items(f: &mut File) {
     loop {
         if let Ok(item) = ring_items::RingItem::read_item(f) {
             println!("---------");
-            if let Some(fmt) = format_item::FormatItem::from_raw(&item) {
+            let f: Option<format_item::FormatItem> = item.to_specific(ring_items::RingVersion::V11);
+            if let Some(fmt) = f {
                 println!("{}", fmt);
             }
             if let Some(state) =
