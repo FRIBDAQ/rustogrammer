@@ -295,48 +295,7 @@ impl ParameterItem {
             parameters: Vec::<ParameterValue>::new(),
         }
     }
-    /// Create a new item from a raw ring item if possible.
 
-    pub fn from_raw(raw: &ring_items::RingItem) -> Option<ParameterItem> {
-        if raw.type_id() == ring_items::PARAMETER_DATA {
-            let payload = raw.payload().as_slice();
-            let trigger: u64 = u64::from_ne_bytes(payload[0..8].try_into().unwrap());
-            let mut result = Self::new(trigger);
-            let num = u32::from_ne_bytes(payload[8..12].try_into().unwrap());
-            let mut offset = 12; // First id/value pair.
-            for _ in 0..num {
-                let id = u32::from_ne_bytes(
-                    payload[offset..offset + mem::size_of::<u32>()]
-                        .try_into()
-                        .unwrap(),
-                );
-                offset += mem::size_of::<u32>();
-                let value = f64::from_ne_bytes(
-                    payload[offset..offset + mem::size_of::<f64>()]
-                        .try_into()
-                        .unwrap(),
-                );
-                result.parameters.push(ParameterValue::new(id, value));
-                offset = offset + mem::size_of::<f64>();
-            }
-
-            Some(result)
-        } else {
-            None
-        }
-    }
-    /// Convert a parameter values item into a raw one.
-    pub fn to_raw(&self) -> ring_items::RingItem {
-        // Never any body header so:
-
-        let mut result = ring_items::RingItem::new(ring_items::PARAMETER_DATA);
-        result.add(self.trigger).add(self.parameters.len() as u32);
-        for p in &self.parameters {
-            result.add(p.id()).add(p.value());
-        }
-
-        result
-    }
     pub fn add(&mut self, id: u32, value: f64) -> &mut ParameterItem {
         self.parameters.push(ParameterValue::new(id, value));
         self
@@ -362,6 +321,57 @@ impl fmt::Display for ParameterItem {
         write!(f, "")
     }
 }
+/// the ToRaw trait supplies conversions from Self -> RingItem
+impl ring_items::ToRaw for ParameterItem {
+    fn to_raw(&self) -> ring_items::RingItem {
+        // Never any body header so:
+
+        let mut result = ring_items::RingItem::new(ring_items::PARAMETER_DATA);
+        result.add(self.trigger).add(self.parameters.len() as u32);
+        for p in &self.parameters {
+            result.add(p.id()).add(p.value());
+        }
+
+        result
+    }
+}
+/// FromFaw provides an attempt to convert a raw item
+/// to a ParameterItem.
+
+impl ring_items::FromRaw<ParameterItem> for ring_items::RingItem {
+    fn to_specific(
+        self: &ring_items::RingItem,
+        _v: ring_items::RingVersion,
+    ) -> Option<ParameterItem> {
+        if self.type_id() == ring_items::PARAMETER_DATA {
+            let payload = self.payload().as_slice();
+            let trigger: u64 = u64::from_ne_bytes(payload[0..8].try_into().unwrap());
+            let mut result = ParameterItem::new(trigger);
+            let num = u32::from_ne_bytes(payload[8..12].try_into().unwrap());
+            let mut offset = 12; // First id/value pair.
+            for _ in 0..num {
+                let id = u32::from_ne_bytes(
+                    payload[offset..offset + mem::size_of::<u32>()]
+                        .try_into()
+                        .unwrap(),
+                );
+                offset += mem::size_of::<u32>();
+                let value = f64::from_ne_bytes(
+                    payload[offset..offset + mem::size_of::<f64>()]
+                        .try_into()
+                        .unwrap(),
+                );
+                result.parameters.push(ParameterValue::new(id, value));
+                offset = offset + mem::size_of::<f64>();
+            }
+
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod test_paramdef {
     use crate::analysis_ring_items::ParameterDefinition;
@@ -763,7 +773,7 @@ mod param_tests {
             i += 1;
         }
     }
-    // Tests for to_raw;  Once that workw we can test from_raw using to_raw
+    // Tests for to_raw;  Once that workw we can test fraw using to_raw
     // to painlessly create our raw items.
     #[test]
     fn to_raw_1() {
@@ -835,7 +845,7 @@ mod param_tests {
     fn from_raw_1() {
         let orig = ParameterItem::new(124);
         let raw = orig.to_raw();
-        let copy = ParameterItem::from_raw(&raw);
+        let copy: Option<ParameterItem> = raw.to_specific(RingVersion::V11);
 
         assert!(copy.is_some());
         let copy = copy.unwrap();
@@ -848,7 +858,7 @@ mod param_tests {
         let mut orig = ParameterItem::new(12345);
         orig.add(1, 1.2345).add(65, 5.555);
         let raw = orig.to_raw();
-        let copy = ParameterItem::from_raw(&raw);
+        let copy: Option<ParameterItem> = raw.to_specific(RingVersion::V11);
 
         assert!(copy.is_some());
         let copy = copy.unwrap();
@@ -866,6 +876,8 @@ mod param_tests {
         // Bad type gives None:
 
         let raw = RingItem::new(PARAMETER_DATA + 1);
-        assert!(ParameterItem::from_raw(&raw).is_none());
+        let copy: Option<ParameterItem> = raw.to_specific(RingVersion::V11);
+
+        assert!(copy.is_none());
     }
 }

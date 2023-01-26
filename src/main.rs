@@ -64,7 +64,9 @@ fn dump_items(f: &mut File) {
             if let Some(vd) = v {
                 println!("{}", vd);
             }
-            if let Some(pv) = analysis_ring_items::ParameterItem::from_raw(&item) {
+            let p: Option<analysis_ring_items::ParameterItem> =
+                item.to_specific(ring_items::RingVersion::V11);
+            if let Some(pv) = p {
                 println!("{}", pv);
             }
         } else {
