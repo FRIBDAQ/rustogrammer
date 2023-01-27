@@ -18,6 +18,9 @@ fn main() {
         println!("Failed to open input file");
     }
 }
+// TODO:  In the code below, for to_specific, we should default
+// to a specific version (e.g. V11) but allow format item contents
+// to modify accordingly.
 fn dump_items(f: &mut File) {
     println!("Dumping");
     loop {
@@ -27,9 +30,8 @@ fn dump_items(f: &mut File) {
             if let Some(fmt) = f {
                 println!("{}", fmt);
             }
-            if let Some(state) =
-                state_change::StateChange::from_raw(&item, ring_items::RingVersion::V11)
-            {
+            let sc: Option<state_change::StateChange> = item.to_specific(ring_items::RingVersion::V11);
+            if let Some(state) = sc {
                 println!("{}", state);
             }
             let s: Option<scaler_item::ScalerItem> = item.to_specific(ring_items::RingVersion::V11);
