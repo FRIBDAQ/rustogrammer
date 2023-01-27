@@ -2,6 +2,7 @@
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
+use std::io::Read;
 use std::mem;
 use std::ops::Add;
 use std::time;
@@ -64,7 +65,7 @@ impl RingItem {
 
     // Read a u32:
 
-    fn read_long(f: &mut File) -> Result<u32, u8> {
+    fn read_long<T: Read>(f: &mut T) -> Result<u32, u8> {
         let mut buf: [u8; 4] = [0; 4];
 
         if let Ok(_) = f.read_exact(&mut buf) {
@@ -157,7 +158,7 @@ impl RingItem {
     }
     /// Read a ring item from file.
 
-    pub fn read_item(file: &mut File) -> RingItemResult {
+    pub fn read_item<T: Read>(file: &mut T) -> RingItemResult {
         // Create a new ring item - type is unimportant since
         // it'll get overwitten.
 
