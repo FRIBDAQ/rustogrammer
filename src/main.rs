@@ -30,7 +30,8 @@ fn dump_items(f: &mut File) {
             if let Some(fmt) = f {
                 println!("{}", fmt);
             }
-            let sc: Option<state_change::StateChange> = item.to_specific(ring_items::RingVersion::V11);
+            let sc: Option<state_change::StateChange> =
+                item.to_specific(ring_items::RingVersion::V11);
             if let Some(state) = sc {
                 println!("{}", state);
             }
@@ -38,7 +39,7 @@ fn dump_items(f: &mut File) {
             if let Some(sc) = s {
                 println!("{}", sc);
             }
-            let ti : Option<text_item::TextItem> = item.to_specific(ring_items::RingVersion::V11);
+            let ti: Option<text_item::TextItem> = item.to_specific(ring_items::RingVersion::V11);
             if let Some(t) = ti {
                 println!("{}", t);
             }
@@ -47,7 +48,8 @@ fn dump_items(f: &mut File) {
             if let Some(e) = ev {
                 println!("{}", e);
             }
-            let c : Option<triggers_item::PhysicsEventCountItem> = item.to_specific(ring_items::RingVersion::V11);
+            let c: Option<triggers_item::PhysicsEventCountItem> =
+                item.to_specific(ring_items::RingVersion::V11);
             if let Some(count) = c {
                 println!("{}", count);
             }
