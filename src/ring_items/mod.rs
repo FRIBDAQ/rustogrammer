@@ -3,6 +3,7 @@ use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::Read;
+use std::io::Write;
 use std::mem;
 use std::ops::Add;
 use std::time;
@@ -73,6 +74,12 @@ impl RingItem {
             return Ok(long);
         }
         Err(0)
+    }
+    /// Write a u32:
+
+    fn write_long<T: Write>(f: &mut T, l: u32) -> std::io::Result<usize> {
+        let buf = l.to_ne_bytes();
+        f.write(&buf)
     }
 
     ///
@@ -203,11 +210,12 @@ impl RingItem {
 
         Ok(item)
     }
+
     /// write the current ring item to file:
     /// The return value on success is the total number of
     /// bytes written.
 
-    pub fn write_item(&self, file: &mut File) -> std::io::Result<usize> {
+    pub fn write_item<T: Write>(&self, file: &mut T) -> std::io::Result<usize> {
         let mut bytes_written: usize = 0;
 
         bytes_written = bytes_written + file.write(&u32::to_ne_bytes(self.size))?;
