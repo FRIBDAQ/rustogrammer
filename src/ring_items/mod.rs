@@ -2,6 +2,8 @@
 use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
+use std::io::Read;
+use std::io::Write;
 use std::mem;
 use std::ops::Add;
 use std::time;
@@ -64,7 +66,7 @@ impl RingItem {
 
     // Read a u32:
 
-    fn read_long(f: &mut File) -> Result<u32, u8> {
+    fn read_long<T: Read>(f: &mut T) -> Result<u32, u8> {
         let mut buf: [u8; 4] = [0; 4];
 
         if let Ok(_) = f.read_exact(&mut buf) {
@@ -72,6 +74,12 @@ impl RingItem {
             return Ok(long);
         }
         Err(0)
+    }
+    /// Write a u32:
+
+    fn write_long<T: Write>(f: &mut T, l: u32) -> std::io::Result<usize> {
+        let buf = l.to_ne_bytes();
+        f.write(&buf)
     }
 
     ///
@@ -157,7 +165,7 @@ impl RingItem {
     }
     /// Read a ring item from file.
 
-    pub fn read_item(file: &mut File) -> RingItemResult {
+    pub fn read_item<T: Read>(file: &mut T) -> RingItemResult {
         // Create a new ring item - type is unimportant since
         // it'll get overwitten.
 
@@ -202,11 +210,12 @@ impl RingItem {
 
         Ok(item)
     }
+
     /// write the current ring item to file:
     /// The return value on success is the total number of
     /// bytes written.
 
-    pub fn write_item(&self, file: &mut File) -> std::io::Result<usize> {
+    pub fn write_item<T: Write>(&self, file: &mut T) -> std::io::Result<usize> {
         let mut bytes_written: usize = 0;
 
         bytes_written = bytes_written + file.write(&u32::to_ne_bytes(self.size))?;
