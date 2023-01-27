@@ -47,9 +47,8 @@ fn dump_items(f: &mut File) {
             if let Some(e) = ev {
                 println!("{}", e);
             }
-            if let Some(count) =
-                triggers_item::PhysicsEventCountItem::from_raw(&item, ring_items::RingVersion::V11)
-            {
+            let c : Option<triggers_item::PhysicsEventCountItem> = item.to_specific(ring_items::RingVersion::V11);
+            if let Some(count) = c {
                 println!("{}", count);
             }
             let g: Option<glom_parameters::GlomParameters> =

@@ -1352,9 +1352,9 @@ mod text_tests {
         // Must be a valid item type:
 
         let raw = RingItem::new(BEGIN_RUN); // not a text item.
-        let recons : Option<TextItem> = raw.to_specific(RingVersion::V11);
+        let recons: Option<TextItem> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_none());
-        let recons : Option<TextItem> = raw.to_specific(RingVersion::V12);
+        let recons: Option<TextItem> = raw.to_specific(RingVersion::V12);
         assert!(recons.is_none());
     }
 }
