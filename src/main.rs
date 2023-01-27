@@ -38,7 +38,8 @@ fn dump_items(f: &mut File) {
             if let Some(sc) = s {
                 println!("{}", sc);
             }
-            if let Some(t) = text_item::TextItem::from_raw(&item, ring_items::RingVersion::V11) {
+            let ti : Option<text_item::TextItem> = item.to_specific(ring_items::RingVersion::V11);
+            if let Some(t) = ti {
                 println!("{}", t);
             }
             let ev: Option<event_item::PhysicsEvent> =
