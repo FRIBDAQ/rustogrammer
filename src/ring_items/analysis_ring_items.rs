@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::fmt;
 use std::mem;
 use std::slice::Iter;
 
@@ -36,6 +37,11 @@ impl ParameterDefinition {
         self.id
     }
 }
+impl fmt::Display for ParameterDefinition {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Name: {} id: {}", self.name, self.id)
+    }
+}
 
 impl ParameterDefinitions {
     pub fn new() -> ParameterDefinitions {
@@ -43,40 +49,7 @@ impl ParameterDefinitions {
             defs: Vec::<ParameterDefinition>::new(),
         }
     }
-    /// Make a ParameterDefinitions from a raw ring item if possible.
-    /// Note that parameter definitions never have body headers.
-    ///
-    pub fn from_raw(raw: &ring_items::RingItem) -> Option<ParameterDefinitions> {
-        if raw.type_id() == ring_items::PARAMETER_DEFINITIONS {
-            let mut result = ParameterDefinitions::new();
-            let payload = raw.payload().as_slice();
-            let num = u32::from_ne_bytes(payload[0..4].try_into().unwrap());
 
-            let mut offset = 4;
-            for _ in 0..num {
-                result
-                    .defs
-                    .push(Self::get_parameter_def(&mut offset, &payload));
-            }
-            Some(result)
-        } else {
-            None
-        }
-    }
-    /// Convert the set of definitions to a raw ring item.
-    ///
-    pub fn to_raw(&self) -> ring_items::RingItem {
-        let mut result = ring_items::RingItem::new(ring_items::PARAMETER_DEFINITIONS);
-        result.add(self.defs.len() as u32);
-        for def in &self.defs {
-            result.add(def.id);
-            let mut bytes = String::into_bytes(def.name.clone());
-            bytes.push(0);
-            result.add_byte_vec(&bytes);
-        }
-
-        result
-    }
     /// provide an iterator over the variable defs.
     pub fn iter(&self) -> Iter<'_, ParameterDefinition> {
         self.defs.iter()
@@ -96,6 +69,58 @@ impl ParameterDefinitions {
         ParameterDefinition::new(id, &name)
     }
 }
+impl fmt::Display for ParameterDefinitions {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Parameter definition item:\n").unwrap();
+        for p in &self.defs {
+            write!(f, "{}\n", *p).unwrap();
+        }
+        write!(f, "")
+    }
+}
+
+/// Trait implementations that support conversions: (Per gitlab issue #5).
+/// Convert a parameter definitions item to a raw item:
+///
+impl ring_items::ToRaw for ParameterDefinitions {
+    fn to_raw(&self) -> ring_items::RingItem {
+        let mut result = ring_items::RingItem::new(ring_items::PARAMETER_DEFINITIONS);
+        result.add(self.defs.len() as u32);
+        for def in &self.defs {
+            result.add(def.id);
+            let mut bytes = String::into_bytes(def.name.clone());
+            bytes.push(0);
+            result.add_byte_vec(&bytes);
+        }
+
+        result
+    }
+}
+/// FromRaw trait with ParameterDefitions target:
+impl ring_items::FromRaw<ParameterDefinitions> for ring_items::RingItem {
+    fn to_specific(
+        self: &ring_items::RingItem,
+        _v: ring_items::RingVersion,
+    ) -> Option<ParameterDefinitions> {
+        if self.type_id() == ring_items::PARAMETER_DEFINITIONS {
+            let mut result = ParameterDefinitions::new();
+            let payload = self.payload().as_slice();
+            let num = u32::from_ne_bytes(payload[0..4].try_into().unwrap());
+
+            let mut offset = 4;
+            for _ in 0..num {
+                result.defs.push(ParameterDefinitions::get_parameter_def(
+                    &mut offset,
+                    &payload,
+                ));
+            }
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
 //-------------------------------------------------------------
 // Variable values.
 //-------------------------------------------------------------
@@ -129,6 +154,16 @@ impl VariableValue {
     }
 }
 
+impl fmt::Display for VariableValue {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Name: {} Value: {} {}",
+            self.name, self.value, self.units
+        )
+    }
+}
+
 ///
 /// The variable item is really just a sequence of variable values:
 ///
@@ -146,32 +181,28 @@ impl VariableValues {
     pub fn iter(&self) -> Iter<'_, VariableValue> {
         self.defs.iter()
     }
-    /// Convert from raw if possible:
 
-    pub fn from_raw(raw: &ring_items::RingItem) -> Option<VariableValues> {
-        if raw.type_id() == ring_items::VARIABLE_VALUES {
-            let mut result = Self::new();
-            let payload = raw.payload().as_slice();
-            let nvars = u32::from_ne_bytes(payload[0..4].try_into().unwrap());
-            let mut offset = 4;
-            for _ in 0..nvars {
-                let value: f64 =
-                    f64::from_ne_bytes(payload[offset..offset + 8].try_into().unwrap());
-                offset += mem::size_of::<f64>();
-                let mut off = offset;
-                let units = ring_items::get_c_string(&mut off, &payload);
-                offset = offset + MAX_UNITS_LENGTH;
-                let name = ring_items::get_c_string(&mut offset, &payload);
-                result.defs.push(VariableValue::new(value, &name, &units));
-            }
-            Some(result)
-        } else {
-            None
-        }
+    /// Add a new variable value/def.
+
+    pub fn add_def(&mut self, def: VariableValue) -> &mut Self {
+        self.defs.push(def);
+        self
     }
-    /// Convert to a raw ring item.
+}
+impl fmt::Display for VariableValues {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Variable values items:\n").unwrap();
+        for v in &self.defs {
+            write!(f, "{}\n", *v).unwrap();
+        }
+        write!(f, "")
+    }
+}
 
-    pub fn to_raw(&self) -> ring_items::RingItem {
+/// The ToRaw trait converts VariableValues into a Ringitem
+
+impl ring_items::ToRaw for VariableValues {
+    fn to_raw(&self) -> ring_items::RingItem {
         // These never have a body  header:
 
         let mut result = ring_items::RingItem::new(ring_items::VARIABLE_VALUES);
@@ -192,11 +223,35 @@ impl VariableValues {
         }
         result
     }
-    /// Add a new variable value/def.
+}
 
-    pub fn add_def(&mut self, def: VariableValue) -> &mut Self {
-        self.defs.push(def);
-        self
+/// The FromRaw trait supports conversion from Raw->VariableValues
+/// If that's possible:
+
+impl ring_items::FromRaw<VariableValues> for ring_items::RingItem {
+    fn to_specific(
+        self: &ring_items::RingItem,
+        _v: ring_items::RingVersion,
+    ) -> Option<VariableValues> {
+        if self.type_id() == ring_items::VARIABLE_VALUES {
+            let mut result = VariableValues::new();
+            let payload = self.payload().as_slice();
+            let nvars = u32::from_ne_bytes(payload[0..4].try_into().unwrap());
+            let mut offset = 4;
+            for _ in 0..nvars {
+                let value: f64 =
+                    f64::from_ne_bytes(payload[offset..offset + 8].try_into().unwrap());
+                offset += mem::size_of::<f64>();
+                let mut off = offset;
+                let units = ring_items::get_c_string(&mut off, &payload);
+                offset = offset + MAX_UNITS_LENGTH;
+                let name = ring_items::get_c_string(&mut offset, &payload);
+                result.defs.push(VariableValue::new(value, &name, &units));
+            }
+            Some(result)
+        } else {
+            None
+        }
     }
 }
 //---------------------------------------------------------------
@@ -222,6 +277,11 @@ impl ParameterValue {
         self.value
     }
 }
+impl fmt::Display for ParameterValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "id: {} value: {}", self.id, self.value)
+    }
+}
 
 pub struct ParameterItem {
     trigger: u64,
@@ -235,13 +295,58 @@ impl ParameterItem {
             parameters: Vec::<ParameterValue>::new(),
         }
     }
-    /// Create a new item from a raw ring item if possible.
 
-    pub fn from_raw(raw: &ring_items::RingItem) -> Option<ParameterItem> {
-        if raw.type_id() == ring_items::PARAMETER_DATA {
-            let payload = raw.payload().as_slice();
+    pub fn add(&mut self, id: u32, value: f64) -> &mut ParameterItem {
+        self.parameters.push(ParameterValue::new(id, value));
+        self
+    }
+    pub fn add_parameter(&mut self, p: ParameterValue) -> &mut ParameterItem {
+        self.parameters.push(p);
+        self
+    }
+    pub fn iter(&self) -> Iter<'_, ParameterValue> {
+        self.parameters.iter()
+    }
+    pub fn trigger(&self) -> u64 {
+        self.trigger
+    }
+}
+impl fmt::Display for ParameterItem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Parameter Item\n").unwrap();
+        write!(f, "  trigger number{}\n", self.trigger).unwrap();
+        for p in &self.parameters {
+            write!(f, "   {}\n", *p).unwrap();
+        }
+        write!(f, "")
+    }
+}
+/// the ToRaw trait supplies conversions from Self -> RingItem
+impl ring_items::ToRaw for ParameterItem {
+    fn to_raw(&self) -> ring_items::RingItem {
+        // Never any body header so:
+
+        let mut result = ring_items::RingItem::new(ring_items::PARAMETER_DATA);
+        result.add(self.trigger).add(self.parameters.len() as u32);
+        for p in &self.parameters {
+            result.add(p.id()).add(p.value());
+        }
+
+        result
+    }
+}
+/// FromFaw provides an attempt to convert a raw item
+/// to a ParameterItem.
+
+impl ring_items::FromRaw<ParameterItem> for ring_items::RingItem {
+    fn to_specific(
+        self: &ring_items::RingItem,
+        _v: ring_items::RingVersion,
+    ) -> Option<ParameterItem> {
+        if self.type_id() == ring_items::PARAMETER_DATA {
+            let payload = self.payload().as_slice();
             let trigger: u64 = u64::from_ne_bytes(payload[0..8].try_into().unwrap());
-            let mut result = Self::new(trigger);
+            let mut result = ParameterItem::new(trigger);
             let num = u32::from_ne_bytes(payload[8..12].try_into().unwrap());
             let mut offset = 12; // First id/value pair.
             for _ in 0..num {
@@ -265,33 +370,8 @@ impl ParameterItem {
             None
         }
     }
-    /// Convert a parameter values item into a raw one.
-    pub fn to_raw(&self) -> ring_items::RingItem {
-        // Never any body header so:
-
-        let mut result = ring_items::RingItem::new(ring_items::PARAMETER_DATA);
-        result.add(self.trigger).add(self.parameters.len() as u32);
-        for p in &self.parameters {
-            result.add(p.id()).add(p.value());
-        }
-
-        result
-    }
-    pub fn add(&mut self, id: u32, value: f64) -> &mut ParameterItem {
-        self.parameters.push(ParameterValue::new(id, value));
-        self
-    }
-    pub fn add_parameter(&mut self, p: ParameterValue) -> &mut ParameterItem {
-        self.parameters.push(p);
-        self
-    }
-    pub fn iter(&self) -> Iter<'_, ParameterValue> {
-        self.parameters.iter()
-    }
-    pub fn trigger(&self) -> u64 {
-        self.trigger
-    }
 }
+
 #[cfg(test)]
 mod test_paramdef {
     use crate::analysis_ring_items::ParameterDefinition;
@@ -395,7 +475,7 @@ mod test_paramdefs {
     fn from_raw_1() {
         let item = ParameterDefinitions::new();
         let raw = item.to_raw();
-        let recons = ParameterDefinitions::from_raw(&raw);
+        let recons: Option<ParameterDefinitions> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
         assert_eq!(0, recons.defs.len());
@@ -406,7 +486,7 @@ mod test_paramdefs {
         item.add_definition(ParameterDefinition::new(1, "item1"))
             .add_definition(ParameterDefinition::new(2, "item2"));
         let raw = item.to_raw();
-        let recons = ParameterDefinitions::from_raw(&raw);
+        let recons: Option<ParameterDefinitions> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
         assert_eq!(2, recons.defs.len());
@@ -420,7 +500,8 @@ mod test_paramdefs {
         // wrong  type -> None:
 
         let raw = ring_items::RingItem::new(PARAMETER_DEFINITIONS - 1);
-        assert!(ParameterDefinitions::from_raw(&raw).is_none());
+        let recons: Option<ParameterDefinitions> = raw.to_specific(RingVersion::V11);
+        assert!(recons.is_none());
     }
     #[test]
     fn getdef_1() {
@@ -535,7 +616,7 @@ mod test_vars {
 
         let vars = VariableValues::new();
         let raw = vars.to_raw();
-        let recons = VariableValues::from_raw(&raw);
+        let recons: Option<VariableValues> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
         assert_eq!(0, recons.defs.len());
@@ -548,7 +629,7 @@ mod test_vars {
             .add_def(VariableValue::new(1.5, "Measure", "mm"));
 
         let raw = vars.to_raw();
-        let recons = VariableValues::from_raw(&raw);
+        let recons: Option<VariableValues> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
 
@@ -564,7 +645,8 @@ mod test_vars {
         // wrong type of raw item.
 
         let raw = RingItem::new(VARIABLE_VALUES + 1); // wrong type.
-        assert!(VariableValues::from_raw(&raw).is_none());
+        let recons: Option<VariableValues> = raw.to_specific(RingVersion::V11);
+        assert!(recons.is_none());
     }
 }
 #[cfg(test)]
@@ -691,7 +773,7 @@ mod param_tests {
             i += 1;
         }
     }
-    // Tests for to_raw;  Once that workw we can test from_raw using to_raw
+    // Tests for to_raw;  Once that workw we can test fraw using to_raw
     // to painlessly create our raw items.
     #[test]
     fn to_raw_1() {
@@ -763,7 +845,7 @@ mod param_tests {
     fn from_raw_1() {
         let orig = ParameterItem::new(124);
         let raw = orig.to_raw();
-        let copy = ParameterItem::from_raw(&raw);
+        let copy: Option<ParameterItem> = raw.to_specific(RingVersion::V11);
 
         assert!(copy.is_some());
         let copy = copy.unwrap();
@@ -776,7 +858,7 @@ mod param_tests {
         let mut orig = ParameterItem::new(12345);
         orig.add(1, 1.2345).add(65, 5.555);
         let raw = orig.to_raw();
-        let copy = ParameterItem::from_raw(&raw);
+        let copy: Option<ParameterItem> = raw.to_specific(RingVersion::V11);
 
         assert!(copy.is_some());
         let copy = copy.unwrap();
@@ -794,6 +876,8 @@ mod param_tests {
         // Bad type gives None:
 
         let raw = RingItem::new(PARAMETER_DATA + 1);
-        assert!(ParameterItem::from_raw(&raw).is_none());
+        let copy: Option<ParameterItem> = raw.to_specific(RingVersion::V11);
+
+        assert!(copy.is_none());
     }
 }

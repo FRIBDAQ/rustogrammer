@@ -1,4 +1,6 @@
 use crate::ring_items;
+use humantime;
+use std::fmt;
 use std::time;
 ///
 /// EventCountItems count the nunmber of triggers that have
@@ -54,24 +56,64 @@ impl PhysicsEventCountItem {
     pub fn get_absolute_time(&self) -> time::SystemTime {
         self.absolute_time
     }
-    // Conversions:
+}
+impl fmt::Display for PhysicsEventCountItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Trigger count information: \n").unwrap();
+        if let Some(bh) = self.get_bodyheader() {
+            write!(f, "BodyHeader: \n   {}", bh).unwrap();
+        }
+        write!(
+            f,
+            "{} Seconds in the run at {} : {} Triggers\n",
+            self.get_offset_time(),
+            humantime::format_rfc3339(self.get_absolute_time()),
+            self.get_event_count()
+        )
+        .unwrap();
+        if let Some(sid) = self.get_original_sid() {
+            write!(f, "Original sid: {}\n", sid).unwrap();
+        }
+        write!(f, "")
+    }
+}
 
-    ///  Given a raw item if it is a ring_items::PHYSICS_EVENT_COUNT
-    /// item make a PhysicsEventCountItem from it.
+impl ring_items::ToRaw for PhysicsEventCountItem {
+    fn to_raw(&self) -> ring_items::RingItem {
+        let mut result = if let Some(bh) = self.body_header {
+            ring_items::RingItem::new_with_body_header(
+                ring_items::PHYSICS_EVENT_COUNT,
+                bh.timestamp,
+                bh.source_id,
+                bh.barrier_type,
+            )
+        } else {
+            ring_items::RingItem::new(ring_items::PHYSICS_EVENT_COUNT)
+        };
+        result
+            .add(self.time_offset)
+            .add(self.time_divisor)
+            .add(ring_items::systime_to_raw(self.absolute_time));
+        if let Some(sid) = self.original_sid {
+            result.add(sid);
+        }
+        result.add(self.event_count);
 
-    pub fn from_raw(
-        raw: &ring_items::RingItem,
-        version: ring_items::RingVersion,
-    ) -> Option<PhysicsEventCountItem> {
-        if raw.type_id() == ring_items::PHYSICS_EVENT_COUNT {
-            let mut result = Self::new(None, 0, 1, None, 0);
-            result.body_header = raw.get_bodyheader();
+        result
+    }
+}
+
+impl ring_items::FromRaw<PhysicsEventCountItem> for ring_items::RingItem {
+    fn to_specific(&self, version: ring_items::RingVersion) -> Option<PhysicsEventCountItem> {
+        if self.type_id() == ring_items::PHYSICS_EVENT_COUNT {
+            let mut result = PhysicsEventCountItem::new(None, 0, 1, None, 0);
+            result.body_header = self.get_bodyheader();
             let offset = if let Some(_) = result.body_header {
                 ring_items::body_header_size()
             } else {
                 0
             };
-            let payload = raw.payload().as_slice();
+            let payload = self.payload().as_slice();
             result.time_offset =
                 u32::from_ne_bytes(payload[offset..offset + 4].try_into().unwrap());
             result.time_divisor =
@@ -95,31 +137,6 @@ impl PhysicsEventCountItem {
         } else {
             None
         }
-    }
-    /// Produce a raw ring item that is  the functional equivalent of
-    /// self.
-    ///
-    pub fn to_raw(&self) -> ring_items::RingItem {
-        let mut result = if let Some(bh) = self.body_header {
-            ring_items::RingItem::new_with_body_header(
-                ring_items::PHYSICS_EVENT_COUNT,
-                bh.timestamp,
-                bh.source_id,
-                bh.barrier_type,
-            )
-        } else {
-            ring_items::RingItem::new(ring_items::PHYSICS_EVENT_COUNT)
-        };
-        result
-            .add(self.time_offset)
-            .add(self.time_divisor)
-            .add(ring_items::systime_to_raw(self.absolute_time));
-        if let Some(sid) = self.original_sid {
-            result.add(sid);
-        }
-        result.add(self.event_count);
-
-        result
     }
 }
 #[cfg(test)]
@@ -379,7 +396,7 @@ mod triggers_test {
         let _t = SystemTime::now();
         let item = PhysicsEventCountItem::new(None, 10, 1, None, 100);
         let raw = item.to_raw();
-        let recons = PhysicsEventCountItem::from_raw(&raw, RingVersion::V11);
+        let recons: Option<PhysicsEventCountItem> = raw.to_specific(RingVersion::V11);
 
         assert!(recons.is_some());
         let recons = recons.unwrap();
@@ -404,7 +421,7 @@ mod triggers_test {
         let _t = SystemTime::now();
         let item = PhysicsEventCountItem::new(Some(bh), 10, 1, None, 100);
         let raw = item.to_raw();
-        let recons = PhysicsEventCountItem::from_raw(&raw, RingVersion::V11);
+        let recons: Option<PhysicsEventCountItem> = raw.to_specific(RingVersion::V11);
 
         assert!(recons.is_some());
         let recons = recons.unwrap();
@@ -435,7 +452,7 @@ mod triggers_test {
         let _t = SystemTime::now();
         let item = PhysicsEventCountItem::new(Some(bh), 10, 1, Some(5), 100);
         let raw = item.to_raw();
-        let recons = PhysicsEventCountItem::from_raw(&raw, RingVersion::V12);
+        let recons: Option<PhysicsEventCountItem> = raw.to_specific(RingVersion::V12);
 
         assert!(recons.is_some());
         let recons = recons.unwrap();
@@ -457,5 +474,15 @@ mod triggers_test {
             systime_to_raw(item.get_absolute_time()),
             systime_to_raw(recons.get_absolute_time())
         );
+    }
+    #[test]
+    fn from_raw_4() {
+        // Invalid conversion:
+
+        let raw = RingItem::new(PHYSICS_EVENT_COUNT + 1);
+        let recons: Option<PhysicsEventCountItem> = raw.to_specific(RingVersion::V11);
+        assert!(recons.is_none());
+        let recons: Option<PhysicsEventCountItem> = raw.to_specific(RingVersion::V12);
+        assert!(recons.is_none());
     }
 }

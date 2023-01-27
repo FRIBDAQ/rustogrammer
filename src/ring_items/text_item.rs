@@ -1,4 +1,6 @@
 use crate::ring_items;
+use humantime;
+use std::fmt;
 use std::slice::Iter;
 use std::time;
 ///
@@ -121,64 +123,34 @@ impl TextItem {
         self.strings.push(String::from(str));
         self
     }
-    // Conversions.
+}
 
-    pub fn from_raw(raw: &ring_items::RingItem, vers: ring_items::RingVersion) -> Option<TextItem> {
-        // figure out the correct value for the
-        // type:
-
-        if let Some(itype) = Self::item_type_from_u32(raw.type_id()) {
-            let mut result = TextItem {
-                item_type: itype,
-                body_header: raw.get_bodyheader(),
-                time_offset: 0,
-                absolute_time: time::SystemTime::now(),
-                offset_divisor: 1,
-                original_sid: None,
-                strings: Vec::new(),
-            };
-            // Now fill in the rest of the result with stuff
-            // from the raw item.  The offset of the payload
-            //  depends on the existence
-            // or nonexistence of a body header
-
-            let offset: usize = if result.body_header.is_some() {
-                ring_items::body_header_size() as usize
-            } else {
-                0
-            };
-            let p = raw.payload().as_slice();
-            result.time_offset = u32::from_ne_bytes(p[offset..offset + 4].try_into().unwrap());
-            result.absolute_time = ring_items::raw_to_systime(u32::from_ne_bytes(
-                p[offset + 4..offset + 8].try_into().unwrap(),
-            ));
-            let num_string = u32::from_ne_bytes(p[offset + 8..offset + 12].try_into().unwrap());
-            result.offset_divisor =
-                u32::from_ne_bytes(p[offset + 12..offset + 16].try_into().unwrap());
-            let mut offset = offset + 16;
-            if vers == ring_items::RingVersion::V12 {
-                result.original_sid = Some(u32::from_ne_bytes(
-                    p[offset..offset + 4].try_into().unwrap(),
-                ));
-                offset = offset + 4;
-            }
-            // offset is the offset of the first string.
-
-            for _ in 0..num_string {
-                result
-                    .strings
-                    .push(ring_items::get_c_string(&mut offset, &p));
-            }
-
-            Some(result)
-        } else {
-            None
+impl fmt::Display for TextItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Text Item: \n").unwrap();
+        write!(f, "  type: {}\n", self.get_item_type_string()).unwrap();
+        if let Some(bh) = self.body_header {
+            write!(f, "Body header: \n {}\n", bh).unwrap();
         }
+        write!(
+            f,
+            "  Offset {} secs , time {}\n",
+            self.get_offset_secs(),
+            humantime::format_rfc3339(self.get_absolute_time())
+        )
+        .unwrap();
+        if let Some(sid) = self.get_original_sid() {
+            write!(f, "Original sid:  {}\n", sid).unwrap();
+        }
+        for i in 0..self.get_string_count() {
+            write!(f, "String: {} : {}\n", i, self.get_string(i).unwrap()).unwrap();
+        }
+        write!(f, "")
     }
+}
 
-    /// Covert to a raw type
-
-    pub fn to_raw(&self) -> ring_items::RingItem {
+impl ring_items::ToRaw for TextItem {
+    fn to_raw(&self) -> ring_items::RingItem {
         // Create the base raw item with the body header if needed.
 
         let type_id = Self::item_type_to_int(self.item_type);
@@ -214,6 +186,62 @@ impl TextItem {
         result
     }
 }
+
+impl ring_items::FromRaw<TextItem> for ring_items::RingItem {
+    fn to_specific(&self, vers: ring_items::RingVersion) -> Option<TextItem> {
+        // figure out the correct value for the
+        // type:
+
+        if let Some(itype) = TextItem::item_type_from_u32(self.type_id()) {
+            let mut result = TextItem {
+                item_type: itype,
+                body_header: self.get_bodyheader(),
+                time_offset: 0,
+                absolute_time: time::SystemTime::now(),
+                offset_divisor: 1,
+                original_sid: None,
+                strings: Vec::new(),
+            };
+            // Now fill in the rest of the result with stuff
+            // from the raw item.  The offset of the payload
+            //  depends on the existence
+            // or nonexistence of a body header
+
+            let offset: usize = if result.body_header.is_some() {
+                ring_items::body_header_size() as usize
+            } else {
+                0
+            };
+            let p = self.payload().as_slice();
+            result.time_offset = u32::from_ne_bytes(p[offset..offset + 4].try_into().unwrap());
+            result.absolute_time = ring_items::raw_to_systime(u32::from_ne_bytes(
+                p[offset + 4..offset + 8].try_into().unwrap(),
+            ));
+            let num_string = u32::from_ne_bytes(p[offset + 8..offset + 12].try_into().unwrap());
+            result.offset_divisor =
+                u32::from_ne_bytes(p[offset + 12..offset + 16].try_into().unwrap());
+            let mut offset = offset + 16;
+            if vers == ring_items::RingVersion::V12 {
+                result.original_sid = Some(u32::from_ne_bytes(
+                    p[offset..offset + 4].try_into().unwrap(),
+                ));
+                offset = offset + 4;
+            }
+            // offset is the offset of the first string.
+
+            for _ in 0..num_string {
+                result
+                    .strings
+                    .push(ring_items::get_c_string(&mut offset, &p));
+            }
+
+            Some(result)
+        } else {
+            None
+        }
+    }
+}
+
 #[cfg(test)]
 mod text_tests {
     use crate::ring_items::*;
@@ -1065,7 +1093,7 @@ mod text_tests {
         let t = SystemTime::now();
         let item = TextItem::new(TextItemType::PacketTypes, None, 10, t, 1, None, &strings);
         let raw = item.to_raw();
-        let recons = TextItem::from_raw(&raw, RingVersion::V11);
+        let recons: Option<TextItem> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
 
@@ -1102,7 +1130,7 @@ mod text_tests {
         );
 
         let raw = item.to_raw();
-        let recons = TextItem::from_raw(&raw, RingVersion::V11);
+        let recons: Option<TextItem> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
 
@@ -1143,7 +1171,7 @@ mod text_tests {
             &strings,
         );
         let raw = item.to_raw();
-        let recons = TextItem::from_raw(&raw, RingVersion::V12);
+        let recons: Option<TextItem> = raw.to_specific(RingVersion::V12);
         assert!(recons.is_some());
         let recons = recons.unwrap();
 
@@ -1186,7 +1214,7 @@ mod text_tests {
             &strings,
         );
         let raw = item.to_raw();
-        let recons = TextItem::from_raw(&raw, RingVersion::V11);
+        let recons: Option<TextItem> = raw.to_specific(RingVersion::V11);
 
         assert!(recons.is_some());
         let recons = recons.unwrap();
@@ -1235,7 +1263,7 @@ mod text_tests {
             &strings,
         );
         let raw = item.to_raw();
-        let recons = TextItem::from_raw(&raw, RingVersion::V11);
+        let recons: Option<TextItem> = raw.to_specific(RingVersion::V11);
 
         assert!(recons.is_some());
         let recons = recons.unwrap();
@@ -1290,7 +1318,7 @@ mod text_tests {
         );
 
         let raw = item.to_raw();
-        let recons = TextItem::from_raw(&raw, RingVersion::V12);
+        let recons: Option<TextItem> = raw.to_specific(RingVersion::V12);
 
         assert!(recons.is_some());
         let recons = recons.unwrap();
@@ -1324,7 +1352,9 @@ mod text_tests {
         // Must be a valid item type:
 
         let raw = RingItem::new(BEGIN_RUN); // not a text item.
-        assert!(TextItem::from_raw(&raw, RingVersion::V11).is_none());
-        assert!(TextItem::from_raw(&raw, RingVersion::V12).is_none());
+        let recons: Option<TextItem> = raw.to_specific(RingVersion::V11);
+        assert!(recons.is_none());
+        let recons: Option<TextItem> = raw.to_specific(RingVersion::V12);
+        assert!(recons.is_none());
     }
 }

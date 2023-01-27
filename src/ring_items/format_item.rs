@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::fmt;
 ///
 /// Provides a format item and interface:
 /// Format items provide the ring buffer format level.
@@ -22,27 +23,43 @@ impl FormatItem {
             minor: minor,
         }
     }
-    pub fn from_raw(raw: &ring_items::RingItem) -> Option<Self> {
-        if raw.type_id() != ring_items::FORMAT_ITEM {
-            return None;
-        }
-        let mut result = FormatItem::new(0, 0);
-        let payload = raw.payload();
+}
 
-        // The first u16 is the major, the second u16 is the
-        // minor:
-
-        result.major = u16::from_ne_bytes(payload.as_slice()[0..2].try_into().unwrap());
-        result.minor = u16::from_ne_bytes(payload.as_slice()[2..4].try_into().unwrap());
-        Some(result)
+impl fmt::Display for FormatItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Format item for version: {}.{}", self.major, self.minor)
     }
-    pub fn to_raw(&self) -> ring_items::RingItem {
+}
+/// ToRaw provides a failure proof conversion from FormatItem ->RingItem:
+
+impl ring_items::ToRaw for FormatItem {
+    fn to_raw(&self) -> ring_items::RingItem {
         let mut result = ring_items::RingItem::new(ring_items::FORMAT_ITEM);
         result.add(self.major);
         result.add(self.minor);
         result
     }
 }
+/// FromRaw provides a checked method for converting a raw item
+/// into a FormatItem:
+
+impl ring_items::FromRaw<FormatItem> for ring_items::RingItem {
+    fn to_specific(&self, _v: ring_items::RingVersion) -> Option<FormatItem> {
+        if self.type_id() != ring_items::FORMAT_ITEM {
+            return None;
+        }
+        let mut result = FormatItem::new(0, 0);
+        let payload = self.payload().as_slice();
+
+        // The first u16 is the major, the second u16 is the
+        // minor:
+
+        result.major = u16::from_ne_bytes(payload[0..2].try_into().unwrap());
+        result.minor = u16::from_ne_bytes(payload[2..4].try_into().unwrap());
+        Some(result)
+    }
+}
+
 #[cfg(test)]
 mod fmt_tests {
     use crate::format_item::*;
@@ -81,7 +98,7 @@ mod fmt_tests {
     fn from_raw_1() {
         let item = FormatItem::new(11, 26);
         let raw = item.to_raw();
-        let recons = FormatItem::from_raw(&raw);
+        let recons: Option<FormatItem> = raw.to_specific(RingVersion::V11);
 
         assert!(recons.is_some());
         let recons = recons.unwrap();
@@ -91,6 +108,7 @@ mod fmt_tests {
     #[test]
     fn from_raw_2() {
         let raw = RingItem::new(FORMAT_ITEM + 1); // should fail.
-        assert!(FormatItem::from_raw(&raw).is_none());
+        let recons: Option<FormatItem> = raw.to_specific(RingVersion::V11);
+        assert!(recons.is_none());
     }
 }

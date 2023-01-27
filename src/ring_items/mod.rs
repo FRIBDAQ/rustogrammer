@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use std::fmt;
 use std::fs::File;
 use std::io::prelude::*;
 use std::mem;
@@ -32,6 +33,14 @@ pub struct BodyHeader {
     pub timestamp: u64,
     pub source_id: u32,
     pub barrier_type: u32,
+}
+impl fmt::Display for BodyHeader {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Body header:\n").unwrap();
+        write!(f, "   timestamp: {:0>8x}\n", self.timestamp).unwrap();
+        write!(f, "   sourceid:  {}\n", self.source_id).unwrap();
+        write!(f, "   barrier:   {}\n", self.barrier_type)
+    }
 }
 #[derive(Debug)]
 pub enum RingItemError {
@@ -208,6 +217,50 @@ impl RingItem {
         Ok(bytes_written)
     }
 }
+
+/// provide for textual formatting of a raw ring item:
+
+impl fmt::Display for RingItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Raw ring item").unwrap();
+        write!(f, "Size: {}\n", self.size()).unwrap();
+        write!(f, "type: {}\n", self.type_id()).unwrap();
+        let mut offset = 0;
+        if self.has_body_header() {
+            let header = self.get_bodyheader().unwrap();
+            write!(f, "{}\n", header).unwrap();
+            offset = body_header_size();
+        }
+
+        let payload = self.payload().as_slice();
+        if offset < payload.len() {
+            for (i, p) in payload[offset..].into_iter().enumerate() {
+                if i % 8 == 0 {
+                    write!(f, "\n").unwrap();
+                }
+                write!(f, "{:0>2x} ", p).unwrap();
+            }
+        }
+        write!(f, "\n")
+    }
+}
+/// This trait defines conversion to raw.  I'd love to use From
+/// however it's not true that to_raw is reflexive... it can only
+/// convert to the ring item types for which its type_id is
+/// valid. e.g. while ou can convert a StateChangeItem into a RingItem,
+/// You can't always convert a RingItem into a StateChangeItem.
+///
+pub trait ToRaw {
+    fn to_raw(&self) -> RingItem;
+}
+/// This can be implemented for each destination type
+/// e.g. ConvertRaw<StateChange> for RingItem to convert a raw
+/// item to a ring item if possible (correct type_id).
+///
+pub trait FromRaw<T> {
+    fn to_specific(&self, vers: RingVersion) -> Option<T>;
+}
+
 /// convert a u32 into a SystemTime:
 
 ///

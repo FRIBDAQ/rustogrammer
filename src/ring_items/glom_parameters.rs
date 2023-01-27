@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::fmt;
 
 /// These are the strategies glom uses to assign timestamps to events:
 ///
@@ -71,18 +72,48 @@ impl GlomParameters {
             TimestampPolicy::Average => String::from("Averaged"),
         }
     }
-    // conversions:
+}
+impl fmt::Display for GlomParameters {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Glom parameters\n").unwrap();
+        let building = if self.is_building { "On" } else { "Off" };
+        write!(
+            f,
+            "  Coincidence interval {} ticks, Event building is {} Timestamp Policy {}",
+            self.coincidence_ticks,
+            building,
+            self.policy_string()
+        )
+    }
+}
+/// ToRaw provides failure free conversion from a specific item type
+/// to a RingItem (generic type).
 
-    pub fn from_raw(raw: &ring_items::RingItem) -> Option<GlomParameters> {
-        if raw.type_id() == ring_items::GLOM_INFO {
-            let mut result = Self::new(0, true, TimestampPolicy::First);
-            let payload = raw.payload().as_slice();
+impl ring_items::ToRaw for GlomParameters {
+    fn to_raw(&self) -> ring_items::RingItem {
+        let mut result = ring_items::RingItem::new(ring_items::GLOM_INFO);
+
+        let building: u16 = if self.is_building { 1 } else { 0 };
+        let policy: u16 = self.policy_to_code();
+        result.add(self.coincidence_ticks).add(building).add(policy);
+
+        result
+    }
+}
+/// FromRaw implementations of the generic allow attempts to convert
+/// from a generic RingItem to a specific type (e.g. GlomParameters)
+
+impl ring_items::FromRaw<GlomParameters> for ring_items::RingItem {
+    fn to_specific(&self, _v: ring_items::RingVersion) -> Option<GlomParameters> {
+        if self.type_id() == ring_items::GLOM_INFO {
+            let mut result = GlomParameters::new(0, true, TimestampPolicy::First);
+            let payload = self.payload().as_slice();
 
             result.coincidence_ticks = u64::from_ne_bytes(payload[0..8].try_into().unwrap());
             result.is_building = u16::from_ne_bytes(payload[8..10].try_into().unwrap()) != 0;
-            if let Some(policy) =
-                Self::policy_from_code(u16::from_ne_bytes(payload[10..12].try_into().unwrap()))
-            {
+            if let Some(policy) = GlomParameters::policy_from_code(u16::from_ne_bytes(
+                payload[10..12].try_into().unwrap(),
+            )) {
                 result.timestamp_policy = policy;
                 Some(result)
             } else {
@@ -91,15 +122,6 @@ impl GlomParameters {
         } else {
             None
         }
-    }
-    pub fn to_raw(&self) -> ring_items::RingItem {
-        let mut result = ring_items::RingItem::new(ring_items::GLOM_INFO);
-
-        let building: u16 = if self.is_building { 1 } else { 0 };
-        let policy: u16 = self.policy_to_code();
-        result.add(self.coincidence_ticks).add(building).add(policy);
-
-        result
     }
 }
 #[cfg(test)]
@@ -212,7 +234,7 @@ mod glom_tests {
     fn from_raw_1() {
         let item = GlomParameters::new(1000, true, TimestampPolicy::First);
         let raw = item.to_raw();
-        let back = GlomParameters::from_raw(&raw);
+        let back: Option<GlomParameters> = raw.to_specific(RingVersion::V11);
         assert!(back.is_some());
         let back = back.unwrap();
 
@@ -224,7 +246,7 @@ mod glom_tests {
     fn from_raw_2() {
         let item = GlomParameters::new(1000, true, TimestampPolicy::Last);
         let raw = item.to_raw();
-        let back = GlomParameters::from_raw(&raw);
+        let back: Option<GlomParameters> = raw.to_specific(RingVersion::V11);
         assert!(back.is_some());
         let back = back.unwrap();
 
@@ -236,7 +258,7 @@ mod glom_tests {
     fn from_raw_3() {
         let item = GlomParameters::new(1000, true, TimestampPolicy::Average);
         let raw = item.to_raw();
-        let back = GlomParameters::from_raw(&raw);
+        let back: Option<GlomParameters> = raw.to_specific(RingVersion::V11);
         assert!(back.is_some());
         let back = back.unwrap();
 
@@ -249,7 +271,7 @@ mod glom_tests {
         // invalid type -> None:
 
         let raw = RingItem::new(GLOM_INFO + 1);
-        let bad = GlomParameters::from_raw(&raw);
+        let bad: Option<GlomParameters> = raw.to_specific(RingVersion::V11);
         assert!(bad.is_none());
     }
 }

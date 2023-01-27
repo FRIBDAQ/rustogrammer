@@ -1,4 +1,5 @@
 use crate::ring_items;
+use std::fmt;
 use std::mem;
 
 ///
@@ -26,48 +27,7 @@ impl PhysicsEvent {
             event_data: Vec::<u8>::new(),
         }
     }
-    /// Given a raw ring item, if it is a PHYSICS_EVENT, build a
-    /// new PhysicsEvent item from it.
-    ///
-    pub fn from_raw(raw: &ring_items::RingItem) -> Option<PhysicsEvent> {
-        if raw.type_id() == ring_items::PHYSICS_EVENT {
-            let mut result = PhysicsEvent::new(None);
 
-            // If there's a body header we start taking payload after it
-            // and put the body header in our body header:
-
-            let mut payload_offset = 0;
-            if let Some(bh) = raw.get_bodyheader() {
-                result.body_header = Some(bh);
-                payload_offset = ring_items::body_header_size();
-            }
-            result
-                .event_data
-                .extend_from_slice(&raw.payload().as_slice()[payload_offset..]);
-            Some(result)
-        } else {
-            None
-        }
-    }
-    ///
-    /// Convert self to a raw ring item.
-    ///
-    pub fn to_raw(&self) -> ring_items::RingItem {
-        let mut result = if let Some(bh) = self.body_header {
-            ring_items::RingItem::new_with_body_header(
-                ring_items::PHYSICS_EVENT,
-                bh.timestamp,
-                bh.source_id,
-                bh.barrier_type,
-            )
-        } else {
-            ring_items::RingItem::new(ring_items::PHYSICS_EVENT)
-        };
-        // Now just Append our data to the payload:
-
-        result.add_byte_vec(&self.event_data);
-        result
-    }
     // Add data to the payload:
 
     pub fn add<T>(&mut self, item: T) -> &mut PhysicsEvent {
@@ -133,6 +93,91 @@ impl Iterator for PhysicsEvent {
             Some(result)
         } else {
             self.rewind();
+            None
+        }
+    }
+}
+
+impl fmt::Display for PhysicsEvent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Physics Event:\n").unwrap();
+        if let Some(bh) = self.get_bodyheader() {
+            write!(f, "Body Header:\n {}\n", bh).unwrap();
+        }
+
+        // We're a bit hampered by the fact that the signature
+        // requires immutability so:
+
+        let mut offset = 0;
+        let u32s = mem::size_of::<u16>();
+
+        let mut in_line = 0;
+        loop {
+            if offset >= self.event_data.len() {
+                break;
+            } else {
+                let mut p = self.event_data.as_ptr();
+                unsafe {
+                    p = p.offset(offset as isize);
+                }
+                let pt = p.cast::<u16>();
+                let word = { unsafe { *pt } };
+                offset += u32s;
+
+                write!(f, "{:0>4x} ", word).unwrap();
+                in_line = in_line + 1;
+                if in_line == 8 {
+                    write!(f, "\n").unwrap();
+                    ();
+                    in_line = 0;
+                }
+            }
+        }
+        if in_line != 0 {
+            write!(f, "\n").unwrap();
+        }
+
+        write!(f, "")
+    }
+}
+/// ToRaw is a trait that allows conversion to raw ring items from
+/// self:
+
+impl ring_items::ToRaw for PhysicsEvent {
+    fn to_raw(&self) -> ring_items::RingItem {
+        let mut result = if let Some(bh) = self.body_header {
+            ring_items::RingItem::new_with_body_header(
+                ring_items::PHYSICS_EVENT,
+                bh.timestamp,
+                bh.source_id,
+                bh.barrier_type,
+            )
+        } else {
+            ring_items::RingItem::new(ring_items::PHYSICS_EVENT)
+        };
+        // Now just Append our data to the payload:
+
+        result.add_byte_vec(&self.event_data);
+        result
+    }
+}
+
+/// From raw, a generic trait for RingItem allows an attempt to
+/// convert a ring item to a specific type:
+
+impl ring_items::FromRaw<PhysicsEvent> for ring_items::RingItem {
+    fn to_specific(&self, _v: ring_items::RingVersion) -> Option<PhysicsEvent> {
+        if self.type_id() == ring_items::PHYSICS_EVENT {
+            let mut payload_offset = 0;
+            let mut result = PhysicsEvent::new(self.get_bodyheader());
+            if self.has_body_header() {
+                payload_offset = ring_items::body_header_size();
+            }
+            result
+                .event_data
+                .extend_from_slice(&self.payload().as_slice()[payload_offset..]);
+            Some(result)
+        } else {
             None
         }
     }
@@ -443,7 +488,7 @@ mod test_event {
 
         let item = PhysicsEvent::new(None);
         let raw = item.to_raw();
-        let event = PhysicsEvent::from_raw(&raw);
+        let event: Option<PhysicsEvent> = raw.to_specific(RingVersion::V11);
         assert!(event.is_some());
         let event = event.unwrap();
 
@@ -461,7 +506,7 @@ mod test_event {
             barrier_type: 0,
         }));
         let raw = item.to_raw();
-        let event = PhysicsEvent::from_raw(&raw);
+        let event: Option<PhysicsEvent> = raw.to_specific(RingVersion::V11);
         assert!(event.is_some());
         let event = event.unwrap();
         assert!(event.body_header.is_some());
@@ -479,7 +524,7 @@ mod test_event {
             .add(0xa5a5 as u16)
             .add(0xa5a5a5a5 as u32);
         let raw = item.to_raw();
-        let event = PhysicsEvent::from_raw(&raw);
+        let event: Option<PhysicsEvent> = raw.to_specific(RingVersion::V11);
         assert!(event.is_some());
         let mut event = event.unwrap();
 
@@ -503,7 +548,7 @@ mod test_event {
         }));
         item.add(0x1 as u8).add(0x2 as u16).add(0x3 as u32);
         let raw = item.to_raw();
-        let event = PhysicsEvent::from_raw(&raw);
+        let event: Option<PhysicsEvent> = raw.to_specific(RingVersion::V11);
         assert!(event.is_some());
         let mut event = event.unwrap();
         assert!(event.get_bodyheader().is_some());
@@ -515,5 +560,13 @@ mod test_event {
         assert_eq!(2 as u16, event.get::<u16>().unwrap());
         assert_eq!(3 as u32, event.get::<u32>().unwrap());
         assert!(event.get::<u8>().is_none());
+    }
+    #[test]
+    fn from_raw_5() {
+        // failed conversion:
+
+        let raw = RingItem::new(PHYSICS_EVENT + 1);
+        let failed: Option<PhysicsEvent> = raw.to_specific(RingVersion::V11);
+        assert!(failed.is_none());
     }
 }

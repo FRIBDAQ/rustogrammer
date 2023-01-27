@@ -1,4 +1,6 @@
 use crate::ring_items;
+use humantime;
+use std::fmt;
 use std::slice::Iter;
 use std::time;
 ///
@@ -85,60 +87,43 @@ impl ScalerItem {
 
         result
     }
-
-    pub fn from_raw(
-        raw: &ring_items::RingItem,
-        fmt: ring_items::RingVersion,
-    ) -> Option<ScalerItem> {
-        if raw.type_id() == ring_items::PERIODIC_SCALERS {
-            // Pull parameters from the raw item:
-
-            let body_header = raw.get_bodyheader();
-            let offset: usize = if let Some(_b) = body_header {
-                ring_items::body_header_size()
-            } else {
-                0
-            };
-            let p = raw.payload().as_slice();
-            let start = u32::from_ne_bytes(p[offset..offset + 4].try_into().unwrap());
-            let end = u32::from_ne_bytes(p[offset + 4..offset + 8].try_into().unwrap());
-            let raw_stamp = u32::from_ne_bytes(p[offset + 8..offset + 12].try_into().unwrap());
-            let divisor = u32::from_ne_bytes(p[offset + 12..offset + 16].try_into().unwrap());
-            let nscalers = u32::from_ne_bytes(p[offset + 16..offset + 20].try_into().unwrap());
-            let incr = u32::from_ne_bytes(p[offset + 20..offset + 24].try_into().unwrap()) != 0;
-            let mut offset = offset + 24; // new offset.
-
-            let mut orsid: Option<u32> = None;
-            if fmt == ring_items::RingVersion::V12 {
-                orsid = Some(u32::from_ne_bytes(
-                    p[offset..offset + 4].try_into().unwrap(),
-                ));
-                offset = offset + 4;
-            }
-            // Offset now points at the scalers regardless of the format:
-
-            let mut scalers: Vec<u32> = Vec::new();
-            for _ in 0..nscalers {
-                scalers.push(u32::from_ne_bytes(
-                    p[offset..offset + 4].try_into().unwrap(),
-                ));
-                offset = offset + 4;
-            }
-            Some(Self::new(
-                body_header,
-                start,
-                end,
-                ring_items::raw_to_systime(raw_stamp),
-                divisor,
-                incr,
-                orsid,
-                &mut scalers,
-            ))
-        } else {
-            None
+}
+impl fmt::Display for ScalerItem {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, " Scaler: \n").unwrap();
+        if let Some(bh) = self.body_header {
+            write!(f, "Body header:\n  {}\n", bh).unwrap();
         }
+        write!(
+            f,
+            "  Start: {} End {}\n",
+            self.get_start_secs(),
+            self.get_end_secs()
+        )
+        .unwrap();
+        write!(
+            f,
+            "  At: {}\n",
+            humantime::format_rfc3339(self.get_absolute_time())
+        )
+        .unwrap();
+        if let Some(osid) = self.original_sid() {
+            write!(f, " Original source id {}\n", osid).unwrap();
+        }
+
+        write!(f, " {} scalers:\n", self.len()).unwrap();
+        for s in self.iter() {
+            write!(f, "    {} counts\n", *s).unwrap();
+        }
+        write!(f, "")
     }
-    pub fn to_raw(&self) -> ring_items::RingItem {
+}
+
+/// ToRaw provies a conversion from ScalerItem (in this case)to
+/// RingItems.
+
+impl ring_items::ToRaw for ScalerItem {
+    fn to_raw(&self) -> ring_items::RingItem {
         let mut result = if let Some(bh) = self.body_header {
             ring_items::RingItem::new_with_body_header(
                 ring_items::PERIODIC_SCALERS,
@@ -168,6 +153,60 @@ impl ScalerItem {
         }
 
         result
+    }
+}
+/// FromRaw is a generic implemented on RingItem types to
+/// attempt conversion to a specific type (e.g. ScalerItem in this
+/// case)
+impl ring_items::FromRaw<ScalerItem> for ring_items::RingItem {
+    fn to_specific(&self, fmt: ring_items::RingVersion) -> Option<ScalerItem> {
+        if self.type_id() == ring_items::PERIODIC_SCALERS {
+            // Pull parameters from the raw item:
+
+            let body_header = self.get_bodyheader();
+            let offset: usize = if let Some(_b) = body_header {
+                ring_items::body_header_size()
+            } else {
+                0
+            };
+            let p = self.payload().as_slice();
+            let start = u32::from_ne_bytes(p[offset..offset + 4].try_into().unwrap());
+            let end = u32::from_ne_bytes(p[offset + 4..offset + 8].try_into().unwrap());
+            let raw_stamp = u32::from_ne_bytes(p[offset + 8..offset + 12].try_into().unwrap());
+            let divisor = u32::from_ne_bytes(p[offset + 12..offset + 16].try_into().unwrap());
+            let nscalers = u32::from_ne_bytes(p[offset + 16..offset + 20].try_into().unwrap());
+            let incr = u32::from_ne_bytes(p[offset + 20..offset + 24].try_into().unwrap()) != 0;
+            let mut offset = offset + 24; // new offset.
+
+            let mut orsid: Option<u32> = None;
+            if fmt == ring_items::RingVersion::V12 {
+                orsid = Some(u32::from_ne_bytes(
+                    p[offset..offset + 4].try_into().unwrap(),
+                ));
+                offset = offset + 4;
+            }
+            // Offset now points at the scalers regardless of the format:
+
+            let mut scalers: Vec<u32> = Vec::new();
+            for _ in 0..nscalers {
+                scalers.push(u32::from_ne_bytes(
+                    p[offset..offset + 4].try_into().unwrap(),
+                ));
+                offset = offset + 4;
+            }
+            Some(ScalerItem::new(
+                body_header,
+                start,
+                end,
+                ring_items::raw_to_systime(raw_stamp),
+                divisor,
+                incr,
+                orsid,
+                &mut scalers,
+            ))
+        } else {
+            None
+        }
     }
 }
 
@@ -783,7 +822,7 @@ mod scaler_tests {
         let item = ScalerItem::new(None, 0, 10, t, 1, true, None, &mut scalers);
 
         let raw = item.to_raw();
-        let recons = ScalerItem::from_raw(&raw, RingVersion::V11);
+        let recons: Option<ScalerItem> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap(); // The scaler item itself:
 
@@ -812,7 +851,7 @@ mod scaler_tests {
         let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, None, &mut scalers);
 
         let raw = item.to_raw();
-        let recons = ScalerItem::from_raw(&raw, RingVersion::V11);
+        let recons: Option<ScalerItem> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap();
 
@@ -846,7 +885,7 @@ mod scaler_tests {
         let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, Some(5), &mut scalers);
 
         let raw = item.to_raw();
-        let recons = ScalerItem::from_raw(&raw, RingVersion::V12);
+        let recons: Option<ScalerItem> = raw.to_specific(RingVersion::V12);
         assert!(recons.is_some());
         let recons = recons.unwrap();
 
@@ -876,7 +915,7 @@ mod scaler_tests {
         let item = ScalerItem::new(None, 0, 10, t, 1, true, None, &mut scalers.clone());
 
         let raw = item.to_raw();
-        let recons = ScalerItem::from_raw(&raw, RingVersion::V11);
+        let recons: Option<ScalerItem> = raw.to_specific(RingVersion::V11);
 
         assert!(recons.is_some());
         let recons = recons.unwrap(); // The scaler item itself:
@@ -910,7 +949,7 @@ mod scaler_tests {
 
         let raw = item.to_raw();
 
-        let recons = ScalerItem::from_raw(&raw, RingVersion::V11);
+        let recons: Option<ScalerItem> = raw.to_specific(RingVersion::V11);
         assert!(recons.is_some());
         let recons = recons.unwrap(); // The scaler item itself:
 
@@ -945,7 +984,7 @@ mod scaler_tests {
         let item = ScalerItem::new(Some(bh), 0, 10, t, 1, true, Some(5), &mut scalers.clone());
 
         let raw = item.to_raw();
-        let recons = ScalerItem::from_raw(&raw, RingVersion::V12);
+        let recons: Option<ScalerItem> = raw.to_specific(RingVersion::V12);
 
         assert!(recons.is_some());
         let recons = recons.unwrap(); // The scaler item itself:
@@ -975,7 +1014,9 @@ mod scaler_tests {
         // Give none if the type is wrong:
 
         let raw = RingItem::new(PERIODIC_SCALERS + 1); // bad type.
-        assert!(ScalerItem::from_raw(&raw, RingVersion::V11).is_none());
-        assert!(ScalerItem::from_raw(&raw, RingVersion::V12).is_none());
+        let rcons: Option<ScalerItem> = raw.to_specific(RingVersion::V11);
+        assert!(rcons.is_none());
+        let rcons: Option<ScalerItem> = raw.to_specific(RingVersion::V12);
+        assert!(rcons.is_none());
     }
 }
