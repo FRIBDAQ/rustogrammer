@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 ///
 /// Parameter definitions describe parameters that can be histogramed
 /// in some way.   Parameters have names, is and optional metadata:
@@ -24,7 +25,7 @@
 /// spaces, events and mapping vectors but the main might normally only
 /// actually create one of these to pass to the appropriate targets.
 ///
-
+use std::fmt;
 ///
 /// This is what a parameter looks like:
 ///
@@ -70,6 +71,15 @@ impl Parameter {
         self.description = Some(String::from(d));
         self
     }
+
+    /// The name:
+    pub fn get_name(&self) -> String {
+        self.name.clone()
+    }
+    /// The id:
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
     /// Get histogram axis suggested limits.
     /// In the return tuple, .0 is low, and .1 is high.
     pub fn get_limits(&self) -> (Option<f64>, Option<f64>) {
@@ -87,6 +97,72 @@ impl Parameter {
             Some(s) => Some(s.clone()),
             None => None,
         }
+    }
+}
+
+impl fmt::Display for Parameter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let low = if let Some(l) = self.low {
+            format!("{}", l)
+        } else {
+            String::from("--")
+        };
+
+        let high = if let Some(h) = self.high {
+            format!("{}", h)
+        } else {
+            String::from("--")
+        };
+
+        let bins = if let Some(b) = self.bins {
+            format!("{}", b)
+        } else {
+            String::from("--")
+        };
+
+        let descr = if let Some(d) = &self.description {
+            d.clone()
+        } else {
+            String::from("-None-")
+        };
+        write!(
+            f,
+            "ID: {} Name: {} low: {} high {} bins {} Description {}",
+            self.id, self.name, low, high, bins, descr
+        )
+    }
+}
+///
+/// ParameterInfo is the information about a parameter that's held per event:
+/// In addition to the parameter definiton itself, this stuct holds:
+///
+/// value - the value assigned to the parameter in the last event for which there was
+///         that parameter.
+/// generation - The number of the event (numbered from 1) in which this event was
+/// last given a value (Provides for O(1) invalidation).
+///
+struct ParameterInfo {
+    parameter: Parameter, // Simplest to clone the parameter definition here.
+    value: f64,
+    generation: u64,
+}
+impl ParameterInfo {
+    /// Create a new Parameter info - the value and generation get
+    /// initialized to some default thing.
+    pub fn new(name: &str, id: u32) -> ParameterInfo {
+        ParameterInfo {
+            parameter: Parameter::new(name, id),
+            value: 0.0,
+            generation: 0,
+        }
+    }
+    ///
+    /// Set the value of the parameter for some generation gen
+    /// the return value is the id of the
+    pub fn set(&mut self, v: f64, gen: u64) -> u32 {
+        self.value = v;
+        self.generation = gen;
+        self.parameter.get_id()
     }
 }
 
@@ -208,5 +284,15 @@ mod test_parameters {
             .set_description("Test parameter");
         let r1 = p.get_description();
         assert_eq!(Some(String::from("Test parameter")), r1);
+    }
+    #[test]
+    fn get_4() {
+        let p = Parameter::new("test", 1);
+        assert_eq!(String::from("test"), p.get_name());
+    }
+    #[test]
+    fn get_5() {
+        let p = Parameter::new("test", 1);
+        assert_eq!(1, p.get_id());
     }
 }
