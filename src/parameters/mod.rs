@@ -65,9 +65,28 @@ impl Parameter {
         self.bins = Some(b);
         self
     }
+    /// Set a description for the parameter.
     pub fn set_description(&mut self, d: &str) -> &mut Self {
         self.description = Some(String::from(d));
         self
+    }
+    /// Get histogram axis suggested limits.
+    /// In the return tuple, .0 is low, and .1 is high.
+    pub fn get_limits(&self) -> (Option<f64>, Option<f64>) {
+        (self.low, self.high)
+    }
+    /// Get histogram axis suggested binning.
+
+    pub fn get_bins(&self) -> Option<u32> {
+        self.bins
+    }
+    /// Get histogram description
+
+    pub fn get_description(&self) -> Option<String> {
+        match &self.description {
+            Some(s) => Some(s.clone()),
+            None => None,
+        }
     }
 }
 
@@ -156,5 +175,38 @@ mod test_parameters {
             },
             p
         );
+    }
+    #[test]
+    fn get_1() {
+        let mut p = Parameter::new("test", 1);
+        let r1 = p.get_limits();
+        assert_eq!((None, None), r1);
+        p.set_limits(-1.0, 1.0)
+            .set_bins(128)
+            .set_description("Test parameter");
+        let r1 = p.get_limits();
+        assert_eq!((Some(-1.0), Some(1.0)), r1);
+    }
+    #[test]
+    fn get_2() {
+        let mut p = Parameter::new("test", 1);
+        let r1 = p.get_bins();
+        assert_eq!(None, r1);
+        p.set_limits(-1.0, 1.0)
+            .set_bins(128)
+            .set_description("Test parameter");
+        let r1 = p.get_bins();
+        assert_eq!(Some(128), r1);
+    }
+    #[test]
+    fn get_3() {
+        let mut p = Parameter::new("test", 1);
+        let r1 = p.get_description();
+        assert_eq!(None, r1);
+        p.set_limits(-1.0, 1.0)
+            .set_bins(128)
+            .set_description("Test parameter");
+        let r1 = p.get_description();
+        assert_eq!(Some(String::from("Test parameter")), r1);
     }
 }
