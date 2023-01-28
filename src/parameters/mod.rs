@@ -184,7 +184,7 @@ impl ParameterInfo {
 }
 
 #[cfg(test)]
-mod test_parameters {
+mod parameters_test {
     use super::*;
 
     #[test]
@@ -311,5 +311,62 @@ mod test_parameters {
     fn get_5() {
         let p = Parameter::new("test", 1);
         assert_eq!(1, p.get_id());
+    }
+}
+#[cfg(test)]
+mod pinfo_tests {
+    use super::*;
+
+    #[test]
+    fn new_1() {
+        let pi = ParameterInfo::new("test", 1);
+        assert_eq!(
+            ParameterInfo {
+                parameter: Parameter {
+                    name: String::from("test"),
+                    id: 1,
+                    low: None,
+                    high: None,
+                    bins: None,
+                    description: None,
+                },
+                value: 0.0,
+                generation: 0
+            },
+            pi
+        );
+    }
+    #[test]
+    fn set_1() {
+        let mut pi = ParameterInfo::new("test", 1);
+        pi.set(1.234, 1);
+        assert_eq!(1.234, pi.value);
+        assert_eq!(1, pi.generation);
+    }
+    #[test]
+    fn get_1() {
+        let mut pi = ParameterInfo::new("test", 1);
+        pi.set(1.2345, 1);
+        let v = pi.get(1); // should be ok:
+        assert!(v.is_some());
+        assert_eq!(1.2345, v.unwrap());
+    }
+    #[test]
+    fn get_2() {
+        let mut pi = ParameterInfo::new("test", 1);
+        pi.set(1.2345, 1);
+        assert!(pi.get(2).is_none()); // mismatch generations.
+    }
+    #[test]
+    fn getp_1() {
+        let pi = ParameterInfo::new("test", 1);
+        assert_eq!(String::from("test"), pi.get_parameter().get_name());
+        assert_eq!(1, pi.get_parameter().get_id());
+    }
+    #[test]
+    fn getp_2() {
+        let mut pi = ParameterInfo::new("test", 1);
+        pi.get_parameter_mut().set_limits(-1.0, 1.0);
+        assert_eq!((Some(-1.0), Some(1.0)), pi.get_parameter().get_limits());
     }
 }
