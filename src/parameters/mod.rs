@@ -30,7 +30,7 @@ use std::fmt;
 /// This is what a parameter looks like:
 ///
 #[derive(Debug, PartialEq, Clone)]
-struct Parameter {
+pub struct Parameter {
     name: String,
     id: u32,
     low: Option<f64>,
@@ -141,7 +141,8 @@ impl fmt::Display for Parameter {
 /// generation - The number of the event (numbered from 1) in which this event was
 /// last given a value (Provides for O(1) invalidation).
 ///
-struct ParameterInfo {
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParameterInfo {
     parameter: Parameter, // Simplest to clone the parameter definition here.
     value: f64,
     generation: u64,
@@ -163,6 +164,22 @@ impl ParameterInfo {
         self.value = v;
         self.generation = gen;
         self.parameter.get_id()
+    }
+    ///
+    /// Getting the value depends on the generation matching:
+    ///
+    pub fn get(&self, gen: u64) -> Option<f64> {
+        if gen == self.generation {
+            Some(self.value)
+        } else {
+            None
+        }
+    }
+    fn get_parameter(&self) -> &Parameter {
+        &self.parameter
+    }
+    fn get_parameter_mut(&mut self) -> &mut Parameter {
+        &mut self.parameter
     }
 }
 
