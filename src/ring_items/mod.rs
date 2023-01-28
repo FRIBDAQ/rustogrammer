@@ -1,7 +1,5 @@
 #![allow(dead_code)]
 use std::fmt;
-use std::fs::File;
-use std::io::prelude::*;
 use std::io::Read;
 use std::io::Write;
 use std::mem;
