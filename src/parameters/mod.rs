@@ -1,3 +1,4 @@
+use std::collections::hash_map::{Iter, IterMut};
 use std::collections::HashMap;
 ///
 /// Parameter definitions describe parameters that can be histogramed
@@ -11,13 +12,10 @@ use std::collections::HashMap;
 ///     parameter means.
 ///  
 /// In addition to praameters and dict that can be used to look them up (std::map),
-/// We need to provide the same high performance source of histograming and
-/// validation/invalidation used by SpecTcl.  This implies a vector which,
-/// as event are analyzed is sized to the size of the largest id containing generation
-/// and value pairs. and a dope vector that contains the indices of the set parameters
-/// for the current event.
-///
-/// Finally, since the incoming data may have different paramter indices than our
+/// NOte that since there isn't any user code in this histogrammer (parameters are
+/// created externally), we don't need any complex validation/invalidation
+/// support. Each event comes in as a set of id/value pairs but
+///  since the incoming data may have different paramter indices than our
 /// parameters with like names, we'll provide for the ability to make a mapping
 /// between one set of ids and another.
 ///
@@ -133,53 +131,78 @@ impl fmt::Display for Parameter {
     }
 }
 ///
-/// ParameterInfo is the information about a parameter that's held per event:
-/// In addition to the parameter definiton itself, this stuct holds:
+/// ParameterDictionary is the structure that allows
+/// parmameters to be defined unique ids within the dictionary
+/// and looked up by name later on.  Note that much of the stuff that's
+/// needed It just consists of a hashmap of parameters indexed by their
+/// names and a counter that's used to assign parameter ids to new
+/// parameters as they are created.
 ///
-/// value - the value assigned to the parameter in the last event for which there was
-///         that parameter.
-/// generation - The number of the event (numbered from 1) in which this event was
-/// last given a value (Provides for O(1) invalidation).
+/// Paramters are permanen, in the sense that once created they can
+/// never be destroyed.
 ///
-#[derive(Clone, Debug, PartialEq)]
-pub struct ParameterInfo {
-    parameter: Parameter, // Simplest to clone the parameter definition here.
-    value: f64,
-    generation: u64,
+struct ParameterDictionary {
+    next_id: u32,
+    dictionary: HashMap<String, Parameter>,
 }
-impl ParameterInfo {
-    /// Create a new Parameter info - the value and generation get
-    /// initialized to some default thing.
-    pub fn new(name: &str, id: u32) -> ParameterInfo {
-        ParameterInfo {
-            parameter: Parameter::new(name, id),
-            value: 0.0,
-            generation: 0,
+impl ParameterDictionary {
+    pub fn new() -> ParameterDictionary {
+        ParameterDictionary {
+            next_id: 1,
+            dictionary: HashMap::<String, Parameter>::new(),
         }
     }
     ///
-    /// Set the value of the parameter for some generation gen
-    /// the return value is the id of the
-    pub fn set(&mut self, v: f64, gen: u64) -> u32 {
-        self.value = v;
-        self.generation = gen;
-        self.parameter.get_id()
-    }
+    /// Attempt to add a new named parameter to the dictioary.
+    /// There are really two cases:
     ///
-    /// Getting the value depends on the generation matching:
+    /// * The parameter does not exist, it is added and Ok<&mut ref is > returned.
+    /// * The parameter exists Err("Duplicate parameter") is returned
     ///
-    pub fn get(&self, gen: u64) -> Option<f64> {
-        if gen == self.generation {
-            Some(self.value)
+    pub fn add(&mut self, name: &str) -> Result<String, String> {
+        if self.dictionary.contains_key(name) {
+            Err(String::from("Duplicate parameter"))
         } else {
-            None
+            self.dictionary
+                .insert(String::from(name), Parameter::new(name, self.next_id));
+            self.next_id += 1;
+            Ok(String::from(name))
         }
     }
-    fn get_parameter(&self) -> &Parameter {
-        &self.parameter
+    ///
+    /// Lookup a parameter definition in the dictionary.
+    ///
+    pub fn lookup(&self, name: &str) -> Option<&Parameter> {
+        self.dictionary.get(name)
     }
-    fn get_parameter_mut(&mut self) -> &mut Parameter {
-        &mut self.parameter
+    /// Lookup a parameter for modification:
+
+    pub fn lookup_mut(&mut self, name: &str) -> Option<&mut Parameter> {
+        self.dictionary.get_mut(name)
+    }
+    /// Get an iterator over the map:
+
+    pub fn iter(&self) -> Iter<'_, String, Parameter> {
+        self.dictionary.iter()
+    }
+    /// Get an iterator that allows modification of the parameters:
+
+    pub fn iter_mut(&mut self) -> IterMut<'_, String, Parameter> {
+        self.dictionary.iter_mut()
+    }
+}
+///
+/// Display trait:
+///    We can display the dictionary as, for the most part,
+///    a list of the parameters in it.
+///
+impl fmt::Display for ParameterDictionary {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Next id: {}\n", self.next_id).unwrap();
+        for (_, v) in self.iter() {
+            write!(f, "{}\n", v).unwrap();
+        }
+        write!(f, "")
     }
 }
 
@@ -314,59 +337,13 @@ mod parameters_test {
     }
 }
 #[cfg(test)]
-mod pinfo_tests {
+mod pdict_tests {
     use super::*;
 
     #[test]
     fn new_1() {
-        let pi = ParameterInfo::new("test", 1);
-        assert_eq!(
-            ParameterInfo {
-                parameter: Parameter {
-                    name: String::from("test"),
-                    id: 1,
-                    low: None,
-                    high: None,
-                    bins: None,
-                    description: None,
-                },
-                value: 0.0,
-                generation: 0
-            },
-            pi
-        );
-    }
-    #[test]
-    fn set_1() {
-        let mut pi = ParameterInfo::new("test", 1);
-        pi.set(1.234, 1);
-        assert_eq!(1.234, pi.value);
-        assert_eq!(1, pi.generation);
-    }
-    #[test]
-    fn get_1() {
-        let mut pi = ParameterInfo::new("test", 1);
-        pi.set(1.2345, 1);
-        let v = pi.get(1); // should be ok:
-        assert!(v.is_some());
-        assert_eq!(1.2345, v.unwrap());
-    }
-    #[test]
-    fn get_2() {
-        let mut pi = ParameterInfo::new("test", 1);
-        pi.set(1.2345, 1);
-        assert!(pi.get(2).is_none()); // mismatch generations.
-    }
-    #[test]
-    fn getp_1() {
-        let pi = ParameterInfo::new("test", 1);
-        assert_eq!(String::from("test"), pi.get_parameter().get_name());
-        assert_eq!(1, pi.get_parameter().get_id());
-    }
-    #[test]
-    fn getp_2() {
-        let mut pi = ParameterInfo::new("test", 1);
-        pi.get_parameter_mut().set_limits(-1.0, 1.0);
-        assert_eq!((Some(-1.0), Some(1.0)), pi.get_parameter().get_limits());
+        let d = ParameterDictionary::new();
+        assert_eq!(1, d.next_id);
+        assert_eq!(0, d.dictionary.len());
     }
 }
