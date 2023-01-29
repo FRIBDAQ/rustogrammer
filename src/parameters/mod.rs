@@ -141,7 +141,7 @@ impl fmt::Display for Parameter {
 /// Paramters are permanen, in the sense that once created they can
 /// never be destroyed.
 ///
-struct ParameterDictionary {
+pub struct ParameterDictionary {
     next_id: u32,
     dictionary: HashMap<String, Parameter>,
 }
@@ -203,6 +203,25 @@ impl fmt::Display for ParameterDictionary {
             write!(f, "{}\n", v).unwrap();
         }
         write!(f, "")
+    }
+}
+
+///  In the histogrammer, events are collections of
+/// parameter id/value pairs.
+
+#[derive(PartialEq, Debug, Clone, Copy)]
+pub struct EventParameter {
+    pub id: u32,
+    pub value: f64,
+}
+impl EventParameter {
+    pub fn new(id: u32, value: f64) -> EventParameter {
+        EventParameter { id, value }
+    }
+}
+impl fmt::Display for EventParameter {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "id: {} value: {}", self.id, self.value)
     }
 }
 
@@ -449,7 +468,34 @@ mod pdict_tests {
         }
         // Both parameter and param 2 have limits now:
 
-        assert_eq!((Some(-1.0), Some(1.0)), d.lookup("parameter").unwrap().get_limits());
-        assert_eq!((Some(-1.0), Some(1.0)), d.lookup("param2").unwrap().get_limits())
+        assert_eq!(
+            (Some(-1.0), Some(1.0)),
+            d.lookup("parameter").unwrap().get_limits()
+        );
+        assert_eq!(
+            (Some(-1.0), Some(1.0)),
+            d.lookup("param2").unwrap().get_limits()
+        )
+    }
+}
+#[cfg(test)]
+mod pevent_test {
+    use super::*;
+
+    #[test]
+    fn new_1() {
+        let e = EventParameter::new(1, 1.2345);
+        assert_eq!(
+            EventParameter {
+                id: 1,
+                value: 1.2345
+            },
+            e
+        );
+    }
+    #[test]
+    fn display_1() {
+        let e = EventParameter::new(1, 1.2345);
+        assert_eq!(String::from("id: 1 value: 1.2345"), format!("{}", e));
     }
 }
