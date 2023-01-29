@@ -425,4 +425,31 @@ mod pdict_tests {
         assert_eq!(Some(100), p.get_bins());
         assert_eq!(Some(String::from("A parameter")), p.get_description());
     }
+    #[test]
+    fn iter_1() {
+        // Non mutating iterator:
+
+        let mut d = ParameterDictionary::new();
+        d.add("parameter").unwrap();
+        // Only one iteration so:
+
+        for (k, p) in d.iter() {
+            assert_eq!(String::from("parameter"), String::from(k));
+            assert_eq!(String::from("parameter"), p.get_name());
+        }
+    }
+    #[test]
+    fn iter_2() {
+        let mut d = ParameterDictionary::new();
+        d.add("parameter").unwrap();
+        d.add("param2").unwrap();
+
+        for (_, p) in d.iter_mut() {
+            p.set_limits(-1.0, 1.0);
+        }
+        // Both parameter and param 2 have limits now:
+
+        assert_eq!((Some(-1.0), Some(1.0)), d.lookup("parameter").unwrap().get_limits());
+        assert_eq!((Some(-1.0), Some(1.0)), d.lookup("param2").unwrap().get_limits())
+    }
 }
