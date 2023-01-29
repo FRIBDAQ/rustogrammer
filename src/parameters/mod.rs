@@ -224,6 +224,97 @@ impl fmt::Display for EventParameter {
         write!(f, "id: {} value: {}", self.id, self.value)
     }
 }
+/// An event is just a vector of EventParameter s.
+
+type Event = Vec<EventParameter>;
+
+/// ParameterIdMap provides a correspondence between
+/// parameter ids in an Event and parameter ids in some dictionary.
+/// It can be used to take some input event with a different Id space
+/// and map it into an output event with the same parameter space as
+/// the dictionary.
+/// The input dictionary is used to determine the map while
+/// which is an array of output ids indexed by input ids.
+///
+pub struct ParameterIdMap {
+    dict: ParameterDictionary,
+    map: Vec<Option<u32>>,
+}
+impl ParameterIdMap {
+    fn get_mapping(&self, input_id: u32) -> Option<u32> {
+        let input_id = input_id as usize;
+        if input_id <= self.map.len() {
+            self.map[input_id]
+        } else {
+            None
+        }
+    }
+
+    pub fn new() -> ParameterIdMap {
+        ParameterIdMap {
+            dict: ParameterDictionary::new(),
+            map: Vec::<Option<u32>>::new(),
+        }
+    }
+    /// Rather than wrapping all of the dicts
+    /// methods, just expose the dict itself.
+    ///
+    pub fn get_dict(&self) -> &ParameterDictionary {
+        &self.dict
+    }
+    ///
+    /// Expose the dict as a mut reference so that e.g.
+    /// parameters can be added.
+    ///
+    pub fn get_dict_mut(&mut self) -> &mut ParameterDictionary {
+        &mut self.dict
+    }
+    /// Define a mapping for an input id to a named parameter.
+    ///  The Ok value is the id this is mapped to.
+    /// The Err value is a stringed error message.
+    /// Two such are provided:
+    ///
+    /// *   "No such parameter" - The named parameter is not in the dict.
+    /// *    "Duplicate map" - The id is already mapped and the mapping
+    // is different from what's requested.
+
+    pub fn map(&mut self, input_id: u32, name: &str) -> Result<u32, String> {
+        let input_id: usize = input_id as usize;
+        if let Some(p) = self.dict.lookup(name) {
+            let mapped_id = p.get_id();
+            if self.map.len() < input_id {
+                self.map.resize((input_id + 1), None);
+            }
+            if let Some(outid) = self.map[input_id] {
+                if outid != mapped_id {
+                    return Err(String::from("Duplicate Map"));
+                }
+            }
+            // map[input_id] is either None or the same so this is ok:
+
+            self.map[input_id] = Some(mapped_id);
+            Ok(mapped_id)
+        } else {
+            Err(String::from("No Such parameter"))
+        }
+    }
+    /// The purpose of the map:
+    /// Given an input event produce an output event
+    /// that uses the mapped parameters.
+    /// any input ids that don't map are removed from the output event.
+    ///
+    pub fn map_event(&self, ine: &Event) -> Event {
+        let mut result = Event::new();
+
+        for p in ine {
+            if let Some(id) = self.get_mapping(p.id) {
+                result.push(EventParameter::new(id, p.value));
+            }
+        }
+
+        result
+    }
+}
 
 #[cfg(test)]
 mod parameters_test {
@@ -498,4 +589,8 @@ mod pevent_test {
         let e = EventParameter::new(1, 1.2345);
         assert_eq!(String::from("id: 1 value: 1.2345"), format!("{}", e));
     }
+}
+#[cfg(test)]
+mod paramap_test {
+    use super::*;
 }
