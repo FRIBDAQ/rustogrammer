@@ -401,4 +401,28 @@ mod pdict_tests {
         assert_eq!(2, d.lookup("parameter2").unwrap().get_id());
         assert_eq!(1, d.lookup("parameter1").unwrap().get_id());
     }
+    #[test]
+    fn lookup_mut_1() {
+        let mut d = ParameterDictionary::new();
+        assert!(d.lookup_mut("nosuch").is_none());
+    }
+    #[test]
+    fn lookup_mut_2() {
+        let mut d = ParameterDictionary::new();
+        d.add("parameter").unwrap();
+        let p = d.lookup_mut("parameter");
+        assert!(p.is_some());
+        let p = p.unwrap();
+        p.set_limits(-1.0, 1.0)
+            .set_bins(100)
+            .set_description("A parameter");
+        let p = d.lookup("parameter").unwrap();
+
+        // This should be the same underlying object as the mutable
+        // one so we've modified the metadata:
+
+        assert_eq!((Some(-1.0), Some(1.0)), p.get_limits());
+        assert_eq!(Some(100), p.get_bins());
+        assert_eq!(Some(String::from("A parameter")), p.get_description());
+    }
 }
