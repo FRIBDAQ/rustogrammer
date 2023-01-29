@@ -367,4 +367,38 @@ mod pdict_tests {
         assert!(d.dictionary.contains_key(&String::from("parameter1")));
         assert!(d.dictionary.contains_key(&String::from("parameter2")));
     }
+    #[test]
+    fn lookup_1() {
+        let d = ParameterDictionary::new();
+        assert!(d.lookup("nothing").is_none());
+    }
+    #[test]
+    fn lookup_2() {
+        let mut d = ParameterDictionary::new();
+        d.add("parameter").unwrap();
+        let p = d.lookup("parameter");
+        assert!(p.is_some());
+        let p = p.unwrap();
+        assert_eq!(1, p.get_id());
+        assert_eq!(String::from("parameter"), p.get_name());
+        assert_eq!((None, None), p.get_limits());
+        assert!(p.get_bins().is_none());
+        assert!(p.get_description().is_none());
+    }
+    #[test]
+    fn lookup_3() {
+        let mut d = ParameterDictionary::new();
+        d.add("parameter1").unwrap();
+        d.add("parameter2").unwrap();
+        assert_eq!(
+            String::from("parameter1"),
+            d.lookup("parameter1").unwrap().get_name()
+        );
+        assert_eq!(
+            String::from("parameter2"),
+            d.lookup("parameter2").unwrap().get_name()
+        );
+        assert_eq!(2, d.lookup("parameter2").unwrap().get_id());
+        assert_eq!(1, d.lookup("parameter1").unwrap().get_id());
+    }
 }
