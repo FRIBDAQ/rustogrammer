@@ -346,4 +346,25 @@ mod pdict_tests {
         assert_eq!(1, d.next_id);
         assert_eq!(0, d.dictionary.len());
     }
+    #[test]
+    fn add_1() {
+        let mut d = ParameterDictionary::new();
+        let result = d.add("parameter");
+        assert!(result.is_ok());
+        assert_eq!(String::from("parameter"), result.unwrap());
+    }
+    #[test]
+    fn add_2() {
+        let mut d = ParameterDictionary::new();
+        d.add("parameter").unwrap(); // will work.
+        assert!(d.add("parameter").is_err());
+    }
+    #[test]
+    fn add_3() {
+        let mut d = ParameterDictionary::new();
+        d.add("parameter1").unwrap();
+        assert!(d.add("parameter2").is_ok());
+        assert!(d.dictionary.contains_key(&String::from("parameter1")));
+        assert!(d.dictionary.contains_key(&String::from("parameter2")));
+    }
 }
