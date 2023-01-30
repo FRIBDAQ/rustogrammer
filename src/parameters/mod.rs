@@ -283,7 +283,7 @@ impl ParameterIdMap {
         if let Some(p) = self.dict.lookup(name) {
             let mapped_id = p.get_id();
             if self.map.len() < input_id {
-                self.map.resize((input_id + 1), None);
+                self.map.resize(input_id + 1, None);
             }
             if let Some(outid) = self.map[input_id] {
                 if outid != mapped_id {
@@ -593,4 +593,25 @@ mod pevent_test {
 #[cfg(test)]
 mod paramap_test {
     use super::*;
+
+    #[test]
+    fn new_1() {
+        let map = ParameterIdMap::new();
+        assert_eq!(0, map.dict.dictionary.len());
+        assert_eq!(0, map.map.len());
+    }
+    #[test]
+    fn get_1() {
+        // Tests both get_dict and get_dict_mut
+        let mut map = ParameterIdMap::new();
+        let rmap = map.get_dict_mut();
+        rmap.add("Parameter1").unwrap();
+        rmap.add("parameter2").unwrap();
+        let rmap = map.get_dict();
+        assert_eq!(2, rmap.dictionary.len());
+
+        assert_eq!(1, rmap.lookup("Parameter1").unwrap().get_id());
+        assert_eq!(2, rmap.lookup("parameter2").unwrap().get_id());
+        assert_eq!(0, map.map.len());
+    }
 }
