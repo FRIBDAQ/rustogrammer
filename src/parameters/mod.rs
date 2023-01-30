@@ -602,12 +602,25 @@ mod paramap_test {
     // |  2     | Parameter2  |
     // |  3     | Parameter3  |
     fn stock_map(map: &mut ParameterIdMap) {
-        let mut dict = map.get_dict_mut();
+        let dict = map.get_dict_mut();
         dict.add("Parameter1").unwrap();
         dict.add("Parameter2").unwrap();
         dict.add("Parameter3").unwrap();
     }
+    // make some default mappings for the parameters created by
+    /// stock_map:
+    //
+    // | in id  | out id |
+    // |--------|--------|
+    // | 10     |  1     |
+    // |  5     |  2     |
+    // | 12     |  3     |
 
+    fn make_map(map: &mut ParameterIdMap) {
+        map.map(10, "Parameter1").unwrap();
+        map.map(5, "Parameter2").unwrap();
+        map.map(12, "Parameter3").unwrap();
+    }
     #[test]
     fn new_1() {
         let map = ParameterIdMap::new();
@@ -697,5 +710,61 @@ mod paramap_test {
         let r = map.map(10, "Parameter10");
         assert!(r.is_err());
         assert_eq!(String::from("No Such parameter"), r.unwrap_err());
+    }
+    #[test]
+    fn map_evt_1() {
+        // Make maps for all parameters in event, check the output
+        //  event is correct
+
+        let mut map = ParameterIdMap::new();
+        stock_map(&mut map);
+        make_map(&mut map);
+
+        let ine: Event = vec![EventParameter::new(10, 1.234)];
+        let oute = map.map_event(&ine);
+
+        assert_eq!(1, oute.len());
+        assert_eq!(1, oute[0].id);
+        assert_eq!(1.234, oute[0].value);
+    }
+    #[test]
+    fn map_evt_2() {
+        // Multiple parameters in the in enent all have maps:
+
+        let mut map = ParameterIdMap::new();
+        stock_map(&mut map);
+        make_map(&mut map);
+
+        let ine: Event = vec![
+            EventParameter::new(10, 1.234),
+            EventParameter::new(12, 5.5),
+            EventParameter::new(5, 5.231),
+        ];
+        let oute = map.map_event(&ine);
+        assert_eq!(3, oute.len());
+        assert_eq!(EventParameter::new(1, 1.234), oute[0]);
+        assert_eq!(EventParameter::new(3, 5.5), oute[1]);
+        assert_eq!(EventParameter::new(2, 5.231), oute[2]);
+    }
+    #[test]
+    fn map_evt_3() {
+        // Input parameters without a map should get elided from
+        // the output event:
+
+        let mut map = ParameterIdMap::new();
+        stock_map(&mut map);
+        make_map(&mut map);
+
+        let ine: Event = vec![
+            EventParameter::new(10, 1.234),
+            EventParameter::new(7, 3.1416),    // should vanish
+            EventParameter::new(12, 5.5),
+            EventParameter::new(5, 5.231),
+        ];
+        let oute = map.map_event(&ine);
+        assert_eq!(3, oute.len());
+        assert_eq!(EventParameter::new(1, 1.234), oute[0]);
+        assert_eq!(EventParameter::new(3, 5.5), oute[1]);
+        assert_eq!(EventParameter::new(2, 5.231), oute[2]);
     }
 }
