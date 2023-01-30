@@ -382,7 +382,7 @@ impl FlatEvent {
 
     pub fn new() -> FlatEvent {
         FlatEvent {
-            generation: 0,
+            generation: 1, // So anything made by ensure_size is invalid
             event: Vec::<EventParameterInfo>::new(),
         }
     }
@@ -916,14 +916,67 @@ mod parflatevt_test {
     }
 
     #[test]
-    pub fn new_fevent() {
+    fn new_fevent() {
         let ev = FlatEvent::new();
         assert_eq!(
             FlatEvent {
-                generation: 0,
+                generation: 1,
                 event: Vec::new()
             },
             ev
         );
+    }
+    // note the load_x tests use indexing but that depends on
+    // a working get_parameter method so no need to further test that.
+    #[test]
+    fn load_1() {
+        // check the 'some's.
+        let mut ev = FlatEvent::new();
+        let e: Event = vec![
+            EventParameter::new(1, 2.0),
+            EventParameter::new(2, 4.0),
+            EventParameter::new(4, 8.0),
+        ];
+        ev.load_event(&e);
+        assert_eq!(2, ev.generation);
+        assert_eq!(5, ev.event.len());
+        for i in vec![1, 2, 4] {
+            assert!(ev[i].is_some());
+            assert_eq!(2.0 * i as f64, ev[i].unwrap());
+        }
+    }
+    #[test]
+    fn load_2() {
+        // Check the Nones:
+
+        let mut ev = FlatEvent::new();
+        let e: Event = vec![
+            EventParameter::new(1, 2.0),
+            EventParameter::new(2, 4.0),
+            EventParameter::new(4, 8.0),
+        ];
+        ev.load_event(&e);
+
+        for i in vec![0, 3] {
+            assert!(ev[i].is_none());
+        }
+    }
+    #[test]
+    fn load_3() {
+        // check invalidation:
+
+        let mut ev = FlatEvent::new();
+        let e: Event = vec![
+            EventParameter::new(1, 2.0),
+            EventParameter::new(2, 4.0),
+            EventParameter::new(4, 8.0),
+        ];
+        ev.load_event(&e);
+        let e: Event = vec![];
+        ev.load_event(&e); // all should be invalid:
+
+        for i in 0..5 {
+            assert!(ev[i].is_none());
+        }
     }
 }
