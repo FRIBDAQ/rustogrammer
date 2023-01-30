@@ -320,10 +320,10 @@ impl ParameterIdMap {
 ///   last_set is the generation that last set this parameter.
 ///   value is the value it set it to
 ///
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub struct EventParameterInfo {
     last_set: u64,
-    returned_value: Option<f64>,
+    returned_value: Option<f64>, // This allows indexing in a perverse way.
 }
 impl EventParameterInfo {
     /// Create a new instance - e.g. when replacing a none with a some.
@@ -331,7 +331,7 @@ impl EventParameterInfo {
     pub fn new(gen: u64, value: f64) -> EventParameterInfo {
         EventParameterInfo {
             last_set: gen,
-            returned_value: None,
+            returned_value: Some(value),
         }
     }
     ///
@@ -412,7 +412,7 @@ impl FlatEvent {
 }
 /// It's reasonable to use just indexing to get the parameter:
 ///  This means that for a FlatEvent e; e[i] will give None
-/// if parameter i has not been set for the event and 
+/// if parameter i has not been set for the event and
 /// Some(v) where v is the value, if it has been set.
 ///
 impl Index<u32> for FlatEvent {
@@ -878,5 +878,38 @@ mod paramap_test {
 mod parflatevt_test {
     use super::*;
 
-
+    #[test]
+    fn new_parinfo() {
+        let p = EventParameterInfo::new(0, 0.0);
+        assert_eq!(
+            EventParameterInfo {
+                last_set: 0,
+                returned_value: Some(0.0)
+            },
+            p
+        );
+    }
+    #[test]
+    fn set_parinfo() {
+        let mut p = EventParameterInfo::new(0,0.0);
+        p.set(1, 1.234);
+        assert_eq!(
+            EventParameterInfo { 
+                last_set: 1, 
+                returned_value: Some(1.234)
+            }, 
+            p
+        );
+    }
+    #[test]
+    fn get_parinfo_1() {
+        let p = EventParameterInfo::new(0, 0.0);
+        let r = p.get(0);
+        assert!(r.is_some());
+        assert_eq!(0.0, r.unwrap());
+    }
+    fn get_parinfo_2() {
+        let p = EventParameterInfo::new(0, 0.0);
+        assert!(p.get(1).is_none());
+    }
 }
