@@ -365,6 +365,7 @@ impl EventParameterInfo {
 /// vector can hold Option<EventParameterInfo> structs so that entries
 /// are None if they've _never_ been initialized.
 ///
+#[derive(Debug, PartialEq)]
 struct FlatEvent {
     generation: u64, // Supports O(1) invalidation.
     event: Vec<EventParameterInfo>,
@@ -891,13 +892,13 @@ mod parflatevt_test {
     }
     #[test]
     fn set_parinfo() {
-        let mut p = EventParameterInfo::new(0,0.0);
+        let mut p = EventParameterInfo::new(0, 0.0);
         p.set(1, 1.234);
         assert_eq!(
-            EventParameterInfo { 
-                last_set: 1, 
+            EventParameterInfo {
+                last_set: 1,
                 returned_value: Some(1.234)
-            }, 
+            },
             p
         );
     }
@@ -908,8 +909,21 @@ mod parflatevt_test {
         assert!(r.is_some());
         assert_eq!(0.0, r.unwrap());
     }
+    #[test]
     fn get_parinfo_2() {
         let p = EventParameterInfo::new(0, 0.0);
         assert!(p.get(1).is_none());
+    }
+
+    #[test]
+    pub fn new_fevent() {
+        let ev = FlatEvent::new();
+        assert_eq!(
+            FlatEvent {
+                generation: 0,
+                event: Vec::new()
+            },
+            ev
+        );
     }
 }
