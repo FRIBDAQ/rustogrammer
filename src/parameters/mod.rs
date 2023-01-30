@@ -12,9 +12,7 @@ use std::collections::HashMap;
 ///     parameter means.
 ///  
 /// In addition to praameters and dict that can be used to look them up (std::map),
-/// NOte that since there isn't any user code in this histogrammer (parameters are
-/// created externally), we don't need any complex validation/invalidation
-/// support. Each event comes in as a set of id/value pairs but
+/// Each event comes in as a set of id/value pairs but
 ///  since the incoming data may have different paramter indices than our
 /// parameters with like names, we'll provide for the ability to make a mapping
 /// between one set of ids and another.
@@ -24,6 +22,7 @@ use std::collections::HashMap;
 /// actually create one of these to pass to the appropriate targets.
 ///
 use std::fmt;
+use std::ops::Index;
 ///
 /// This is what a parameter looks like:
 ///
@@ -314,6 +313,116 @@ impl ParameterIdMap {
         }
 
         result
+    }
+}
+
+///  See FlatEvent below:
+///   last_set is the generation that last set this parameter.
+///   value is the value it set it to
+///
+#[derive(Copy, Clone)]
+pub struct EventParameterInfo {
+    last_set: u64,
+    value: f64,
+    returned_value: Option<f64>,
+}
+impl EventParameterInfo {
+    /// Create a new instance - e.g. when replacing a none with a some.
+    ///  
+    pub fn new(gen: u64, value: f64) -> EventParameterInfo {
+        EventParameterInfo {
+            last_set: gen,
+            value: value,
+            returned_value: None,
+        }
+    }
+    ///
+    /// update the value for a given generation
+    pub fn set(&mut self, gen: u64, value: f64) {
+        self.last_set = gen;
+        self.value = value;
+        self.returned_value = Some(value);
+    }
+    /// fetch the value for a given generation
+
+    pub fn get(&self, gen: u64) -> &Option<f64> {
+        if self.last_set == gen {
+            &(self.returned_value)
+        } else {
+            &None
+        }
+    }
+}
+
+/// FlatEvent holds an event whose indices are parameter ids and
+/// values.  While the id/value event is good for histograms that
+/// are ordered by a required parameter id, there are cases when a
+/// flattened version of the event is more appropriate. Specifically,
+/// a 2d histogram has other parameters it'll need to validate and fetch
+/// it'll need to evaluate its gate which depends on parameters stored
+/// as indices and those are most quickly looked up in a flattened
+/// struct.  So while the Event looks a lot like the dope vector of an
+/// Event in SpecTcl, the FlattenedEvent is the SpecTcl CEvent itself.
+/// We use the same generation number method to determine if an
+/// entry in the vector is valid...with the added wrinkle that the
+/// vector can hold Option<EventParameterInfo> structs so that entries
+/// are None if they've _never_ been initialized.
+///
+struct FlatEvent {
+    generation: u64, // Supports O(1) invalidation.
+    event: Vec<EventParameterInfo>,
+}
+
+impl FlatEvent {
+    fn ensure_size(&mut self, required: usize) {
+        // Don't allow truncation:
+
+        if required > self.event.len() {
+            self.event.resize(required, EventParameterInfo::new(0, 0.0));
+        }
+    }
+
+    pub fn new() -> FlatEvent {
+        FlatEvent {
+            generation: 0,
+            event: Vec::<EventParameterInfo>::new(),
+        }
+    }
+    /// Given a dope vectored event loads the flattened event
+    /// from it.  Note this increments the generation number
+    /// this means that you can't load several events into a single
+    /// flattened event.
+    ///
+    pub fn load_event(&mut self, e: &Event) {
+        self.generation += 1; // New event
+        for p in e {
+            let id = p.id as usize;
+            self.ensure_size(id + 1);
+            self.event[id].set(self.generation, p.value);
+        }
+    }
+    /// Get the value of a parameter in the event for the current
+    /// generation.  None if this parameter does not exist or is not set.
+
+    pub fn get_parameter(&self, id: u32) -> &Option<f64> {
+        let id = id as usize; // The better to index with:
+        if id < self.event.len() {
+            &(self.event[id].get(self.generation))
+        } else {
+            &None
+        }
+    }
+}
+/// It's reasonable to use just indexing to get the parameter:
+///  This means that for a FlatEvent e; e[i] will give None
+/// if parameter i has not been set for the event and 
+/// Some(v) where v is the value, if it has been set.
+///
+impl Index<u32> for FlatEvent {
+    type Output = Option<f64>;
+
+    fn index(&self, index: u32) -> &Self::Output {
+        self.get_parameter(index)
     }
 }
 
@@ -757,7 +866,7 @@ mod paramap_test {
 
         let ine: Event = vec![
             EventParameter::new(10, 1.234),
-            EventParameter::new(7, 3.1416),    // should vanish
+            EventParameter::new(7, 3.1416), // should vanish
             EventParameter::new(12, 5.5),
             EventParameter::new(5, 5.231),
         ];
@@ -767,4 +876,10 @@ mod paramap_test {
         assert_eq!(EventParameter::new(3, 5.5), oute[1]);
         assert_eq!(EventParameter::new(2, 5.231), oute[2]);
     }
+}
+#[cfg(test)]
+mod parflatevt_test {
+    use super::*;
+
+    
 }
