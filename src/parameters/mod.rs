@@ -276,8 +276,9 @@ impl ParameterIdMap {
     ///
     /// *   "No such parameter" - The named parameter is not in the dict.
     /// *    "Duplicate map" - The id is already mapped and the mapping
-    // is different from what's requested.
-
+    /// is different from what's requested.
+    /// Note - we don't attempt to detectk many to one mappings, only
+    ///   one -to many.
     pub fn map(&mut self, input_id: u32, name: &str) -> Result<u32, String> {
         let input_id: usize = input_id as usize;
         if let Some(p) = self.dict.lookup(name) {
@@ -593,6 +594,19 @@ mod pevent_test {
 #[cfg(test)]
 mod paramap_test {
     use super::*;
+    // Common code used to setup  parameters that can be mapped:
+    //
+    // |  id    |   Name      |
+    // |--------|-------------|
+    // |  1     | Parameter1  |
+    // |  2     | Parameter2  |
+    // |  3     | Parameter3  |
+    fn stock_map(map: &mut ParameterIdMap) {
+        let mut dict = map.get_dict_mut();
+        dict.add("Parameter1").unwrap();
+        dict.add("Parameter2").unwrap();
+        dict.add("Parameter3").unwrap();
+    }
 
     #[test]
     fn new_1() {
@@ -613,5 +627,75 @@ mod paramap_test {
         assert_eq!(1, rmap.lookup("Parameter1").unwrap().get_id());
         assert_eq!(2, rmap.lookup("parameter2").unwrap().get_id());
         assert_eq!(0, map.map.len());
+    }
+    #[test]
+    fn map_1() {
+        let mut map = ParameterIdMap::new();
+        stock_map(&mut map);
+
+        // Make a map entry mapping id 10 -> 1:
+
+        let r = map.map(10, "Parameter1");
+        assert!(r.is_ok());
+        assert_eq!(1, r.unwrap());
+
+        assert!(map.map.len() >= 10);
+        assert!(map.map[10].is_some());
+        assert_eq!(1, map.map[10].unwrap());
+
+        for (n, m) in map.map.into_iter().enumerate() {
+            if n != 10 {
+                assert!(m.is_none());
+            }
+        }
+    }
+    #[test]
+    fn map_2() {
+        // full mapping:
+
+        let mut map = ParameterIdMap::new();
+        stock_map(&mut map);
+
+        assert!(map.map(10, "Parameter1").is_ok());
+        assert!(map.map(5, "Parameter2").is_ok());
+        assert!(map.map(12, "Parameter3").is_ok());
+
+        assert_eq!(1, map.map[10].unwrap());
+        assert_eq!(2, map.map[5].unwrap());
+        assert_eq!(3, map.map[12].unwrap());
+    }
+    #[test]
+    fn map_3() {
+        // Duplicate map:
+
+        let mut map = ParameterIdMap::new();
+        stock_map(&mut map);
+
+        map.map(10, "Parameter1").expect("Should have worked");
+        let r = map.map(10, "Parameter2");
+        assert!(r.is_err());
+        assert_eq!(String::from("Duplicate Map"), r.unwrap_err());
+    }
+    #[test]
+    fn map_4() {
+        // duplicate map is ok if it's the same!
+
+        let mut map = ParameterIdMap::new();
+        stock_map(&mut map);
+
+        map.map(10, "Parameter1").expect("Should have worked");
+        let r = map.map(10, "Parameter1");
+        assert!(r.is_ok());
+    }
+    #[test]
+    fn map_5() {
+        // no parameter to map to:
+
+        let mut map = ParameterIdMap::new();
+        stock_map(&mut map);
+
+        let r = map.map(10, "Parameter10");
+        assert!(r.is_err());
+        assert_eq!(String::from("No Such parameter"), r.unwrap_err());
     }
 }
