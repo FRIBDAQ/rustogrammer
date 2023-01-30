@@ -323,7 +323,6 @@ impl ParameterIdMap {
 #[derive(Copy, Clone)]
 pub struct EventParameterInfo {
     last_set: u64,
-    value: f64,
     returned_value: Option<f64>,
 }
 impl EventParameterInfo {
@@ -332,7 +331,6 @@ impl EventParameterInfo {
     pub fn new(gen: u64, value: f64) -> EventParameterInfo {
         EventParameterInfo {
             last_set: gen,
-            value: value,
             returned_value: None,
         }
     }
@@ -340,7 +338,6 @@ impl EventParameterInfo {
     /// update the value for a given generation
     pub fn set(&mut self, gen: u64, value: f64) {
         self.last_set = gen;
-        self.value = value;
         self.returned_value = Some(value);
     }
     /// fetch the value for a given generation
@@ -881,5 +878,5 @@ mod paramap_test {
 mod parflatevt_test {
     use super::*;
 
-    
+
 }
