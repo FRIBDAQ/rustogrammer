@@ -1,3 +1,16 @@
+//!  Ring items are the structures used to transmit data in NSCLDAQ
+//!  A ring items is self describing in the sense that it has a header
+//!  That has a type and size.
+//!
+//!   This module and submodules define both a raw ring item (RingItem)
+//!   which is what we'll use to serialize and de-serialize data as well
+//!   as specific ring  item types.  Conversion traits allow for conversion
+//!   from specific ring item types to RingItem (ToRaw trait), and 
+//!   attempted conversions from
+//!   RingItem to specific ring item types (FromRaw trait).
+//!  
+//!    In addition all ring item types are printable since they 
+//!    implement the Display trait.
 #![allow(dead_code)]
 use std::fmt;
 use std::io::Read;
