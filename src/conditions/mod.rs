@@ -50,8 +50,14 @@
 //!
 
 use crate::parameters;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+
+// Re-exported module:
+
+mod cut;
+pub use cut::Cut; // Enbables conditions::Cut to mean conditions::cut::Cut
 
 /// The Container trait defines the interface to a condition through
 /// a gate container.   This interface includes:
@@ -69,7 +75,7 @@ pub trait Condition {
     /// is valid (e.g. get_cached_value calls prior to invalidate_cache
     /// should return Some(\the_cached_value))
     ///
-    fn evaluate(&self, event: &parameters::FlatEvent) -> bool;
+    fn evaluate(&mut self, event: &parameters::FlatEvent) -> bool;
 
     /// Optional methods:
     /// Caching not implemented is the default.
@@ -77,14 +83,14 @@ pub trait Condition {
     fn get_cached_value(&self) -> Option<bool> {
         None
     }
-    fn invalidate_cache(&self) {}
+    fn invalidate_cache(&mut self) {}
     ///
     /// The method that really sould be called to check a gate:
     /// If the object has a cached value, the cached value
     /// is returned, otherwise the evaluate, required method is
     /// invoked to force condition evaluation.
     ///
-    fn check(&self, event: &parameters::FlatEvent) -> bool {
+    fn check(&mut self, event: &parameters::FlatEvent) -> bool {
         if let Some(b) = self.get_cached_value() {
             b
         } else {
@@ -97,7 +103,7 @@ pub trait Condition {
 /// Condition objects get dynamic dispatch to their checking
 /// Condition methods
 ///
-pub type Container = Rc<dyn Condition>;
+pub type Container = Rc<RefCell<dyn Condition>>;
 
 /// ConditionDictionary contains a correspondence between textual
 /// names and conditions held in Containers.
@@ -114,7 +120,7 @@ pub type ConditionDictionary = HashMap<String, Container>;
 
 pub fn invalidate_cache(d: &mut ConditionDictionary) {
     for (_, v) in d.iter_mut() {
-        v.invalidate_cache();
+        v.borrow_mut().invalidate_cache();
     }
 }
 
@@ -125,7 +131,7 @@ pub fn invalidate_cache(d: &mut ConditionDictionary) {
 
 pub struct True {}
 impl Condition for True {
-    fn evaluate(&self, _event: &parameters::FlatEvent) -> bool {
+    fn evaluate(&mut self, _event: &parameters::FlatEvent) -> bool {
         true
     }
 }
@@ -136,7 +142,7 @@ impl Condition for True {
 ///
 pub struct False {}
 impl Condition for False {
-    fn evaluate(&self, _event: &parameters::FlatEvent) -> bool {
+    fn evaluate(&mut self, _event: &parameters::FlatEvent) -> bool {
         false
     }
 }
@@ -152,26 +158,26 @@ mod condition_tests {
         let mut dict = ConditionDictionary::new();
         let t: True = True {};
         let k = String::from("true");
-        dict.insert(k.clone(), Rc::new(t));
+        dict.insert(k.clone(), Rc::new(RefCell::new(t)));
 
         let lookedup = dict.get(&k);
         assert!(lookedup.is_some());
         let lookedup = lookedup.unwrap();
         let e = FlatEvent::new();
-        assert!(lookedup.evaluate(&e))
+        assert!(lookedup.borrow_mut().check(&e));
     }
     #[test]
     fn false_1() {
         let mut dict = ConditionDictionary::new();
         let t: False = False {};
         let k = String::from("false");
-        dict.insert(k.clone(), Rc::new(t));
+        dict.insert(k.clone(), Rc::new(RefCell::new(t)));
 
         let lookedup = dict.get(&k);
         assert!(lookedup.is_some());
         let lookedup = lookedup.unwrap();
         let e = FlatEvent::new();
-        assert!(!lookedup.evaluate(&e))
+        assert!(!lookedup.borrow_mut().check(&e));
     }
     #[test]
     fn mixed_1() {
@@ -181,11 +187,11 @@ mod condition_tests {
         let k1 = String::from("true");
         let k2 = String::from("false");
 
-        dict.insert(k1.clone(), Rc::new(t));
-        dict.insert(k2.clone(), Rc::new(f));
+        dict.insert(k1.clone(), Rc::new(RefCell::new(t)));
+        dict.insert(k2.clone(), Rc::new(RefCell::new(f)));
         let e = FlatEvent::new();
 
-        assert!(dict.get(&k1).unwrap().evaluate(&e));
-        assert!(!(dict.get(&k2).unwrap().evaluate(&e)));
+        assert!(dict.get(&k1).unwrap().borrow_mut().check(&e));
+        assert!(!(dict.get(&k2).unwrap().borrow_mut().check(&e)));
     }
 }
