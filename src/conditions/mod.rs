@@ -57,7 +57,7 @@ use std::rc::Rc;
 // Re-exported module:
 
 mod cut;
-pub use cut::Cut; // Enbables conditions::Cut to mean conditions::cut::Cut
+pub use cut::Cut;   // Enbables conditions::Cut to mean conditions::cut::Cut
 
 /// The Container trait defines the interface to a condition through
 /// a gate container.   This interface includes:

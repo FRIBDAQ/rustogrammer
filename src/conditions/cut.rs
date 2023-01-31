@@ -133,5 +133,69 @@ mod cut_tests {
         assert!(c.get_cached_value().is_some());
         assert!(!c.get_cached_value().unwrap());
     }
+    // The next tests test cuts in dictionaries.
 
+    #[test]
+    fn indict_1() {
+        let c = Cut::new(12, 100.0, 200.0);
+        let mut dict = ConditionDictionary::new();
+        let k = String::from("acut");
+        dict.insert(k.clone(), Rc::new(RefCell::new(c)));
+
+        let mut e = FlatEvent::new();
+
+        assert!(!dict.get(&k).unwrap().borrow_mut().check(&e));
+        invalidate_cache(&mut dict);
+
+        let ev = vec![EventParameter::new(12, 125.0)];
+        e.load_event(&ev);
+
+        assert!(dict.get(&k).unwrap().borrow_mut().check(&e));
+        invalidate_cache(&mut dict);
+
+        let ev = vec![EventParameter::new(12, 5.0)];
+        e.load_event(&ev);
+        assert!(!dict.get(&k).unwrap().borrow_mut().check(&e));
+    }
+    #[test]
+    fn indict_2() {
+        let mut dict = ConditionDictionary::new();
+        let c1 = Cut::new(12, 100.0, 200.0);
+        let k1 = String::from("cut1");
+        dict.insert(k1.clone(), Rc::new(RefCell::new(c1)));
+
+        let c2 = Cut::new(15, 50.0, 100.0);
+        let k2 = String::from("cut2");
+        dict.insert(k2.clone(), Rc::new(RefCell::new(c2)));
+
+        let mut e = FlatEvent::new();
+        assert!(!dict.get(&k1).unwrap().borrow_mut().check(&e));
+        assert!(!dict.get(&k2).unwrap().borrow_mut().check(&e));
+        invalidate_cache(&mut dict);
+
+        let ev = vec![
+            EventParameter::new(12, 125.0)
+        ];
+        e.load_event(&ev);
+        assert!(dict.get(&k1).unwrap().borrow_mut().check(&e));
+        assert!(!dict.get(&k2).unwrap().borrow_mut().check(&e));
+        invalidate_cache(&mut dict);
+
+        let ev = vec![
+            EventParameter::new(15, 75.0)
+        ];
+        e.load_event(&ev);
+        assert!(!dict.get(&k1).unwrap().borrow_mut().check(&e));
+        assert!(dict.get(&k2).unwrap().borrow_mut().check(&e));
+        invalidate_cache(&mut dict);
+
+        let ev = vec![
+             EventParameter::new(15, 75.0),
+              EventParameter::new(12, 125.0)
+        ];
+        e.load_event(&ev);
+        assert!(dict.get(&k1).unwrap().borrow_mut().check(&e));
+        assert!(dict.get(&k2).unwrap().borrow_mut().check(&e));
+        invalidate_cache(&mut dict);
+    }
 }
