@@ -366,7 +366,7 @@ impl EventParameterInfo {
 /// are None if they've _never_ been initialized.
 ///
 #[derive(Debug, PartialEq)]
-struct FlatEvent {
+pub struct FlatEvent {
     generation: u64, // Supports O(1) invalidation.
     event: Vec<EventParameterInfo>,
 }
