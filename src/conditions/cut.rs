@@ -62,8 +62,7 @@ impl Condition for Cut {
 #[cfg(test)]
 mod cut_tests {
     use super::*;
-    use crate::conditions::*;
-
+    use crate::parameters::*;
     #[test]
     fn new_1() {
         let c = Cut::new(12, 100.0, 200.0);
@@ -92,4 +91,47 @@ mod cut_tests {
             c
         );
     }
+    #[test]
+    fn check_1() {
+        let mut c = Cut::new(12, 100.0, 200.0);
+        let e = FlatEvent::new();
+
+        // My parameter is not present so the gate is false:
+
+        assert!(!c.check(&e));
+        assert!(c.get_cached_value().is_some());
+        assert!(!c.get_cached_value().unwrap());
+        assert!(!c.evaluate(&e));
+        c.invalidate_cache();
+        assert!(c.get_cached_value().is_none());
+    }
+    #[test]
+    fn check_2() {
+        // Event has our parameter in range:
+
+        let mut c = Cut::new(12, 100.0, 200.0);
+        let mut e = FlatEvent::new();
+        let ev = vec![EventParameter::new(12, 125.0)];
+        e.load_event(&ev);
+
+        assert!(c.evaluate(&e));
+        assert!(c.check(&e)); // From cache.
+        assert!(c.get_cached_value().is_some());
+        assert!(c.get_cached_value().unwrap());
+    }
+    #[test]
+    fn check_3() {
+        // Event has parameter but not in range:
+
+        let mut c = Cut::new(12, 100.0, 200.0);
+        let mut e = FlatEvent::new();
+        let ev = vec![EventParameter::new(12, 5.0)];
+        e.load_event(&ev);
+
+        assert!(!c.evaluate(&e));
+        assert!(!c.check(&e)); // From cache.
+        assert!(c.get_cached_value().is_some());
+        assert!(!c.get_cached_value().unwrap());
+    }
+
 }
