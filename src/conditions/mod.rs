@@ -60,8 +60,15 @@ use std::rc::Rc;
 /// *  Support for caching the evaluation of the condition
 ///
 pub trait Condition {
-    /// Mandatory methods
+    // Mandatory methods
 
+    ///
+    /// Evaluate the condition for a specific event.
+    /// If the implementor supports caching, this method should
+    /// save the results of the evaulation and indicate its cache
+    /// is valid (e.g. get_cached_value calls prior to invalidate_cache
+    /// should return Some(\the_cached_value))
+    ///
     fn evaluate(&self, event: &parameters::FlatEvent) -> bool;
 
     /// Optional methods:
@@ -73,6 +80,9 @@ pub trait Condition {
     fn invalidate_cache(&self) {}
     ///
     /// The method that really sould be called to check a gate:
+    /// If the object has a cached value, the cached value
+    /// is returned, otherwise the evaluate, required method is
+    /// invoked to force condition evaluation.
     ///
     fn check(&self, event: &parameters::FlatEvent) -> bool {
         if let Some(b) = self.get_cached_value() {
@@ -80,5 +90,43 @@ pub trait Condition {
         } else {
             self.evaluate(event)
         }
+    }
+}
+
+/// The ConditionContainer is the magic by which
+/// Condition objects get dynamic dispatch to their checking
+/// Condition methods
+///
+pub type Container = Rc<dyn Condition>;
+
+/// ConditionDictionary contains a correspondence between textual
+/// names and conditions held in Containers.
+/// This provides storage and lookup for conditions that are created
+/// in the rustogrammer program through e.g. commands or applying
+/// a condition to an spectrum.
+///
+pub type ConditionDictionary = HashMap<String, Container>;
+
+
+/// The True gate is implemented in this module and returns True
+/// no matter what the event contains.  It serves as a trival example
+/// of how conditions can be implemented.  No caching is required
+/// for the True gate:
+
+pub struct True {}
+impl Condition for True {
+    fn evaluate(&self, event: &parameters::FlatEvent) -> bool {
+        true
+    }
+}
+
+/// The false gate is implemented in this module and returns
+/// False no matter what the event contains.  It servers as a trivial
+/// example of a condition implementation
+///
+pub struct False {}
+impl Condition for False {
+    fn evaluate(&self, event : &parameters::FlatEvent) -> bool {
+        false
     }
 }

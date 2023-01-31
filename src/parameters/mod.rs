@@ -30,6 +30,7 @@ use std::ops::Index;
 ///
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parameter {
+    id: u32,
     name: String,
     low: Option<f64>,
     high: Option<f64>,
