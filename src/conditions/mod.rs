@@ -107,7 +107,6 @@ pub type Container = Rc<dyn Condition>;
 ///
 pub type ConditionDictionary = HashMap<String, Container>;
 
-
 /// The True gate is implemented in this module and returns True
 /// no matter what the event contains.  It serves as a trival example
 /// of how conditions can be implemented.  No caching is required
@@ -115,7 +114,7 @@ pub type ConditionDictionary = HashMap<String, Container>;
 
 pub struct True {}
 impl Condition for True {
-    fn evaluate(&self, event: &parameters::FlatEvent) -> bool {
+    fn evaluate(&self, _event: &parameters::FlatEvent) -> bool {
         true
     }
 }
@@ -126,7 +125,56 @@ impl Condition for True {
 ///
 pub struct False {}
 impl Condition for False {
-    fn evaluate(&self, event : &parameters::FlatEvent) -> bool {
+    fn evaluate(&self, _event: &parameters::FlatEvent) -> bool {
         false
+    }
+}
+
+#[cfg(test)]
+mod condition_tests {
+    // we can test the polymorphic  evaluation of the
+    // conditions in a condition dictionarly
+    use super::*;
+    use crate::parameters::*;
+    #[test]
+    fn true_1() {
+        let mut dict = ConditionDictionary::new();
+        let t: True = True {};
+        let k = String::from("true");
+        dict.insert(k.clone(), Rc::new(t));
+
+        let lookedup = dict.get(&k);
+        assert!(lookedup.is_some());
+        let lookedup = lookedup.unwrap();
+        let e = FlatEvent::new();
+        assert!(lookedup.evaluate(&e))
+    }
+    #[test]
+    fn false_1() {
+        let mut dict = ConditionDictionary::new();
+        let t: False = False {};
+        let k = String::from("false");
+        dict.insert(k.clone(), Rc::new(t));
+
+        let lookedup = dict.get(&k);
+        assert!(lookedup.is_some());
+        let lookedup = lookedup.unwrap();
+        let e = FlatEvent::new();
+        assert!(!lookedup.evaluate(&e))
+    }
+    #[test]
+    fn mixed_1() {
+        let mut dict = ConditionDictionary::new();
+        let t = True {};
+        let f = False {};
+        let k1 = String::from("true");
+        let k2 = String::from("false");
+
+        dict.insert(k1.clone(), Rc::new(t));
+        dict.insert(k2.clone(), Rc::new(f));
+        let e = FlatEvent::new();
+
+        assert!(dict.get(&k1).unwrap().evaluate(&e));
+        assert!(!(dict.get(&k2).unwrap().evaluate(&e)));
     }
 }
