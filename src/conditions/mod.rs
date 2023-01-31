@@ -107,6 +107,17 @@ pub type Container = Rc<dyn Condition>;
 ///
 pub type ConditionDictionary = HashMap<String, Container>;
 
+///
+/// Given a condition dictionary, this free fuction will
+/// invalidate the cached values of any conditions that support
+/// caching.
+
+pub fn invalidate_cache(d: &mut ConditionDictionary) {
+    for (_, v) in d.iter_mut() {
+        v.invalidate_cache();
+    }
+}
+
 /// The True gate is implemented in this module and returns True
 /// no matter what the event contains.  It serves as a trival example
 /// of how conditions can be implemented.  No caching is required
