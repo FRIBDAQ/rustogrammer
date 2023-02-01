@@ -173,25 +173,21 @@ mod cut_tests {
         assert!(!dict.get(&k2).unwrap().borrow_mut().check(&e));
         invalidate_cache(&mut dict);
 
-        let ev = vec![
-            EventParameter::new(12, 125.0)
-        ];
+        let ev = vec![EventParameter::new(12, 125.0)];
         e.load_event(&ev);
         assert!(dict.get(&k1).unwrap().borrow_mut().check(&e));
         assert!(!dict.get(&k2).unwrap().borrow_mut().check(&e));
         invalidate_cache(&mut dict);
 
-        let ev = vec![
-            EventParameter::new(15, 75.0)
-        ];
+        let ev = vec![EventParameter::new(15, 75.0)];
         e.load_event(&ev);
         assert!(!dict.get(&k1).unwrap().borrow_mut().check(&e));
         assert!(dict.get(&k2).unwrap().borrow_mut().check(&e));
         invalidate_cache(&mut dict);
 
         let ev = vec![
-             EventParameter::new(15, 75.0),
-              EventParameter::new(12, 125.0)
+            EventParameter::new(15, 75.0),
+            EventParameter::new(12, 125.0),
         ];
         e.load_event(&ev);
         assert!(dict.get(&k1).unwrap().borrow_mut().check(&e));

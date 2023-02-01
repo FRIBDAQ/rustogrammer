@@ -56,8 +56,10 @@ use std::rc::Rc;
 
 // Re-exported module:
 
-mod cut;
+pub mod cut;
 pub use cut::Cut;   // Enbables conditions::Cut to mean conditions::cut::Cut
+pub mod compound;
+pub use compound::*;
 
 /// The Container trait defines the interface to a condition through
 /// a gate container.   This interface includes:
@@ -128,7 +130,6 @@ pub fn invalidate_cache(d: &mut ConditionDictionary) {
 /// no matter what the event contains.  It serves as a trival example
 /// of how conditions can be implemented.  No caching is required
 /// for the True gate:
-
 pub struct True {}
 impl Condition for True {
     fn evaluate(&mut self, _event: &parameters::FlatEvent) -> bool {
