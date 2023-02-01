@@ -57,7 +57,7 @@ use std::rc::Rc;
 // Re-exported module:
 
 pub mod cut;
-pub use cut::Cut;   // Enbables conditions::Cut to mean conditions::cut::Cut
+pub use cut::Cut; // Enbables conditions::Cut to mean conditions::cut::Cut
 pub mod compound;
 pub use compound::*;
 

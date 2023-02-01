@@ -105,38 +105,37 @@ impl ConditionList {
 /// is to be true.  
 ///
 /// * This is a caching condition.
-/// * The evaluation is short circuited - that is if any 
+/// * The evaluation is short circuited - that is if any
 /// evaluation returns false, no more dependent conditions are
 /// evaluated and all are evaluated as false.
 ///
 pub struct And {
-    dependencies : ConditionList
+    dependencies: ConditionList,
 }
 
 impl And {
     pub fn new() -> And {
         And {
-            dependencies: ConditionList::new()
+            dependencies: ConditionList::new(),
         }
     }
-    pub fn add_condition(&mut self, c: &Container) -> mut Self {
-        self.dependencies.add(c);
+    pub fn add_condition(&mut self, c: &Container) -> &mut Self {
+        self.dependencies.add_condition(c);
         self
     }
-    pub fn clear(&mut self) -> mut Self {
-        self.depenencies.clear();
+    pub fn clear(&mut self) -> &mut Self {
+        self.dependencies.clear();
         self
     }
-
 }
-impl Condition for  And {
+impl Condition for And {
     fn evaluate(&mut self, event: &FlatEvent) -> bool {
-        let mut result = true;   // Failed gates will contradict this.
+        let mut result = true; // Failed gates will contradict this.
 
         if let Some(c) = self.dependencies.cache {
             return c;
         } else {
-            for d in self.dependencies.dependent_conditions {
+            for d in &self.dependencies.dependent_conditions {
                 if let Some(g) = d.upgrade() {
                     if !g.borrow_mut().check(&event) {
                         result = false;
@@ -144,11 +143,11 @@ impl Condition for  And {
                     }
                 } else {
                     result = false;
-                    break
+                    break;
                 }
             }
         }
-        
+
         self.dependencies.cache = Some(result);
         result
     }
@@ -163,20 +162,20 @@ impl Condition for  And {
 ///  one of its dependent gates is true for an event.
 ///
 pub struct Or {
-    dependencies : ConditionList
+    dependencies: ConditionList,
 }
 impl Or {
     pub fn new() -> Or {
         Or {
-            dependencies: ConditionList::new()
+            dependencies: ConditionList::new(),
         }
     }
-    pub fn add_condition(&mut self, c: &Container) -> mut Self {
-        self.dependencies.add(c);
+    pub fn add_condition(&mut self, c: &Container) -> &mut Self {
+        self.dependencies.add_condition(c);
         self
     }
-    pub fn clear(&mut self) -> mut Self {
-        self.depenencies.clear();
+    pub fn clear(&mut self) -> &mut Self {
+        self.dependencies.clear();
         self
     }
 }
@@ -187,9 +186,9 @@ impl Condition for Or {
         if let Some(b) = self.dependencies.cache {
             return b;
         } else {
-            for d in self.dependencies.dependent_conditions {
+            for d in &self.dependencies.dependent_conditions {
                 if let Some(c) = d.upgrade() {
-                    if c.borrow_mut().check(&event)  {
+                    if c.borrow_mut().check(&event) {
                         result = true;
                         break;
                     }
@@ -205,5 +204,4 @@ impl Condition for Or {
     fn invalidate_cache(&mut self) {
         self.dependencies.cache = None;
     }
-
 }
