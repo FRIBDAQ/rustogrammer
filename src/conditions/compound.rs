@@ -205,3 +205,37 @@ impl Condition for Or {
         self.dependencies.cache = None;
     }
 }
+#[cfg(test)]
+mod not_tests {
+    use super::*;
+    use cut::*;
+
+    #[test]
+    fn new_1() {
+        let cut = Cut::new(1, -100.0, 100.0);
+        let c: Container = Rc::new(RefCell::new(cut));
+        let not = Not::new(&c);
+        assert_eq!(None, not.cache);
+
+        let cut2 = not.dependent.upgrade();
+        assert!(cut2.is_some());
+        assert!(c.as_ptr() == cut2.unwrap().as_ptr()); // same slice.
+    }
+    #[test]
+    fn check_1() {
+        let t = True {};
+        let c :Container = Rc::new(RefCell::new(t));
+        let mut not = Not::new(&c);
+        let e = FlatEvent::new();
+        assert!(!not.check(&e));
+    }
+    #[test]
+    fn check_2() {
+        let f = False {};
+        let c : Container = Rc::new(RefCell::new(f));
+        let mut not = Not::new(&c);
+        let e = FlatEvent::new();
+        assert!(not.check(&e));
+    
+    }
+}
