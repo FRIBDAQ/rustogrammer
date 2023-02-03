@@ -272,4 +272,22 @@ mod and_tests {
 
         assert_eq!(2, a.dependencies.dependent_conditions.len());
     }
+    #[test]
+    fn clear_1() {
+        let t = True {};
+        let f = False {};
+        let ct: Container = Rc::new(RefCell::new(t));
+        let cf: Container = Rc::new(RefCell::new(f));
+
+        let mut a = And::new();
+        a.add_condition(&ct);
+        a.add_condition(&cf);
+
+        assert_eq!(2, a.dependencies.dependent_conditions.len());
+
+        // Clear will get rid of them all:
+
+        a.clear();
+        assert_eq!(0, a.dependencies.dependent_conditions.len());
+    }
 }
