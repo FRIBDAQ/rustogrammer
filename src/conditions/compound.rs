@@ -425,4 +425,20 @@ mod or_tests {
 
         assert_eq!(2, o.dependencies.dependent_conditions.len());
     }
+    #[test]
+    fn clear_1() {
+        let mut o = Or::new();
+        let t = True {};
+        let ct: Container = Rc::new(RefCell::new(t));
+        let f = False {};
+        let cf: Container = Rc::new(RefCell::new(f));
+
+        o.add_condition(&ct);
+        o.add_condition(&cf);
+
+        assert_eq!(2, o.dependencies.dependent_conditions.len());
+
+        o.clear();
+        assert_eq!(0, o.dependencies.dependent_conditions.len());
+    }
 }
