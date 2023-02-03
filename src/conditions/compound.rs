@@ -376,3 +376,14 @@ mod and_tests {
         assert!(c2.borrow().get_cached_value().is_none());
     }
 }
+#[cfg(test)]
+mod or_tests {
+    use super::*;
+
+    #[test]
+    fn new_1() {
+        let o = Or::new();
+        assert!(o.dependencies.cache.is_none());
+        assert_eq!(0, o.dependencies.dependent_conditions.len());
+    }
+}
