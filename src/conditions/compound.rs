@@ -224,7 +224,7 @@ mod not_tests {
     #[test]
     fn check_1() {
         let t = True {};
-        let c :Container = Rc::new(RefCell::new(t));
+        let c: Container = Rc::new(RefCell::new(t));
         let mut not = Not::new(&c);
         let e = FlatEvent::new();
         assert!(!not.check(&e));
@@ -232,10 +232,44 @@ mod not_tests {
     #[test]
     fn check_2() {
         let f = False {};
-        let c : Container = Rc::new(RefCell::new(f));
+        let c: Container = Rc::new(RefCell::new(f));
         let mut not = Not::new(&c);
         let e = FlatEvent::new();
         assert!(not.check(&e));
-    
+    }
+}
+#[cfg(test)]
+mod and_tests {
+    use super::*;
+    #[test]
+    fn new_1() {
+        let a = And::new();
+        assert!(a.dependencies.cache.is_none());
+        assert_eq!(0, a.dependencies.dependent_conditions.len())
+    }
+    #[test]
+    fn add_1() {
+        // Add a T gate
+
+        let t = True {};
+        let c: Container = Rc::new(RefCell::new(t));
+        let mut a = And::new();
+        a.add_condition(&c);
+        assert_eq!(1, a.dependencies.dependent_conditions.len());
+    }
+    #[test]
+    fn add_2() {
+        // add a t and an f gate:
+
+        let t = True {};
+        let f = False {};
+        let ct: Container = Rc::new(RefCell::new(t));
+        let cf: Container = Rc::new(RefCell::new(f));
+
+        let mut a = And::new();
+        a.add_condition(&ct);
+        a.add_condition(&cf);
+
+        assert_eq!(2, a.dependencies.dependent_conditions.len());
     }
 }
