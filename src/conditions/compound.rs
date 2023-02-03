@@ -69,6 +69,9 @@ impl Condition for Not {
     }
     fn invalidate_cache(&mut self) {
         self.cache = None;
+        if let Some(d) = self.dependent.upgrade() {
+            d.borrow_mut().invalidate_cache();
+        }
     }
 }
 //  The ConditionList provides common structure and code for
@@ -154,8 +157,16 @@ impl Condition for And {
     fn get_cached_value(&self) -> Option<bool> {
         self.dependencies.cache
     }
+    // must invalidate both our cache and the
+    // caches of our dependencies:
+    //
     fn invalidate_cache(&mut self) {
         self.dependencies.cache = None;
+        for d in &self.dependencies.dependent_conditions {
+            if let Some(r) = d.upgrade() {
+                r.borrow_mut().invalidate_cache();
+            }
+        }
     }
 }
 ///  Or is a compound condition that only requires that
@@ -211,6 +222,11 @@ impl Condition for Or {
     }
     fn invalidate_cache(&mut self) {
         self.dependencies.cache = None;
+        for d in &self.dependencies.dependent_conditions {
+            if let Some(r) = d.upgrade() {
+                r.borrow_mut().invalidate_cache();
+            }
+        }
     }
 }
 #[cfg(test)]
@@ -395,5 +411,18 @@ mod or_tests {
         o.add_condition(&c);
 
         assert_eq!(1, o.dependencies.dependent_conditions.len());
+    }
+    #[test]
+    fn add_2() {
+        let mut o = Or::new();
+        let t = True {};
+        let ct: Container = Rc::new(RefCell::new(t));
+        let f = False {};
+        let cf: Container = Rc::new(RefCell::new(f));
+
+        o.add_condition(&ct);
+        o.add_condition(&cf);
+
+        assert_eq!(2, o.dependencies.dependent_conditions.len());
     }
 }
