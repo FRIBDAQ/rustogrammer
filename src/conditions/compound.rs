@@ -182,17 +182,25 @@ impl Or {
 
 impl Condition for Or {
     fn evaluate(&mut self, event: &FlatEvent) -> bool {
-        let mut result = false;
+        let mut result = true;
+        let mut falses = 0;
         if let Some(b) = self.dependencies.cache {
             return b;
         } else {
             for d in &self.dependencies.dependent_conditions {
                 if let Some(c) = d.upgrade() {
                     if c.borrow_mut().check(&event) {
-                        result = true;
                         break;
+                    } else {
+                        falses += 1;
                     }
                 }
+            }
+            // If all are false -- and there are dependencies:
+
+            let l = self.dependencies.dependent_conditions.len();
+            if (falses == l) && (l > 0) {
+                result = false;
             }
         }
         self.dependencies.cache = Some(result);
@@ -208,7 +216,6 @@ impl Condition for Or {
 #[cfg(test)]
 mod not_tests {
     use super::*;
-    use cut::*;
 
     #[test]
     fn new_1() {
@@ -240,6 +247,7 @@ mod not_tests {
 }
 #[cfg(test)]
 mod and_tests {
+    use super::cut::*;
     use super::*;
     #[test]
     fn new_1() {
@@ -289,5 +297,82 @@ mod and_tests {
 
         a.clear();
         assert_eq!(0, a.dependencies.dependent_conditions.len());
+    }
+    #[test]
+    fn check_1() {
+        // And gates are true if there are no entries:
+
+        let mut a = And::new();
+        let e = FlatEvent::new();
+        assert!(a.check(&e));
+
+        // Cache is set:
+
+        assert!(a.dependencies.cache.is_some());
+        assert!(a.dependencies.cache.unwrap());
+    }
+    #[test]
+    fn check_2() {
+        // a single T gate is true:
+
+        let mut a = And::new();
+        let e = FlatEvent::new();
+        let t = True {};
+        let c: Container = Rc::new(RefCell::new(t));
+        a.add_condition(&c);
+        assert!(a.check(&e));
+    }
+    #[test]
+    fn check_3() {
+        // 2 trues is also true:
+
+        let mut a = And::new();
+        let e = FlatEvent::new();
+        let t1 = True {};
+        let c1: Container = Rc::new(RefCell::new(t1));
+        let t2 = True {};
+        let c2: Container = Rc::new(RefCell::new(t2));
+
+        a.add_condition(&c1);
+        a.add_condition(&c2);
+        assert!(a.check(&e));
+    }
+    #[test]
+    fn check_4() {
+        // T and F in that order is false:
+
+        let mut a = And::new();
+        let e = FlatEvent::new();
+        let t1 = True {};
+        let c1: Container = Rc::new(RefCell::new(t1));
+        let f2 = False {};
+        let c2: Container = Rc::new(RefCell::new(f2));
+
+        a.add_condition(&c1);
+        a.add_condition(&c2);
+        assert!(!a.check(&e));
+
+        // Cache is set:
+
+        assert!(a.dependencies.cache.is_some());
+        assert!(!a.dependencies.cache.unwrap());
+    }
+    #[test]
+    fn check_5() {
+        // short circuit evaluation works:
+        // We'll use a slice and its cache to check:
+
+        let mut a = And::new();
+        let e = FlatEvent::new();
+        let f = False {};
+        let c1: Container = Rc::new(RefCell::new(f));
+        let s = Cut::new(1, 100.0, 200.0);
+        let c2: Container = Rc::new(RefCell::new(s));
+
+        a.add_condition(&c1);
+        a.add_condition(&c2);
+
+        assert!(!a.check(&e));
+        assert!(c2.borrow().get_cached_value().is_none());
     }
 }
