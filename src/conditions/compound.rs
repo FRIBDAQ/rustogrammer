@@ -386,4 +386,14 @@ mod or_tests {
         assert!(o.dependencies.cache.is_none());
         assert_eq!(0, o.dependencies.dependent_conditions.len());
     }
+    #[test]
+    fn add_1() {
+        let mut o = Or::new();
+        let t = True {};
+        let c: Container = Rc::new(RefCell::new(t));
+
+        o.add_condition(&c);
+
+        assert_eq!(1, o.dependencies.dependent_conditions.len());
+    }
 }
