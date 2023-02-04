@@ -441,4 +441,87 @@ mod or_tests {
         o.clear();
         assert_eq!(0, o.dependencies.dependent_conditions.len());
     }
+    #[test]
+    fn check_1() {
+        // empty gate is true:
+
+        let mut o = Or::new();
+        let e = FlatEvent::new();
+        assert!(o.check(&e));
+    }
+    #[test]
+    fn check_2() {
+        //Single true gate gives true:
+
+        let mut o = Or::new();
+        let e = FlatEvent::new();
+        let t = True {};
+        let c : Container = Rc::new(RefCell::new(t));
+        o.add_condition(&c);
+
+        assert!(o.check(&e));
+    }
+    #[test]
+    fn check_3() {
+        // t,f is true
+
+        let mut o = Or::new();
+        let e = FlatEvent::new();
+        let t = True {};
+        let f = False {};
+        let ct : Container = Rc::new(RefCell::new(t));
+        let cf : Container = Rc::new(RefCell::new(f));
+
+        o.add_condition(&ct);
+        o.add_condition(&cf);
+
+        assert!(o.check(&e));
+    }
+    #[test]
+    fn check_4() {
+        // f,t is true:
+
+        let mut o = Or::new();
+        let e = FlatEvent::new();
+        let t = True {};
+        let f = False {};
+        let ct : Container = Rc::new(RefCell::new(t));
+        let cf : Container = Rc::new(RefCell::new(f));
+
+        o.add_condition(&cf);
+        o.add_condition(&ct);
+
+        assert!(o.check(&e));
+
+    }
+    #[test]
+    fn check_5() {
+        // f is false:
+        let mut o = Or::new();
+        let e = FlatEvent::new();
+        let f = False {};
+        let cf : Container = Rc::new(RefCell::new(f));
+
+        o.add_condition(&cf);
+
+        assert!(!o.check(&e));
+
+    }
+    #[test]
+    fn check_6() {
+        // ff is false:
+
+        let mut o = Or::new();
+        let e = FlatEvent::new();
+        let f1 = False {};
+        let cf1 : Container = Rc::new(RefCell::new(f1));
+        let f2 = False {};
+        let cf2 : Container = Rc::new(RefCell::new(f2));
+
+        o.add_condition(&cf1);
+        o.add_condition(&cf2);
+
+        assert!(!o.check(&e));
+
+    }
 }
