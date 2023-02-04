@@ -60,6 +60,8 @@ pub mod cut;
 pub use cut::Cut; // Enbables conditions::Cut to mean conditions::cut::Cut
 pub mod compound;
 pub use compound::*;
+pub mod twod;
+pub use twod::*;
 
 /// The Container trait defines the interface to a condition through
 /// a gate container.   This interface includes:
