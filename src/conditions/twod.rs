@@ -203,6 +203,8 @@ pub struct Contour {
     p1: u32,
     p2: u32,
     pts: Points,
+    ll: Point, // Lower left corner of circumscribing rectangle.
+    ur: Point, // upper right corner of circumscribing rectangle.
     edges: EdgeTable,
     cache: Option<bool>,
 }
@@ -234,15 +236,27 @@ impl Contour {
             None
         } else {
             let mut e: EdgeTable = Vec::<Edge>::new();
+            let mut ur = Point::new(pts[0].x, pts[0].y);
+            let mut ll = Point::new(pts[0].x, pts[0].y);
+
             for i in 0..(pts.len() - 1) {
                 e.push(Edge::new(pts[i], pts[i + 1]));
+
+                // Update our guess about the circumscribing rect.
+                ll.x = fmin(ll.x, pts[i + 1].x);
+                ll.y = fmin(ll.y, pts[i + 1].y);
+
+                ur.x = fmax(ur.x, pts[i + 1].x);
+                ur.y = fmax(ur.y, pts[i + 1].y);
             }
-            e.push(Edge::new(pts[0], pts[pts.len() - 1]));
+            e.push(Edge::new(pts[pts.len() - 1], pts[0]));
 
             Some(Contour {
                 p1: p1,
                 p2: p2,
                 pts: pts,
+                ll: ll,
+                ur: ur,
                 edges: e,
                 cache: None,
             })
@@ -254,16 +268,24 @@ impl Condition for Contour {
         let result = if event[self.p1].is_none() || event[self.p2].is_none() {
             false
         } else {
-            // count edge crossing:
             let x = event[self.p1].unwrap();
             let y = event[self.p2].unwrap();
-            let mut c = 0;
-            for e in &self.edges {
-                if Self::crosses(x, y, e) {
-                    c += 1;
+
+            // Outside of the circumscribing rectangle
+
+            if (x < self.ll.x) || (y < self.ll.y) || (x > self.ur.x) || (y > self.ur.y) {
+                false
+            } else {
+                // Inside  rectangle so count edge crossings:
+
+                let mut c = 0;
+                for e in &self.edges {
+                    if Self::crosses(x, y, e) {
+                        c += 1;
+                    }
                 }
+                c % 2 == 1
             }
-            c % 2 == 1
         };
         self.cache = Some(result);
         result
