@@ -139,6 +139,9 @@ impl Band {
             None
         }
     }
+    pub fn get_points(&self) -> Points {
+        self.points.clone()
+    }
 }
 impl Condition for Band {
     fn evaluate(&mut self, event: &FlatEvent) -> bool {
@@ -261,6 +264,9 @@ impl Contour {
                 cache: None,
             })
         }
+    }
+    pub fn get_points(&self) -> Points {
+        self.pts.clone()
     }
 }
 impl Condition for Contour {
