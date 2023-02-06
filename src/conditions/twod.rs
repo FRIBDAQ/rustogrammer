@@ -74,7 +74,7 @@ impl Point {
             (None, None)
         } else {
             let slope = (other.y - self.y) / (other.x - self.x);
-            let intercept = slope * self.x + self.y;
+            let intercept =self.y - slope*self.x;
             (Some(slope), Some(intercept))
         }
     }
@@ -168,7 +168,9 @@ impl Condition for Band {
                         self.cache = Some(result);
                         return result;
                     } else {
+                        println!("m {} b {}", s.m.unwrap(), s.b.unwrap());
                         let pty = s.m.unwrap() * x + s.b.unwrap();
+                        println!("y {}, pty {}", y, pty);
                         let result = y <= pty;
                         self.cache = Some(result);
                         return result;
@@ -352,7 +354,7 @@ mod band_tests {
     }
     #[test]
     fn seg_1() {
-        let p1 = Point::new(0.0,0.0);
+        let p1 = Point::new(0.0, 0.0);
         let p2 = Point::new(5.0, 5.0);
         let seg = p1.segment_between(&p2);
         let m = seg.0;
@@ -373,5 +375,153 @@ mod band_tests {
         let p2 = Point::new(1.0, 500.0);
         let seg = p1.segment_between(&p2);
         assert_eq!((None, None), seg);
+    }
+    #[test]
+    fn seg_3() {
+        let p1 = Point::new(0.0, 5.0);
+        let p2 = Point::new(5.0, 0.0);
+        let seg = p1.segment_between(&p2);
+
+        let m = seg.0;
+        let b = seg.1;
+        assert!(m.is_some());
+        assert!(b.is_some());
+        let m = m.unwrap();
+        let b = b.unwrap();
+
+        assert_eq!(-1.0, m);
+        assert_eq!(5.0, b);
+    }
+    #[test]
+    fn seg_4() {
+        let p1 = Point::new(5.0, 5.0);
+        let p2 = Point::new(10.0, 0.0);
+        let seg = p1.segment_between(&p2);
+
+        assert_eq!(-1.0, seg.0.unwrap());
+        assert_eq!(10.0, seg.1.unwrap());
+    }
+    #[test]
+    fn eval_1() {
+        // Point is left of the band:
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 1.0), EventParameter::new(2, 4.0)];
+        e.load_event(&pts);
+
+        assert!(!b.check(&e));
+        let c = b.get_cached_value();
+        assert!(c.is_some());
+        assert_eq!(false, c.unwrap());
+
+        b.invalidate_cache();
+        assert!(b.get_cached_value().is_none());
+    }
+    #[test]
+    fn eval_2() {
+        // point is to right of band:
+
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 10.5), EventParameter::new(2, -1.0)];
+        e.load_event(&pts);
+
+        assert!(!b.check(&e));
+        let c = b.get_cached_value();
+        assert!(c.is_some());
+        assert_eq!(false, c.unwrap());
+
+        b.invalidate_cache();
+        assert!(b.get_cached_value().is_none());
+    }
+    #[test]
+    fn eval_3() {
+        // Point is under band segment 1:
+
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 2.5), EventParameter::new(2, 4.8)];
+        e.load_event(&pts);
+
+        assert!(b.check(&e));
+
+        let c = b.get_cached_value();
+        assert!(c.is_some());
+        assert!(c.unwrap());
+
+        b.invalidate_cache();
+        assert!(b.get_cached_value().is_none());
+    }
+    #[test]
+    fn eval_4() {
+        // Point is over band segment 1:
+
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 2.5), EventParameter::new(2, 5.1)];
+        e.load_event(&pts);
+
+        assert!(!b.check(&e));
+
+        let c = b.get_cached_value();
+        assert!(c.is_some());
+        assert!(!c.unwrap());
+
+        b.invalidate_cache();
+        assert!(b.get_cached_value().is_none());
+    }
+    #[test]
+    fn eval_5() {
+        // point is left point of segment 1 (in).
+
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 2.0), EventParameter::new(2, 5.0)];
+        e.load_event(&pts);
+
+        assert!(b.check(&e));
+
+        let c = b.get_cached_value();
+        assert!(c.is_some());
+        assert!(c.unwrap());
+
+        b.invalidate_cache();
+        assert!(b.get_cached_value().is_none());
+    }
+    #[test]
+    fn eval_6() {
+        // point is right point of segment 1 (in):
+
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 5.0), EventParameter::new(2, 5.0)];
+        e.load_event(&pts);
+
+        assert!(b.check(&e));
+
+        let c = b.get_cached_value();
+        assert!(c.is_some());
+        assert!(c.unwrap());
+
+        b.invalidate_cache();
+        assert!(b.get_cached_value().is_none());
+    }
+    #[test]
+    fn eval_7() {
+        // Point is under segment 2:
+
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 5.1), EventParameter::new(2, 3.0)];
+        e.load_event(&pts);
+
+        assert!(b.check(&e));
+
+        let c = b.get_cached_value();
+        assert!(c.is_some());
+        assert!(c.unwrap());
+
+        b.invalidate_cache();
+        assert!(b.get_cached_value().is_none());
     }
 }
