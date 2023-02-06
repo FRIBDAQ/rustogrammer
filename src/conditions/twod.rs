@@ -53,7 +53,7 @@ use libm::{fmax, fmin};
 ///  These are defined in parameter space and, therefore, are a pair
 /// of f64 values.
 ///
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Point {
     x: f64,
     y: f64,
@@ -308,6 +308,14 @@ mod band_tests {
     use super::*;
     use crate::parameters::*;
 
+    fn test_points() -> Points {
+        vec![
+            Point::new(2.0, 5.0),
+            Point::new(5.0, 5.0),
+            Point::new(10.0, 0.0),
+        ]
+    }
+
     #[test]
     fn new_1() {
         // no points.
@@ -331,5 +339,15 @@ mod band_tests {
         let pts = vec![Point::new(0.0, 0.0), Point::new(5.0, 3.0)];
         let b = Band::new(1, 2, pts);
         assert!(b.is_some());
+    }
+    #[test]
+    fn getpts_1() {
+        let b = Band::new(1, 2, test_points()).unwrap();
+        let p1 = test_points();
+        let p2 = b.get_points();
+        assert_eq!(p1.len(), p2.len());
+        for (i, p) in p1.iter().enumerate() {
+            assert_eq!(*p, p2[i]);
+        }
     }
 }
