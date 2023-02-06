@@ -308,7 +308,6 @@ impl Condition for Contour {
 #[cfg(test)]
 mod band_tests {
     use super::*;
-    use crate::parameters::*;
 
     fn test_points() -> Points {
         vec![
@@ -559,5 +558,32 @@ mod band_tests {
 
         b.invalidate_cache();
         assert!(b.get_cached_value().is_none());
+    }
+    #[test]
+    fn eval_10() {
+        // event is missing one of our parameters:
+
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 10.0), EventParameter::new(3, 0.0)];
+        e.load_event(&pts);
+
+        assert!(!b.check(&e));
+    }
+}
+#[cfg(test)]
+mod contour_tests {
+    use super::*;
+
+    // Tests for contour conditions.
+
+    #[test]
+    fn new_1() {
+        // 0 points no good.
+
+        let pts = Vec::<Point>::new();
+        let c = Contour::new(1, 2, pts);
+        assert!(c.is_none());
+
     }
 }
