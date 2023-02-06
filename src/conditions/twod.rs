@@ -512,7 +512,43 @@ mod band_tests {
 
         let mut b = Band::new(1, 2, test_points()).unwrap();
         let mut e = FlatEvent::new();
-        let pts = vec![EventParameter::new(1, 5.1), EventParameter::new(2, 3.0)];
+        let pts = vec![EventParameter::new(1, 5.1), EventParameter::new(2, 4.0)];
+        e.load_event(&pts);
+
+        assert!(b.check(&e));
+
+        let c = b.get_cached_value();
+        assert!(c.is_some());
+        assert!(c.unwrap());
+
+        b.invalidate_cache();
+        assert!(b.get_cached_value().is_none());
+    }
+    #[test]
+    fn eval_8() {
+        // point is above segment 2:
+
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 5.1), EventParameter::new(2, 5.0)];
+        e.load_event(&pts);
+
+        assert!(!b.check(&e));
+
+        let c = b.get_cached_value();
+        assert!(c.is_some());
+        assert!(!c.unwrap());
+
+        b.invalidate_cache();
+        assert!(b.get_cached_value().is_none());
+    }
+    #[test]
+    fn eval_9() {
+        // point is right point of segment (we already did left point).
+
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 10.0), EventParameter::new(2, 0.0)];
         e.load_event(&pts);
 
         assert!(b.check(&e));
