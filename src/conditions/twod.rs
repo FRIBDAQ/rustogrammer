@@ -74,7 +74,7 @@ impl Point {
             (None, None)
         } else {
             let slope = (other.y - self.y) / (other.x - self.x);
-            let intercept =self.y - slope*self.x;
+            let intercept = self.y - slope * self.x;
             (Some(slope), Some(intercept))
         }
     }
@@ -584,6 +584,41 @@ mod contour_tests {
         let pts = Vec::<Point>::new();
         let c = Contour::new(1, 2, pts);
         assert!(c.is_none());
+    }
+    #[test]
+    fn new_2() {
+        // 1 pt no good:
 
+        let pts = vec![Point::new(50.0, 50.0)];
+        let c = Contour::new(1, 2, pts);
+        assert!(c.is_none());
+    }
+    #[test]
+    fn new_3() {
+        // 2 pts no good either.
+
+        let pts = vec![Point::new(50.0, 0.0), Point::new(0.0, 50.0)];
+        let c = Contour::new(1, 2, pts);
+        assert!(c.is_none());
+    }
+    #[test]
+    fn new_4() {
+        //  3 pts is the minimum:
+
+        let pts = vec![
+            Point::new(50.0, 0.0),
+            Point::new(0.0, 50.0),
+            Point::new(50.0, 100.0),
+        ];
+        let c = Contour::new(1, 2, pts.clone());
+        assert!(c.is_some());
+        let c = c.unwrap();
+
+        let cpts = c.get_points();
+        assert_eq!(pts.len(), cpts.len());
+
+        for (i, p) in pts.iter().enumerate() {
+            assert_eq!(*p, cpts[i]);
+        }
     }
 }
