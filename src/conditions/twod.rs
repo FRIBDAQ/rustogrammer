@@ -350,4 +350,28 @@ mod band_tests {
             assert_eq!(*p, p2[i]);
         }
     }
+    #[test]
+    fn seg_1() {
+        let p1 = Point::new(0.0,0.0);
+        let p2 = Point::new(5.0, 5.0);
+        let seg = p1.segment_between(&p2);
+        let m = seg.0;
+        let b = seg.1;
+        assert!(m.is_some());
+        assert!(b.is_some());
+        let m = m.unwrap();
+        let b = b.unwrap();
+
+        assert_eq!(1.0, m);
+        assert_eq!(0.0, b);
+    }
+    #[test]
+    fn seg_2() {
+        // vertical line:
+
+        let p1 = Point::new(1.0, 0.0);
+        let p2 = Point::new(1.0, 500.0);
+        let seg = p1.segment_between(&p2);
+        assert_eq!((None, None), seg);
+    }
 }
