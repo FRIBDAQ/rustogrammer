@@ -303,3 +303,33 @@ impl Condition for Contour {
         self.cache = None;
     }
 }
+#[cfg(test)]
+mod band_tests {
+    use super::*;
+    use crate::parameters::*;
+
+    #[test]
+    fn new_1() {
+        // no points.
+
+        let pts = Vec::<Point>::new();
+        let b = Band::new(1, 2, pts);
+        assert!(b.is_none());
+    }
+    #[test]
+    fn new_2() {
+        //  one point is also bad.
+
+        let pts = vec![Point::new(0.0, 0.0)];
+        let b = Band::new(1, 2, pts);
+        assert!(b.is_none());
+    }
+    #[test]
+    fn new_3() {
+        // two points is the minimum:
+
+        let pts = vec![Point::new(0.0, 0.0), Point::new(5.0, 3.0)];
+        let b = Band::new(1, 2, pts);
+        assert!(b.is_some());
+    }
+}
