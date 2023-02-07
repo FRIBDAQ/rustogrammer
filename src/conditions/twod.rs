@@ -106,6 +106,24 @@ impl Edge {
             b: seg_info.1,
         }
     }
+    // Reorder p1, p2 so that the one with the smallest x is first.
+    // This is important for band conditions.
+    fn order_by_x(&mut self) {
+        if self.p1.x > self.p2.x {
+            let p = self.p1;
+            self.p1 = self.p2;
+            self.p2 = p;
+        }
+    }
+    // Reorder p1, p2 so that the one with the smalles y is first.
+    // this is important for contour conditions:
+    fn order_by_y(&mut self) {
+        if self.p1.y > self.p2.y {
+            let p = self.p1;
+            self.p1 = self.p2;
+            self.p2 = p;
+        }
+    }
 }
 
 type EdgeTable = Vec<Edge>;
@@ -127,7 +145,9 @@ impl Band {
         if pts.len() >= 2 {
             let mut etbl: EdgeTable = Vec::<Edge>::new();
             for i in 0..(pts.len() - 1) {
-                etbl.push(Edge::new(pts[i], pts[i + 1]));
+                let mut e = Edge::new(pts[i], pts[i + 1]);
+                e.order_by_x();
+                etbl.push(e);
             }
             Some(Band {
                 parameters: (p1, p2),
@@ -220,8 +240,12 @@ impl Contour {
 
     fn crosses(x: f64, y: f64, e: &Edge) -> bool {
         // If the edge is entirely above or below x/y, no:
-
-        if (y < fmin(e.p1.y, e.p2.y)) || (y > fmax(e.p1.y, e.p2.y)) {
+        // Note that we're inclusive in the first point and
+        // exclusive of the second point... otherwise when y is
+        // the same as a point, we'll count two crossings rather than
+        // one.  Note as well, the constructor ordered the points so that
+        // p1 is minimum y.
+        if (y < e.p1.y) || (y >= e.p2.y) {
             false
         } else if e.m.is_none() {
             // vertical?
@@ -245,7 +269,9 @@ impl Contour {
             let mut ll = Point::new(pts[0].x, pts[0].y);
 
             for i in 0..(pts.len() - 1) {
-                e.push(Edge::new(pts[i], pts[i + 1]));
+                let mut ed = Edge::new(pts[i], pts[i + 1]);
+                ed.order_by_y();
+                e.push(ed);
 
                 // Update our guess about the circumscribing rect.
                 ll.x = fmin(ll.x, pts[i + 1].x);
@@ -254,7 +280,9 @@ impl Contour {
                 ur.x = fmax(ur.x, pts[i + 1].x);
                 ur.y = fmax(ur.y, pts[i + 1].y);
             }
-            e.push(Edge::new(pts[pts.len() - 1], pts[0]));
+            let mut ed = Edge::new(pts[pts.len() - 1], pts[0]);
+            ed.order_by_y();
+            e.push(ed);
 
             Some(Contour {
                 p1: p1,
@@ -570,12 +598,40 @@ mod band_tests {
 
         assert!(!b.check(&e));
     }
+    #[test]
+    fn eval_11() {
+        // Backtrack segment:
+
+        let mut pts = test_points();
+        pts.push(Point::new(7.0, 5.0));   // backtrack segment.
+        let mut b = Band::new(1,2, pts).unwrap();
+
+        let mut e = FlatEvent::new();
+        // This poitn should live between the backtrack segment and the
+        // one ending at 10,0:
+
+        let pts = vec![EventParameter::new(1, 9.0), EventParameter::new(2, 0.5)];
+        e.load_event(&pts);
+        assert!(b.check(&e));
+    }
 }
 #[cfg(test)]
 mod contour_tests {
     use super::*;
 
     // Tests for contour conditions.
+
+    fn test_points() -> Points {
+        // Points for a test countour are a diamond because
+        // that's easy to check for but not as trivial as a rectangle
+
+        vec![
+            Point::new(0.0, 50.0),
+            Point::new(50.0, 0.0),
+            Point::new(100.0, 50.0),
+            Point::new(50.0, 100.0),
+        ]
+    }
 
     #[test]
     fn new_1() {
@@ -620,5 +676,22 @@ mod contour_tests {
         for (i, p) in pts.iter().enumerate() {
             assert_eq!(*p, cpts[i]);
         }
+    }
+    #[test]
+    fn check_1() {
+        // x < ll.x:
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, -1.0), EventParameter::new(2, 10.0)];
+        e.load_event(&pts);
+
+        assert!(!c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(!cache.unwrap());
+
+        c.invalidate_cache();
+        assert!(c.get_cached_value().is_none());
     }
 }
