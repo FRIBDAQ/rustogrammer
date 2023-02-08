@@ -694,4 +694,89 @@ mod contour_tests {
         c.invalidate_cache();
         assert!(c.get_cached_value().is_none());
     }
+    #[test]
+    fn check_2() {
+        // x > ur.x
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 101.0), EventParameter::new(2, 10.0)];
+        e.load_event(&pts);
+
+        assert!(!c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(!cache.unwrap());
+
+        c.invalidate_cache();
+        assert!(c.get_cached_value().is_none());
+    }
+    #[test]
+    fn check_3() {
+        // y < ll.y
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 50.0), EventParameter::new(2, -1.0)];
+        e.load_event(&pts);
+
+        assert!(!c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(!cache.unwrap());
+
+        c.invalidate_cache();
+        assert!(c.get_cached_value().is_none());
+    }
+    #[test]
+    fn check_4() {
+        // y > ur.y:
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 50.0), EventParameter::new(2, 101.0)];
+        e.load_event(&pts);
+
+        assert!(!c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(!cache.unwrap());
+
+        c.invalidate_cache();
+        assert!(c.get_cached_value().is_none());
+    }
+    #[test]
+    fn check_5() {
+        // to the left of the diamond but inside the circumscribing rectangle:
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 1.0), EventParameter::new(2, 10.0)];
+        e.load_event(&pts);
+
+        assert!(!c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(!cache.unwrap());
+
+        c.invalidate_cache();
+        assert!(c.get_cached_value().is_none());
+    }
+    #[test]
+    fn check_6() {
+        // to the right of the diamond but inside the circumscribing rectangle.
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 88.0), EventParameter::new(2, 99.0)];
+        e.load_event(&pts);
+
+        assert!(!c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(!cache.unwrap());
+
+        c.invalidate_cache();
+        assert!(c.get_cached_value().is_none());
+    }
 }
