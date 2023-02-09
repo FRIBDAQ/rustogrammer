@@ -319,8 +319,8 @@ impl Condition for Contour {
                     // If x/y are the same as  one of the edge points, wer're in:
 
                     if (x == e.p1.x && y == e.p1.y) || (x == e.p2.x && y == e.p2.y) {
-                       c = 1;                     // Forces true
-                       break;
+                        c = 1; // Forces true
+                        break;
                     }
 
                     // Else see if we cross the edge:
@@ -328,7 +328,7 @@ impl Condition for Contour {
                         c += 1;
                     }
                 }
-                c % 2 == 1
+                (c % 2) == 1
             }
         };
         self.cache = Some(result);
@@ -640,6 +640,17 @@ mod contour_tests {
             Point::new(50.0, 100.0),
         ]
     }
+    fn hourglass() -> Points {
+        // provides a set of points that are an hourglass tipped on
+        // its side:
+
+        vec![
+            Point::new(0.0, 0.0),
+            Point::new(50.0, 50.0),
+            Point::new(50.0, 0.0),
+            Point::new(0.0, 50.0),
+        ]
+    }
 
     #[test]
     fn new_1() {
@@ -826,6 +837,134 @@ mod contour_tests {
         let mut c = Contour::new(1, 2, test_points()).unwrap();
         let mut e = FlatEvent::new();
         let pts = vec![EventParameter::new(1, 50.0), EventParameter::new(2, 100.0)];
+        e.load_event(&pts);
+
+        assert!(c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(cache.unwrap());
+
+        c.invalidate_cache();
+    }
+    #[test]
+    fn check_10() {
+        // below the centerline of the figure:
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 50.0), EventParameter::new(2, 48.0)];
+        e.load_event(&pts);
+
+        assert!(c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(cache.unwrap());
+
+        c.invalidate_cache();
+    }
+    #[test]
+    fn check_11() {
+        // bottom point of the figure:
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 50.0), EventParameter::new(2, 0.0)];
+        e.load_event(&pts);
+
+        assert!(c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(cache.unwrap());
+
+        c.invalidate_cache();
+    }
+    #[test]
+    fn check_12() {
+        // Outside below both lobes of the figure:
+
+        let mut c = Contour::new(1, 2, hourglass()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 10.0), EventParameter::new(2, 5.0)];
+        e.load_event(&pts);
+
+        assert!(!c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(!cache.unwrap());
+
+        c.invalidate_cache();
+    }
+    #[test]
+    fn check_13() {
+        // Edge case  inside left lobe at crossover height:
+
+        let mut c = Contour::new(1, 2, hourglass()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 10.0), EventParameter::new(2, 25.0)];
+        e.load_event(&pts);
+
+        assert!(c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(cache.unwrap());
+
+        c.invalidate_cache();
+    }
+    #[test]
+    fn check_14() {
+        // Left lobe above cenerline:
+
+        let mut c = Contour::new(1, 2, hourglass()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 10.0), EventParameter::new(2, 27.0)];
+        e.load_event(&pts);
+
+        assert!(c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(cache.unwrap());
+
+        c.invalidate_cache();
+    }
+    #[test]
+    fn check_15() {
+        //right lobe above centerline
+
+        let mut c = Contour::new(1, 2, hourglass()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 40.0), EventParameter::new(2, 27.0)];
+        e.load_event(&pts);
+
+        assert!(c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(cache.unwrap());
+
+        c.invalidate_cache();
+    }
+    #[test]
+    fn check_16() {
+        // left lobe below centerline:
+
+        let mut c = Contour::new(1, 2, hourglass()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 10.0), EventParameter::new(2, 22.0)];
+        e.load_event(&pts);
+
+        assert!(c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(cache.unwrap());
+
+        c.invalidate_cache();
+    }
+    #[test]
+    fn check_17() {
+        // right lobe below centerline:
+
+        let mut c = Contour::new(1, 2, hourglass()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 40.0), EventParameter::new(2, 27.0)];
         e.load_event(&pts);
 
         assert!(c.check(&e));
