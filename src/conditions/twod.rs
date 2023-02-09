@@ -316,6 +316,14 @@ impl Condition for Contour {
 
                 let mut c = 0;
                 for e in &self.edges {
+                    // If x/y are the same as  one of the edge points, wer're in:
+
+                    if (x == e.p1.x && y == e.p1.y) || (x == e.p2.x && y == e.p2.y) {
+                       c = 1;                     // Forces true
+                       break;
+                    }
+
+                    // Else see if we cross the edge:
                     if Self::crosses(x, y, e) {
                         c += 1;
                     }
@@ -603,8 +611,8 @@ mod band_tests {
         // Backtrack segment:
 
         let mut pts = test_points();
-        pts.push(Point::new(7.0, 5.0));   // backtrack segment.
-        let mut b = Band::new(1,2, pts).unwrap();
+        pts.push(Point::new(7.0, 5.0)); // backtrack segment.
+        let mut b = Band::new(1, 2, pts).unwrap();
 
         let mut e = FlatEvent::new();
         // This poitn should live between the backtrack segment and the
@@ -778,5 +786,53 @@ mod contour_tests {
 
         c.invalidate_cache();
         assert!(c.get_cached_value().is_none());
+    }
+    #[test]
+    fn check_7() {
+        // smack dab in the middle so that test at points is needed:
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 50.0), EventParameter::new(2, 50.0)];
+        e.load_event(&pts);
+
+        assert!(c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(cache.unwrap());
+
+        c.invalidate_cache();
+    }
+    #[test]
+    fn check_8() {
+        // above the horizontal midline:
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 50.0), EventParameter::new(2, 56.0)];
+        e.load_event(&pts);
+
+        assert!(c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(cache.unwrap());
+
+        c.invalidate_cache();
+    }
+    #[test]
+    fn check_9() {
+        // top point of diamond:
+
+        let mut c = Contour::new(1, 2, test_points()).unwrap();
+        let mut e = FlatEvent::new();
+        let pts = vec![EventParameter::new(1, 50.0), EventParameter::new(2, 100.0)];
+        e.load_event(&pts);
+
+        assert!(c.check(&e));
+        let cache = c.get_cached_value();
+        assert!(cache.is_some());
+        assert!(cache.unwrap());
+
+        c.invalidate_cache();
     }
 }
