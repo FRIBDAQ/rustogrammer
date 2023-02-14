@@ -13,6 +13,7 @@ use std::fs::File;
 
 mod conditions;
 mod parameters;
+mod spectra;
 
 fn main() {
     if let Ok(mut f) = File::open("run-0088-00.evt") {

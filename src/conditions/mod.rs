@@ -52,7 +52,7 @@
 use crate::parameters;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 // Re-exported module:
 
@@ -108,6 +108,7 @@ pub trait Condition {
 /// Condition methods
 ///
 pub type Container = Rc<RefCell<dyn Condition>>;
+pub type ContainerReference = Weak<RefCell<dyn Condition>>;
 
 /// ConditionDictionary contains a correspondence between textual
 /// names and conditions held in Containers.
