@@ -355,3 +355,22 @@ mod gate_tests {
         assert!(g.gate.is_none());
     }
 }
+#[cfg(test)]
+mod oned_tests {
+    use super::*;
+    use crate::conditions::*;
+    use crate::parameters::*;
+
+    #[test]
+    fn new_1() {
+        // No such parameter so it's a failure.
+
+        let dict = ParameterDictionary::new();
+        let result = Oned::new("test", "test", &dict, None, None, None);
+        assert!(result.is_err());
+        assert_eq!(
+            String::from("No such parameter: test"),
+            result.err().unwrap()
+        );
+    }
+}
