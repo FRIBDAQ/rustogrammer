@@ -217,3 +217,24 @@ impl Spectrum for Oned {
         self.applied_gate.ungate()
     }
 }
+
+#[cfg(test)]
+mod gate_tests {
+    use super::*;
+
+    #[test]
+    fn spgate_new() {
+        let g = SpectrumGate::new();
+        assert!(g.gate.is_none());
+    }
+    #[test]
+    fn spgate_set1() {
+        // Error to set a gate that's not in the dictionary:
+
+        let dict = ConditionDictionary::new();
+        let mut g = SpectrumGate::new();
+        let result = g.set_gate("no-such", &dict);
+        assert!(result.is_err());
+        assert_eq!(String::from("No such gate no-such"), result.unwrap_err());
+    }
+}
