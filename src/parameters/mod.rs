@@ -1,35 +1,37 @@
+//!
+//! Parameter definitions describe parameters that can be histogramed
+//! in some way.   Parameters have names, is and optional metadata:
+//!
+//!  *   low - suggested low limit for histogram axes on that parameter.
+//!  *   high - suggested high limit for histogram axes on that parameter.
+//!  *   bins - suggested number of bins for histogram axes on that parameter.
+//!  *   units - units of measure of the parameter.
+//!  *   description - new from SpecTcl a full text description of what the
+//!     parameter means.
+//!  
+//! In addition to praameters and dict that can be used to look them up (std::map),
+//! Each event comes in as a set of id/value pairs but
+//!  since the incoming data may have different paramter indices than our
+//! parameters with like names, we'll provide for the ability to make a mapping
+//! between one set of ids and another.
+//!
+//! Rust is not so good with global data so we'll really allow for several parameter
+//! spaces, events and mapping vectors but the main might normally only
+//! actually create one of these to pass to the appropriate targets.
+//!
 use std::collections::hash_map::{Iter, IterMut};
 use std::collections::HashMap;
-///
-/// Parameter definitions describe parameters that can be histogramed
-/// in some way.   Parameters have names, is and optional metadata:
-///
-///  *   low - suggested low limit for histogram axes on that parameter.
-///  *   high - suggested high limit for histogram axes on that parameter.
-///  *   bins - suggested number of bins for histogram axes on that parameter.
-///  *   units - units of measure of the parameter.
-///  *   description - new from SpecTcl a full text description of what the
-///     parameter means.
-///  
-/// In addition to praameters and dict that can be used to look them up (std::map),
-/// Each event comes in as a set of id/value pairs but
-///  since the incoming data may have different paramter indices than our
-/// parameters with like names, we'll provide for the ability to make a mapping
-/// between one set of ids and another.
-///
-/// Rust is not so good with global data so we'll really allow for several parameter
-/// spaces, events and mapping vectors but the main might normally only
-/// actually create one of these to pass to the appropriate targets.
-///
+
 use std::fmt;
 use std::ops::Index;
 ///
-/// This is what a parameter looks like:
+/// A parameter is a named entity and optional metadata describing how
+/// best to histogram it and an optional verbose description.
 ///
 #[derive(Debug, PartialEq, Clone)]
 pub struct Parameter {
-    name: String,
     id: u32,
+    name: String,
     low: Option<f64>,
     high: Option<f64>,
     bins: Option<u32>,
@@ -366,7 +368,7 @@ impl EventParameterInfo {
 /// are None if they've _never_ been initialized.
 ///
 #[derive(Debug, PartialEq)]
-struct FlatEvent {
+pub struct FlatEvent {
     generation: u64, // Supports O(1) invalidation.
     event: Vec<EventParameterInfo>,
 }
@@ -412,7 +414,7 @@ impl FlatEvent {
     }
 }
 /// It's reasonable to use just indexing to get the parameter:
-///  This means that for a FlatEvent e; e[i] will give None
+///  This means that for a FlatEvent e; e[\i] will give None
 /// if parameter i has not been set for the event and
 /// Some(v) where v is the value, if it has been set.
 ///
