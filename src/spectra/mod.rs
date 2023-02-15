@@ -221,7 +221,8 @@ impl Spectrum for Oned {
 #[cfg(test)]
 mod gate_tests {
     use super::*;
-
+    use std::cell::RefCell;
+    use std::rc::Rc;
     #[test]
     fn spgate_new() {
         let g = SpectrumGate::new();
@@ -236,5 +237,53 @@ mod gate_tests {
         let result = g.set_gate("no-such", &dict);
         assert!(result.is_err());
         assert_eq!(String::from("No such gate no-such"), result.unwrap_err());
+    }
+    #[test]
+    fn spgate_set2() {
+        // Can set a gate in the dict:
+
+        let mut dict = ConditionDictionary::new();
+        let mut g = SpectrumGate::new();
+
+        // Put a true condition in the dict:
+
+        let test_gate = True {};
+        dict.insert(String::from("true"), Rc::new(RefCell::new(test_gate)));
+
+        let result = g.set_gate("true", &dict);
+        assert!(result.is_ok());
+
+        assert!(g.gate.is_some());
+        assert_eq!(
+            String::from("true"),
+            g.gate.as_ref().unwrap().condition_name
+        );
+        assert!(g.gate.as_ref().unwrap().gate.upgrade().is_some());
+    }
+    #[test]
+    fn spgate_ungate1() {
+        // can ungate an ugate - still none:
+
+        let mut g = SpectrumGate::new();
+        g.ungate();
+        assert!(g.gate.is_none());
+    }
+    #[test]
+    fn spgate_ungate_2() {
+        let mut dict = ConditionDictionary::new();
+        let mut g = SpectrumGate::new();
+
+        // Put a true condition in the dict:
+
+        let test_gate = True {};
+        dict.insert(String::from("true"), Rc::new(RefCell::new(test_gate)));
+
+        let result = g.set_gate("true", &dict);
+        assert!(result.is_ok());
+
+        // now ungate:
+
+        g.ungate();
+        assert!(g.gate.is_none());
     }
 }
