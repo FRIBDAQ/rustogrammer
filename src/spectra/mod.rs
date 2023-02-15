@@ -286,4 +286,72 @@ mod gate_tests {
         g.ungate();
         assert!(g.gate.is_none());
     }
+    // Test for checking the gate
+    // - Ungated is always true:
+    // - Gated gives the result of the gate.
+    //   *  True gate.
+    //   *  False gate.
+    // - Gated but the gate was deleted is always true...and ungates us.
+    //
+    #[test]
+    fn spgate_check1() {
+        let mut g = SpectrumGate::new();
+        let e = FlatEvent::new();
+        assert!(g.check(&e));
+    }
+    #[test]
+    fn spgate_check2() {
+        let mut dict = ConditionDictionary::new();
+        let mut g = SpectrumGate::new();
+
+        // Put a true condition in the dict:
+
+        let test_gate = True {};
+        dict.insert(String::from("true"), Rc::new(RefCell::new(test_gate)));
+
+        g.set_gate("true", &dict).expect("Couldn't find gate");
+
+        let e = FlatEvent::new();
+        assert!(g.check(&e));
+    }
+    #[test]
+    fn spgate_check3() {
+        let mut dict = ConditionDictionary::new();
+        let mut g = SpectrumGate::new();
+
+        // Put a true condition in the dict:
+
+        let test_gate = False {};
+        dict.insert(String::from("false"), Rc::new(RefCell::new(test_gate)));
+
+        g.set_gate("false", &dict).expect("Couldn't find gate");
+
+        let e = FlatEvent::new();
+        assert!(!g.check(&e));
+    }
+    #[test]
+    fn spgate_check4() {
+        let mut dict = ConditionDictionary::new();
+        let mut g = SpectrumGate::new();
+
+        // Put a true condition in the dict:
+
+        let test_gate = False {};
+        dict.insert(String::from("false"), Rc::new(RefCell::new(test_gate)));
+
+        g.set_gate("false", &dict).expect("Couldn't find gate");
+
+        let e = FlatEvent::new();
+        assert!(!g.check(&e));
+
+        // Now kill off the gate from the dict:
+        // The {} ensures the container is dropped.
+        {
+            let container = dict
+                .remove(&String::from("false"))
+                .expect("Not found to remove");
+        }
+        assert!(g.check(&e));
+        assert!(g.gate.is_none());
+    }
 }
