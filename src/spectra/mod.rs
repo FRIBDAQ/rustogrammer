@@ -619,5 +619,26 @@ mod oned_tests {
     // The tests below ensure that events without our parameter
     // won't increment
 
+    #[test]
+    fn incr_4() {
+        // Event without our parameter won't increment:
+
+        let mut s = make_1d();
+        let pid = s.parameter_id; // so we know how to fill in flat event:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        e.push(EventParameter::new(pid + 1, 511.0)); // not ours...
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+
+        // no bins set anywhere:
+
+        for i in s.histogram.iter() {
+            assert_eq!(0.0, i.value.get());
+        }
+    }
+
     // Tests below check over/underflow values.
 }
