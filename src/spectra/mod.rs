@@ -347,8 +347,7 @@ mod gate_tests {
         // Now kill off the gate from the dict:
         // The {} ensures the container is dropped.
         {
-            let container = dict
-                .remove(&String::from("false"))
+            dict.remove(&String::from("false"))
                 .expect("Not found to remove");
         }
         assert!(g.check(&e));
@@ -358,8 +357,7 @@ mod gate_tests {
 #[cfg(test)]
 mod oned_tests {
     use super::*;
-    use crate::conditions::*;
-    use crate::parameters::*;
+    use ndhistogram::axis::*;
 
     #[test]
     fn new_1() {
@@ -370,6 +368,165 @@ mod oned_tests {
         assert!(result.is_err());
         assert_eq!(
             String::from("No such parameter: test"),
+            result.err().unwrap()
+        );
+    }
+    #[test]
+    fn new_2() {
+        // Parameter exists - use default specifications.
+
+        let mut d = ParameterDictionary::new();
+        d.add("test").unwrap();
+        let id = {
+            let p = d.lookup_mut("test").unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("This is a test parameter");
+            p.get_id()
+        };
+
+        let result = Oned::new("test_spec", "test", &d, None, None, None);
+        assert!(result.is_ok());
+        let one = result.unwrap();
+        assert!(one.applied_gate.gate.is_none());
+        assert_eq!(String::from("test_spec"), one.name);
+        assert_eq!(String::from("test"), one.parameter_name);
+        assert_eq!(id, one.parameter_id);
+
+        // Spectrum axis specs:
+
+        assert_eq!(1, one.histogram.axes().num_dim());
+        let x = one.histogram.axes().as_tuple().0.clone();
+        assert_eq!(0.0, *x.low());
+        assert_eq!(1023.0, *x.high());
+        assert_eq!(1026, x.num_bins());
+    }
+    #[test]
+    fn new_3() {
+        // Override low:
+
+        let mut d = ParameterDictionary::new();
+        d.add("test").unwrap();
+        let id = {
+            let p = d.lookup_mut("test").unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("This is a test parameter");
+            p.get_id()
+        };
+
+        let result = Oned::new("test_spec", "test", &d, Some(-1023.0), None, None);
+        assert!(result.is_ok());
+        let one = result.unwrap();
+        assert!(one.applied_gate.gate.is_none());
+        assert_eq!(String::from("test_spec"), one.name);
+        assert_eq!(String::from("test"), one.parameter_name);
+        assert_eq!(id, one.parameter_id);
+
+        // Spectrum axis specs:
+
+        assert_eq!(1, one.histogram.axes().num_dim());
+        let x = one.histogram.axes().as_tuple().0.clone();
+        assert_eq!(-1023.0, *x.low());
+        assert_eq!(1023.0, *x.high());
+        assert_eq!(1026, x.num_bins());
+    }
+    #[test]
+    fn new_4() {
+        // override high
+
+        let mut d = ParameterDictionary::new();
+        d.add("test").unwrap();
+        let id = {
+            let p = d.lookup_mut("test").unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("This is a test parameter");
+            p.get_id()
+        };
+
+        let result = Oned::new("test_spec", "test", &d, Some(-1023.0), Some(0.0), None);
+        assert!(result.is_ok());
+        let one = result.unwrap();
+        assert!(one.applied_gate.gate.is_none());
+        assert_eq!(String::from("test_spec"), one.name);
+        assert_eq!(String::from("test"), one.parameter_name);
+        assert_eq!(id, one.parameter_id);
+
+        // Spectrum axis specs:
+
+        assert_eq!(1, one.histogram.axes().num_dim());
+        let x = one.histogram.axes().as_tuple().0.clone();
+        assert_eq!(-1023.0, *x.low());
+        assert_eq!(0.0, *x.high());
+        assert_eq!(1026, x.num_bins());
+    }
+    #[test]
+    fn new_5() {
+        // override bins
+
+        let mut d = ParameterDictionary::new();
+        d.add("test").unwrap();
+        let id = {
+            let p = d.lookup_mut("test").unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("This is a test parameter");
+            p.get_id()
+        };
+
+        let result = Oned::new("test_spec", "test", &d, Some(-1023.0), Some(0.0), Some(512));
+        assert!(result.is_ok());
+        let one = result.unwrap();
+        assert!(one.applied_gate.gate.is_none());
+        assert_eq!(String::from("test_spec"), one.name);
+        assert_eq!(String::from("test"), one.parameter_name);
+        assert_eq!(id, one.parameter_id);
+
+        // Spectrum axis specs:
+
+        assert_eq!(1, one.histogram.axes().num_dim());
+        let x = one.histogram.axes().as_tuple().0.clone();
+        assert_eq!(-1023.0, *x.low());
+        assert_eq!(0.0, *x.high());
+        assert_eq!(514, x.num_bins());
+    }
+    // Fail to create because we try to default charcterisics
+    // that don't default:
+
+    #[test]
+    fn new_6() {
+        let mut d = ParameterDictionary::new();
+        d.add("test").unwrap();
+
+        let result = Oned::new("test_spec", "test", &d, Some(-1023.0), Some(0.0), None);
+        assert!(result.is_err());
+        assert_eq!(
+            String::from("No default bin count for test"),
+            result.err().unwrap()
+        );
+    }
+    #[test]
+    fn new_7() {
+        let mut d = ParameterDictionary::new();
+        d.add("test").unwrap();
+
+        let result = Oned::new("test_spec", "test", &d, Some(-1023.0), None, Some(512));
+        assert!(result.is_err());
+        assert_eq!(
+            String::from("No default high limit defined for test"),
+            result.err().unwrap()
+        );
+    }
+    #[test]
+    fn new_8() {
+        let mut d = ParameterDictionary::new();
+        d.add("test").unwrap();
+
+        let result = Oned::new("test_spec", "test", &d, None, Some(0.0), Some(512));
+        assert!(result.is_err());
+        assert_eq!(
+            String::from("No default low limit defined for test"),
             result.err().unwrap()
         );
     }
