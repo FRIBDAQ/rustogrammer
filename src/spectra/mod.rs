@@ -193,7 +193,7 @@ fn axis_limits(
 pub struct Oned {
     applied_gate: SpectrumGate,
     name: String,
-    histogram: Hist1D<axis::Uniform, Sum>,
+    histogram: Hist1D<axis::Uniform,  Sum>,
     parameter_name: String,
     parameter_id: u32,
 }
@@ -265,6 +265,15 @@ impl Spectrum for Oned {
 /// It has two parameters x and y and a SpectrumGate
 /// The underlying histogram is a Hist2D<axis::Uniform, axis::Uniform, Sum>
 /// which makes the channels have f64 values.
+/// Member data:
+///
+/// *    applied_gate - The gate which can conditionalize incrementing the
+/// spectrum.
+/// *    name - Name of the spectrum.  The spectrum is intered in the
+/// spectrum dictionary under this name.
+/// *    histogram -The underlying histogram.
+/// *    x_name, x_id - the name and Id of the X axis parameter.
+/// *    y_name, y_id - the name and Id of the Y axis parameter.
 ///
 struct Twod {
     applied_gate: SpectrumGate,
@@ -277,7 +286,71 @@ struct Twod {
     y_name: String,
     y_id: u32,
 }
+impl Spectrum for Twod {
+    fn check_gate(&mut self, e: &FlatEvent) -> bool {
+        self.applied_gate.check(e)
+    }
+    fn increment(&mut self, e: &FlatEvent) {
+        let x = e[self.x_id];
+        let y = e[self.y_id];
 
+        // We need both parameters in the event:
+
+        if x.is_some() && y.is_some() {
+            self.histogram.fill(&(x.unwrap(), y.unwrap()));
+        }
+    }
+    fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+        self.applied_gate.set_gate(name, dict)
+    }
+    fn ungate(&mut self) {
+        self.applied_gate.ungate()
+    }
+}
+impl Twod {
+    pub fn new(
+        spectrum_name: &str,
+        xname: &str,
+        yname: &str,
+        pdict: &ParameterDictionary,
+        xlow: Option<f64>,
+        xhigh: Option<f64>,
+        xbins: Option<u32>,
+        ylow: Option<f64>,
+        yhigh: Option<f64>,
+        ybins: Option<u32>,
+    ) -> Result<Twod, String> {
+        let xpar = pdict.lookup(xname);
+        let ypar = pdict.lookup(yname);
+
+        if xpar.is_some() && ypar.is_some() {
+            let xpar = xpar.unwrap(); // Get the definitions:
+            let ypar = ypar.unwrap();
+
+            let xaxis_info = axis_limits(&xpar, xlow, xhigh, xbins)?;
+            let yaxis_info = axis_limits(&ypar, ylow, yhigh, ybins)?;
+
+            Ok(Twod {
+                applied_gate: SpectrumGate::new(),
+                name : String::from(spectrum_name),
+                histogram : ndhistogram!(
+                    axis::Uniform::new(xaxis_info.2 as usize, xaxis_info.0, xaxis_info.1),
+                    axis::Uniform::new(yaxis_info.2 as usize, yaxis_info.0, yaxis_info.1)
+                    ; Sum
+                ),
+                x_name : String::from(xname), 
+                x_id  : xpar.get_id(),
+                y_name : String::from(yname),
+                y_id : ypar.get_id()
+            })
+        } else {
+            Err(format!(
+                "One of the parameters {}, {} are not defined",
+                xname, yname
+            ))
+        }
+    }
+}
 #[cfg(test)]
 mod gate_tests {
     use super::*;
@@ -748,4 +821,18 @@ mod oned_tests {
         }
         assert_eq!(100.0, bin_value(512, &s));
     }
+}
+
+#[cfg(test)]
+mod twod_tests {
+    use super::*;
+    use ndhistogram::axis::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn new_1() {
+        // Everythinbg is ok:
+    }
+
 }
