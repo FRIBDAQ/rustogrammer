@@ -45,7 +45,6 @@ use ndhistogram::value::Sum;
 use ndhistogram::*;
 use std::rc::Rc;
 
-
 ///
 /// Gated spectra have this.  The condition_name just documents
 /// which condition is applied to the spectrum.
@@ -138,6 +137,50 @@ trait Spectrum {
     fn ungate(&mut self);
 }
 
+// Utility function to figure out the axis limits given
+// a parameter definition for the axis and options for each
+// of the values
+// This factors out the code to determine axis limits from the
+// individual spectrum new methods.
+//
+fn axis_limits(
+    pdef: &Parameter,
+    low: Option<f64>,
+    high: Option<f64>,
+    bins: Option<u32>,
+) -> Result<(f64, f64, u32), String> {
+    let default_lims = pdef.get_limits();
+    let param_name = pdef.get_name();
+    let low_lim = if low.is_some() {
+        low.unwrap()
+    } else {
+        if let Some(l) = default_lims.0 {
+            l
+        } else {
+            return Err(format!("No default low limit defined for {}", param_name));
+        }
+    };
+    let high_lim = if high.is_some() {
+        high.unwrap()
+    } else {
+        if let Some(h) = default_lims.1 {
+            h
+        } else {
+            return Err(format!("No default high limit defined for {}", param_name));
+        }
+    };
+    let bin_count = if bins.is_some() {
+        bins.unwrap()
+    } else {
+        if let Some(b) = pdef.get_bins() {
+            b
+        } else {
+            return Err(format!("No default bin count for {}", param_name));
+        }
+    };
+    Ok((low_lim, high_lim, bin_count))
+}
+
 /// This is a simple 1-d histogram with f64 valued channels.
 /// *   applied_gate - conditionalizes the increment of the histogram.
 /// *   name is the spectrum name (under which it will be entered into
@@ -178,46 +221,23 @@ impl Oned {
         bins: Option<u32>,
     ) -> Result<Oned, String> {
         if let Some(param) = pdict.lookup(param_name) {
-            let default_lims = param.get_limits();
-            let low_lim = if low.is_some() {
-                low.unwrap()
-            } else {
-                if let Some(l) = default_lims.0 {
-                    l
-                } else {
-                    return Err(format!("No default low limit defined for {}", param_name));
-                }
-            };
-            let high_lim = if high.is_some() {
-                high.unwrap()
-            } else {
-                if let Some(h) = default_lims.1 {
-                    h
-                } else {
-                    return Err(format!("No default high limit defined for {}", param_name));
-                }
-            };
-            let bin_count = if bins.is_some() {
-                bins.unwrap()
-            } else {
-                if let Some(b) = param.get_bins() {
-                    b
-                } else {
-                    return Err(format!("No default bin count for {}", param_name));
-                }
-            };
-            // make result as an ok:
+            let limits = axis_limits(param, low, high, bins);
+            if let Ok((low_lim, high_lim, bin_count)) = limits {
+                // make result as an ok:
 
-            Ok(Oned {
-                applied_gate: SpectrumGate::new(),
-                name: String::from(spectrum_name),
-                histogram: ndhistogram!(
-                    axis::Uniform::new(bin_count as usize, low_lim, high_lim);
-                    Sum
-                ),
-                parameter_name: String::from(param_name),
-                parameter_id: param.get_id(),
-            })
+                Ok(Oned {
+                    applied_gate: SpectrumGate::new(),
+                    name: String::from(spectrum_name),
+                    histogram: ndhistogram!(
+                        axis::Uniform::new(bin_count as usize, low_lim, high_lim);
+                        Sum
+                    ),
+                    parameter_name: String::from(param_name),
+                    parameter_id: param.get_id(),
+                })
+            } else {
+                Err(limits.err().unwrap())
+            }
         } else {
             Err(format!("No such parameter: {}", param_name))
         }
@@ -239,6 +259,23 @@ impl Spectrum for Oned {
     fn ungate(&mut self) {
         self.applied_gate.ungate()
     }
+}
+
+/// Twod is a simple two dimensional spectrum.
+/// It has two parameters x and y and a SpectrumGate
+/// The underlying histogram is a Hist2D<axis::Uniform, axis::Uniform, Sum>
+/// which makes the channels have f64 values.
+///
+struct Twod {
+    applied_gate: SpectrumGate,
+    name: String,
+    histogram: Hist2D<axis::Uniform, axis::Uniform, Sum>,
+
+    // Parameter information:
+    x_name: String,
+    x_id: u32,
+    y_name: String,
+    y_id: u32,
 }
 
 #[cfg(test)]
