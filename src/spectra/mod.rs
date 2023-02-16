@@ -362,6 +362,8 @@ mod gate_tests {
 mod oned_tests {
     use super::*;
     use ndhistogram::axis::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     #[test]
     fn new_1() {
@@ -534,4 +536,88 @@ mod oned_tests {
             result.err().unwrap()
         );
     }
+    // There are many tests we need to see if a
+    // Spectrum is incremented properly as well.
+    // Under the assumption that a bin number is valid this
+    // should get the value at the bin of the 1-d Note that
+    // bin 0 and n are under/overflow counts:
+
+    fn bin_value(b: usize, h: &Oned) -> f64 {
+        h.histogram.value_at_index(b).unwrap().get()
+    }
+    fn make_1d() -> Oned {
+        // Create a one d histogram we'll use in our tests:
+        // 1k channels from [0-1023)
+
+        let mut d = ParameterDictionary::new();
+        d.add("test").unwrap();
+
+        Oned::new("test_spec", "test", &d, Some(0.0), Some(1023.0), Some(1024)).unwrap()
+    }
+    // all of our tests below will increment dead center.
+    // Only gates applied will affect the increment.
+
+    #[test]
+    fn incr_1() {
+        // ungated:
+
+        let mut s = make_1d();
+        let pid = s.parameter_id; // so we know how to fill in flat event:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        e.push(EventParameter::new(pid, 511.0));
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+        let v = bin_value(512, &s);
+        assert_eq!(1.0, v);
+    }
+    #[test]
+    fn incr_2() {
+        // Spectrum with a true gate:
+
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("true"), Rc::new(RefCell::new(True {})));
+        let mut s = make_1d();
+        let pid = s.parameter_id;
+        s.gate("true", &gdict).unwrap();
+
+        //Now make the event -- should increment with a True gate:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        e.push(EventParameter::new(pid, 511.0));
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+        let v = bin_value(512, &s);
+        assert_eq!(1.0, v);
+    }
+    #[test]
+    fn incr_3() {
+        // Spectrum with false gate won't increment:
+
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("false"), Rc::new(RefCell::new(False {})));
+        let mut s = make_1d();
+        let pid = s.parameter_id;
+        s.gate("false", &gdict).unwrap();
+
+        //Now make the event -- should increment with a True gate:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        e.push(EventParameter::new(pid, 511.0));
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+        let v = bin_value(512, &s);
+        assert_eq!(0.0, v);
+    }
+
+    // The tests below ensure that events without our parameter
+    // won't increment
+
+    // Tests below check over/underflow values.
 }
