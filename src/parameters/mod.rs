@@ -227,7 +227,7 @@ impl fmt::Display for EventParameter {
 }
 /// An event is just a vector of EventParameter s.
 
-type Event = Vec<EventParameter>;
+pub type Event = Vec<EventParameter>;
 
 /// ParameterIdMap provides a correspondence between
 /// parameter ids in an Event and parameter ids in some dictionary.
