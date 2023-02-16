@@ -41,6 +41,7 @@
 
 use super::conditions::*;
 use super::parameters::*;
+use ndhistogram::value::Sum;
 use ndhistogram::*;
 use std::rc::Rc;
 
@@ -130,7 +131,7 @@ trait Spectrum {
 pub struct Oned {
     applied_gate: SpectrumGate,
     name: String,
-    histogram: Hist1D<axis::Uniform>,
+    histogram: Hist1D<axis::Uniform, Sum>,
     parameter_name: String,
     parameter_id: u32,
 }
@@ -191,7 +192,10 @@ impl Oned {
             Ok(Oned {
                 applied_gate: SpectrumGate::new(),
                 name: String::from(spectrum_name),
-                histogram: ndhistogram!(axis::Uniform::new(bin_count as usize, low_lim, high_lim)),
+                histogram: ndhistogram!(
+                    axis::Uniform::new(bin_count as usize, low_lim, high_lim);
+                    Sum
+                ),
                 parameter_name: String::from(param_name),
                 parameter_id: param.get_id(),
             })
