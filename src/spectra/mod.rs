@@ -45,11 +45,20 @@ use ndhistogram::value::Sum;
 use ndhistogram::*;
 use std::rc::Rc;
 
+
+///
+/// Gated spectra have this.  The condition_name just documents
+/// which condition is applied to the spectrum.
+/// The gate is the weakened Rc::RefCell that 'points' to the gate.
+///
 pub struct Gate {
     condition_name: String,
     gate: ContainerReference,
 }
-// None means the spectrum is ungated.
+///  Unlike SpecTcl which just makes an ungated Spectrum
+/// have a 'special' True gate, we'll put one of these into the
+/// spectrum and a None value for the gate field means the spetrum is
+/// ungated.
 pub struct SpectrumGate {
     gate: Option<Gate>,
 }
@@ -104,12 +113,15 @@ impl SpectrumGate {
     }
 }
 
-// In order to support dynamic dispatch, we need to define a Spectrum trait which combines the
-// Capabilities of ndhistogram objects to supply the interfaces of Axes, Fill and Histogram;
-// Along with the interfaces we need:
-// Default implementation assume
-//   - Spectra have a field 'applied_gate' which is Option<Gate>
-
+/// In order to support dynamic dispatch, we need to define a Spectrum trait which combines the
+/// Capabilities of ndhistogram objects to supply the interfaces of Axes, Fill and Histogram;
+/// Along with the interfaces we need:
+/// Normally clients of spectra use:
+///
+/// *     handle_event to process an event.  This will
+///       check any applied gate before attempting to call increment
+/// *     gate to gate a spectrum on a condition or replace the gate.
+/// *     ungate to remove the gate condition of a spectrum, if any.
 trait Spectrum {
     // Method that handle incrementing/gating
     fn check_gate(&mut self, e: &FlatEvent) -> bool;
@@ -126,8 +138,15 @@ trait Spectrum {
     fn ungate(&mut self);
 }
 
-// 1-d histogram:
-
+/// This is a simple 1-d histogram with f64 valued channels.
+/// *   applied_gate - conditionalizes the increment of the histogram.
+/// *   name is the spectrum name (under which it will be entered into
+///     the spectrum dictionary).
+/// *   histogram is the underlying ndhistogram that maintains the counts.
+/// *   parameter_name is the name of the parameter used to increment the
+///     spectrum and
+/// *   parameter_id is its id in the flattened event.
+///
 pub struct Oned {
     applied_gate: SpectrumGate,
     name: String,
