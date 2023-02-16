@@ -674,4 +674,22 @@ mod oned_tests {
 
         assert_eq!(1.0, bin_value(0, &s));
     }
+    // Lastly make sure that fills sum:
+    #[test]
+    fn incr_7() {
+        // underflow value:
+
+        let mut s = make_1d();
+        let pid = s.parameter_id; // so we know how to fill in flat event:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        e.push(EventParameter::new(pid, 511.0)); //Back to middle.
+        fe.load_event(&e);
+
+        for _ in 0..100 {
+            s.handle_event(&fe); // 100 counts in middle bin:
+        }
+        assert_eq!(100.0, bin_value(512, &s));
+    }
 }
