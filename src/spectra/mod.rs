@@ -641,4 +641,37 @@ mod oned_tests {
     }
 
     // Tests below check over/underflow values.
+
+    #[test]
+    fn incr_5() {
+        // overflow value:
+
+        let mut s = make_1d();
+        let pid = s.parameter_id; // so we know how to fill in flat event:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        e.push(EventParameter::new(pid, 1023.0)); // just overflows I think:
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+
+        assert_eq!(1.0, bin_value(1025, &s));
+    }
+    #[test]
+    fn incr_6() {
+        // underflow value:
+
+        let mut s = make_1d();
+        let pid = s.parameter_id; // so we know how to fill in flat event:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        e.push(EventParameter::new(pid, -0.001)); // just underflows I think.
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+
+        assert_eq!(1.0, bin_value(0, &s));
+    }
 }
