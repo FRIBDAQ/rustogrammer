@@ -264,7 +264,7 @@ impl Spectrum for Oned {
     fn clear(&mut self) {
         for c in self.histogram.iter_mut() {
             *c.value = Sum::new();
-        }        
+        }
     }
 }
 
@@ -316,7 +316,7 @@ impl Spectrum for Twod {
     fn clear(&mut self) {
         for c in self.histogram.iter_mut() {
             *c.value = Sum::new();
-        }        
+        }
     }
 }
 impl Twod {
@@ -1373,12 +1373,48 @@ mod twod_tests {
         e.load_event(&event);
 
         spec.handle_event(&e);
+    }
+    #[test]
+    fn incr_10() {
+        // Increment 0.0,0.0 100 times and ensure it's got 100 counts:
 
-        // Just try to get the undeflow x channel:
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id, 0.0),
+            EventParameter::new(spec.y_id, 0.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
 
-        let v = spec.histogram.value(&(0.0, 2.01));
-        println!("Bins: {}", spec.histogram.axes().num_bins());
+        for _ in 0..100 {
+            spec.handle_event(&e);
+        }
+
+        let v = spec.histogram.value(&(0.0, 0.0));
         assert!(v.is_some());
-        assert_eq!(1.0, v.unwrap().get());
+        assert_eq!(100.0, v.unwrap().get());
+    }
+    #[test]
+    fn clear_1() {
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id, 0.0),
+            EventParameter::new(spec.y_id, 0.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
+
+        for _ in 0..100 {
+            spec.handle_event(&e);
+        }
+
+        let v = spec.histogram.value(&(0.0, 0.0));
+        assert!(v.is_some());
+        assert_eq!(100.0, v.unwrap().get());
+
+        spec.clear();
+        let v = spec.histogram.value(&(0.0, 0.0));
+        assert!(v.is_some());
+        assert_eq!(0.0, v.unwrap().get());
     }
 }
