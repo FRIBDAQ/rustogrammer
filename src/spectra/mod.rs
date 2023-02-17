@@ -1040,7 +1040,7 @@ mod twod_tests {
         assert!(result.is_err());
     }
     #[test]
-    fn test_5() {
+    fn new_5() {
         // Can't default y axis but attempts to:
 
         let mut pdict = ParameterDictionary::new();
@@ -1229,5 +1229,121 @@ mod twod_tests {
         let v = spec.histogram.value(&(0.0, 0.0));
         assert!(v.is_some());
         assert_eq!(0.0, v.unwrap().get());
+    }
+    #[test]
+    fn incr_4() {
+        // X parameter not in event:
+
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id + 100, 0.0),
+            EventParameter::new(spec.y_id, 0.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
+
+        spec.handle_event(&e);
+
+        for c in spec.histogram.iter() {
+            assert_eq!(0.0, c.value.get());
+        }
+    }
+    #[test]
+    fn incr_5() {
+        // Y parameter not present:
+
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id, 0.0),
+            EventParameter::new(spec.y_id + 100, 0.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
+
+        spec.handle_event(&e);
+
+        for c in spec.histogram.iter() {
+            assert_eq!(0.0, c.value.get());
+        }
+    }
+    #[test]
+    fn incr_6() {
+        // Underflow in x:
+
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id, -600.0),
+            EventParameter::new(spec.y_id, 0.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
+
+        spec.handle_event(&e);
+
+        // Just try to get the undeflow x channel:
+
+        let v = spec.histogram.value(&(-512.01, 0.0));
+        assert!(v.is_some());
+        assert_eq!(1.0, v.unwrap().get());
+    }
+    #[test]
+    fn incr_7() {
+        // overflow in x:
+
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id, 600.0),
+            EventParameter::new(spec.y_id, 0.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
+
+        spec.handle_event(&e);
+
+        // Just try to get the undeflow x channel:
+
+        let v = spec.histogram.value(&(512.0, 0.0));
+        assert!(v.is_some());
+        assert_eq!(1.0, v.unwrap().get());
+    }
+    #[test]
+    fn incr_8() {
+        // underflow in y:
+
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id, 0.0),
+            EventParameter::new(spec.y_id, -3.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
+
+        spec.handle_event(&e);
+
+        // Just try to get the undeflow x channel:
+
+        let v = spec.histogram.value(&(0.0, -2.01));
+        assert!(v.is_some());
+        assert_eq!(1.0, v.unwrap().get());
+    }
+    #[test]
+    fn incr_9() {
+        // Overflow in y:
+
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id, 0.0),
+            EventParameter::new(spec.y_id, 2.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
+
+        spec.handle_event(&e);
+
+        // Just try to get the undeflow x channel:
+
+        let v = spec.histogram.value(&(0.0, 2.01));
+        assert!(v.is_some());
+        assert_eq!(1.0, v.unwrap().get());
     }
 }
