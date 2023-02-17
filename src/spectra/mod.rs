@@ -234,7 +234,6 @@ impl Oned {
                 parameter_name: String::from(param_name),
                 parameter_id: param.get_id(),
             })
-            
         } else {
             Err(format!("No such parameter: {}", param_name))
         }
@@ -830,5 +829,165 @@ mod twod_tests {
     #[test]
     fn new_1() {
         // Everything is ok:
+
+        // Make x/y parameters
+
+        let mut pdict = ParameterDictionary::new();
+        pdict.add("x").unwrap();
+        pdict.add("y").unwrap();
+        let xinfo = {
+            let px = pdict.lookup_mut("x").unwrap();
+            px.set_limits(0.0, 1023.0);
+            px.set_bins(512);
+            px.set_description("Just some x parameter");
+            (px.get_id(), px.get_name(), px.get_limits(), px.get_bins())
+        };
+        let yinfo = {
+            let py = pdict.lookup_mut("y").unwrap();
+            py.set_limits(-1.0, 1.0);
+            py.set_bins(100);
+            py.set_description("Just some y parameter");
+            (py.get_id(), py.get_name(), py.get_limits(), py.get_bins())
+        };
+
+        let result = Twod::new(
+            "2d", "x", "y", &pdict, None, None, None, // Default xaxis.
+            None, None, None, // default y axis.
+        );
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+        assert!(spec.applied_gate.gate.is_none());
+        assert_eq!(String::from("2d"), spec.name);
+        assert_eq!(xinfo.1, spec.x_name);
+        assert_eq!(xinfo.0, spec.x_id);
+        assert_eq!(yinfo.1, spec.y_name);
+        assert_eq!(yinfo.0, spec.y_id);
+
+        // make sure we made a 2d histogram with the correct axes:
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let xaxis = spec.histogram.axes().as_tuple().0.clone();
+        let yaxis = spec.histogram.axes().as_tuple().1.clone();
+
+        assert_eq!(xinfo.2 .0.unwrap(), *xaxis.low());
+        assert_eq!(xinfo.2 .1.unwrap(), *xaxis.high());
+        assert_eq!(xinfo.3.unwrap() as usize + 2, xaxis.num_bins()); // 512 + under/overflow.
+        assert_eq!(yinfo.2 .0.unwrap(), *yaxis.low());
+        assert_eq!(yinfo.2 .1.unwrap(), *yaxis.high());
+        assert_eq!(yinfo.3.unwrap() as usize + 2, yaxis.num_bins()); // 100 + under/overflow bins.
+    }
+    #[test]
+    fn new_2() {
+        // Can override x axis definitions:
+
+        let mut pdict = ParameterDictionary::new();
+        pdict.add("x").unwrap();
+        pdict.add("y").unwrap();
+        let xinfo = {
+            let px = pdict.lookup_mut("x").unwrap();
+            px.set_limits(0.0, 1023.0);
+            px.set_bins(512);
+            px.set_description("Just some x parameter");
+            (px.get_id(), px.get_name(), px.get_limits(), px.get_bins())
+        };
+        let yinfo = {
+            let py = pdict.lookup_mut("y").unwrap();
+            py.set_limits(-1.0, 1.0);
+            py.set_bins(100);
+            py.set_description("Just some y parameter");
+            (py.get_id(), py.get_name(), py.get_limits(), py.get_bins())
+        };
+
+        let result = Twod::new(
+            "2d",
+            "x",
+            "y",
+            &pdict,
+            Some(-512.0),
+            Some(512.0),
+            Some(256), // Overrride X axis defaults
+            None,
+            None,
+            None, // Accept y axis defaults.
+        );
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        assert!(spec.applied_gate.gate.is_none());
+        assert_eq!(String::from("2d"), spec.name);
+        assert_eq!(xinfo.1, spec.x_name);
+        assert_eq!(xinfo.0, spec.x_id);
+        assert_eq!(yinfo.1, spec.y_name);
+        assert_eq!(yinfo.0, spec.y_id);
+
+        // make sure we made a 2d histogram with the correct axes:
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let xaxis = spec.histogram.axes().as_tuple().0.clone();
+        let yaxis = spec.histogram.axes().as_tuple().1.clone();
+
+        assert_eq!(-512.0, *xaxis.low());
+        assert_eq!(512.0, *xaxis.high());
+        assert_eq!(256 + 2, xaxis.num_bins()); // 512 + under/overflow.
+        assert_eq!(yinfo.2 .0.unwrap(), *yaxis.low());
+        assert_eq!(yinfo.2 .1.unwrap(), *yaxis.high());
+        assert_eq!(yinfo.3.unwrap() as usize + 2, yaxis.num_bins()); // 100 + under/overflow bins.
+    }
+    #[test]
+    fn new_3() {
+        // Can override y axis definitions:
+
+        let mut pdict = ParameterDictionary::new();
+        pdict.add("x").unwrap();
+        pdict.add("y").unwrap();
+        let xinfo = {
+            let px = pdict.lookup_mut("x").unwrap();
+            px.set_limits(0.0, 1023.0);
+            px.set_bins(512);
+            px.set_description("Just some x parameter");
+            (px.get_id(), px.get_name(), px.get_limits(), px.get_bins())
+        };
+        let yinfo = {
+            let py = pdict.lookup_mut("y").unwrap();
+            py.set_limits(-1.0, 1.0);
+            py.set_bins(100);
+            py.set_description("Just some y parameter");
+            (py.get_id(), py.get_name(), py.get_limits(), py.get_bins())
+        };
+
+        let result = Twod::new(
+            "2d",
+            "x",
+            "y",
+            &pdict,
+            Some(-512.0),
+            Some(512.0),
+            Some(256), // Overrride X axis defaults
+            Some(-2.0),
+            Some(2.0),
+            Some(200), // Override Y axis defaults.
+        );
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        assert!(spec.applied_gate.gate.is_none());
+        assert_eq!(String::from("2d"), spec.name);
+        assert_eq!(xinfo.1, spec.x_name);
+        assert_eq!(xinfo.0, spec.x_id);
+        assert_eq!(yinfo.1, spec.y_name);
+        assert_eq!(yinfo.0, spec.y_id);
+
+        // make sure we made a 2d histogram with the correct axes:
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let xaxis = spec.histogram.axes().as_tuple().0.clone();
+        let yaxis = spec.histogram.axes().as_tuple().1.clone();
+
+        assert_eq!(-512.0, *xaxis.low());
+        assert_eq!(512.0, *xaxis.high());
+        assert_eq!(256 + 2, xaxis.num_bins()); // 512 + under/overflow.
+        assert_eq!(-2.0, *yaxis.low());
+        assert_eq!(2.0, *yaxis.high());
+        assert_eq!(200 as usize + 2, yaxis.num_bins()); // 100 + under/overflow bins.
     }
 }
