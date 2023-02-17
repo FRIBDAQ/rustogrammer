@@ -149,3 +149,13 @@ impl Summary {
         })
     }
 }
+
+#[cfg(test)]
+mod summary_tests {
+    use super::*;
+    use std::cell::RefCell; // Needed in gating
+    use std::rc::Rc; // Needed in gating.
+
+    #[test]
+    fn dummy() {}
+}
