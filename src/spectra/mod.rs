@@ -990,4 +990,158 @@ mod twod_tests {
         assert_eq!(2.0, *yaxis.high());
         assert_eq!(200 as usize + 2, yaxis.num_bins()); // 100 + under/overflow bins.
     }
+    #[test]
+    fn new_4() {
+        // Must provide x axis information (no defaults) but don't failure:
+
+        let mut pdict = ParameterDictionary::new();
+        pdict.add("x").unwrap();
+        pdict.add("y").unwrap();
+
+        let result = Twod::new(
+            "2d",
+            "x",
+            "y",
+            &pdict,
+            None,
+            Some(1024.0),
+            Some(512),
+            Some(-1.0),
+            Some(-1.0),
+            Some(100),
+        );
+        assert!(result.is_err());
+
+        let result = Twod::new(
+            "2d",
+            "x",
+            "y",
+            &pdict,
+            Some(0.0),
+            None,
+            Some(512),
+            Some(-1.0),
+            Some(-1.0),
+            Some(100),
+        );
+        assert!(result.is_err());
+        let result = Twod::new(
+            "2d",
+            "x",
+            "y",
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            None,
+            Some(-1.0),
+            Some(-1.0),
+            Some(100),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn test_5() {
+        // Can't default y axis but attempts to:
+
+        let mut pdict = ParameterDictionary::new();
+        pdict.add("x").unwrap();
+        pdict.add("y").unwrap();
+        let result = Twod::new(
+            "2d",
+            "x",
+            "y",
+            &pdict,
+            Some(-512.0),
+            Some(512.0),
+            Some(256), // Overrride X axis defaults
+            None,
+            Some(2.0),
+            Some(200), // Override Y axis defaults.
+        );
+        assert!(result.is_err());
+        let result = Twod::new(
+            "2d",
+            "x",
+            "y",
+            &pdict,
+            Some(-512.0),
+            Some(512.0),
+            Some(256), // Overrride X axis defaults
+            Some(-2.0),
+            None,
+            Some(200), // Override Y axis defaults.
+        );
+        assert!(result.is_err());
+        let result = Twod::new(
+            "2d",
+            "x",
+            "y",
+            &pdict,
+            Some(-512.0),
+            Some(512.0),
+            Some(256), // Overrride X axis defaults
+            Some(-2.0),
+            Some(2.0),
+            None, // Override Y axis defaults.
+        );
+        assert!(result.is_err());
+
+        // Fully specified _is_ ok though:
+
+        let result = Twod::new(
+            "2d",
+            "x",
+            "y",
+            &pdict,
+            Some(-512.0),
+            Some(512.0),
+            Some(256), // Overrride X axis defaults
+            Some(-2.0),
+            Some(2.0),
+            Some(200), // Override Y axis defaults.
+        );
+        assert!(result.is_ok());
+    }
+    #[test]
+    fn new_6() {
+        // No such x parameter:
+
+        let mut pdict = ParameterDictionary::new();
+        pdict.add("x").unwrap();
+        pdict.add("y").unwrap();
+        let result = Twod::new(
+            "2d",
+            "xx",
+            "y",
+            &pdict,
+            Some(-512.0),
+            Some(512.0),
+            Some(256), // Overrride X axis defaults
+            Some(-2.0),
+            Some(2.0),
+            Some(200), // Override Y axis defaults.
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_7() {
+        // NO such y parameter:
+
+        let mut pdict = ParameterDictionary::new();
+        pdict.add("x").unwrap();
+        pdict.add("y").unwrap();
+        let result = Twod::new(
+            "2d",
+            "x",
+            "yy",
+            &pdict,
+            Some(-512.0),
+            Some(512.0),
+            Some(256), // Overrride X axis defaults
+            Some(-2.0),
+            Some(2.0),
+            Some(200), // Override Y axis defaults.
+        );
+        assert!(result.is_err());
+    }
 }
