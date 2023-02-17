@@ -1144,4 +1144,90 @@ mod twod_tests {
         );
         assert!(result.is_err());
     }
+    // The remaining tests test increments.
+    // To support them utility function below creates and returns
+    // a standard 2d spectrum.  Note that the fact that
+    // the parameter dict goes out of scope is unimportant as
+    // id's can still be used to pull data from FlatEvent references:
+
+    fn make_test_2d() -> Twod {
+        let mut pdict = ParameterDictionary::new();
+        pdict.add("x").unwrap();
+        pdict.add("y").unwrap();
+        Twod::new(
+            "2d",
+            "x",
+            "y",
+            &pdict,
+            Some(-512.0),
+            Some(512.0),
+            Some(256), // Overrride X axis defaults
+            Some(-2.0),
+            Some(2.0),
+            Some(200), // Override Y axis defaults.
+        )
+        .unwrap()
+    }
+    #[test]
+    fn incr_1() {
+        // Increment dead center - ungated.
+
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id, 0.0),
+            EventParameter::new(spec.y_id, 0.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
+
+        spec.handle_event(&e);
+
+        let v = spec.histogram.value(&(0.0, 0.0));
+        assert!(v.is_some());
+        assert_eq!(1.0, v.unwrap().get());
+    }
+    #[test]
+    fn incr_2() {
+        // Increment dead center - Gated with T.
+
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id, 0.0),
+            EventParameter::new(spec.y_id, 0.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
+
+        let mut gd = ConditionDictionary::new();
+        gd.insert(String::from("true"), Rc::new(RefCell::new(True {})));
+        spec.gate("true", &gd).unwrap();
+
+        spec.handle_event(&e);
+
+        let v = spec.histogram.value(&(0.0, 0.0));
+        assert!(v.is_some());
+        assert_eq!(1.0, v.unwrap().get());
+    }
+    #[test]
+    fn incr_3() {
+        // Incr dead center with gate false -- that'll not increment:
+
+        let mut spec = make_test_2d();
+        let event = vec![
+            EventParameter::new(spec.x_id, 0.0),
+            EventParameter::new(spec.y_id, 0.0),
+        ];
+        let mut e = FlatEvent::new();
+        e.load_event(&event);
+
+        let mut gd = ConditionDictionary::new();
+        gd.insert(String::from("false"), Rc::new(RefCell::new(False {})));
+        spec.gate("false", &gd).unwrap();
+
+        spec.handle_event(&e);
+
+        let v = spec.histogram.value(&(0.0, 0.0));
+        assert!(v.is_some());
+        assert_eq!(0.0, v.unwrap().get());
+    }
 }
