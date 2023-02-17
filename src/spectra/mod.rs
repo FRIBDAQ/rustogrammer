@@ -135,6 +135,12 @@ trait Spectrum {
 
     fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String>;
     fn ungate(&mut self);
+
+    // maniuplate the underlying histogram:
+
+    /// Clear the histogram counts.:
+
+    fn clear(&mut self);
 }
 
 // Utility function to figure out the axis limits given
@@ -255,6 +261,11 @@ impl Spectrum for Oned {
     fn ungate(&mut self) {
         self.applied_gate.ungate()
     }
+    fn clear(&mut self) {
+        for c in self.histogram.iter_mut() {
+            *c.value = Sum::new();
+        }        
+    }
 }
 
 /// Twod is a simple two dimensional spectrum.
@@ -301,6 +312,11 @@ impl Spectrum for Twod {
     }
     fn ungate(&mut self) {
         self.applied_gate.ungate()
+    }
+    fn clear(&mut self) {
+        for c in self.histogram.iter_mut() {
+            *c.value = Sum::new();
+        }        
     }
 }
 impl Twod {
@@ -816,6 +832,24 @@ mod oned_tests {
             s.handle_event(&fe); // 100 counts in middle bin:
         }
         assert_eq!(100.0, bin_value(512, &s));
+    }
+    #[test]
+    fn clear_1() {
+        let mut s = make_1d();
+        let pid = s.parameter_id; // so we know how to fill in flat event:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        e.push(EventParameter::new(pid, 511.0)); //Back to middle.
+        fe.load_event(&e);
+
+        for _ in 0..100 {
+            s.handle_event(&fe); // 100 counts in middle bin:
+        }
+        assert_eq!(100.0, bin_value(512, &s));
+
+        s.clear();
+        assert_eq!(0.0, bin_value(512, &s));
     }
 }
 
@@ -1343,6 +1377,7 @@ mod twod_tests {
         // Just try to get the undeflow x channel:
 
         let v = spec.histogram.value(&(0.0, 2.01));
+        println!("Bins: {}", spec.histogram.axes().num_bins());
         assert!(v.is_some());
         assert_eq!(1.0, v.unwrap().get());
     }
