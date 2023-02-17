@@ -50,6 +50,8 @@ pub mod oned;
 pub use oned::*;
 pub mod twod;
 pub use twod::*;
+pub mod summary;
+pub use summary::*;
 
 ///
 /// Gated spectra have this.  The condition_name just documents
