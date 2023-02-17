@@ -193,7 +193,7 @@ fn axis_limits(
 pub struct Oned {
     applied_gate: SpectrumGate,
     name: String,
-    histogram: Hist1D<axis::Uniform,  Sum>,
+    histogram: Hist1D<axis::Uniform, Sum>,
     parameter_name: String,
     parameter_id: u32,
 }
@@ -221,23 +221,20 @@ impl Oned {
         bins: Option<u32>,
     ) -> Result<Oned, String> {
         if let Some(param) = pdict.lookup(param_name) {
-            let limits = axis_limits(param, low, high, bins);
-            if let Ok((low_lim, high_lim, bin_count)) = limits {
-                // make result as an ok:
+            let (low_lim, high_lim, bin_count) = axis_limits(param, low, high, bins)?;
+            // make result as an ok:
 
-                Ok(Oned {
-                    applied_gate: SpectrumGate::new(),
-                    name: String::from(spectrum_name),
-                    histogram: ndhistogram!(
-                        axis::Uniform::new(bin_count as usize, low_lim, high_lim);
-                        Sum
-                    ),
-                    parameter_name: String::from(param_name),
-                    parameter_id: param.get_id(),
-                })
-            } else {
-                Err(limits.err().unwrap())
-            }
+            Ok(Oned {
+                applied_gate: SpectrumGate::new(),
+                name: String::from(spectrum_name),
+                histogram: ndhistogram!(
+                    axis::Uniform::new(bin_count as usize, low_lim, high_lim);
+                    Sum
+                ),
+                parameter_name: String::from(param_name),
+                parameter_id: param.get_id(),
+            })
+            
         } else {
             Err(format!("No such parameter: {}", param_name))
         }
@@ -332,16 +329,16 @@ impl Twod {
 
             Ok(Twod {
                 applied_gate: SpectrumGate::new(),
-                name : String::from(spectrum_name),
-                histogram : ndhistogram!(
+                name: String::from(spectrum_name),
+                histogram: ndhistogram!(
                     axis::Uniform::new(xaxis_info.2 as usize, xaxis_info.0, xaxis_info.1),
                     axis::Uniform::new(yaxis_info.2 as usize, yaxis_info.0, yaxis_info.1)
                     ; Sum
                 ),
-                x_name : String::from(xname), 
-                x_id  : xpar.get_id(),
-                y_name : String::from(yname),
-                y_id : ypar.get_id()
+                x_name: String::from(xname),
+                x_id: xpar.get_id(),
+                y_name: String::from(yname),
+                y_id: ypar.get_id(),
             })
         } else {
             Err(format!(
@@ -832,7 +829,6 @@ mod twod_tests {
 
     #[test]
     fn new_1() {
-        // Everythinbg is ok:
+        // Everything is ok:
     }
-
 }
