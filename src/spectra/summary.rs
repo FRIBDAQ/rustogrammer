@@ -153,9 +153,15 @@ impl Summary {
             }
         }
         // Override defaults
-        if let Some(yl) = ylow {low = Some(yl);}
-        if let Some(yh) = yhigh { high = Some(yh);}
-        if let Some(b) = bins {nbins = Some(b);}
+        if let Some(yl) = ylow {
+            low = Some(yl);
+        }
+        if let Some(yh) = yhigh {
+            high = Some(yh);
+        }
+        if let Some(b) = bins {
+            nbins = Some(b);
+        }
         // if any of the Y axis stuff are still None, that's a failure:
 
         if let None = low {
@@ -291,5 +297,68 @@ mod summary_tests {
         assert_eq!(-1.0, *y.low());
         assert_eq!(1.0, *y.high());
         assert_eq!(200 + 2, y.num_bins());
+    }
+    // Now various ways that new fails:
+
+    #[test]
+    fn new_3() {
+        // Can't let y axis limits/bins default:
+
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param{}", i);
+            pd.add(&name).unwrap();
+            names.push(name);
+        }
+        let result = Summary::new(
+            "summary-test",
+            names.clone(),
+            &pd,
+            None,
+            Some(1.0),
+            Some(200),
+        );
+        assert!(result.is_err());
+
+        let result = Summary::new(
+            "summary-test",
+            names.clone(),
+            &pd,
+            Some(-1.0),
+            None,
+            Some(200),
+        );
+        assert!(result.is_err());
+
+        let result = Summary::new(
+            "summary-test",
+            names.clone(),
+            &pd,
+            Some(-1.0),
+            Some(1.0),
+            None,
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_4() {
+        // Have an unfound name.
+
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param{}", i);
+            pd.add(&name).unwrap();
+            let p = pd.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Arbitrary");
+            names.push(name);
+        }
+        names.push(String::from("No-such-parameter"));
+        let result = Summary::new("summary-test", names.clone(), &pd, None, None, None);
+        assert!(result.is_err());
+
     }
 }
