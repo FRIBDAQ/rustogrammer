@@ -72,11 +72,51 @@ impl Summary {
     /// * If both v1/v2 are Some, the results is Some the minimum of
     /// the two values.
     fn min<T: PartialOrd>(v1: Option<T>, v2: Option<T>) -> Option<T> {
-        None
+        if v1.is_none() && v2.is_none() {
+            None
+        } else {
+            if v1.is_none() || v2.is_none() {
+                if let Some(v1) = v1 {
+                    Some(v1)
+                } else {
+                    Some(v2.unwrap())
+                }
+            } else {
+                // neither are none:
+
+                let v1 = v1.unwrap();
+                let v2 = v2.unwrap();
+                if v1 < v2 {
+                    Some(v1)
+                } else {
+                    Some(v2)
+                }
+            }
+        }
     }
     /// Same as min but uses max of v1/v2
     fn max<T: PartialOrd>(v1: Option<T>, v2: Option<T>) -> Option<T> {
-        None
+        if v1.is_none() && v2.is_none() {
+            None
+        } else {
+            if v1.is_none() || v2.is_none() {
+                if let Some(v1) = v1 {
+                    Some(v1)
+                } else {
+                    Some(v2.unwrap())
+                }
+            } else {
+                // neither are none:
+
+                let v1 = v1.unwrap();
+                let v2 = v2.unwrap();
+                if v1 > v2 {
+                    Some(v1)
+                } else {
+                    Some(v2)
+                }
+            }
+        }
     }
     /// Generate the spectrum.
     /// This fails if:
@@ -93,9 +133,9 @@ impl Summary {
         yhigh: Option<f64>,
         bins: Option<u32>,
     ) -> Result<Summary, String> {
-        let mut low = ylow;
-        let mut high = yhigh;
-        let mut nbins = bins;
+        let mut low = None;
+        let mut high = None;
+        let mut nbins = None;
 
         let mut param_ids = Vec::<u32>::new();
         let mut param_names = Vec::<String>::new();
@@ -112,6 +152,10 @@ impl Summary {
                 return Err(format!("Parameter {} does not exist", name));
             }
         }
+        // Override defaults
+        if let Some(yl) = ylow {low = Some(yl);}
+        if let Some(yh) = yhigh { high = Some(yh);}
+        if let Some(b) = bins {nbins = Some(b);}
         // if any of the Y axis stuff are still None, that's a failure:
 
         if let None = low {
@@ -153,9 +197,99 @@ impl Summary {
 #[cfg(test)]
 mod summary_tests {
     use super::*;
+    use ndhistogram::axis::*;
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gating.
 
     #[test]
-    fn dummy() {}
+    fn new_1() {
+        // Works -- all parameters have same limits/bins, default:
+
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param{}", i);
+            pd.add(&name).unwrap();
+            let p = pd.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Arbitrary");
+            names.push(name);
+        }
+
+        let result = Summary::new("summary-test", names.clone(), &pd, None, None, None);
+        assert!(result.is_ok());
+        let s = result.unwrap();
+        assert!(s.applied_gate.gate.is_none());
+        assert_eq!(String::from("summary-test"), s.name);
+        assert_eq!(names.len(), s.param_names.len());
+        assert_eq!(names.len(), s.param_ids.len());
+        for (i, n) in names.iter().enumerate() {
+            assert_eq!(*n, s.param_names[i]);
+            assert_eq!(i + 1, s.param_ids[i] as usize);
+        }
+        assert_eq!(2, s.histogram.axes().num_dim());
+        let x = s.histogram.axes().as_tuple().0.clone();
+        let y = s.histogram.axes().as_tuple().1.clone();
+
+        // XAxes are just name size:
+
+        assert_eq!(0.0, *x.low());
+        assert_eq!(names.len() as f64, *x.high());
+        assert_eq!(names.len() + 2, x.num_bins());
+
+        assert_eq!(0.0, *y.low());
+        assert_eq!(1023.0, *y.high());
+        assert_eq!(1024 + 2, y.num_bins());
+    }
+    #[test]
+    fn new_2() {
+        // can override axis definitions on the y axis:
+
+        // Works -- all parameters have same limits/bins, default:
+
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param{}", i);
+            pd.add(&name).unwrap();
+            let p = pd.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Arbitrary");
+            names.push(name);
+        }
+
+        let result = Summary::new(
+            "summary-test",
+            names.clone(),
+            &pd,
+            Some(-1.0),
+            Some(1.0),
+            Some(200),
+        );
+        assert!(result.is_ok());
+        let s = result.unwrap();
+        assert!(s.applied_gate.gate.is_none());
+        assert_eq!(String::from("summary-test"), s.name);
+        assert_eq!(names.len(), s.param_names.len());
+        assert_eq!(names.len(), s.param_ids.len());
+        for (i, n) in names.iter().enumerate() {
+            assert_eq!(*n, s.param_names[i]);
+            assert_eq!(i + 1, s.param_ids[i] as usize);
+        }
+        assert_eq!(2, s.histogram.axes().num_dim());
+        let x = s.histogram.axes().as_tuple().0.clone();
+        let y = s.histogram.axes().as_tuple().1.clone();
+
+        // XAxes are just name size:
+
+        assert_eq!(0.0, *x.low());
+        assert_eq!(names.len() as f64, *x.high());
+        assert_eq!(names.len() + 2, x.num_bins());
+
+        assert_eq!(-1.0, *y.low());
+        assert_eq!(1.0, *y.high());
+        assert_eq!(200 + 2, y.num_bins());
+    }
 }
