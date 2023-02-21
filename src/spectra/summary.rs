@@ -359,6 +359,77 @@ mod summary_tests {
         names.push(String::from("No-such-parameter"));
         let result = Summary::new("summary-test", names.clone(), &pd, None, None, None);
         assert!(result.is_err());
+    }
+    #[test]
+    fn new_5() {
+        // Non-uniform axis recommendation in parameters
 
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            pd.add(&name).unwrap();
+            let p = pd.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Arbitrary");
+            names.push(name);
+        }
+        {
+            let p = pd.lookup_mut(&String::from("param.5")).unwrap();
+            p.set_limits(-1023.0, 2048.0);
+            p.set_bins(2048);
+        }
+
+        let result = Summary::new("Summary-test", names.clone(), &pd, None, None, None);
+        assert!(result.is_ok());
+        let s = result.unwrap();
+
+        let y = s.histogram.axes().as_tuple().1.clone();
+        assert_eq!(-1023.0, *y.low());
+        assert_eq!(2048.0, *y.high());
+        assert_eq!(2048 + 2, y.num_bins());
+    }
+    // Tests for increment with and without gates... with and w/o
+    // y axis over/underflow (x axis must be in range).
+    #[test]
+    fn incr_1() {
+        // Increment mid range for all parameters:
+        // Not gated:
+
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            pd.add(&name).unwrap();
+            let p = pd.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Arbitrary");
+            names.push(name);
+        }
+        let mut s = Summary::new("summary-test", names.clone(), &pd, None, None, None).unwrap();
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            let p = pd.lookup(&name).unwrap();
+            let id = p.get_id();
+            e.push(EventParameter::new(id, 512.0));
+        }
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+
+        // With the exception of the x under and overflow bins,
+        // each x bin should have a mid-range y bin.
+
+        for i in 0..10 {
+            let x = i as f64;
+            let v = s.histogram.value(&(x, 512.0));
+            assert!(v.is_some());
+            assert_eq!(1.0, v.unwrap().get());
+        }
     }
 }
