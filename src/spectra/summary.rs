@@ -432,4 +432,186 @@ mod summary_tests {
             assert_eq!(1.0, v.unwrap().get());
         }
     }
+    #[test]
+    fn incr_2() {
+        // add a T gate - should still increment:
+
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            pd.add(&name).unwrap();
+            let p = pd.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Arbitrary");
+            names.push(name);
+        }
+        let mut s = Summary::new("summary-test", names.clone(), &pd, None, None, None).unwrap();
+
+        let mut gd = ConditionDictionary::new();
+        assert!(gd
+            .insert(String::from("true"), Rc::new(RefCell::new(True {})))
+            .is_none());
+        s.gate("true", &gd).expect("Could not gate");
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            let p = pd.lookup(&name).unwrap();
+            let id = p.get_id();
+            e.push(EventParameter::new(id, 512.0));
+        }
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+
+        // With the exception of the x under and overflow bins,
+        // each x bin should have a mid-range y bin.
+
+        for i in 0..10 {
+            let x = i as f64;
+            let v = s.histogram.value(&(x, 512.0));
+            assert!(v.is_some());
+            assert_eq!(1.0, v.unwrap().get());
+        }
+    }
+    #[test]
+    fn incr_3() {
+        // Add False gate and the increments don't happen.
+
+        // add a T gate - should still increment:
+
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            pd.add(&name).unwrap();
+            let p = pd.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Arbitrary");
+            names.push(name);
+        }
+        let mut s = Summary::new("summary-test", names.clone(), &pd, None, None, None).unwrap();
+
+        let mut gd = ConditionDictionary::new();
+        assert!(gd
+            .insert(String::from("false"), Rc::new(RefCell::new(False {})))
+            .is_none());
+        s.gate("false", &gd).expect("Could not gate");
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            let p = pd.lookup(&name).unwrap();
+            let id = p.get_id();
+            e.push(EventParameter::new(id, 512.0));
+        }
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+
+        // With the exception of the x under and overflow bins,
+        // each x bin should have a mid-range y bin.
+
+        for i in 0..10 {
+            let x = i as f64;
+            let v = s.histogram.value(&(x, 512.0));
+            assert!(v.is_some());
+            assert_eq!(0.0, v.unwrap().get());
+        }
+    }
+    #[test]
+    fn incr_4() {
+        // Stair step pattern of increments:
+
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            pd.add(&name).unwrap();
+            let p = pd.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Arbitrary");
+            names.push(name);
+        }
+        let mut s = Summary::new("summary-test", names.clone(), &pd, None, None, None).unwrap();
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            let p = pd.lookup(&name).unwrap();
+            let id = p.get_id();
+            e.push(EventParameter::new(id, 5.0 * (i as f64)));
+        }
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+
+        // With the exception of the x under and overflow bins,
+        // each x bin should have a mid-range y bin.
+
+        for i in 0..10 {
+            let x = i as f64;
+            let y = x * 5.0;
+            let v = s.histogram.value(&(x, y));
+            assert!(v.is_some());
+            assert_eq!(1.0, v.unwrap().get());
+        }
+    }
+    #[test]
+    fn incr_5() {
+        // No all x channels get incremented:
+
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            pd.add(&name).unwrap();
+            let p = pd.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Arbitrary");
+            names.push(name);
+        }
+        let mut s = Summary::new("summary-test", names.clone(), &pd, None, None, None).unwrap();
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        for i in 0..10 {
+            if i % 2 == 0 {
+                // Only increment even parameters #.
+                let name = format!("param.{}", i);
+                let p = pd.lookup(&name).unwrap();
+                let id = p.get_id();
+                e.push(EventParameter::new(id, 5.0 * (i as f64)));
+            }
+        }
+        fe.load_event(&e);
+
+        s.handle_event(&fe);
+
+        // With the exception of the x under and overflow bins,
+        // each x bin should have a mid-range y bin.
+
+        for i in 0..10 {
+            let x = i as f64;
+            if i % 2 == 0 {
+                let y = x * 5.0;
+                let v = s.histogram.value(&(x, y));
+                assert!(v.is_some());
+                assert_eq!(1.0, v.unwrap().get());
+            } else {
+                for j in 0..1023 {
+                    let y = j as f64;
+                    let v = s.histogram.value(&(x, y));
+                    assert!(v.is_some());
+                    assert_eq!(0.0, v.unwrap().get());
+                }
+            }
+        }
+    }
 }
