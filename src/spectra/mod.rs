@@ -48,10 +48,15 @@ use std::rc::Rc;
 
 pub mod oned;
 pub use oned::*;
+
 pub mod twod;
 pub use twod::*;
+
 pub mod summary;
 pub use summary::*;
+
+pub mod multi1d;
+pub use multi1d::*;
 
 ///
 /// Gated spectra have this.  The condition_name just documents
@@ -331,4 +336,3 @@ mod gate_tests {
         assert!(g.gate.is_none());
     }
 }
-
