@@ -72,51 +72,11 @@ impl Summary {
     /// * If both v1/v2 are Some, the results is Some the minimum of
     /// the two values.
     fn min<T: PartialOrd>(v1: Option<T>, v2: Option<T>) -> Option<T> {
-        if v1.is_none() && v2.is_none() {
-            None
-        } else {
-            if v1.is_none() || v2.is_none() {
-                if let Some(v1) = v1 {
-                    Some(v1)
-                } else {
-                    Some(v2.unwrap())
-                }
-            } else {
-                // neither are none:
-
-                let v1 = v1.unwrap();
-                let v2 = v2.unwrap();
-                if v1 < v2 {
-                    Some(v1)
-                } else {
-                    Some(v2)
-                }
-            }
-        }
+        optmin(v1, v2)
     }
     /// Same as min but uses max of v1/v2
     fn max<T: PartialOrd>(v1: Option<T>, v2: Option<T>) -> Option<T> {
-        if v1.is_none() && v2.is_none() {
-            None
-        } else {
-            if v1.is_none() || v2.is_none() {
-                if let Some(v1) = v1 {
-                    Some(v1)
-                } else {
-                    Some(v2.unwrap())
-                }
-            } else {
-                // neither are none:
-
-                let v1 = v1.unwrap();
-                let v2 = v2.unwrap();
-                if v1 > v2 {
-                    Some(v1)
-                } else {
-                    Some(v2)
-                }
-            }
-        }
+        optmax(v1, v2)
     }
     /// Generate the spectrum.
     /// This fails if:
