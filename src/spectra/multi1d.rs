@@ -95,9 +95,15 @@ impl Multi1d {
             }
         }
         // override defaults for axes etc:
-        if let Some(l) = low { xlow = Some(l);}
-        if let Some(h) = high {xmax = Some(h);}
-        if let Some(b) = bins {xbins = Some(b);}
+        if let Some(l) = low {
+            xlow = Some(l);
+        }
+        if let Some(h) = high {
+            xmax = Some(h);
+        }
+        if let Some(b) = bins {
+            xbins = Some(b);
+        }
 
         if let None = xlow {
             return Err(String::from("X axis low limit cannot be defaulted"));
@@ -109,15 +115,204 @@ impl Multi1d {
             return Err(String::from("X axis binning cannot be defaulted"));
         }
         Ok(Multi1d {
-            applied_gate : SpectrumGate::new(),
-            name : String::from(name), 
-            histogram : ndhistogram!(
+            applied_gate: SpectrumGate::new(),
+            name: String::from(name),
+            histogram: ndhistogram!(
                 axis::Uniform::new(xbins.unwrap() as usize, xlow.unwrap(), xmax.unwrap());
                 Sum
             ),
-            param_names : param_names,
-            param_ids : param_ids
+            param_names: param_names,
+            param_ids: param_ids,
         })
+    }
+}
 
+#[cfg(test)]
+mod multi1d_tests {
+    use super::*;
+    use ndhistogram::axis::*;
+    use std::cell::RefCell; // Needed in gating
+    use std::rc::Rc; // Needed in gating.
+
+    #[test]
+    fn new_1() {
+        // Success with default x axis and uniform parameter defs:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            names.push(name.clone());
+            pdict.add(&name).expect("Could not add parameter");
+            let p = pdict.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Some things in arb units");
+        }
+        let result = Multi1d::new("Testing", names, &pdict, None, None, None);
+        assert!(result.is_ok());
+        let s = result.unwrap();
+        assert!(s.applied_gate.gate.is_none());
+        assert_eq!(String::from("Testing"), s.name);
+
+        assert_eq!(1, s.histogram.axes().num_dim());
+        let x = s.histogram.axes().as_tuple().0.clone();
+        assert_eq!(0.0, *x.low());
+        assert_eq!(1023.0, *x.high());
+        assert_eq!(1024 + 2, x.num_bins());
+
+        assert_eq!(10, s.param_names.len());
+        assert_eq!(10, s.param_ids.len());
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            assert_eq!(name, s.param_names[i]);
+        }
+    }
+    #[test]
+    fn new_2() {
+        // non uniform parameter defs:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            names.push(name.clone());
+            pdict.add(&name).expect("Could not add parameter");
+            let p = pdict.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Some things in arb units");
+        }
+        {
+            let p = pdict.lookup_mut("param.5").unwrap();
+            p.set_limits(-2048.0, 2048.0);
+            p.set_bins(4096);
+        }
+        let result = Multi1d::new("Testing", names, &pdict, None, None, None);
+        assert!(result.is_ok());
+        let s = result.unwrap();
+        assert!(s.applied_gate.gate.is_none());
+        assert_eq!(String::from("Testing"), s.name);
+
+        assert_eq!(1, s.histogram.axes().num_dim());
+        let x = s.histogram.axes().as_tuple().0.clone();
+        assert_eq!(-2048.0, *x.low());
+        assert_eq!(2048.0, *x.high());
+        assert_eq!(4096 + 2, x.num_bins());
+
+        assert_eq!(10, s.param_names.len());
+        assert_eq!(10, s.param_ids.len());
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            assert_eq!(name, s.param_names[i]);
+        }
+    }
+    #[test]
+    fn new_3() {
+        // Override the histogram axis defaults:
+
+        // Success with default x axis and uniform parameter defs:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            names.push(name.clone());
+            pdict.add(&name).expect("Could not add parameter");
+            let p = pdict.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Some things in arb units");
+        }
+        let result = Multi1d::new(
+            "Testing",
+            names,
+            &pdict,
+            Some(-2048.0),
+            Some(2048.0),
+            Some(4096),
+        );
+        assert!(result.is_ok());
+        let s = result.unwrap();
+        assert!(s.applied_gate.gate.is_none());
+        assert_eq!(String::from("Testing"), s.name);
+
+        assert_eq!(1, s.histogram.axes().num_dim());
+        let x = s.histogram.axes().as_tuple().0.clone();
+        assert_eq!(-2048.0, *x.low());
+        assert_eq!(2048.0, *x.high());
+        assert_eq!(4096 + 2, x.num_bins());
+
+        assert_eq!(10, s.param_names.len());
+        assert_eq!(10, s.param_ids.len());
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            assert_eq!(name, s.param_names[i]);
+        }
+    }
+    #[test]
+    fn new_4() {
+        // invalid parameter in the list:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            names.push(name.clone());
+            pdict.add(&name).expect("Could not add parameter");
+            let p = pdict.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Some things in arb units");
+        }
+        names.push(String::from("No-such"));
+        let result = Multi1d::new(
+            "Testing",
+            names,
+            &pdict,
+            Some(-2048.0),
+            Some(2048.0),
+            Some(4096),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_5() {
+        // Cannot default axis specs:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            names.push(name.clone());
+            pdict.add(&name).expect("Could not add parameter");
+        }
+        let result = Multi1d::new(
+            "Testing",
+            names.clone(),
+            &pdict,
+            None,
+            Some(2048.0),
+            Some(4096),
+        );
+        assert!(result.is_err());
+        let result = Multi1d::new(
+            "Testing",
+            names.clone(),
+            &pdict,
+            Some(-2048.0),
+            None,
+            Some(4096),
+        );
+        assert!(result.is_err());
+        let result = Multi1d::new(
+            "Testing",
+            names.clone(),
+            &pdict,
+            Some(0.0),
+            Some(2048.0),
+            None,
+        );
+        assert!(result.is_err());
     }
 }
