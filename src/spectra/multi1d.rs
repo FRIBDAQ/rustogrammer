@@ -315,4 +315,147 @@ mod multi1d_tests {
         );
         assert!(result.is_err());
     }
+    // next tests that ensure the spectrum is properly  incremented.
+    #[test]
+    fn incr_1() {
+        // Increment in all parameters ungated.
+
+        let mut pdict = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            names.push(name.clone());
+            pdict.add(&name).expect("Could not add parameter");
+            let p = pdict.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Some things in arb units");
+        }
+        let mut spec = Multi1d::new("Testing", names, &pdict, None, None, None).unwrap();
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            let pid = pdict.lookup_mut(&name).unwrap().get_id();
+            e.push(EventParameter::new(pid, i as f64 * 10.0));
+        }
+        fe.load_event(&e);
+
+        spec.handle_event(&fe);
+
+        for i in 0..10 {
+            let vo = spec.histogram.value(&(i as f64 * 10.0));
+            assert!(vo.is_some());
+            assert_eq!(1.0, vo.unwrap().get());
+        }
+    }
+    #[test]
+    fn incr_2() {
+        // Increment gated on T in all parameters.
+
+        let mut pdict = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            names.push(name.clone());
+            pdict.add(&name).expect("Could not add parameter");
+            let p = pdict.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Some things in arb units");
+        }
+        let mut spec = Multi1d::new("Testing", names, &pdict, None, None, None).unwrap();
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            let pid = pdict.lookup_mut(&name).unwrap().get_id();
+            e.push(EventParameter::new(pid, i as f64 * 10.0));
+        }
+        fe.load_event(&e);
+
+        let mut cd = ConditionDictionary::new();
+        cd.insert(String::from("true"), Rc::new(RefCell::new(True {})));
+        spec.gate("true", &cd).expect("Can't gate");
+
+        fe.load_event(&e);
+        spec.handle_event(&fe);
+
+        for i in 0..10 {
+            let vo = spec.histogram.value(&(i as f64 * 10.0));
+            assert!(vo.is_some());
+            assert_eq!(1.0, vo.unwrap().get());
+        }
+    }
+    #[test]
+    fn incr_3() {
+        // Gated on F no increments happen:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            names.push(name.clone());
+            pdict.add(&name).expect("Could not add parameter");
+            let p = pdict.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Some things in arb units");
+        }
+        let mut spec = Multi1d::new("Testing", names, &pdict, None, None, None).unwrap();
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            let pid = pdict.lookup_mut(&name).unwrap().get_id();
+            e.push(EventParameter::new(pid, i as f64 * 10.0));
+        }
+        fe.load_event(&e);
+
+        let mut cd = ConditionDictionary::new();
+        cd.insert(String::from("false"), Rc::new(RefCell::new(False {})));
+        spec.gate("false", &cd).expect("Can't gate");
+
+        fe.load_event(&e);
+        spec.handle_event(&fe);
+
+        for i in 0..10 {
+            let vo = spec.histogram.value(&(i as f64 * 10.0));
+            assert!(vo.is_some());
+            assert_eq!(0.0, vo.unwrap().get());
+        }
+    }
+    #[test]
+    fn incr_4() {
+        // Over/underflow - 1/2 will under, 1/2 will over:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            names.push(name.clone());
+            pdict.add(&name).expect("Could not add parameter");
+            let p = pdict.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Some things in arb units");
+        }
+        let mut spec = Multi1d::new("Testing", names, &pdict, None, None, None).unwrap();
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+        for i in 0..10 {
+            let v = if i % 2 == 0 { -1.0 } else { 1024.0 };
+            let name = format!("param.{}", i);
+            let pid = pdict.lookup_mut(&name).unwrap().get_id();
+            e.push(EventParameter::new(pid, v));
+        }
+        fe.load_event(&e);
+        spec.handle_event(&fe);
+        assert_eq!(5.0, spec.histogram.value(&-1.0).unwrap().get());
+        assert_eq!(5.0, spec.histogram.value(&1025.0).unwrap().get());
+    }
 }

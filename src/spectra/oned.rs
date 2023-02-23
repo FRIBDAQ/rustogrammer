@@ -17,6 +17,27 @@ pub struct Oned {
     parameter_name: String,
     parameter_id: u32,
 }
+impl Spectrum for Oned {
+    fn check_gate(&mut self, e: &FlatEvent) -> bool {
+        self.applied_gate.check(e)
+    }
+    fn increment(&mut self, e: &FlatEvent) {
+        if let Some(p) = e[self.parameter_id] {
+            self.histogram.fill(&p);
+        }
+    }
+    fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+        self.applied_gate.set_gate(name, dict)
+    }
+    fn ungate(&mut self) {
+        self.applied_gate.ungate()
+    }
+    fn clear(&mut self) {
+        for c in self.histogram.iter_mut() {
+            *c.value = Sum::new();
+        }
+    }
+}
 
 impl Oned {
     ///
@@ -413,24 +434,3 @@ mod oned_tests {
     }
 }
 
-impl Spectrum for Oned {
-    fn check_gate(&mut self, e: &FlatEvent) -> bool {
-        self.applied_gate.check(e)
-    }
-    fn increment(&mut self, e: &FlatEvent) {
-        if let Some(p) = e[self.parameter_id] {
-            self.histogram.fill(&p);
-        }
-    }
-    fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
-        self.applied_gate.set_gate(name, dict)
-    }
-    fn ungate(&mut self) {
-        self.applied_gate.ungate()
-    }
-    fn clear(&mut self) {
-        for c in self.histogram.iter_mut() {
-            *c.value = Sum::new();
-        }
-    }
-}
