@@ -433,4 +433,3 @@ mod oned_tests {
         assert_eq!(0.0, bin_value(512, &s));
     }
 }
-

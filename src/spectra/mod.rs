@@ -58,6 +58,9 @@ pub use summary::*;
 pub mod multi1d;
 pub use multi1d::*;
 
+pub mod multi2d;
+pub use multi2d::*;
+
 ///
 /// Gated spectra have this.  The condition_name just documents
 /// which condition is applied to the spectrum.
@@ -203,52 +206,52 @@ fn axis_limits(
 // Useful utility methods (private):
 
 fn optmin<T: PartialOrd>(v1: Option<T>, v2: Option<T>) -> Option<T> {
-        if v1.is_none() && v2.is_none() {
-            None
-        } else {
-            if v1.is_none() || v2.is_none() {
-                if let Some(v1) = v1 {
-                    Some(v1)
-                } else {
-                    Some(v2.unwrap())
-                }
+    if v1.is_none() && v2.is_none() {
+        None
+    } else {
+        if v1.is_none() || v2.is_none() {
+            if let Some(v1) = v1 {
+                Some(v1)
             } else {
-                // neither are none:
+                Some(v2.unwrap())
+            }
+        } else {
+            // neither are none:
 
-                let v1 = v1.unwrap();
-                let v2 = v2.unwrap();
-                if v1 < v2 {
-                    Some(v1)
-                } else {
-                    Some(v2)
-                }
+            let v1 = v1.unwrap();
+            let v2 = v2.unwrap();
+            if v1 < v2 {
+                Some(v1)
+            } else {
+                Some(v2)
             }
         }
     }
-    /// Same as min but uses max of v1/v2
-    fn optmax<T: PartialOrd>(v1: Option<T>, v2: Option<T>) -> Option<T> {
-        if v1.is_none() && v2.is_none() {
-            None
-        } else {
-            if v1.is_none() || v2.is_none() {
-                if let Some(v1) = v1 {
-                    Some(v1)
-                } else {
-                    Some(v2.unwrap())
-                }
+}
+/// Same as min but uses max of v1/v2
+fn optmax<T: PartialOrd>(v1: Option<T>, v2: Option<T>) -> Option<T> {
+    if v1.is_none() && v2.is_none() {
+        None
+    } else {
+        if v1.is_none() || v2.is_none() {
+            if let Some(v1) = v1 {
+                Some(v1)
             } else {
-                // neither are none:
+                Some(v2.unwrap())
+            }
+        } else {
+            // neither are none:
 
-                let v1 = v1.unwrap();
-                let v2 = v2.unwrap();
-                if v1 > v2 {
-                    Some(v1)
-                } else {
-                    Some(v2)
-                }
+            let v1 = v1.unwrap();
+            let v2 = v2.unwrap();
+            if v1 > v2 {
+                Some(v1)
+            } else {
+                Some(v2)
             }
         }
     }
+}
 
 #[cfg(test)]
 mod gate_tests {
