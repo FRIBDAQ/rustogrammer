@@ -17,3 +17,50 @@
 //!
 use super::*;
 use ndhistogram::value::Sum;
+
+// 2d sum spectra are defined on x/y parameter pairs.
+// here's a convenient container for one used internally:
+
+struct ParameterPair {
+    x_name: String,
+    x_id: u32,
+
+    y_id: u32,
+    y_name: String,
+}
+
+pub struct TwodSum {
+    applied_gate: SpectrumGate,
+    name: String,
+    histogram: Hist2D<axis::Uniform, axis::Uniform, Sum>,
+    parameters: Vec<ParameterPair>,
+}
+impl Spectrum for TwodSum {
+    fn check_gate(&mut self, e: &FlatEvent) -> bool {
+        self.applied_gate.check(e)
+    }
+    fn increment(&mut self, e: &FlatEvent) {
+        for pair in self.parameters.iter() {
+            let xid = pair.x_id;
+            let yid = pair.y_id;
+            let x = e[xid];
+            let y = e[yid];
+            if x.is_some() && y.is_some() {
+                let x = x.unwrap();
+                let y = y.unwrap();
+                self.histogram.fill(&(x, y));
+            }
+        }
+    }
+    fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+        self.applied_gate.set_gate(name, dict)
+    }
+    fn ungate(&mut self) {
+        self.applied_gate.ungate()
+    }
+    fn clear(&mut self) {
+        for c in self.histogram.iter_mut() {
+            *c.value = Sum::new();
+        }
+    }
+}
