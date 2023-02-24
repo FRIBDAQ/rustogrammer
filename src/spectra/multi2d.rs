@@ -189,6 +189,278 @@ mod multi2d_tests {
 
     #[test]
     fn new_1() {
-        
+        let mut pdict = ParameterDictionary::new();
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            let p = pdict.lookup_mut(&pname).unwrap();
+
+            p.set_limits(0.0, 1024.0);
+            p.set_bins(1024);
+            pnames.push(pname);
+        }
+        let result = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None);
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        assert!(spec.applied_gate.gate.is_none());
+        assert_eq!(String::from("test"), spec.name);
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let x = spec.histogram.axes().as_tuple().0.clone();
+        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(0.0, *x.low());
+        assert_eq!(1024.0, *x.high());
+        assert_eq!(1024 + 2, x.num_bins());
+
+        assert_eq!(0.0, *y.low());
+        assert_eq!(1024.0, *y.high());
+        assert_eq!(1024 + 2, y.num_bins());
+
+        assert_eq!(10, spec.param_names.len());
+        assert_eq!(10, spec.param_ids.len());
+
+        for (i, name) in spec.param_names.iter().enumerate() {
+            let sbname = format!("param.{}", i);
+            assert_eq!(sbname, *name);
+            let p = pdict.lookup(name).unwrap();
+            assert_eq!(p.get_id(), spec.param_ids[i]);
+        }
+    }
+    #[test]
+    fn new_2() {
+        // Override X axis definitions:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            let p = pdict.lookup_mut(&pname).unwrap();
+
+            p.set_limits(0.0, 1024.0);
+            p.set_bins(1024);
+            pnames.push(pname);
+        }
+        let result = Multi2d::new(
+            "test",
+            pnames,
+            &pdict,
+            Some(-512.0),
+            Some(512.0),
+            Some(2048),
+            None,
+            None,
+            None,
+        );
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        assert!(spec.applied_gate.gate.is_none());
+        assert_eq!(String::from("test"), spec.name);
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let x = spec.histogram.axes().as_tuple().0.clone();
+        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(-512.0, *x.low());
+        assert_eq!(512.0, *x.high());
+        assert_eq!(2048 + 2, x.num_bins());
+
+        assert_eq!(0.0, *y.low());
+        assert_eq!(1024.0, *y.high());
+        assert_eq!(1024 + 2, y.num_bins());
+
+        assert_eq!(10, spec.param_names.len());
+        assert_eq!(10, spec.param_ids.len());
+
+        for (i, name) in spec.param_names.iter().enumerate() {
+            let sbname = format!("param.{}", i);
+            assert_eq!(sbname, *name);
+            let p = pdict.lookup(name).unwrap();
+            assert_eq!(p.get_id(), spec.param_ids[i]);
+        }
+    }
+    #[test]
+    fn new_3() {
+        // Override y axis defs:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            let p = pdict.lookup_mut(&pname).unwrap();
+
+            p.set_limits(0.0, 1024.0);
+            p.set_bins(1024);
+            pnames.push(pname);
+        }
+        let result = Multi2d::new(
+            "test",
+            pnames,
+            &pdict,
+            None,
+            None,
+            None,
+            Some(-512.0),
+            Some(512.0),
+            Some(2048),
+        );
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        assert!(spec.applied_gate.gate.is_none());
+        assert_eq!(String::from("test"), spec.name);
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let x = spec.histogram.axes().as_tuple().0.clone();
+        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(0.0, *x.low());
+        assert_eq!(1024.0, *x.high());
+        assert_eq!(1024 + 2, x.num_bins());
+
+        assert_eq!(-512.0, *y.low());
+        assert_eq!(512.0, *y.high());
+        assert_eq!(2048 + 2, y.num_bins());
+
+        assert_eq!(10, spec.param_names.len());
+        assert_eq!(10, spec.param_ids.len());
+
+        for (i, name) in spec.param_names.iter().enumerate() {
+            let sbname = format!("param.{}", i);
+            assert_eq!(sbname, *name);
+            let p = pdict.lookup(name).unwrap();
+            assert_eq!(p.get_id(), spec.param_ids[i]);
+        }
+    }
+    // These new tests test various failure cases.
+
+    #[test]
+    fn new_4() {
+        // A nonexistent parameter is in the parameter array:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            let p = pdict.lookup_mut(&pname).unwrap();
+
+            p.set_limits(0.0, 1024.0);
+            p.set_bins(1024);
+            pnames.push(pname);
+        }
+        pnames.push(String::from("param.11"));
+        let result = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None);
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_5() {
+        // Can't default various bits of axis definitions:
+        // Remember parameters supply both x/y defaults:
+
+        let mut pdict = ParameterDictionary::new();
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            pnames.push(pname);
+        }
+
+        let result = Multi2d::new(
+            "test",
+            pnames.clone(),
+            &pdict,
+            None,
+            Some(1024.0),
+            Some(1024),
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+        );
+        assert!(result.is_err());
+        let result = Multi2d::new(
+            "test",
+            pnames,
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+            None,
+            Some(1024.0),
+            Some(1024),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_6() {
+        let mut pdict = ParameterDictionary::new();
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            pnames.push(pname);
+        }
+
+        let result = Multi2d::new(
+            "test",
+            pnames.clone(),
+            &pdict,
+            Some(0.0),
+            None,
+            Some(1024),
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+        );
+        assert!(result.is_err());
+        let result = Multi2d::new(
+            "test",
+            pnames,
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+            Some(0.0),
+            None,
+            Some(1024),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_7() {
+        let mut pdict = ParameterDictionary::new();
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            pnames.push(pname);
+        }
+
+        let result = Multi2d::new(
+            "test",
+            pnames.clone(),
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            None,
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+        );
+        assert!(result.is_err());
+        let result = Multi2d::new(
+            "test",
+            pnames,
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+            Some(0.0),
+            Some(1024.0),
+            None,
+        );
+        assert!(result.is_err());
     }
 }
