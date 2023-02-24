@@ -35,7 +35,7 @@ impl Spectrum for Multi2d {
     fn check_gate(&mut self, e: &FlatEvent) -> bool {
         self.applied_gate.check(e)
     }
-    
+
     fn increment(&mut self, e: &FlatEvent) {
         for a in 0..self.param_ids.len() {
             for b in (a + 1)..self.param_ids.len() {
@@ -487,12 +487,6 @@ mod multi2d_tests {
         // Without an applied gate:
 
         spec.handle_event(&fe);
-
-        // Let's look at all parameter pairs should have an increment for them
-        // We're going to do this the clumsy way since otherwise
-        // it's a circular test to see if the iterator we use in increment
-        // actually works:
-
         for i in 0..spec.param_ids.len() {
             for j in (i + 1)..spec.param_ids.len() {
                 let px = spec.param_ids[i];
@@ -503,6 +497,86 @@ mod multi2d_tests {
                 assert!(v.is_some());
                 assert_eq!(1.0, v.unwrap().get());
             }
+        }
+    }
+    #[test]
+    fn incr_2() {
+        let mut pdict = ParameterDictionary::new();
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            let p = pdict.lookup_mut(&pname).unwrap();
+
+            p.set_limits(0.0, 1024.0);
+            p.set_bins(1024);
+            pnames.push(pname);
+        }
+        let mut spec =
+            Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None).unwrap();
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+
+        for (i, pid) in spec.param_ids.iter().enumerate() {
+            e.push(EventParameter::new(*pid, i as f64 * 10.0));
+        }
+        fe.load_event(&e);
+
+        // With an applied true gate:
+
+        let mut cd = ConditionDictionary::new();
+        cd.insert(String::from("true"), Rc::new(RefCell::new(True {})));
+        spec.gate("true", &cd)
+            .expect("Unable to apply gate to spectrum");
+        spec.handle_event(&fe);
+        for i in 0..spec.param_ids.len() {
+            for j in (i + 1)..spec.param_ids.len() {
+                let px = spec.param_ids[i];
+                let py = spec.param_ids[j];
+                let x = fe[px as u32].unwrap();
+                let y = fe[py as u32].unwrap();
+                let v = spec.histogram.value(&(x, y));
+                assert!(v.is_some());
+                assert_eq!(1.0, v.unwrap().get());
+            }
+        }
+    }
+    #[test]
+    fn incr_3() {
+        let mut pdict = ParameterDictionary::new();
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            let p = pdict.lookup_mut(&pname).unwrap();
+
+            p.set_limits(0.0, 1024.0);
+            p.set_bins(1024);
+            pnames.push(pname);
+        }
+        let mut spec =
+            Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None).unwrap();
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+
+        for (i, pid) in spec.param_ids.iter().enumerate() {
+            e.push(EventParameter::new(*pid, i as f64 * 10.0));
+        }
+        fe.load_event(&e);
+
+        // With an applied False gate:
+
+        let mut cd = ConditionDictionary::new();
+        cd.insert(String::from("false"), Rc::new(RefCell::new(False {})));
+        spec.gate("false", &cd)
+            .expect("Unable to apply gate to spectrum");
+        spec.handle_event(&fe);
+        // nothing incremented:
+
+        for chan in spec.histogram.iter() {
+            assert_eq!(0.0, chan.value.get());
         }
     }
 }
