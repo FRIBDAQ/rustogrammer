@@ -35,22 +35,17 @@ impl Spectrum for Multi2d {
     fn check_gate(&mut self, e: &FlatEvent) -> bool {
         self.applied_gate.check(e)
     }
-    // The method of iterating over the parameter ids to get the ordered pairs
-    // out for computation comes from:
-    // https://stackoverflow.com/questions/66386013/how-to-iterate-over-two-elements-in-a-collection-stepping-by-one-using-iterator
-    // with the inpect dropped out in favor of a loop to make things a
-    // bit clearer(?)
-    // The key is that .zip makes an iterator over the outer iterator
-    // which is from 0..n while zip iterates over the 1..n and that outer
-    // iterator.
+    
     fn increment(&mut self, e: &FlatEvent) {
-        for (a, b) in self.param_ids.iter().zip(self.param_ids.iter().skip(1)) {
-            let x = e[*a];
-            let y = e[*b];
-            if x.is_some() && y.is_some() {
-                let x = x.unwrap();
-                let y = y.unwrap();
-                self.histogram.fill(&(x, y));
+        for a in 0..self.param_ids.len() {
+            for b in (a + 1)..self.param_ids.len() {
+                let x = e[self.param_ids[a] as u32];
+                let y = e[self.param_ids[b] as u32];
+                if x.is_some() && y.is_some() {
+                    let x = x.unwrap();
+                    let y = y.unwrap();
+                    self.histogram.fill(&(x, y));
+                }
             }
         }
     }
@@ -462,5 +457,52 @@ mod multi2d_tests {
             None,
         );
         assert!(result.is_err());
+    }
+    // Next set of test ensure the spectrum is properly incremented.
+
+    #[test]
+    fn incr_1() {
+        let mut pdict = ParameterDictionary::new();
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            let p = pdict.lookup_mut(&pname).unwrap();
+
+            p.set_limits(0.0, 1024.0);
+            p.set_bins(1024);
+            pnames.push(pname);
+        }
+        let mut spec =
+            Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None).unwrap();
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+
+        for (i, pid) in spec.param_ids.iter().enumerate() {
+            e.push(EventParameter::new(*pid, i as f64 * 10.0));
+        }
+        fe.load_event(&e);
+
+        // Without an applied gate:
+
+        spec.handle_event(&fe);
+
+        // Let's look at all parameter pairs should have an increment for them
+        // We're going to do this the clumsy way since otherwise
+        // it's a circular test to see if the iterator we use in increment
+        // actually works:
+
+        for i in 0..spec.param_ids.len() {
+            for j in (i + 1)..spec.param_ids.len() {
+                let px = spec.param_ids[i];
+                let py = spec.param_ids[j];
+                let x = fe[px as u32].unwrap();
+                let y = fe[py as u32].unwrap();
+                let v = spec.histogram.value(&(x, y));
+                assert!(v.is_some());
+                assert_eq!(1.0, v.unwrap().get());
+            }
+        }
     }
 }
