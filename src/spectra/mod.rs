@@ -30,7 +30,7 @@
 //!  *  Twod-sum.  The histogram needs 2 axes and an arbitrary number of parameter pairs.
 //!     If the spectrum's applied condition is satisfied, the spectrum is incremented
 //!     Once for each pair of parameters that are both present in the event.  This makes the
-//!     result look like the sum of a set of 2d speactra.
+//!     result look like the sum of a set of 2d spectra.
 //!  *  Pgamma - The histogram requires 2 axes and an arbitrary number of x and y axis parameters.
 //!     if the applied gate is satisfied, the spectrum is incremented multiply for each combination
 //!     of x/y parameters present.  For example, consider a fully populated event and a Pgamma
