@@ -195,8 +195,8 @@ impl TwodSum {
             applied_gate: SpectrumGate::new(),
             name: String::from(name),
             histogram: ndhistogram!(
-                axis::Uniform::new(x_bins.unwrap() as usize, xlow.unwrap(), xhigh.unwrap()),
-                axis::Uniform::new(y_bins.unwrap() as usize, y_low.unwrap(), yhigh.unwrap());
+                axis::Uniform::new(x_bins.unwrap() as usize, x_low.unwrap(), x_high.unwrap()),
+                axis::Uniform::new(y_bins.unwrap() as usize, y_low.unwrap(), y_high.unwrap());
                 Sum
             ),
             parameters: params,
@@ -211,6 +211,63 @@ mod twodsum_tests {
     use std::rc::Rc;
     #[test]
     fn new_1() {
+        // Simple success:
+
+        // First make some parameters -- we'll make 5 x and 5 y params
+        // named xparam.n and yparam.n all with 0-1024/512 axis specs:
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname);
+            pd.add(&yname);
+
+            let px = pd.lookup_mut(&xname).expect("Failed to find xname");
+            px.set_limits(0.0, 1024.0);
+            px.set_bins(512);
+
+            let py = pd.lookup_mut(&yname).expect("Failed to find yname");
+            py.set_limits(0.0, 1024.0);
+            py.set_bins(512);
+        }
+
+        // try to make the spectrum.
+        let result = TwodSum::new("test", params, &pd, None, None, None, None, None, None);
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+        assert!(spec.applied_gate.gate.is_none());
+        assert_eq!("test", spec.name);
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let x = spec.histogram.axes().as_tuple().0.clone();
+        let y = spec.histogram.axes().as_tuple().1.clone();
+
+        assert_eq!(0.0, *x.low());
+        assert_eq!(1024.0, *x.high());
+        assert_eq!(512 + 2, x.num_bins());
+
+        assert_eq!(0.0, *y.low());
+        assert_eq!(1024.0, *y.high());
+        assert_eq!(512 + 2, y.num_bins());
+
+        assert_eq!(5, spec.parameters.len());
+        for (i, p) in spec.parameters.iter().enumerate() {
+            let xname = format!("xparam.{}", i); 
+            let yname = format!("yparam.{}", i);
+            assert_eq!(xname, *p.x_name);
+            assert_eq!(yname, *p.y_name);
+
+            let px = pd.lookup(&xname).expect("Unable to lookup x");
+            assert_eq!(px.get_id(), p.x_id);
+            let py = pd.lookup(&yname).expect("Unable to lookup y");
+            assert_eq!(py.get_id(), p.y_id);
+        }
+
+        
+
 
     }
 }
