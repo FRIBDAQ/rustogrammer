@@ -61,6 +61,10 @@ pub use multi1d::*;
 pub mod multi2d;
 pub use multi2d::*;
 
+pub mod twodsum;
+pub use twodsum::*;
+
+
 ///
 /// Gated spectra have this.  The condition_name just documents
 /// which condition is applied to the spectrum.
