@@ -64,6 +64,8 @@ pub use multi2d::*;
 pub mod twodsum;
 pub use twodsum::*;
 
+pub mod pgamma;
+pub use pgamma::*;
 
 ///
 /// Gated spectra have this.  The condition_name just documents
