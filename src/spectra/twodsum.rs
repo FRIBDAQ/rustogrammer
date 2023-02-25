@@ -255,7 +255,7 @@ mod twodsum_tests {
 
         assert_eq!(5, spec.parameters.len());
         for (i, p) in spec.parameters.iter().enumerate() {
-            let xname = format!("xparam.{}", i); 
+            let xname = format!("xparam.{}", i);
             let yname = format!("yparam.{}", i);
             assert_eq!(xname, *p.x_name);
             assert_eq!(yname, *p.y_name);
@@ -293,9 +293,15 @@ mod twodsum_tests {
 
         // try to make the spectrum.
         let result = TwodSum::new(
-            "test", params, &pd, 
-            Some(-1024.0),Some(256.0), Some(1024), 
-            Some(-512.0), Some(128.0), Some(256)
+            "test",
+            params,
+            &pd,
+            Some(-1024.0),
+            Some(256.0),
+            Some(1024),
+            Some(-512.0),
+            Some(128.0),
+            Some(256),
         );
         assert!(result.is_ok());
         let spec = result.unwrap();
@@ -324,14 +330,20 @@ mod twodsum_tests {
             let yname = format!("yparam.{}", i);
             params.push((xname.clone(), yname.clone()));
             pd.add(&xname).expect("Could not add x parameter");
-            pd.add(&yname).expect("Could not add y parameters");;
+            pd.add(&yname).expect("Could not add y parameters");
         }
 
         // try to make the spectrum.
         let result = TwodSum::new(
-            "test", params, &pd, 
-            Some(-1024.0),Some(256.0), Some(1024), 
-            Some(-512.0), Some(128.0), Some(256)
+            "test",
+            params,
+            &pd,
+            Some(-1024.0),
+            Some(256.0),
+            Some(1024),
+            Some(-512.0),
+            Some(128.0),
+            Some(256),
         );
         assert!(result.is_ok());
         let spec = result.unwrap();
@@ -347,5 +359,196 @@ mod twodsum_tests {
         assert_eq!(-512.0, *y.low());
         assert_eq!(128.0, *y.high());
         assert_eq!(256 + 2, y.num_bins());
+    }
+    // Tests where new fails:
+
+    #[test]
+    fn new_4() {
+        // Parameter not found.
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+        params.push((String::from("x"), String::from("y")));
+
+        let result = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(-1024.0),
+            Some(256.0),
+            Some(1024),
+            Some(-512.0),
+            Some(128.0),
+            Some(256),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_5() {
+        // Can't default x low:
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let result = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            None,
+            Some(256.0),
+            Some(1024),
+            Some(-512.0),
+            Some(128.0),
+            Some(256),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_6() {
+        // Can't default xhigh
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let result = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            None,
+            Some(1024),
+            Some(-512.0),
+            Some(128.0),
+            Some(256),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_7() {
+        // Can't default xbins:
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let result = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            Some(1024.0),
+            None,
+            Some(-512.0),
+            Some(128.0),
+            Some(256),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_8() {
+        // Can't default y low:
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let result = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+            None,
+            Some(128.0),
+            Some(256),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_9() {
+        // Can't default yhigh
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let result = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+            Some(0.0),
+            None,
+            Some(256),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_10() {
+        // can'd default ybins
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let result = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+            Some(0.0),
+            Some(1024.0),
+            None
+        );
+        assert!(result.is_err());
     }
 }
