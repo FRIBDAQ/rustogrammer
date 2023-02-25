@@ -547,8 +547,387 @@ mod twodsum_tests {
             Some(512),
             Some(0.0),
             Some(1024.0),
-            None
+            None,
         );
         assert!(result.is_err());
+    }
+    // Subsequent tests check increments.
+    // We don't check overflows because we assume ndhistogram
+    // works.  We check:
+    //   -  All increments on ungated spectra work.
+    //   -  All increments on spectrum gated with True work.
+    //   -  All increments on spectrum gated with False don't happen.
+    //   -  Events with only some parameters are correctly handled.
+
+    #[test]
+    fn incr_1() {
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let mut spec = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+        )
+        .expect("Failed to create the spectrum");
+
+        // Make an event that has sutff for all x and y parameters:
+        // Increments will like on an x=y line:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+
+            let px = pd.lookup(&xname).unwrap().get_id();
+            let py = pd.lookup(&yname).unwrap().get_id();
+
+            e.push(EventParameter::new(px, i as f64 * 10.0));
+            e.push(EventParameter::new(py, i as f64 * 10.0));
+        }
+        fe.load_event(&e);
+
+        spec.handle_event(&fe);
+
+        // should be increments on 0,0, 10,0, 20,20, 30,30, 40,40
+
+        for i in 0..5 {
+            let xy = i as f64 * 10.0;
+            let v = spec.histogram.value(&(xy, xy));
+            assert!(v.is_some());
+            assert_eq!(1.0, v.unwrap().get());
+        }
+    }
+    #[test]
+    fn incr_2() {
+        // increment with True gate applied:
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let mut spec = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+        )
+        .expect("Failed to create the spectrum");
+
+        // Gate the spectrum:
+
+        let mut cd = ConditionDictionary::new();
+        cd.insert(String::from("true"), Rc::new(RefCell::new(True {})));
+
+        spec.gate("true", &cd).expect("Unable to gate spectrum");
+
+        // Make an event that has sutff for all x and y parameters:
+        // Increments will like on an x=y line:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+
+            let px = pd.lookup(&xname).unwrap().get_id();
+            let py = pd.lookup(&yname).unwrap().get_id();
+
+            e.push(EventParameter::new(px, i as f64 * 10.0));
+            e.push(EventParameter::new(py, i as f64 * 10.0));
+        }
+        fe.load_event(&e);
+
+        spec.handle_event(&fe);
+
+        // should be increments on 0,0, 10,0, 20,20, 30,30, 40,40
+
+        for i in 0..5 {
+            let xy = i as f64 * 10.0;
+            let v = spec.histogram.value(&(xy, xy));
+            assert!(v.is_some());
+            assert_eq!(1.0, v.unwrap().get());
+        }
+    }
+    #[test]
+    fn incr_3() {
+        // Increment with false gate applied does not happen:
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let mut spec = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+        )
+        .expect("Failed to create the spectrum");
+
+        // Gate the spectrum:
+
+        let mut cd = ConditionDictionary::new();
+        cd.insert(String::from("false"), Rc::new(RefCell::new(False {})));
+
+        spec.gate("false", &cd).expect("Unable to gate spectrum");
+
+        // Make an event that has sutff for all x and y parameters:
+        // Increments will like on an x=y line:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+
+            let px = pd.lookup(&xname).unwrap().get_id();
+            let py = pd.lookup(&yname).unwrap().get_id();
+
+            e.push(EventParameter::new(px, i as f64 * 10.0));
+            e.push(EventParameter::new(py, i as f64 * 10.0));
+        }
+        fe.load_event(&e);
+
+        spec.handle_event(&fe);
+
+        // the entire histogram should still be clear:
+
+        for chan in spec.histogram.iter() {
+            assert_eq!(0.0, chan.value.get());
+        }
+    }
+    // Now only set some of the parameter pairs in the event:
+
+    #[test]
+    fn incr_4() {
+        // Some parameter pairs are completely missing:
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let mut spec = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+        )
+        .expect("Failed to create the spectrum");
+
+        // Make an event that has sutff for all x and y parameters:
+        // Increments will like on an x=y line:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+
+        for i in 0..5 {
+            if i % 2 == 0 {
+                // only even parameters are set:
+                let xname = format!("xparam.{}", i);
+                let yname = format!("yparam.{}", i);
+
+                let px = pd.lookup(&xname).unwrap().get_id();
+                let py = pd.lookup(&yname).unwrap().get_id();
+
+                e.push(EventParameter::new(px, i as f64 * 10.0));
+                e.push(EventParameter::new(py, i as f64 * 10.0));
+            }
+        }
+        fe.load_event(&e);
+
+        spec.handle_event(&fe);
+
+        for i in 0..5 {
+            let xy = i as f64 * 10.0;
+            let v = spec.histogram.value(&(xy, xy));
+            let expected_value = if i % 2 == 0 { 1.0 } else { 0.0 };
+            assert!(v.is_some());
+            assert_eq!(expected_value, v.unwrap().get());
+        }
+    }
+    #[test]
+    fn incr_5() {
+        // Some pairs have the x parameter set but not the y:
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let mut spec = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+        )
+        .expect("Failed to create the spectrum");
+
+        // Make an event that has sutff for all x and y parameters:
+        // Increments will like on an x=y line:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+
+            let px = pd.lookup(&xname).unwrap().get_id();
+            let py = pd.lookup(&yname).unwrap().get_id();
+
+            e.push(EventParameter::new(px, i as f64 * 10.0));
+            // Only even ones have the y parameter:
+            if i % 2 == 0 {
+                e.push(EventParameter::new(py, i as f64 * 10.0));
+            }
+        }
+        fe.load_event(&e);
+
+        spec.handle_event(&fe);
+
+        for i in 0..5 {
+            let xy = i as f64 * 10.0;
+            let v = spec.histogram.value(&(xy, xy));
+            let expected_value = if i % 2 == 0 { 1.0 } else { 0.0 };
+            assert!(v.is_some());
+            assert_eq!(expected_value, v.unwrap().get());
+        }
+        // there are only 3 non zeros in the histogram 0,0,
+
+        let mut sum = 0;
+        for chan in spec.histogram.iter() {
+            if chan.value.get() != 0.0 {
+                sum += 1;
+            }
+        }
+        assert_eq!(3, sum);
+    }
+    #[test]
+    fn incr_6() {
+        // Same as above but only the y parameter is present for some:
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");
+        }
+
+        let mut spec = TwodSum::new(
+            "test",
+            params,
+            &pd,
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+            Some(0.0),
+            Some(1024.0),
+            Some(512),
+        )
+        .expect("Failed to create the spectrum");
+
+        // Make an event that has sutff for all x and y parameters:
+        // Increments will like on an x=y line:
+
+        let mut fe = FlatEvent::new();
+        let mut e = Event::new();
+
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+
+            let px = pd.lookup(&xname).unwrap().get_id();
+            let py = pd.lookup(&yname).unwrap().get_id();
+
+            e.push(EventParameter::new(py, i as f64 * 10.0));
+            // Only even ones have the y parameter:
+            if i % 2 == 0 {
+                e.push(EventParameter::new(px, i as f64 * 10.0));
+            }
+        }
+        fe.load_event(&e);
+
+        spec.handle_event(&fe);
+
+        for i in 0..5 {
+            let xy = i as f64 * 10.0;
+            let v = spec.histogram.value(&(xy, xy));
+            let expected_value = if i % 2 == 0 { 1.0 } else { 0.0 };
+            assert!(v.is_some());
+            assert_eq!(expected_value, v.unwrap().get());
+        }
+        // there are only 3 non zeros in the histogram 0,0,
+
+        let mut sum = 0;
+        for chan in spec.histogram.iter() {
+            if chan.value.get() != 0.0 {
+                sum += 1;
+            }
+        }
+        assert_eq!(3, sum);
     }
 }
