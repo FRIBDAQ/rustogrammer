@@ -265,9 +265,87 @@ mod twodsum_tests {
             let py = pd.lookup(&yname).expect("Unable to lookup y");
             assert_eq!(py.get_id(), p.y_id);
         }
+    }
+    #[test]
+    fn new_2() {
+        // we should be able to override the x/y axis definitions:
 
-        
+        // First make some parameters -- we'll make 5 x and 5 y params
+        // named xparam.n and yparam.n all with 0-1024/512 axis specs:
 
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname);
+            pd.add(&yname);
 
+            let px = pd.lookup_mut(&xname).expect("Failed to find xname");
+            px.set_limits(0.0, 1024.0);
+            px.set_bins(512);
+
+            let py = pd.lookup_mut(&yname).expect("Failed to find yname");
+            py.set_limits(0.0, 1024.0);
+            py.set_bins(512);
+        }
+
+        // try to make the spectrum.
+        let result = TwodSum::new(
+            "test", params, &pd, 
+            Some(-1024.0),Some(256.0), Some(1024), 
+            Some(-512.0), Some(128.0), Some(256)
+        );
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let x = spec.histogram.axes().as_tuple().0.clone();
+        let y = spec.histogram.axes().as_tuple().1.clone();
+
+        assert_eq!(-1024.0, *x.low());
+        assert_eq!(256.0, *x.high());
+        assert_eq!(1024 + 2, x.num_bins());
+
+        assert_eq!(-512.0, *y.low());
+        assert_eq!(128.0, *y.high());
+        assert_eq!(256 + 2, y.num_bins());
+    }
+    #[test]
+    fn new_3() {
+        // Ok to make a spectrum when there are no default axis
+        // defs but we provide them:
+
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname);
+            pd.add(&yname);
+        }
+
+        // try to make the spectrum.
+        let result = TwodSum::new(
+            "test", params, &pd, 
+            Some(-1024.0),Some(256.0), Some(1024), 
+            Some(-512.0), Some(128.0), Some(256)
+        );
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let x = spec.histogram.axes().as_tuple().0.clone();
+        let y = spec.histogram.axes().as_tuple().1.clone();
+
+        assert_eq!(-1024.0, *x.low());
+        assert_eq!(256.0, *x.high());
+        assert_eq!(1024 + 2, x.num_bins());
+
+        assert_eq!(-512.0, *y.low());
+        assert_eq!(128.0, *y.high());
+        assert_eq!(256 + 2, y.num_bins());
     }
 }
