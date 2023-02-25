@@ -222,8 +222,8 @@ mod twodsum_tests {
             let xname = format!("xparam.{}", i);
             let yname = format!("yparam.{}", i);
             params.push((xname.clone(), yname.clone()));
-            pd.add(&xname);
-            pd.add(&yname);
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameter");
 
             let px = pd.lookup_mut(&xname).expect("Failed to find xname");
             px.set_limits(0.0, 1024.0);
@@ -279,8 +279,8 @@ mod twodsum_tests {
             let xname = format!("xparam.{}", i);
             let yname = format!("yparam.{}", i);
             params.push((xname.clone(), yname.clone()));
-            pd.add(&xname);
-            pd.add(&yname);
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameter");
 
             let px = pd.lookup_mut(&xname).expect("Failed to find xname");
             px.set_limits(0.0, 1024.0);
@@ -323,8 +323,8 @@ mod twodsum_tests {
             let xname = format!("xparam.{}", i);
             let yname = format!("yparam.{}", i);
             params.push((xname.clone(), yname.clone()));
-            pd.add(&xname);
-            pd.add(&yname);
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameters");;
         }
 
         // try to make the spectrum.
