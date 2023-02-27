@@ -25,8 +25,8 @@ use ndhistogram::value::Sum;
 // This struct defines a parameter for the spectrum:
 
 struct SpectrumParameter {
-    name:  String,
-    id  :  u32
+    name: String,
+    id: u32,
 }
 
 ///
@@ -36,10 +36,46 @@ struct SpectrumParameter {
 /// SpectrumParameter objects:
 ///
 pub struct PGamma {
-    applied_gate : SpectrumGate,
-    name : String,
-    histogram : Hist2D<axis::Uniform, axis::Uniform, Sum>,
+    applied_gate: SpectrumGate,
+    name: String,
+    histogram: Hist2D<axis::Uniform, axis::Uniform, Sum>,
 
-    x_params : Vec<SpectrumParameter>,
-    y_params : Vec<SpectrumParameter>
+    x_params: Vec<SpectrumParameter>,
+    y_params: Vec<SpectrumParameter>,
+}
+// to make this a spectrum we need to implement this trait:
+
+impl Spectrum for PGamma {
+    fn check_gate(&mut self, e: &FlatEvent) -> bool {
+        self.applied_gate.check(e)
+    }
+    // Increment the param_ids index gives the x axis value
+    // while its value the parameter id.
+    // Increment for _all_ valid ids in the event:
+    //
+    fn increment(&mut self, e: &FlatEvent) {
+        for xp in self.x_params.iter() {
+            for yp in self.y_params.iter() {
+                let xid = xp.id;
+                let yid = yp.id;
+
+                let x = e[xid];
+                let y = e[yid];
+                if x.is_some() && y.is_some() {
+                    self.histogram.fill(&(x.unwrap(), y.unwrap()));
+                }
+            }
+        }
+    }
+    fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+        self.applied_gate.set_gate(name, dict)
+    }
+    fn ungate(&mut self) {
+        self.applied_gate.ungate()
+    }
+    fn clear(&mut self) {
+        for c in self.histogram.iter_mut() {
+            *c.value = Sum::new();
+        }
+    }
 }
