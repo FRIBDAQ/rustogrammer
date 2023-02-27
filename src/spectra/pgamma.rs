@@ -79,3 +79,130 @@ impl Spectrum for PGamma {
         }
     }
 }
+impl PGamma {
+    fn make_axis_def(
+        params: &Vec<String>,
+        pdict: &ParameterDictionary,
+    ) -> Result<
+        (
+            Option<f64>,
+            Option<f64>,
+            Option<u32>,
+            Vec<SpectrumParameter>,
+        ),
+        String,
+    > {
+        // Validate all the x parameters and get the x axis default
+        // specifications:
+
+        let mut x_min = None;
+        let mut x_max = None;
+        let mut x_bins = None;
+        let mut xp = Vec::<SpectrumParameter>::new();
+
+        for pname in params.iter() {
+            if let Some(p) = pdict.lookup(&pname) {
+                let lims = p.get_limits();
+                x_min = optmin(x_min, lims.0);
+                x_max = optmax(x_max, lims.1);
+                x_bins = optmax(x_bins, p.get_bins());
+                xp.push(SpectrumParameter {
+                    name: pname.clone(),
+                    id: p.get_id(),
+                });
+            } else {
+                return Err(format!("Parameter {} is not defined", pname));
+            }
+        }
+
+        Ok((x_min, x_max, x_bins, xp))
+    }
+    /// Create a new gamma spectrum.   
+    /// *   name - the name of the new spectrum.
+    /// *   xparams - Vector of x parameter names.
+    /// *   yparams - Vector of y parameter names.
+    /// *   pdict   - References the parameter dictionary.
+    /// *   xmin,xmax,xbins - possible overrides for the x axis specification.
+    /// *   ymin,ymax,ybins - possible overrides for the y axis specification.
+    ///
+    pub fn new(
+        name: &str,
+        xparams: &Vec<String>,
+        yparams: &Vec<String>,
+        pdict: &ParameterDictionary,
+        xmin: Option<f64>,
+        xmax: Option<f64>,
+        xbins: Option<u32>,
+        ymin: Option<f64>,
+        ymax: Option<f64>,
+        ybins: Option<u32>,
+    ) -> Result<PGamma, String> {
+        let xdef = Self::make_axis_def(xparams, pdict);
+        if let Err(s) = xdef {
+            return Err(s);
+        }
+        let (mut x_min, mut x_max, mut x_bins, xp) = xdef.unwrap();
+        // Override x default axis specs:
+
+        if let Some(_) = xmin {
+            x_min = xmin;
+        }
+        if let Some(_) = xmax {
+            x_max = xmax;
+        }
+        if let Some(_) = xbins {
+            x_bins = xbins;
+        }
+
+        // All X axis parameters must be defined:
+
+        if x_min.is_none() {
+            return Err(String::from("X axis minimum cannot be defaulted"));
+        }
+        if x_max.is_none() {
+            return Err(String::from("X axis maximum cannot be defaulted"));
+        }
+        if x_bins.is_none() {
+            return Err(String::from("X axis bins cannot be defaulted"));
+        }
+        // Same but for y axis:
+
+        let ydef = Self::make_axis_def(yparams, pdict);
+        if let Err(s) = ydef {
+            return Err(s);
+        }
+        let (mut y_min, mut y_max, mut y_bins, yp) = ydef.unwrap();
+        if let Some(_) = ymin {
+            y_min = ymin;
+        }
+        if let Some(_) = ymax {
+            y_max = ymax;
+        }
+        if let Some(_) = ybins {
+            y_bins = ybins;
+        }
+
+        if y_min.is_none() {
+            return Err(String::from("Y axis minimum cannot be defaulted"));
+        }
+        if y_max.is_none() {
+            return Err(String::from("Y axis maximum cannot be defaulted"));
+        }
+        if y_bins.is_none() {
+            return Err(String::from("Y axis bins cannot be defaulted"));
+        }
+        // All good so we can create the return value:
+
+        Ok(PGamma {
+            applied_gate: SpectrumGate::new(),
+            name: String::from(name),
+            histogram: ndhistogram!(
+                axis::Uniform::new(x_bins.unwrap() as usize, x_min.unwrap(), x_max.unwrap()),
+                axis::Uniform::new(y_bins.unwrap() as usize, y_min.unwrap(), y_max.unwrap());
+                Sum
+            ),
+            x_params: xp,
+            y_params: yp,
+        })
+    }
+}
