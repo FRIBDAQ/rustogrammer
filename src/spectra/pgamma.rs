@@ -213,6 +213,71 @@ mod pgamma_tests {
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gating.
 
+    fn make_params(n: usize, lh: Option<(f64, f64)>, bins: Option<u32>) -> ParameterDictionary {
+        let mut dict = ParameterDictionary::new();
+        for i in 0..n {
+            let name = format!("param.{}", i);
+            dict.add(&name);
+            let p = dict.lookup_mut(&name).unwrap();
+            if let Some((low, high)) = lh {
+                p.set_limits(low, high);
+            }
+            if let Some(b) = bins {
+                p.set_bins(b);
+            }
+        }
+        dict
+    }
     #[test]
-    fn new_1() {}
+    fn new_1() {
+        // Creates ok:
+
+        let dict = make_params(10, Some((0.0, 1024.0)), Some(1024));
+        let xp = vec![
+            String::from("param.0"),
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+        ];
+        let yp = vec![
+            String::from("param.5"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+
+        let result = PGamma::new("test", &xp, &yp, &dict, None, None, None, None, None, None);
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        assert!(spec.applied_gate.gate.is_none());
+        assert_eq!(String::from("test"), spec.name);
+
+        for (i, xp) in spec.x_params.iter().enumerate() {
+            let name = format!("param.{}", i);
+            assert_eq!(name, xp.name);
+            assert_eq!(dict.lookup(&name).unwrap().get_id(), xp.id);
+        }
+        for (i, yp) in spec.y_params.iter().enumerate() {
+            let ii = i + 5;
+            let name = format!("param.{}", ii);
+            assert_eq!(name, yp.name);
+            assert_eq!(dict.lookup(&name).unwrap().get_id(), yp.id);
+        }
+        // Check out histogram axis defs:
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let x = spec.histogram.axes().as_tuple().0.clone();
+        let y = spec.histogram.axes().as_tuple().1.clone();
+
+        assert_eq!(0.0, *x.low());
+        assert_eq!(1024.0, *x.high());
+        assert_eq!(1024 + 2, x.num_bins());
+
+        assert_eq!(0.0, *y.low());
+        assert_eq!(1024.0, *y.high());
+        assert_eq!(1024 + 2, y.num_bins());
+    }
 }
