@@ -280,4 +280,50 @@ mod pgamma_tests {
         assert_eq!(1024.0, *y.high());
         assert_eq!(1024 + 2, y.num_bins());
     }
+    #[test]
+    fn new_2() {
+        // Illegal parameter name fails:
+
+        let dict = make_params(10, Some((0.0, 1024.0)), Some(1024));
+        let xp = vec![
+            String::from("param.0"),
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+        ];
+        let yp = vec![
+            String::from("param.5"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+            String::from("Param.10"), // Undefined y parameter.
+        ];
+
+        let result = PGamma::new("test", &xp, &yp, &dict, None, None, None, None, None, None);
+        assert!(result.is_err());
+
+        let xp = vec![
+            String::from("param.0"),
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+            String::from("Param.10"), // Undefined x parameter.
+        ];
+        let yp = vec![
+            String::from("param.5"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+        let result = PGamma::new("test", &xp, &yp, &dict, None, None, None, None, None, None);
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_3() {
+        // can override axis definitions:
+    }
 }
