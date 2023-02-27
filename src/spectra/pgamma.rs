@@ -206,3 +206,13 @@ impl PGamma {
         })
     }
 }
+#[cfg(test)]
+mod pgamma_tests {
+    use super::*;
+    use ndhistogram::axis::*;
+    use std::cell::RefCell; // Needed in gating
+    use std::rc::Rc; // Needed in gating.
+
+    #[test]
+    fn new_1() {}
+}
