@@ -372,4 +372,162 @@ mod pgamma_tests {
         assert_eq!(1000.0, *y.high());
         assert_eq!(256 + 2, y.num_bins());
     }
+    #[test]
+    fn new_4() {
+        // Check for Xlow, Ylow required:
+
+        let dict = make_params(10, None, None); // no default axis specs.
+        let xp = vec![
+            String::from("param.0"),
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+        ];
+        let yp = vec![
+            String::from("param.5"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+        let result = PGamma::new(
+            "test",
+            &xp,
+            &yp,
+            &dict,
+            None,
+            Some(1.0),
+            Some(512),
+            Some(511.0),
+            Some(1000.0),
+            Some(256),
+        );
+        assert!(result.is_err());
+
+        let result = PGamma::new(
+            "test",
+            &xp,
+            &yp,
+            &dict,
+            Some(-1.0),
+            Some(1.0),
+            Some(512),
+            None,
+            Some(1000.0),
+            Some(256),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_5() {
+        // xhigh/yhigh required:
+
+        let dict = make_params(10, None, None); // no default axis specs.
+        let xp = vec![
+            String::from("param.0"),
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+        ];
+        let yp = vec![
+            String::from("param.5"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+        let result = PGamma::new(
+            "test",
+            &xp,
+            &yp,
+            &dict,
+            Some(-1.0),
+            None,
+            Some(512),
+            Some(511.0),
+            Some(1000.0),
+            Some(256),
+        );
+        assert!(result.is_err());
+
+        let result = PGamma::new(
+            "test",
+            &xp,
+            &yp,
+            &dict,
+            Some(-1.0),
+            Some(1.0),
+            Some(512),
+            Some(511.0),
+            None,
+            Some(256),
+        );
+        assert!(result.is_err());
+    }
+    #[test]
+    fn new_6() {
+        // Need bins
+
+        let dict = make_params(10, None, None); // no default axis specs.
+        let xp = vec![
+            String::from("param.0"),
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+        ];
+        let yp = vec![
+            String::from("param.5"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+        let result = PGamma::new(
+            "test",
+            &xp,
+            &yp,
+            &dict,
+            Some(-1.0),
+            Some(1.0),
+            None,
+            Some(511.0),
+            Some(1000.0),
+            Some(256),
+        );
+        assert!(result.is_err());
+
+        let result = PGamma::new(
+            "test",
+            &xp,
+            &yp,
+            &dict,
+            Some(-1.0),
+            Some(1.0),
+            Some(512),
+            Some(511.0),
+            Some(1000.0),
+            None,
+        );
+        assert!(result.is_err());
+
+        // just to be sure:
+
+        let result = PGamma::new(
+            "test",
+            &xp,
+            &yp,
+            &dict,
+            Some(-1.0),
+            Some(1.0),
+            Some(512),
+            Some(511.0),
+            Some(1000.0),
+            Some(256),
+        );
+        assert!(result.is_ok());
+    }
+    // Next tests are about incrementing the spectrum.
 }
