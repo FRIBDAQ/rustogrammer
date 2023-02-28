@@ -217,7 +217,8 @@ mod pgamma_tests {
         let mut dict = ParameterDictionary::new();
         for i in 0..n {
             let name = format!("param.{}", i);
-            dict.add(&name);
+            dict.add(&name)
+                .expect(&format!("Failed to add parameter {}", name));
             let p = dict.lookup_mut(&name).unwrap();
             if let Some((low, high)) = lh {
                 p.set_limits(low, high);
@@ -324,6 +325,51 @@ mod pgamma_tests {
     }
     #[test]
     fn new_3() {
-        // can override axis definitions:
+        // Can override axis definitions:
+
+        let dict = make_params(10, Some((0.0, 1024.0)), Some(1024));
+        let xp = vec![
+            String::from("param.0"),
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+        ];
+        let yp = vec![
+            String::from("param.5"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+
+        let result = PGamma::new(
+            "test",
+            &xp,
+            &yp,
+            &dict,
+            Some(-1.0),
+            Some(1.0),
+            Some(512),
+            Some(511.0),
+            Some(1000.0),
+            Some(256),
+        );
+        assert!(result.is_ok());
+        let spec = result.unwrap();
+
+        // Check out histogram axis defs:
+
+        assert_eq!(2, spec.histogram.axes().num_dim());
+        let x = spec.histogram.axes().as_tuple().0.clone();
+        let y = spec.histogram.axes().as_tuple().1.clone();
+
+        assert_eq!(-1.0, *x.low());
+        assert_eq!(1.0, *x.high());
+        assert_eq!(512 + 2, x.num_bins());
+
+        assert_eq!(511.0, *y.low());
+        assert_eq!(1000.0, *y.high());
+        assert_eq!(256 + 2, y.num_bins());
     }
 }
