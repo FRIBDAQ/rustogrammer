@@ -530,4 +530,176 @@ mod pgamma_tests {
         assert!(result.is_ok());
     }
     // Next tests are about incrementing the spectrum.
+
+    #[test]
+    fn incr_1() {
+        // ungated:
+
+        let dict = make_params(10, Some((0.0, 1024.0)), Some(1024));
+        let xp = vec![
+            String::from("param.0"),
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+        ];
+        let yp = vec![
+            String::from("param.5"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+
+        let mut spec = PGamma::new("test", &xp, &yp, &dict, None, None, None, None, None, None)
+            .expect("Failed to make spectruM");
+
+        // Make an event with all parameters present:
+
+        let mut e = Event::new();
+        let mut fe = FlatEvent::new();
+
+        let mut all_names = xp.clone();
+        for n in yp.iter() {
+            all_names.push(n.clone());
+        }
+        for (i, n) in all_names.iter().enumerate() {
+            let value = i as f64 * 10.0;
+            let p = dict.lookup(n).unwrap();
+            e.push(EventParameter::new(p.get_id(), value));
+        }
+        fe.load_event(&e);
+
+        spec.handle_event(&fe);
+
+        // All value pairs should have data:
+        for (i, _) in xp.iter().enumerate() {
+            for (j, _) in yp.iter().enumerate() {
+                let x = i as f64 * 10.0;
+                let y = (j + 5) as f64 * 10.0;
+
+                let v = spec.histogram.value(&(x, y));
+                assert!(v.is_some());
+                assert_eq!(1.0, v.unwrap().get());
+            }
+        }
+    }
+    #[test]
+    fn incr_2() {
+        // gated on a True gate:
+
+        let dict = make_params(10, Some((0.0, 1024.0)), Some(1024));
+        let xp = vec![
+            String::from("param.0"),
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+        ];
+        let yp = vec![
+            String::from("param.5"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+
+        let mut spec = PGamma::new("test", &xp, &yp, &dict, None, None, None, None, None, None)
+            .expect("Failed to make spectrum");
+
+        // Make a true condition and gate the spetrum on it:
+
+        let mut gdict = ConditionDictionary::new();
+        assert!(gdict
+            .insert(String::from("true"), Rc::new(RefCell::new(True {})))
+            .is_none());
+        spec.gate("true", &gdict)
+            .expect("Could not apply true gate");
+
+        // Make an event with all parameters present:
+
+        let mut e = Event::new();
+        let mut fe = FlatEvent::new();
+
+        let mut all_names = xp.clone();
+        for n in yp.iter() {
+            all_names.push(n.clone());
+        }
+        for (i, n) in all_names.iter().enumerate() {
+            let value = i as f64 * 10.0;
+            let p = dict.lookup(n).unwrap();
+            e.push(EventParameter::new(p.get_id(), value));
+        }
+        fe.load_event(&e);
+
+        spec.handle_event(&fe);
+
+        // All value pairs should have data:
+        for (i, _) in xp.iter().enumerate() {
+            for (j, _) in yp.iter().enumerate() {
+                let x = i as f64 * 10.0;
+                let y = (j + 5) as f64 * 10.0;
+
+                let v = spec.histogram.value(&(x, y));
+                assert!(v.is_some());
+                assert_eq!(1.0, v.unwrap().get());
+            }
+        }
+    }
+    #[test]
+    fn incr_3() {
+        // Apply a false condition to the spectrum:
+
+        let dict = make_params(10, Some((0.0, 1024.0)), Some(1024));
+        let xp = vec![
+            String::from("param.0"),
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+        ];
+        let yp = vec![
+            String::from("param.5"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+
+        let mut spec = PGamma::new("test", &xp, &yp, &dict, None, None, None, None, None, None)
+            .expect("Failed to make spectrum");
+
+        // Make a true condition and gate the spetrum on it:
+
+        let mut gdict = ConditionDictionary::new();
+        assert!(gdict
+            .insert(String::from("false"), Rc::new(RefCell::new(False {})))
+            .is_none());
+        spec.gate("false", &gdict)
+            .expect("Could not apply false gate");
+
+        // Make an event with all parameters present:
+
+        let mut e = Event::new();
+        let mut fe = FlatEvent::new();
+
+        let mut all_names = xp.clone();
+        for n in yp.iter() {
+            all_names.push(n.clone());
+        }
+        for (i, n) in all_names.iter().enumerate() {
+            let value = i as f64 * 10.0;
+            let p = dict.lookup(n).unwrap();
+            e.push(EventParameter::new(p.get_id(), value));
+        }
+        fe.load_event(&e);
+
+        spec.handle_event(&fe);
+
+        // All channels should be zero:
+
+        for c in spec.histogram.iter() {
+            assert_eq!(0.0, c.value.get());
+        }
+    }
 }
