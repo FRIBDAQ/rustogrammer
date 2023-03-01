@@ -26,6 +26,12 @@ impl Spectrum for Oned {
             self.histogram.fill(&p);
         }
     }
+    fn required_parameter(&self) -> Option<u32> {
+        Some(self.parameter_id)
+    }
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
     fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
         self.applied_gate.set_gate(name, dict)
     }

@@ -42,7 +42,9 @@
 use super::conditions::*;
 use super::parameters::*;
 use ndhistogram::*;
-use std::rc::Rc;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::{Rc, Weak};
 
 // Re-exports
 
@@ -153,16 +155,66 @@ trait Spectrum {
             self.increment(e);
         }
     }
+    // informational methods:
+
+    /// This should return a parameter id if there is a parameter
+    /// id that is required to increment the spectrum.
+    /// It is used by the SpectrumStorage app to put the spectrum
+    /// in the correct list of spectra to increment.
+    fn required_parameter(&self) -> Option<u32> {
+        None
+    }
+    /// Return the spectrum name:
+    ///
+    fn get_name(&self) -> String;
+    
     // Methods that handle gate application:
 
     fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String>;
     fn ungate(&mut self);
 
-    // maniuplate the underlying histogram:
+    // manipulate the underlying histogram:
 
     /// Clear the histogram counts.:
 
     fn clear(&mut self);
+}
+
+// We also need some sort of repository in which spectra can be stored and looked up by name.
+//  A hash map does nicely:
+
+type SpectrumContainer = Rc<RefCell<dyn Spectrum>>;
+type SpectrumContainerReference = Weak<RefCell<dyn Spectrum>>;
+type SpectrumReferences = Vec<SpectrumContainerReference>;
+type SpectrumDictionary = HashMap<String, SpectrumContainer>;
+
+/// The SpectrumStorage type supports several things:
+/// -   Spectrum storage by name through a contained SpectrumDictionary.
+/// -   Rapid spectrum increment by holding a set of spectra that are
+///     indexed by a required parameter as well as a set of spectra for which
+///     We cannot make that statement.
+/// -   Handling an event by incrementing appropriate spectra.  This is done by
+///     First incrementing all spectra which have a required parameter in the
+///     event then incrementing any spectra for which we can't say there's a
+///     required parameter.
+/// Note that the name dictionary retains a strong reference while the increment lists
+/// retain weak references under the assumption that promition of a weak reference costs little.
+/// and that spectra are not rapidly deleted/changed.
+
+pub struct SpectrumStorage {
+    dict: SpectrumDictionary,
+    spectra_by_parameter: Vec<Option<SpectrumReferences>>,
+    other_spectra: SpectrumReferences,
+}
+
+impl SpectrumStorage {
+    pub fn new() -> SpectrumStorage {
+        SpectrumStorage {
+            dict: SpectrumDictionary::new(),
+            spectra_by_parameter: Vec::<Option<SpectrumReferences>>::new(),
+            other_spectra: SpectrumReferences::new(),
+        }
+    }
 }
 
 // Utility function to figure out the axis limits given

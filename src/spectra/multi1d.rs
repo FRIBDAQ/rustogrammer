@@ -40,6 +40,9 @@ impl Spectrum for Multi1d {
             }
         }
     }
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
     fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
         self.applied_gate.set_gate(name, dict)
     }
