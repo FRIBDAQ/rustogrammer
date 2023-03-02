@@ -585,3 +585,8 @@ mod gate_tests {
         assert!(g.gate.is_none());
     }
 }
+#[cfg(test)]
+mod spec_storage_tests {
+    #[test]
+    fn dummy() {}
+}
