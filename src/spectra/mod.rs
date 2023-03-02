@@ -145,7 +145,7 @@ impl SpectrumGate {
 ///       check any applied gate before attempting to call increment
 /// *     gate to gate a spectrum on a condition or replace the gate.
 /// *     ungate to remove the gate condition of a spectrum, if any.
-trait Spectrum {
+pub trait Spectrum {
     // Method that handle incrementing/gating
     fn check_gate(&mut self, e: &FlatEvent) -> bool;
     fn increment(&mut self, e: &FlatEvent);
@@ -167,7 +167,7 @@ trait Spectrum {
     /// Return the spectrum name:
     ///
     fn get_name(&self) -> String;
-    
+
     // Methods that handle gate application:
 
     fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String>;
@@ -183,10 +183,10 @@ trait Spectrum {
 // We also need some sort of repository in which spectra can be stored and looked up by name.
 //  A hash map does nicely:
 
-type SpectrumContainer = Rc<RefCell<dyn Spectrum>>;
-type SpectrumContainerReference = Weak<RefCell<dyn Spectrum>>;
-type SpectrumReferences = Vec<SpectrumContainerReference>;
-type SpectrumDictionary = HashMap<String, SpectrumContainer>;
+pub type SpectrumContainer = Rc<RefCell<dyn Spectrum>>;
+pub type SpectrumContainerReference = Weak<RefCell<dyn Spectrum>>;
+pub type SpectrumReferences = Vec<SpectrumContainerReference>;
+pub type SpectrumDictionary = HashMap<String, SpectrumContainer>;
 
 /// The SpectrumStorage type supports several things:
 /// -   Spectrum storage by name through a contained SpectrumDictionary.
@@ -208,12 +208,150 @@ pub struct SpectrumStorage {
 }
 
 impl SpectrumStorage {
+    // Utility methods (Private):
+
+    // Increment the spectra in the specified SpectrumReferences using
+    // e the flattened event.  the return value is the set of spectra
+    // weak referencds that failed to upgrade to a strong reference.
+    //
+    fn increment_spectra(spectra: &SpectrumReferences, e: &FlatEvent) -> Vec<usize> {
+        let mut result = Vec::<usize>::new();
+
+        for (i, s_container) in spectra.iter().enumerate() {
+            if let Some(spectrum) = s_container.upgrade() {
+                spectrum.borrow_mut().handle_event(&e);
+            } else {
+                result.push(i); // Spectrum removed from dictionary.
+            }
+        }
+
+        result
+    }
+    // It can happen that when running through a spectrum increment list,
+    // we come across a spectrum that was removed from the dict.
+    // in that case, the promotion from a weak reference to a strong
+    // reference will fail.  increment_spectra, makes a list of the
+    // indices of spectra for which this has happened (usually empty).
+    // This method will run through those indices in reverse order
+    // removing those spectra from the list
+    //
+    fn prune_spectra(spectrum_list: &mut SpectrumReferences, drop_list: &Vec<usize>) {
+        for i in drop_list.iter().rev() {
+            spectrum_list.remove(*i);
+        }
+    }
+
+    /// Create a new SpectrumStorage object:
+    ///
     pub fn new() -> SpectrumStorage {
         SpectrumStorage {
             dict: SpectrumDictionary::new(),
             spectra_by_parameter: Vec::<Option<SpectrumReferences>>::new(),
             other_spectra: SpectrumReferences::new(),
         }
+    }
+    /// Add a spectrum encapslated in a SpectrumContainer to the
+    /// spectrum storage:
+    /// -    We clone the input spectrum twice, once for the
+    ///      dictionary and once for the increment list.
+    /// -    The dictionary clone is inserted directly in the dictionary.
+    /// -    The increment clone is asked to give us the required parameter
+    /// and then demoted to a weak reference.
+    ///     *   If the required parameter is None, the spectrum is inserted
+    /// in the other_spectra list.
+    ///     *   if the required parameter is Some, the parameter number
+    /// is extracted and inserted in the correct slot of spectra_by_parameter,
+    /// expanding that vector if needed and changing it's None to a Some --
+    /// if needed.
+    ///
+    /// The result of the dictionary insertion is what's returned so that
+    /// we are aware of a duplicate spectrum name overriding the existing
+    /// spectrum name.
+    ///
+    pub fn add(&mut self, spectrum: SpectrumContainer) -> Option<SpectrumContainer> {
+        let inc_ref = Rc::clone(&spectrum);
+        let result = self
+            .dict
+            .insert(inc_ref.borrow().get_name(), Rc::clone(&spectrum));
+
+        let param = inc_ref.borrow().required_parameter();
+        let inc_ref = Rc::downgrade(&inc_ref);
+
+        if let Some(pno) = param {
+            let pno = pno as usize;
+            if self.spectra_by_parameter.len() <= pno {
+                self.spectra_by_parameter.resize(pno + 1, None);
+            }
+            // The array is big enough but the element might be None
+
+            if let None = self.spectra_by_parameter[pno] {
+                self.spectra_by_parameter[pno] = Some(SpectrumReferences::new());
+            }
+            // Now we can insert the new spectrum in the vector:
+
+            let list = self.spectra_by_parameter[pno].as_mut().unwrap();
+            list.push(inc_ref);
+        } else {
+            self.other_spectra.push(inc_ref);
+        }
+        result
+    }
+    /// get the spectrum with a given name.  The result is an Option:
+    /// -    None if there is no matching spectrum.
+    /// -    Some(&SpectrumContainer) if there is.
+    /// If the caller is going to hold on to that reference for
+    /// some time, they should clone the container.
+    ///
+    pub fn get(&self, name: &str) -> Option<&SpectrumContainer> {
+        self.dict.get(name)
+    }
+    /// Clear all the spectra
+    ///
+    pub fn clear_all(&self) {
+        for (_, spec) in self.dict.iter() {
+            spec.borrow_mut().clear();
+        }
+    }
+    /// Process an event
+    /// We get a raw event:
+    /// *    Populate a flat event from it.
+    /// *    For each parameter in the event, if there's Some in its
+    /// spectra_by_parameter list, iterate over the list promoting the
+    /// the reference and asking the spectrum to process the flattened parameter
+    /// *    Finally do the same for the other_spectra list.
+    /// *    Keep lists of spectra that have been deleted (upgrade gave None)
+    /// when all this is done, remove those spectra from the associated arrays.
+    ///
+    pub fn process_event(&mut self, e: &Event) {
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+
+        for p in e.iter() {
+            let id = p.id as usize;
+            if id < self.spectra_by_parameter.len() {
+                if let Some(spectra) = self.spectra_by_parameter[id].as_mut() {
+                    let dropped_list = Self::increment_spectra(spectra, &fe);
+                    Self::prune_spectra(spectra, &dropped_list);
+                }
+            }
+        }
+        // Now do the other spectra:
+
+        let dropped_list = Self::increment_spectra(&self.other_spectra, &fe);
+        Self::prune_spectra(&mut self.other_spectra, &dropped_list);
+    }
+    /// Delete a spectrum.
+    /// Given how we handle spectra in process_event, we only need to remove
+    /// the item from the dict.  When the next event that would
+    /// attempt to increment the spectrum is is processed it will be pruned from
+    /// the appropriate spectrum list.
+    /// What is returned is an option
+    /// *  None - The item was not in the dict.
+    /// *  Some - the payload is a SpectrumContainer for the spectrum
+    /// which the caller can do with as they please (including dropping).
+    ///
+    pub fn remove(&mut self, name: &str) -> Option<SpectrumContainer> {
+        self.dict.remove(name)
     }
 }
 
