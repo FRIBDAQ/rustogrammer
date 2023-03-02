@@ -652,4 +652,45 @@ mod spec_storage_tests {
             inc_container.borrow().get_name()
         );
     }
+    #[test]
+    fn add_2() {
+        // 2d the same but the index in the by parameter list is the
+        // x parameter:
+
+        let pdict = make_params();
+        let spec = Twod::new(
+            "test", "param.2", "param.3", &pdict, 
+            None, None, None, None, None, None
+        ).unwrap();
+        let spec_container: SpectrumContainer = Rc::new(RefCell::new(spec));
+
+        let mut store = SpectrumStorage::new();
+        store.add(Rc::clone(&spec_container)); // Clone so I keep mine.
+
+        assert_eq!(1, store.dict.len());
+        let dict_spec = store.dict.get("test");
+        assert!(dict_spec.is_some());
+        let dict_spec = dict_spec.as_ref().unwrap();
+        assert_eq!(
+            spec_container.borrow().get_name(),
+            dict_spec.borrow().get_name()
+        );
+
+        // Figure out which element of spectra_by_parameter it should be in
+        // the id of the x parameter:
+
+        let param = pdict.lookup("param.2").expect("Failed parameter lookup");
+        let pid = param.get_id() as usize;
+
+        assert!(store.spectra_by_parameter.len() >= pid);
+        assert!(store.spectra_by_parameter[pid].is_some());
+        assert_eq!(1, store.spectra_by_parameter[pid].as_ref().unwrap().len());
+        let inc_container = store.spectra_by_parameter[pid].as_ref().unwrap()[0].upgrade();
+        assert!(inc_container.is_some());
+        let inc_container = inc_container.unwrap();
+        assert_eq!(
+            spec_container.borrow().get_name(),
+            inc_container.borrow().get_name()
+        );
+    }
 }
