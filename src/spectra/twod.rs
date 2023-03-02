@@ -14,7 +14,7 @@ use ndhistogram::value::Sum;
 /// *    x_name, x_id - the name and Id of the X axis parameter.
 /// *    y_name, y_id - the name and Id of the Y axis parameter.
 ///
-struct Twod {
+pub struct Twod {
     applied_gate: SpectrumGate,
     name: String,
     histogram: Hist2D<axis::Uniform, axis::Uniform, Sum>,
