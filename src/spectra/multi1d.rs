@@ -69,7 +69,7 @@ impl Multi1d {
     /// Default high is the largest of the paramete default highs.
     /// Default bins is the largest of the parameter default bins.
     ///
-    fn new(
+    pub fn new(
         name: &str,
         params: Vec<String>,
         pdict: &ParameterDictionary,

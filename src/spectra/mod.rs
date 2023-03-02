@@ -589,7 +589,7 @@ mod gate_tests {
 mod spec_storage_tests {
     use super::*;
     use std::cell::RefCell;
-    use std::rc::{Rc, Weak};
+    use std::rc::Rc;
 
     // Utility method to create the parameters:
 
@@ -659,9 +659,9 @@ mod spec_storage_tests {
 
         let pdict = make_params();
         let spec = Twod::new(
-            "test", "param.2", "param.3", &pdict, 
-            None, None, None, None, None, None
-        ).unwrap();
+            "test", "param.2", "param.3", &pdict, None, None, None, None, None, None,
+        )
+        .unwrap();
         let spec_container: SpectrumContainer = Rc::new(RefCell::new(spec));
 
         let mut store = SpectrumStorage::new();
@@ -691,6 +691,51 @@ mod spec_storage_tests {
         assert_eq!(
             spec_container.borrow().get_name(),
             inc_container.borrow().get_name()
+        );
+    }
+    #[test]
+    fn add_3() {
+        // A multi1d has no required param so it should land in
+        // other_spectra.
+
+        let pdict = make_params();
+        let spec = Multi1d::new(
+            "test",
+            vec![
+                String::from("param.1"),
+                String::from("param.2"),
+                String::from("param.3"),
+                String::from("param.4"),
+            ],
+            &pdict,
+            None,
+            None,
+            None,
+        )
+        .expect("Failed to make spectrum");
+
+        let spec_container: SpectrumContainer = Rc::new(RefCell::new(spec));
+
+        let mut store = SpectrumStorage::new();
+        store.add(Rc::clone(&spec_container)); // Clone so I keep mine.
+
+        assert_eq!(1, store.dict.len());
+        let dict_spec = store.dict.get("test");
+        assert!(dict_spec.is_some());
+        let dict_spec = dict_spec.as_ref().unwrap();
+        assert_eq!(
+            spec_container.borrow().get_name(),
+            dict_spec.borrow().get_name()
+        );
+        // The spectrum should be in other_spectra:
+
+        assert_eq!(1, store.other_spectra.len());
+        let inc_spec = store.other_spectra[0]
+            .upgrade()
+            .expect("Could not make Ref from spectrum weak ptr");
+        assert_eq!(
+            spec_container.borrow().get_name(),
+            inc_spec.borrow().get_name()
         );
     }
 }
