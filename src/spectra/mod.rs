@@ -777,4 +777,55 @@ mod spec_storage_tests {
             inc_spec.borrow().get_name()
         );
     }
+    #[test]
+    fn add_5() {
+        // PGamma adds correctly:
+
+        let pdict = make_params();
+        let xpars = vec![
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+            String::from("param.5"),
+            String::from("param.6"),
+        ];
+        let ypars = vec![
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+            String::from("param.10"),
+            String::from("param.11"),
+            String::from("param.12"),
+        ];
+
+        let spec = PGamma::new(
+            "test", &xpars, &ypars, &pdict, None, None, None, None, None, None,
+        )
+        .expect("Unable to make spectrum");
+
+        let spec_container: SpectrumContainer = Rc::new(RefCell::new(spec));
+
+        let mut store = SpectrumStorage::new();
+        store.add(Rc::clone(&spec_container)); // Clone so I keep mine.
+
+        assert_eq!(1, store.dict.len());
+        let dict_spec = store.dict.get("test");
+        assert!(dict_spec.is_some());
+        let dict_spec = dict_spec.as_ref().unwrap();
+        assert_eq!(
+            spec_container.borrow().get_name(),
+            dict_spec.borrow().get_name()
+        );
+        // The spectrum should be in other_spectra:
+
+        assert_eq!(1, store.other_spectra.len());
+        let inc_spec = store.other_spectra[0]
+            .upgrade()
+            .expect("Could not make Ref from spectrum weak ptr");
+        assert_eq!(
+            spec_container.borrow().get_name(),
+            inc_spec.borrow().get_name()
+        );
+    }
 }
