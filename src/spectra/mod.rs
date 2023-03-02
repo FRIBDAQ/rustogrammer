@@ -587,6 +587,69 @@ mod gate_tests {
 }
 #[cfg(test)]
 mod spec_storage_tests {
+    use super::*;
+    use std::cell::RefCell;
+    use std::rc::{Rc, Weak};
+
+    // Utility method to create the parameters:
+
+    fn make_params() -> ParameterDictionary {
+        let mut p = ParameterDictionary::new();
+
+        for i in 0..16 {
+            let name = format!("param.{}", i);
+            p.add(&name).expect("Failed to make a parameter");
+            let param = p.lookup_mut(&name).expect("failed to lookup param");
+            param.set_limits(0.0, 4096.0);
+            param.set_bins(4096);
+        }
+        p
+    }
+
     #[test]
-    fn dummy() {}
+    fn new_1() {
+        // New creates what it says it will.
+
+        let ss = SpectrumStorage::new();
+        assert_eq!(0, ss.dict.len());
+        assert_eq!(0, ss.spectra_by_parameter.len());
+        assert_eq!(0, ss.other_spectra.len());
+    }
+    #[test]
+    fn add_1() {
+        // Add a 1-d spectrum - should show up in the dict
+        // and appropriate index of the by parameter list:
+
+        let pdict = make_params();
+        let spec = Oned::new("test", "param.5", &pdict, None, None, None).unwrap();
+        let spec_container: SpectrumContainer = Rc::new(RefCell::new(spec));
+
+        let mut store = SpectrumStorage::new();
+        store.add(Rc::clone(&spec_container)); // Clone so I keep mine.
+
+        assert_eq!(1, store.dict.len());
+        let dict_spec = store.dict.get("test");
+        assert!(dict_spec.is_some());
+        let dict_spec = dict_spec.as_ref().unwrap();
+        assert_eq!(
+            spec_container.borrow().get_name(),
+            dict_spec.borrow().get_name()
+        );
+
+        // Figure out which element of spectra_by_parameter it should be in:
+
+        let param = pdict.lookup("param.5").expect("Failed parameter lookup");
+        let pid = param.get_id() as usize;
+
+        assert!(store.spectra_by_parameter.len() >= pid);
+        assert!(store.spectra_by_parameter[pid].is_some());
+        assert_eq!(1, store.spectra_by_parameter[pid].as_ref().unwrap().len());
+        let inc_container = store.spectra_by_parameter[pid].as_ref().unwrap()[0].upgrade();
+        assert!(inc_container.is_some());
+        let inc_container = inc_container.unwrap();
+        assert_eq!(
+            spec_container.borrow().get_name(),
+            inc_container.borrow().get_name()
+        );
+    }
 }
