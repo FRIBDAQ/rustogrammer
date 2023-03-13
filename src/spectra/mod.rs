@@ -871,7 +871,7 @@ mod spec_storage_tests {
     }
     #[test]
     fn add_7() {
-        // Td sum spectrum adds correctly
+        // 2d sum spectrum adds correctly
 
         let pdict = make_params();
         let pars = vec![
@@ -906,5 +906,45 @@ mod spec_storage_tests {
             spec_container.borrow().get_name(),
             inc_spec.borrow().get_name()
         );
+    }
+    #[test]
+    fn get_1() {
+        // Having put a spectrum into the storage we can look it up by
+        // name:
+
+        let pdict = make_params();
+        let spec1 =
+            Oned::new("spec1", "param.1", &pdict, None, None, None).expect("failed to make spec1");
+        let spec2 =
+            Oned::new("spec2", "param.2", &pdict, None, None, None).expect("failed to make spec2");
+
+        let spec1_container: SpectrumContainer = Rc::new(RefCell::new(spec1));
+        let mut store = SpectrumStorage::new();
+        assert!(store.add(spec1_container).is_none());
+        let spec2_container: SpectrumContainer = Rc::new(RefCell::new(spec2));
+        assert!(store.add(spec2_container).is_none());
+
+        let result = store.get("spec1");
+        assert!(result.is_some());
+        let spec = result.unwrap();
+        assert_eq!(String::from("spec1"), spec.borrow().get_name());
+    }
+    #[test]
+    fn get_2() {
+        // Looking up a nonexistent sepctrum gives none:
+
+        let pdict = make_params();
+        let spec1 =
+            Oned::new("spec1", "param.1", &pdict, None, None, None).expect("failed to make spec1");
+        let spec2 =
+            Oned::new("spec2", "param.2", &pdict, None, None, None).expect("failed to make spec2");
+
+        let spec1_container: SpectrumContainer = Rc::new(RefCell::new(spec1));
+        let mut store = SpectrumStorage::new();
+        assert!(store.add(spec1_container).is_none());
+        let spec2_container: SpectrumContainer = Rc::new(RefCell::new(spec2));
+        assert!(store.add(spec2_container).is_none());
+
+        assert!(store.get("no-such").is_none());
     }
 }
