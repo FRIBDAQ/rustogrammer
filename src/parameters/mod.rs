@@ -35,6 +35,7 @@ pub struct Parameter {
     low: Option<f64>,
     high: Option<f64>,
     bins: Option<u32>,
+    units: Option<String>,
     description: Option<String>,
 }
 
@@ -49,6 +50,7 @@ impl Parameter {
             low: None,
             high: None,
             bins: None,
+            units: None,
             description: None,
         }
     }
@@ -63,6 +65,11 @@ impl Parameter {
 
     pub fn set_bins(&mut self, b: u32) -> &mut Self {
         self.bins = Some(b);
+        self
+    }
+    /// Set units of measure.
+    pub fn set_units(&mut self, u: &str) -> &mut Self {
+        self.units = Some(String::from(u));
         self
     }
     /// Set a description for the parameter.
@@ -89,6 +96,14 @@ impl Parameter {
     pub fn get_bins(&self) -> Option<u32> {
         self.bins
     }
+    /// Get units of measure (if any).
+
+    pub fn get_units(&self) -> Option<String> {
+        match &self.units {
+            Some(s) => Some(s.clone()),
+            None => None,
+        }
+    }
     /// Get histogram description
 
     pub fn get_description(&self) -> Option<String> {
@@ -101,6 +116,11 @@ impl Parameter {
 
 impl fmt::Display for Parameter {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let units = if let Some(u) = &self.units {
+            u.clone()
+        } else {
+            String::from("")
+        };
         let low = if let Some(l) = self.low {
             format!("{}", l)
         } else {
@@ -126,8 +146,8 @@ impl fmt::Display for Parameter {
         };
         write!(
             f,
-            "ID: {} Name: {} low: {} high {} bins {} Description {}",
-            self.id, self.name, low, high, bins, descr
+            "ID: {} Name: {} Units: {} low: {} high {} bins {} Description {}",
+            self.id, self.name, units, low, high, bins, descr
         )
     }
 }
@@ -440,6 +460,7 @@ mod parameters_test {
                 low: None,
                 high: None,
                 bins: None,
+                units: None,
                 description: None
             },
             p
@@ -456,6 +477,7 @@ mod parameters_test {
                 low: Some(-1.0),
                 high: Some(1.0),
                 bins: None,
+                units: None,
                 description: None
             },
             p
@@ -472,6 +494,7 @@ mod parameters_test {
                 low: None,
                 high: None,
                 bins: Some(128),
+                units: None,
                 description: None
             },
             p
@@ -488,6 +511,7 @@ mod parameters_test {
                 low: None,
                 high: None,
                 bins: None,
+                units: None,
                 description: Some(String::from("Test parameter"))
             },
             p
@@ -507,10 +531,28 @@ mod parameters_test {
                 low: Some(-1.0),
                 high: Some(1.0),
                 bins: Some(128),
+                units: None,
                 description: Some(String::from("Test parameter"))
             },
             p
         );
+    }
+    #[test]
+    fn set_5() {
+        let mut p = Parameter::new("test", 1);
+        p.set_units("mm").set_bins(128);
+        assert_eq!(
+            Parameter {
+                name: String::from("test"),
+                id: 1,
+                low: None,
+                high: None,
+                bins: Some(128),
+                units: Some(String::from("mm")),
+                description: None
+            },
+            p
+        )
     }
     #[test]
     fn get_1() {
@@ -554,6 +596,13 @@ mod parameters_test {
     fn get_5() {
         let p = Parameter::new("test", 1);
         assert_eq!(1, p.get_id());
+    }
+    #[test]
+    fn get_6() {
+        let mut p = Parameter::new("test", 1);
+        assert!(p.get_units().is_none());
+        p.set_units("mm");
+        assert_eq!(Some(String::from("mm")), p.get_units());
     }
 }
 #[cfg(test)]
