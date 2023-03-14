@@ -1034,4 +1034,182 @@ mod spec_storage_tests {
             assert_eq!(0.0, c.value.get());
         }
     }
+    // process an event should visit all contained spectra and invoke their
+    // handle_event resulting in increments when appropriate.
+
+    #[test]
+    fn prcevent_1() {
+        let pdict = make_params();
+        let spec1 = Oned::new("spec1", "param.1", &pdict, None, None, None)
+            .expect("Failed to make spectrum 1");
+        let spec2 = Twod::new(
+            "spec2",
+            "param.2",
+            "param.3",
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(256),
+            Some(0.),
+            Some(1024.0),
+            Some(256),
+        )
+        .expect("Failed to make spec2");
+
+        // Add the spectra to the container:
+
+        let mut store = SpectrumStorage::new();
+        store.add(Rc::new(RefCell::new(spec1)));
+        store.add(Rc::new(RefCell::new(spec2)));
+
+        // Get parameter ids for param.1, param.2, param.3:
+
+        let p1 = pdict.lookup("param.1").expect("param.1 should be created");
+        let p2 = pdict.lookup("param.2").expect("param.2 should be created");
+        let p3 = pdict.lookup("param.3").expect("param3. should be created");
+
+        let idvec = vec![p1.get_id(), p2.get_id(), p3.get_id()];
+
+        // Make and process some events:
+
+        let mut counter = 0.0;
+        for _ in 0..100 {
+            let mut event = Event::new();
+            for j in 0..idvec.len() {
+                event.push(EventParameter::new(idvec[j], counter));
+                counter += 1.0;
+            }
+
+            store.process_event(&event);
+        }
+
+        // We're just going to be sure each spectrum has 100 counts:
+
+        let s1 = store
+            .get("spec1")
+            .expect("Failed to fetch spec1 from store");
+        let h1 = s1
+            .borrow()
+            .get_histogram_1d()
+            .expect("Failed to get 1d histogram");
+
+        let mut sum1 = 0.0;
+        for c in h1.borrow().iter() {
+            sum1 += c.value.get();
+        }
+        assert_eq!(100.0, sum1);
+
+        let s2 = store
+            .get("spec2")
+            .expect("Failed to fetch spec2 from store");
+        let h2 = s2
+            .borrow()
+            .get_histogram_2d()
+            .expect("Failed to get 2d histogram");
+        let mut sum2 = 0.0;
+        for c in h2.borrow().iter() {
+            sum2 += c.value.get();
+        }
+        assert_eq!(100.0, sum2);
+    }
+    // Now s1 will be gated on True and s2 on False.
+
+    #[test]
+    fn prcevent_2() {
+        let pdict = make_params();
+        let spec1 = Oned::new("spec1", "param.1", &pdict, None, None, None)
+            .expect("Failed to make spectrum 1");
+        let spec2 = Twod::new(
+            "spec2",
+            "param.2",
+            "param.3",
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(256),
+            Some(0.),
+            Some(1024.0),
+            Some(256),
+        )
+        .expect("Failed to make spec2");
+
+        // Add the spectra to the container:
+
+        let mut store = SpectrumStorage::new();
+        store.add(Rc::new(RefCell::new(spec1)));
+        store.add(Rc::new(RefCell::new(spec2)));
+
+        // Make true/false conditions.
+
+        let mut cd = ConditionDictionary::new();
+        assert!(cd.insert(String::from("true"), Rc::new(RefCell::new(True {})))
+            .is_none());
+        assert!(cd.insert(String::from("false"), Rc::new(RefCell::new(False {})))
+            .is_none());
+
+        // Gate "spec1" on "true" and "spec2" on "false"
+
+        store
+            .get("spec1")
+            .expect("spec1 was missing")
+            .borrow_mut()
+            .gate("true", &cd)
+            .expect("true gate not found when gating spec1.");
+        store
+            .get("spec2")
+            .expect("spec2 was missing")
+            .borrow_mut()
+            .gate("false", &cd)
+            .expect("false gate not found when gating spec2");
+
+        // Get parameter ids for param.1, param.2, param.3:
+
+        let p1 = pdict.lookup("param.1").expect("param.1 should be created");
+        let p2 = pdict.lookup("param.2").expect("param.2 should be created");
+        let p3 = pdict.lookup("param.3").expect("param3. should be created");
+
+        let idvec = vec![p1.get_id(), p2.get_id(), p3.get_id()];
+
+        // Make and process some events:
+
+        let mut counter = 0.0;
+        for _ in 0..100 {
+            let mut event = Event::new();
+            for j in 0..idvec.len() {
+                event.push(EventParameter::new(idvec[j], counter));
+                counter += 1.0;
+            }
+
+            store.process_event(&event);
+        }
+
+        // We're just going to be sure each spectrum has 100 counts:
+
+        let s1 = store
+            .get("spec1")
+            .expect("Failed to fetch spec1 from store");
+        let h1 = s1
+            .borrow()
+            .get_histogram_1d()
+            .expect("Failed to get 1d histogram");
+
+        let mut sum1 = 0.0;
+        for c in h1.borrow().iter() {
+            sum1 += c.value.get();
+        }
+        assert_eq!(100.0, sum1);
+
+        let s2 = store
+            .get("spec2")
+            .expect("Failed to fetch spec2 from store");
+        let h2 = s2
+            .borrow()
+            .get_histogram_2d()
+            .expect("Failed to get 2d histogram");
+        let mut sum2 = 0.0;
+        for c in h2.borrow().iter() {
+            sum2 += c.value.get();
+        }
+        assert_eq!(0.0, sum2);
+    }
 }
