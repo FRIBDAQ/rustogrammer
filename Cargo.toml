@@ -10,4 +10,5 @@ ndhistogram = "0.8.0"
 humantime = "2.1.0"
 tempfile  = "3.3.0"    # For tests that create ring item files.
 libm = "0.2.6"
+glob = "0.3.1"
 
