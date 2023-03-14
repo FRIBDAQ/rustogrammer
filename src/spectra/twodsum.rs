@@ -47,7 +47,7 @@ pub type XYParameters = Vec<XYParameter>;
 pub struct TwodSum {
     applied_gate: SpectrumGate,
     name: String,
-    histogram: Hist2D<axis::Uniform, axis::Uniform, Sum>,
+    histogram: H2DContainer,
     parameters: Vec<ParameterPair>,
 }
 impl Spectrum for TwodSum {
@@ -55,6 +55,7 @@ impl Spectrum for TwodSum {
         self.applied_gate.check(e)
     }
     fn increment(&mut self, e: &FlatEvent) {
+        let mut histogram = self.histogram.borrow_mut();
         for pair in self.parameters.iter() {
             let xid = pair.x_id;
             let yid = pair.y_id;
@@ -63,7 +64,7 @@ impl Spectrum for TwodSum {
             if x.is_some() && y.is_some() {
                 let x = x.unwrap();
                 let y = y.unwrap();
-                self.histogram.fill(&(x, y));
+                histogram.fill(&(x, y));
             }
         }
     }
@@ -76,8 +77,14 @@ impl Spectrum for TwodSum {
     fn ungate(&mut self) {
         self.applied_gate.ungate()
     }
+    fn get_histogram_1d(&self) -> Option<H1DContainer> {
+        None
+    }
+    fn get_histogram_2d(&self) -> Option<H2DContainer> {
+        Some(Rc::clone(&self.histogram))
+    }
     fn clear(&mut self) {
-        for c in self.histogram.iter_mut() {
+        for c in self.histogram.borrow_mut().iter_mut() {
             *c.value = Sum::new();
         }
     }
@@ -197,11 +204,11 @@ impl TwodSum {
         Ok(TwodSum {
             applied_gate: SpectrumGate::new(),
             name: String::from(name),
-            histogram: ndhistogram!(
+            histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(x_bins.unwrap() as usize, x_low.unwrap(), x_high.unwrap()),
                 axis::Uniform::new(y_bins.unwrap() as usize, y_low.unwrap(), y_high.unwrap());
                 Sum
-            ),
+            ))),
             parameters: params,
         })
     }
@@ -244,9 +251,9 @@ mod twodsum_tests {
         assert!(spec.applied_gate.gate.is_none());
         assert_eq!("test", spec.name);
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let x = spec.histogram.axes().as_tuple().0.clone();
-        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let x = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let y = spec.histogram.borrow().axes().as_tuple().1.clone();
 
         assert_eq!(0.0, *x.low());
         assert_eq!(1024.0, *x.high());
@@ -309,9 +316,9 @@ mod twodsum_tests {
         assert!(result.is_ok());
         let spec = result.unwrap();
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let x = spec.histogram.axes().as_tuple().0.clone();
-        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let x = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let y = spec.histogram.borrow().axes().as_tuple().1.clone();
 
         assert_eq!(-1024.0, *x.low());
         assert_eq!(256.0, *x.high());
@@ -351,9 +358,9 @@ mod twodsum_tests {
         assert!(result.is_ok());
         let spec = result.unwrap();
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let x = spec.histogram.axes().as_tuple().0.clone();
-        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let x = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let y = spec.histogram.borrow().axes().as_tuple().1.clone();
 
         assert_eq!(-1024.0, *x.low());
         assert_eq!(256.0, *x.high());
@@ -611,9 +618,14 @@ mod twodsum_tests {
 
         for i in 0..5 {
             let xy = i as f64 * 10.0;
-            let v = spec.histogram.value(&(xy, xy));
-            assert!(v.is_some());
-            assert_eq!(1.0, v.unwrap().get());
+            let v = spec
+                .histogram
+                .borrow()
+                .value(&(xy, xy))
+                .expect("Value should exist")
+                .clone();
+
+            assert_eq!(1.0, v.get());
         }
     }
     #[test]
@@ -674,9 +686,14 @@ mod twodsum_tests {
 
         for i in 0..5 {
             let xy = i as f64 * 10.0;
-            let v = spec.histogram.value(&(xy, xy));
-            assert!(v.is_some());
-            assert_eq!(1.0, v.unwrap().get());
+            let v = spec
+                .histogram
+                .borrow()
+                .value(&(xy, xy))
+                .expect("Value should exist")
+                .clone();
+
+            assert_eq!(1.0, v.get());
         }
     }
     #[test]
@@ -733,9 +750,9 @@ mod twodsum_tests {
 
         spec.handle_event(&fe);
 
-        // the entire histogram should still be clear:
+        // the entire histogram.borrow(). should still be clear:
 
-        for chan in spec.histogram.iter() {
+        for chan in spec.histogram.borrow_mut().iter() {
             assert_eq!(0.0, chan.value.get());
         }
     }
@@ -793,10 +810,15 @@ mod twodsum_tests {
 
         for i in 0..5 {
             let xy = i as f64 * 10.0;
-            let v = spec.histogram.value(&(xy, xy));
+            let v = spec
+                .histogram
+                .borrow()
+                .value(&(xy, xy))
+                .expect("Value should exist")
+                .clone();
             let expected_value = if i % 2 == 0 { 1.0 } else { 0.0 };
-            assert!(v.is_some());
-            assert_eq!(expected_value, v.unwrap().get());
+
+            assert_eq!(expected_value, v.get());
         }
     }
     #[test]
@@ -851,15 +873,20 @@ mod twodsum_tests {
 
         for i in 0..5 {
             let xy = i as f64 * 10.0;
-            let v = spec.histogram.value(&(xy, xy));
+            let v = spec
+                .histogram
+                .borrow()
+                .value(&(xy, xy))
+                .expect("Value should exist")
+                .clone();
             let expected_value = if i % 2 == 0 { 1.0 } else { 0.0 };
-            assert!(v.is_some());
-            assert_eq!(expected_value, v.unwrap().get());
+
+            assert_eq!(expected_value, v.get());
         }
         // there are only 3 non zeros in the histogram 0,0,
 
         let mut sum = 0;
-        for chan in spec.histogram.iter() {
+        for chan in spec.histogram.borrow().iter() {
             if chan.value.get() != 0.0 {
                 sum += 1;
             }
@@ -918,15 +945,20 @@ mod twodsum_tests {
 
         for i in 0..5 {
             let xy = i as f64 * 10.0;
-            let v = spec.histogram.value(&(xy, xy));
+            let v = spec
+                .histogram
+                .borrow()
+                .value(&(xy, xy))
+                .expect("Value should exist")
+                .clone();
             let expected_value = if i % 2 == 0 { 1.0 } else { 0.0 };
-            assert!(v.is_some());
-            assert_eq!(expected_value, v.unwrap().get());
+
+            assert_eq!(expected_value, v.get());
         }
         // there are only 3 non zeros in the histogram 0,0,
 
         let mut sum = 0;
-        for chan in spec.histogram.iter() {
+        for chan in spec.histogram.borrow().iter() {
             if chan.value.get() != 0.0 {
                 sum += 1;
             }

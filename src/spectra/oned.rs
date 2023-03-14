@@ -13,7 +13,7 @@ use ndhistogram::value::Sum;
 pub struct Oned {
     applied_gate: SpectrumGate,
     name: String,
-    histogram: Hist1D<axis::Uniform, Sum>,
+    histogram: H1DContainer,
     parameter_name: String,
     parameter_id: u32,
 }
@@ -23,7 +23,7 @@ impl Spectrum for Oned {
     }
     fn increment(&mut self, e: &FlatEvent) {
         if let Some(p) = e[self.parameter_id] {
-            self.histogram.fill(&p);
+            self.histogram.borrow_mut().fill(&p);
         }
     }
     fn required_parameter(&self) -> Option<u32> {
@@ -38,8 +38,15 @@ impl Spectrum for Oned {
     fn ungate(&mut self) {
         self.applied_gate.ungate()
     }
+    fn get_histogram_1d(&self) -> Option<H1DContainer> {
+        Some(Rc::clone(&self.histogram))
+    }
+    fn get_histogram_2d(&self) -> Option<H2DContainer> {
+        None
+    }
+
     fn clear(&mut self) {
-        for c in self.histogram.iter_mut() {
+        for c in self.histogram.borrow_mut().iter_mut() {
             *c.value = Sum::new();
         }
     }
@@ -74,10 +81,10 @@ impl Oned {
             Ok(Oned {
                 applied_gate: SpectrumGate::new(),
                 name: String::from(spectrum_name),
-                histogram: ndhistogram!(
+                histogram: Rc::new(RefCell::new(ndhistogram!(
                     axis::Uniform::new(bin_count as usize, low_lim, high_lim);
                     Sum
-                ),
+                ))),
                 parameter_name: String::from(param_name),
                 parameter_id: param.get_id(),
             })
@@ -129,8 +136,8 @@ mod oned_tests {
 
         // Spectrum axis specs:
 
-        assert_eq!(1, one.histogram.axes().num_dim());
-        let x = one.histogram.axes().as_tuple().0.clone();
+        assert_eq!(1, one.histogram.borrow().axes().num_dim());
+        let x = one.histogram.borrow().axes().as_tuple().0.clone();
         assert_eq!(0.0, *x.low());
         assert_eq!(1023.0, *x.high());
         assert_eq!(1026, x.num_bins());
@@ -159,8 +166,8 @@ mod oned_tests {
 
         // Spectrum axis specs:
 
-        assert_eq!(1, one.histogram.axes().num_dim());
-        let x = one.histogram.axes().as_tuple().0.clone();
+        assert_eq!(1, one.histogram.borrow().axes().num_dim());
+        let x = one.histogram.borrow().axes().as_tuple().0.clone();
         assert_eq!(-1023.0, *x.low());
         assert_eq!(1023.0, *x.high());
         assert_eq!(1026, x.num_bins());
@@ -189,8 +196,8 @@ mod oned_tests {
 
         // Spectrum axis specs:
 
-        assert_eq!(1, one.histogram.axes().num_dim());
-        let x = one.histogram.axes().as_tuple().0.clone();
+        assert_eq!(1, one.histogram.borrow().axes().num_dim());
+        let x = one.histogram.borrow().axes().as_tuple().0.clone();
         assert_eq!(-1023.0, *x.low());
         assert_eq!(0.0, *x.high());
         assert_eq!(1026, x.num_bins());
@@ -219,8 +226,8 @@ mod oned_tests {
 
         // Spectrum axis specs:
 
-        assert_eq!(1, one.histogram.axes().num_dim());
-        let x = one.histogram.axes().as_tuple().0.clone();
+        assert_eq!(1, one.histogram.borrow().axes().num_dim());
+        let x = one.histogram.borrow().axes().as_tuple().0.clone();
         assert_eq!(-1023.0, *x.low());
         assert_eq!(0.0, *x.high());
         assert_eq!(514, x.num_bins());
@@ -271,7 +278,7 @@ mod oned_tests {
     // bin 0 and n are under/overflow counts:
 
     fn bin_value(b: usize, h: &Oned) -> f64 {
-        h.histogram.value_at_index(b).unwrap().get()
+        h.histogram.borrow().value_at_index(b).unwrap().get()
     }
     fn make_1d() -> Oned {
         // Create a one d histogram we'll use in our tests:
@@ -363,7 +370,7 @@ mod oned_tests {
 
         // no bins set anywhere:
 
-        for i in s.histogram.iter() {
+        for i in s.histogram.borrow().iter() {
             assert_eq!(0.0, i.value.get());
         }
     }

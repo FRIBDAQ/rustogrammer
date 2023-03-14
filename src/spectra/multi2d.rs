@@ -23,7 +23,7 @@ use ndhistogram::value::Sum;
 pub struct Multi2d {
     applied_gate: SpectrumGate,
     name: String,
-    histogram: Hist2D<axis::Uniform, axis::Uniform, Sum>,
+    histogram: H2DContainer,
     param_names: Vec<String>,
     param_ids: Vec<u32>,
 }
@@ -37,6 +37,7 @@ impl Spectrum for Multi2d {
     }
 
     fn increment(&mut self, e: &FlatEvent) {
+        let mut histogram = self.histogram.borrow_mut();
         for a in 0..self.param_ids.len() {
             for b in (a + 1)..self.param_ids.len() {
                 let x = e[self.param_ids[a] as u32];
@@ -44,7 +45,7 @@ impl Spectrum for Multi2d {
                 if x.is_some() && y.is_some() {
                     let x = x.unwrap();
                     let y = y.unwrap();
-                    self.histogram.fill(&(x, y));
+                    histogram.fill(&(x, y));
                 }
             }
         }
@@ -58,8 +59,15 @@ impl Spectrum for Multi2d {
     fn ungate(&mut self) {
         self.applied_gate.ungate()
     }
+    fn get_histogram_1d(&self) -> Option<H1DContainer> {
+        None
+    }
+    fn get_histogram_2d(&self) -> Option<H2DContainer> {
+        Some(Rc::clone(&self.histogram))
+    }
+
     fn clear(&mut self) {
-        for c in self.histogram.iter_mut() {
+        for c in self.histogram.borrow_mut().iter_mut() {
             *c.value = Sum::new();
         }
     }
@@ -163,7 +171,7 @@ impl Multi2d {
         Ok(Multi2d {
             applied_gate: SpectrumGate::new(),
             name: String::from(name),
-            histogram: ndhistogram!(
+            histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(
                     x_bins.unwrap() as usize, x_low.unwrap(), x_high.unwrap()
                 ),
@@ -171,7 +179,7 @@ impl Multi2d {
                     y_bins.unwrap() as usize, y_low.unwrap(), y_high.unwrap()
                 );
                 Sum
-            ),
+            ))),
             param_names: pnames,
             param_ids: pids,
         })
@@ -204,9 +212,9 @@ mod multi2d_tests {
         assert!(spec.applied_gate.gate.is_none());
         assert_eq!(String::from("test"), spec.name);
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let x = spec.histogram.axes().as_tuple().0.clone();
-        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let x = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let y = spec.histogram.borrow().axes().as_tuple().1.clone();
         assert_eq!(0.0, *x.low());
         assert_eq!(1024.0, *x.high());
         assert_eq!(1024 + 2, x.num_bins());
@@ -257,9 +265,9 @@ mod multi2d_tests {
         assert!(spec.applied_gate.gate.is_none());
         assert_eq!(String::from("test"), spec.name);
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let x = spec.histogram.axes().as_tuple().0.clone();
-        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let x = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let y = spec.histogram.borrow().axes().as_tuple().1.clone();
         assert_eq!(-512.0, *x.low());
         assert_eq!(512.0, *x.high());
         assert_eq!(2048 + 2, x.num_bins());
@@ -310,9 +318,9 @@ mod multi2d_tests {
         assert!(spec.applied_gate.gate.is_none());
         assert_eq!(String::from("test"), spec.name);
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let x = spec.histogram.axes().as_tuple().0.clone();
-        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let x = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let y = spec.histogram.borrow().axes().as_tuple().1.clone();
         assert_eq!(0.0, *x.low());
         assert_eq!(1024.0, *x.high());
         assert_eq!(1024 + 2, x.num_bins());
@@ -495,9 +503,14 @@ mod multi2d_tests {
                 let py = spec.param_ids[j];
                 let x = fe[px as u32].unwrap();
                 let y = fe[py as u32].unwrap();
-                let v = spec.histogram.value(&(x, y));
-                assert!(v.is_some());
-                assert_eq!(1.0, v.unwrap().get());
+                let v = spec
+                    .histogram
+                    .borrow()
+                    .value(&(x, y))
+                    .expect("Value should exist")
+                    .clone();
+
+                assert_eq!(1.0, v.get());
             }
         }
     }
@@ -538,9 +551,14 @@ mod multi2d_tests {
                 let py = spec.param_ids[j];
                 let x = fe[px as u32].unwrap();
                 let y = fe[py as u32].unwrap();
-                let v = spec.histogram.value(&(x, y));
-                assert!(v.is_some());
-                assert_eq!(1.0, v.unwrap().get());
+                let v = spec
+                    .histogram
+                    .borrow()
+                    .value(&(x, y))
+                    .expect("Value should exist")
+                    .clone();
+
+                assert_eq!(1.0, v.get());
             }
         }
     }
@@ -577,7 +595,7 @@ mod multi2d_tests {
         spec.handle_event(&fe);
         // nothing incremented:
 
-        for chan in spec.histogram.iter() {
+        for chan in spec.histogram.borrow().iter() {
             assert_eq!(0.0, chan.value.get());
         }
     }

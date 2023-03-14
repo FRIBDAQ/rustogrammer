@@ -41,6 +41,7 @@
 
 use super::conditions::*;
 use super::parameters::*;
+use ndhistogram::axis::*;
 use ndhistogram::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -136,6 +137,15 @@ impl SpectrumGate {
     }
 }
 
+/// We have the following 1-d and 2-d spectra
+/// uniform axes and sum, f64 channels:
+
+pub type H1D = Hist1D<axis::Uniform, ndhistogram::value::Sum>;
+pub type H1DContainer = Rc<RefCell<H1D>>;
+
+pub type H2D = Hist2D<axis::Uniform, axis::Uniform, ndhistogram::value::Sum>;
+pub type H2DContainer = Rc<RefCell<H2D>>;
+
 /// In order to support dynamic dispatch, we need to define a Spectrum trait which combines the
 /// Capabilities of ndhistogram objects to supply the interfaces of Axes, Fill and Histogram;
 /// Along with the interfaces we need:
@@ -174,6 +184,15 @@ pub trait Spectrum {
     fn ungate(&mut self);
 
     // manipulate the underlying histogram:
+
+    // Return the underlying histogram:
+
+    fn get_histogram_1d(&self) -> Option<H1DContainer>;
+    fn get_histogram_2d(&self) -> Option<H2DContainer>;
+    fn is_1d(&self) -> bool {
+        // Not so efficient but generic
+        self.get_histogram_1d().is_some()
+    }
 
     /// Clear the histogram counts.:
 
@@ -946,5 +965,73 @@ mod spec_storage_tests {
         assert!(store.add(spec2_container).is_none());
 
         assert!(store.get("no-such").is_none());
+    }
+    #[test]
+    fn clear_all_1() {
+        // Test the ability to clear all spectra...
+
+        let pdict = make_params();
+        let mut spec1 = Oned::new("spec1", "param.1", &pdict, None, None, None)
+            .expect("Failed to make spectrum 1");
+        let mut spec2 = Twod::new(
+            "spec2",
+            "param.2",
+            "param.3",
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(256),
+            Some(0.),
+            Some(1024.0),
+            Some(256),
+        )
+        .expect("Failed to make spec2");
+
+        // Get parameter ids for param.1, param.2, param.3:
+
+        let p1 = pdict.lookup("param.1").expect("param.1 should be created");
+        let p2 = pdict.lookup("param.2").expect("param.2 should be created");
+        let p3 = pdict.lookup("param.3").expect("param3. should be created");
+
+        let idvec = vec![p1.get_id(), p2.get_id(), p3.get_id()];
+
+        // Easiest to do the increments prior to insertion for this test:
+
+        let mut counter = 0.0;
+        for _ in 0..100 {
+            let mut event = Event::new();
+            let mut fe = FlatEvent::new();
+            for j in 0..idvec.len() {
+                event.push(EventParameter::new(idvec[j], counter));
+                counter += 1.0;
+            }
+            fe.load_event(&event);
+            spec1.handle_event(&fe);
+            spec2.handle_event(&fe);
+        }
+        // Each spectrum has 100 events scattered through it
+
+        let mut store = SpectrumStorage::new();
+        let c1: SpectrumContainer = Rc::new(RefCell::new(spec1));
+        let c2: SpectrumContainer = Rc::new(RefCell::new(spec2));
+        assert!(store.add(c1).is_none());
+        assert!(store.add(c2).is_none());
+
+        // After clearing all all spectra shoulid be empty:
+
+        store.clear_all();
+
+        let c1 = store
+            .get("spec1")
+            .expect("spec1 should have been in the container");
+        for c in c1.borrow().get_histogram_1d().unwrap().borrow().iter() {
+            assert_eq!(0.0, c.value.get());
+        }
+        let c2 = store
+            .get("spec2")
+            .expect("spec2 should have been in the container");
+        for c in c2.borrow().get_histogram_2d().unwrap().borrow().iter() {
+            assert_eq!(0.0, c.value.get());
+        }
     }
 }

@@ -38,7 +38,7 @@ struct SpectrumParameter {
 pub struct PGamma {
     applied_gate: SpectrumGate,
     name: String,
-    histogram: Hist2D<axis::Uniform, axis::Uniform, Sum>,
+    histogram: H2DContainer,
 
     x_params: Vec<SpectrumParameter>,
     y_params: Vec<SpectrumParameter>,
@@ -54,6 +54,7 @@ impl Spectrum for PGamma {
     // Increment for _all_ valid ids in the event:
     //
     fn increment(&mut self, e: &FlatEvent) {
+        let mut histogram = self.histogram.borrow_mut();
         for xp in self.x_params.iter() {
             for yp in self.y_params.iter() {
                 let xid = xp.id;
@@ -62,7 +63,7 @@ impl Spectrum for PGamma {
                 let x = e[xid];
                 let y = e[yid];
                 if x.is_some() && y.is_some() {
-                    self.histogram.fill(&(x.unwrap(), y.unwrap()));
+                    histogram.fill(&(x.unwrap(), y.unwrap()));
                 }
             }
         }
@@ -76,8 +77,15 @@ impl Spectrum for PGamma {
     fn ungate(&mut self) {
         self.applied_gate.ungate()
     }
+    fn get_histogram_1d(&self) -> Option<H1DContainer> {
+        None
+    }
+    fn get_histogram_2d(&self) -> Option<H2DContainer> {
+        Some(Rc::clone(&self.histogram))
+    }
+
     fn clear(&mut self) {
-        for c in self.histogram.iter_mut() {
+        for c in self.histogram.borrow_mut().iter_mut() {
             *c.value = Sum::new();
         }
     }
@@ -199,11 +207,11 @@ impl PGamma {
         Ok(PGamma {
             applied_gate: SpectrumGate::new(),
             name: String::from(name),
-            histogram: ndhistogram!(
+            histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(x_bins.unwrap() as usize, x_min.unwrap(), x_max.unwrap()),
                 axis::Uniform::new(y_bins.unwrap() as usize, y_min.unwrap(), y_max.unwrap());
                 Sum
-            ),
+            ))),
             x_params: xp,
             y_params: yp,
         })
@@ -272,9 +280,9 @@ mod pgamma_tests {
         }
         // Check out histogram axis defs:
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let x = spec.histogram.axes().as_tuple().0.clone();
-        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let x = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let y = spec.histogram.borrow().axes().as_tuple().1.clone();
 
         assert_eq!(0.0, *x.low());
         assert_eq!(1024.0, *x.high());
@@ -363,9 +371,9 @@ mod pgamma_tests {
 
         // Check out histogram axis defs:
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let x = spec.histogram.axes().as_tuple().0.clone();
-        let y = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let x = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let y = spec.histogram.borrow().axes().as_tuple().1.clone();
 
         assert_eq!(-1.0, *x.low());
         assert_eq!(1.0, *x.high());
@@ -581,9 +589,14 @@ mod pgamma_tests {
                 let x = i as f64 * 10.0;
                 let y = (j + 5) as f64 * 10.0;
 
-                let v = spec.histogram.value(&(x, y));
-                assert!(v.is_some());
-                assert_eq!(1.0, v.unwrap().get());
+                let v = spec
+                    .histogram
+                    .borrow()
+                    .value(&(x, y))
+                    .expect("Value should exist")
+                    .clone();
+
+                assert_eq!(1.0, v.get());
             }
         }
     }
@@ -643,9 +656,14 @@ mod pgamma_tests {
                 let x = i as f64 * 10.0;
                 let y = (j + 5) as f64 * 10.0;
 
-                let v = spec.histogram.value(&(x, y));
-                assert!(v.is_some());
-                assert_eq!(1.0, v.unwrap().get());
+                let v = spec
+                    .histogram
+                    .borrow()
+                    .value(&(x, y))
+                    .expect("Value should exist")
+                    .clone();
+
+                assert_eq!(1.0, v.get());
             }
         }
     }
@@ -701,7 +719,7 @@ mod pgamma_tests {
 
         // All channels should be zero:
 
-        for c in spec.histogram.iter() {
+        for c in spec.histogram.borrow().iter() {
             assert_eq!(0.0, c.value.get());
         }
     }

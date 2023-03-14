@@ -24,7 +24,7 @@ use ndhistogram::value::Sum;
 pub struct Multi1d {
     applied_gate: SpectrumGate,
     name: String,
-    histogram: Hist1D<axis::Uniform, Sum>,
+    histogram: H1DContainer,
     param_names: Vec<String>,
     param_ids: Vec<u32>,
 }
@@ -34,9 +34,10 @@ impl Spectrum for Multi1d {
         self.applied_gate.check(e)
     }
     fn increment(&mut self, e: &FlatEvent) {
+        let mut histogram = self.histogram.borrow_mut();
         for id in self.param_ids.iter() {
             if let Some(x) = e[*id] {
-                self.histogram.fill(&x);
+                histogram.fill(&x);
             }
         }
     }
@@ -49,8 +50,15 @@ impl Spectrum for Multi1d {
     fn ungate(&mut self) {
         self.applied_gate.ungate()
     }
+    fn get_histogram_1d(&self) -> Option<H1DContainer> {
+        Some(Rc::clone(&self.histogram))
+    }
+    fn get_histogram_2d(&self) -> Option<H2DContainer> {
+        None
+    }
+
     fn clear(&mut self) {
-        for c in self.histogram.iter_mut() {
+        for c in self.histogram.borrow_mut().iter_mut() {
             *c.value = Sum::new();
         }
     }
@@ -120,10 +128,10 @@ impl Multi1d {
         Ok(Multi1d {
             applied_gate: SpectrumGate::new(),
             name: String::from(name),
-            histogram: ndhistogram!(
+            histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(xbins.unwrap() as usize, xlow.unwrap(), xmax.unwrap());
                 Sum
-            ),
+            ))),
             param_names: param_names,
             param_ids: param_ids,
         })
@@ -158,8 +166,8 @@ mod multi1d_tests {
         assert!(s.applied_gate.gate.is_none());
         assert_eq!(String::from("Testing"), s.name);
 
-        assert_eq!(1, s.histogram.axes().num_dim());
-        let x = s.histogram.axes().as_tuple().0.clone();
+        assert_eq!(1, s.histogram.borrow().axes().num_dim());
+        let x = s.histogram.borrow().axes().as_tuple().0.clone();
         assert_eq!(0.0, *x.low());
         assert_eq!(1023.0, *x.high());
         assert_eq!(1024 + 2, x.num_bins());
@@ -197,8 +205,8 @@ mod multi1d_tests {
         assert!(s.applied_gate.gate.is_none());
         assert_eq!(String::from("Testing"), s.name);
 
-        assert_eq!(1, s.histogram.axes().num_dim());
-        let x = s.histogram.axes().as_tuple().0.clone();
+        assert_eq!(1, s.histogram.borrow().axes().num_dim());
+        let x = s.histogram.borrow().axes().as_tuple().0.clone();
         assert_eq!(-2048.0, *x.low());
         assert_eq!(2048.0, *x.high());
         assert_eq!(4096 + 2, x.num_bins());
@@ -240,8 +248,8 @@ mod multi1d_tests {
         assert!(s.applied_gate.gate.is_none());
         assert_eq!(String::from("Testing"), s.name);
 
-        assert_eq!(1, s.histogram.axes().num_dim());
-        let x = s.histogram.axes().as_tuple().0.clone();
+        assert_eq!(1, s.histogram.borrow().axes().num_dim());
+        let x = s.histogram.borrow().axes().as_tuple().0.clone();
         assert_eq!(-2048.0, *x.low());
         assert_eq!(2048.0, *x.high());
         assert_eq!(4096 + 2, x.num_bins());
@@ -348,9 +356,14 @@ mod multi1d_tests {
         spec.handle_event(&fe);
 
         for i in 0..10 {
-            let vo = spec.histogram.value(&(i as f64 * 10.0));
-            assert!(vo.is_some());
-            assert_eq!(1.0, vo.unwrap().get());
+            let vo = spec
+                .histogram
+                .borrow()
+                .value(&(i as f64 * 10.0))
+                .expect("Value should exist")
+                .clone();
+
+            assert_eq!(1.0, vo.get());
         }
     }
     #[test]
@@ -387,9 +400,14 @@ mod multi1d_tests {
         spec.handle_event(&fe);
 
         for i in 0..10 {
-            let vo = spec.histogram.value(&(i as f64 * 10.0));
-            assert!(vo.is_some());
-            assert_eq!(1.0, vo.unwrap().get());
+            let vo = spec
+                .histogram
+                .borrow()
+                .value(&(i as f64 * 10.0))
+                .expect("Value should exist")
+                .clone();
+
+            assert_eq!(1.0, vo.get());
         }
     }
     #[test]
@@ -426,9 +444,14 @@ mod multi1d_tests {
         spec.handle_event(&fe);
 
         for i in 0..10 {
-            let vo = spec.histogram.value(&(i as f64 * 10.0));
-            assert!(vo.is_some());
-            assert_eq!(0.0, vo.unwrap().get());
+            let vo = spec
+                .histogram
+                .borrow()
+                .value(&(i as f64 * 10.0))
+                .expect("Value should exist")
+                .clone();
+
+            assert_eq!(0.0, vo.get());
         }
     }
     #[test]
@@ -458,7 +481,7 @@ mod multi1d_tests {
         }
         fe.load_event(&e);
         spec.handle_event(&fe);
-        assert_eq!(5.0, spec.histogram.value(&-1.0).unwrap().get());
-        assert_eq!(5.0, spec.histogram.value(&1025.0).unwrap().get());
+        assert_eq!(5.0, spec.histogram.borrow().value(&-1.0).unwrap().get());
+        assert_eq!(5.0, spec.histogram.borrow().value(&1025.0).unwrap().get());
     }
 }

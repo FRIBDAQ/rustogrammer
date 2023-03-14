@@ -29,7 +29,7 @@ use ndhistogram::value::Sum;
 pub struct Summary {
     applied_gate: SpectrumGate,
     name: String,
-    histogram: Hist2D<axis::Uniform, axis::Uniform, Sum>,
+    histogram: H2DContainer,
 
     // Parameter information:
     param_names: Vec<String>,
@@ -46,9 +46,10 @@ impl Spectrum for Summary {
     // Increment for _all_ valid ids in the event:
     //
     fn increment(&mut self, e: &FlatEvent) {
+        let mut histogram = self.histogram.borrow_mut();
         for (x, id) in self.param_ids.iter().enumerate() {
             if let Some(y) = e[*id] {
-                self.histogram.fill(&(x as f64, y));
+                histogram.fill(&(x as f64, y));
             }
         }
     }
@@ -61,8 +62,14 @@ impl Spectrum for Summary {
     fn ungate(&mut self) {
         self.applied_gate.ungate()
     }
+    fn get_histogram_1d(&self) -> Option<H1DContainer> {
+        None
+    }
+    fn get_histogram_2d(&self) -> Option<H2DContainer> {
+        Some(Rc::clone(&self.histogram))
+    }
     fn clear(&mut self) {
-        for c in self.histogram.iter_mut() {
+        for c in self.histogram.borrow_mut().iter_mut() {
             *c.value = Sum::new();
         }
     }
@@ -152,11 +159,11 @@ impl Summary {
         Ok(Summary {
             applied_gate: SpectrumGate::new(),
             name: String::from(name),
-            histogram: ndhistogram!(
+            histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(param_names.len(), 0.0, param_names.len() as f64),
                 axis::Uniform::new(nbins as usize, low,  high);
                 Sum
-            ),
+            ))),
             param_names: param_names.clone(),
             param_ids: param_ids.clone(),
         })
@@ -197,9 +204,9 @@ mod summary_tests {
             assert_eq!(*n, s.param_names[i]);
             assert_eq!(i + 1, s.param_ids[i] as usize);
         }
-        assert_eq!(2, s.histogram.axes().num_dim());
-        let x = s.histogram.axes().as_tuple().0.clone();
-        let y = s.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, s.histogram.borrow().axes().num_dim());
+        let x = s.histogram.borrow().axes().as_tuple().0.clone();
+        let y = s.histogram.borrow().axes().as_tuple().1.clone();
 
         // XAxes are just name size:
 
@@ -247,9 +254,9 @@ mod summary_tests {
             assert_eq!(*n, s.param_names[i]);
             assert_eq!(i + 1, s.param_ids[i] as usize);
         }
-        assert_eq!(2, s.histogram.axes().num_dim());
-        let x = s.histogram.axes().as_tuple().0.clone();
-        let y = s.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, s.histogram.borrow().axes().num_dim());
+        let x = s.histogram.borrow().axes().as_tuple().0.clone();
+        let y = s.histogram.borrow().axes().as_tuple().1.clone();
 
         // XAxes are just name size:
 
@@ -348,7 +355,7 @@ mod summary_tests {
         assert!(result.is_ok());
         let s = result.unwrap();
 
-        let y = s.histogram.axes().as_tuple().1.clone();
+        let y = s.histogram.borrow().axes().as_tuple().1.clone();
         assert_eq!(-1023.0, *y.low());
         assert_eq!(2048.0, *y.high());
         assert_eq!(2048 + 2, y.num_bins());
@@ -390,9 +397,14 @@ mod summary_tests {
 
         for i in 0..10 {
             let x = i as f64;
-            let v = s.histogram.value(&(x, 512.0));
-            assert!(v.is_some());
-            assert_eq!(1.0, v.unwrap().get());
+            let v = s
+                .histogram
+                .borrow()
+                .value(&(x, 512.0))
+                .expect("Value should exist")
+                .clone();
+
+            assert_eq!(1.0, v.get());
         }
     }
     #[test]
@@ -434,9 +446,14 @@ mod summary_tests {
 
         for i in 0..10 {
             let x = i as f64;
-            let v = s.histogram.value(&(x, 512.0));
-            assert!(v.is_some());
-            assert_eq!(1.0, v.unwrap().get());
+            let v = s
+                .histogram
+                .borrow()
+                .value(&(x, 512.0))
+                .expect("Value should exist")
+                .clone();
+
+            assert_eq!(1.0, v.get());
         }
     }
     #[test]
@@ -480,9 +497,14 @@ mod summary_tests {
 
         for i in 0..10 {
             let x = i as f64;
-            let v = s.histogram.value(&(x, 512.0));
-            assert!(v.is_some());
-            assert_eq!(0.0, v.unwrap().get());
+            let v = s
+                .histogram
+                .borrow()
+                .value(&(x, 512.0))
+                .expect("Value should exist")
+                .clone();
+
+            assert_eq!(0.0, v.get());
         }
     }
     #[test]
@@ -520,9 +542,14 @@ mod summary_tests {
         for i in 0..10 {
             let x = i as f64;
             let y = x * 5.0;
-            let v = s.histogram.value(&(x, y));
-            assert!(v.is_some());
-            assert_eq!(1.0, v.unwrap().get());
+            let v = s
+                .histogram
+                .borrow()
+                .value(&(x, y))
+                .expect("Value should exist")
+                .clone();
+
+            assert_eq!(1.0, v.get());
         }
     }
     #[test]
@@ -564,15 +591,25 @@ mod summary_tests {
             let x = i as f64;
             if i % 2 == 0 {
                 let y = x * 5.0;
-                let v = s.histogram.value(&(x, y));
-                assert!(v.is_some());
-                assert_eq!(1.0, v.unwrap().get());
+                let v = s
+                    .histogram
+                    .borrow()
+                    .value(&(x, y))
+                    .expect("Value should exist")
+                    .clone();
+
+                assert_eq!(1.0, v.get());
             } else {
                 for j in 0..1023 {
                     let y = j as f64;
-                    let v = s.histogram.value(&(x, y));
-                    assert!(v.is_some());
-                    assert_eq!(0.0, v.unwrap().get());
+                    let v = s
+                        .histogram
+                        .borrow()
+                        .value(&(x, y))
+                        .expect("Value should exist")
+                        .clone();
+
+                    assert_eq!(0.0, v.get());
                 }
             }
         }

@@ -17,7 +17,7 @@ use ndhistogram::value::Sum;
 pub struct Twod {
     applied_gate: SpectrumGate,
     name: String,
-    histogram: Hist2D<axis::Uniform, axis::Uniform, Sum>,
+    histogram: H2DContainer,
 
     // Parameter information:
     x_name: String,
@@ -36,7 +36,7 @@ impl Spectrum for Twod {
         // We need both parameters in the event:
 
         if x.is_some() && y.is_some() {
-            self.histogram.fill(&(x.unwrap(), y.unwrap()));
+            self.histogram.borrow_mut().fill(&(x.unwrap(), y.unwrap()));
         }
     }
     fn required_parameter(&self) -> Option<u32> {
@@ -51,8 +51,14 @@ impl Spectrum for Twod {
     fn ungate(&mut self) {
         self.applied_gate.ungate()
     }
+    fn get_histogram_1d(&self) -> Option<H1DContainer> {
+        None
+    }
+    fn get_histogram_2d(&self) -> Option<H2DContainer> {
+        Some(Rc::clone(&self.histogram))
+    }
     fn clear(&mut self) {
-        for c in self.histogram.iter_mut() {
+        for c in self.histogram.borrow_mut().iter_mut() {
             *c.value = Sum::new();
         }
     }
@@ -83,11 +89,11 @@ impl Twod {
             Ok(Twod {
                 applied_gate: SpectrumGate::new(),
                 name: String::from(spectrum_name),
-                histogram: ndhistogram!(
+                histogram: Rc::new(RefCell::new(ndhistogram!(
                     axis::Uniform::new(xaxis_info.2 as usize, xaxis_info.0, xaxis_info.1),
                     axis::Uniform::new(yaxis_info.2 as usize, yaxis_info.0, yaxis_info.1)
                     ; Sum
-                ),
+                ))),
                 x_name: String::from(xname),
                 x_id: xpar.get_id(),
                 y_name: String::from(yname),
@@ -145,11 +151,11 @@ mod twod_tests {
         assert_eq!(yinfo.1, spec.y_name);
         assert_eq!(yinfo.0, spec.y_id);
 
-        // make sure we made a 2d histogram with the correct axes:
+        // make sure we made a 2d histogram.borrow(). with the correct axes:
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let xaxis = spec.histogram.axes().as_tuple().0.clone();
-        let yaxis = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let xaxis = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let yaxis = spec.histogram.borrow().axes().as_tuple().1.clone();
 
         assert_eq!(xinfo.2 .0.unwrap(), *xaxis.low());
         assert_eq!(xinfo.2 .1.unwrap(), *xaxis.high());
@@ -202,11 +208,11 @@ mod twod_tests {
         assert_eq!(yinfo.1, spec.y_name);
         assert_eq!(yinfo.0, spec.y_id);
 
-        // make sure we made a 2d histogram with the correct axes:
+        // make sure we made a 2d histogram.borrow(). with the correct axes:
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let xaxis = spec.histogram.axes().as_tuple().0.clone();
-        let yaxis = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let xaxis = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let yaxis = spec.histogram.borrow().axes().as_tuple().1.clone();
 
         assert_eq!(-512.0, *xaxis.low());
         assert_eq!(512.0, *xaxis.high());
@@ -261,9 +267,9 @@ mod twod_tests {
 
         // make sure we made a 2d histogram with the correct axes:
 
-        assert_eq!(2, spec.histogram.axes().num_dim());
-        let xaxis = spec.histogram.axes().as_tuple().0.clone();
-        let yaxis = spec.histogram.axes().as_tuple().1.clone();
+        assert_eq!(2, spec.histogram.borrow().axes().num_dim());
+        let xaxis = spec.histogram.borrow().axes().as_tuple().0.clone();
+        let yaxis = spec.histogram.borrow().axes().as_tuple().1.clone();
 
         assert_eq!(-512.0, *xaxis.low());
         assert_eq!(512.0, *xaxis.high());
@@ -464,9 +470,14 @@ mod twod_tests {
 
         spec.handle_event(&e);
 
-        let v = spec.histogram.value(&(0.0, 0.0));
-        assert!(v.is_some());
-        assert_eq!(1.0, v.unwrap().get());
+        let v = spec
+            .histogram
+            .borrow()
+            .value(&(0.0, 0.0))
+            .expect("Value not defined")
+            .clone();
+
+        assert_eq!(1.0, v.get());
     }
     #[test]
     fn incr_2() {
@@ -486,9 +497,14 @@ mod twod_tests {
 
         spec.handle_event(&e);
 
-        let v = spec.histogram.value(&(0.0, 0.0));
-        assert!(v.is_some());
-        assert_eq!(1.0, v.unwrap().get());
+        let v = spec
+            .histogram
+            .borrow()
+            .value(&(0.0, 0.0))
+            .expect("Value should exist")
+            .clone();
+
+        assert_eq!(1.0, v.get());
     }
     #[test]
     fn incr_3() {
@@ -508,9 +524,14 @@ mod twod_tests {
 
         spec.handle_event(&e);
 
-        let v = spec.histogram.value(&(0.0, 0.0));
-        assert!(v.is_some());
-        assert_eq!(0.0, v.unwrap().get());
+        let v = spec
+            .histogram
+            .borrow()
+            .value(&(0.0, 0.0))
+            .expect("Value should exist")
+            .clone();
+
+        assert_eq!(0.0, v.get());
     }
     #[test]
     fn incr_4() {
@@ -526,7 +547,7 @@ mod twod_tests {
 
         spec.handle_event(&e);
 
-        for c in spec.histogram.iter() {
+        for c in spec.histogram.borrow().iter() {
             assert_eq!(0.0, c.value.get());
         }
     }
@@ -544,7 +565,7 @@ mod twod_tests {
 
         spec.handle_event(&e);
 
-        for c in spec.histogram.iter() {
+        for c in spec.histogram.borrow().iter() {
             assert_eq!(0.0, c.value.get());
         }
     }
@@ -564,9 +585,14 @@ mod twod_tests {
 
         // Just try to get the undeflow x channel:
 
-        let v = spec.histogram.value(&(-512.01, 0.0));
-        assert!(v.is_some());
-        assert_eq!(1.0, v.unwrap().get());
+        let v = spec
+            .histogram
+            .borrow()
+            .value(&(-512.01, 0.0))
+            .expect("Value should exist")
+            .clone();
+
+        assert_eq!(1.0, v.get());
     }
     #[test]
     fn incr_7() {
@@ -584,9 +610,14 @@ mod twod_tests {
 
         // Just try to get the undeflow x channel:
 
-        let v = spec.histogram.value(&(512.0, 0.0));
-        assert!(v.is_some());
-        assert_eq!(1.0, v.unwrap().get());
+        let v = spec
+            .histogram
+            .borrow()
+            .value(&(512.0, 0.0))
+            .expect("Value should exist")
+            .clone();
+
+        assert_eq!(1.0, v.get());
     }
     #[test]
     fn incr_8() {
@@ -604,9 +635,14 @@ mod twod_tests {
 
         // Just try to get the undeflow x channel:
 
-        let v = spec.histogram.value(&(0.0, -2.01));
-        assert!(v.is_some());
-        assert_eq!(1.0, v.unwrap().get());
+        let v = spec
+            .histogram
+            .borrow()
+            .value(&(0.0, -2.01))
+            .expect("Value should exist")
+            .clone();
+
+        assert_eq!(1.0, v.get());
     }
     #[test]
     fn incr_9() {
@@ -638,9 +674,14 @@ mod twod_tests {
             spec.handle_event(&e);
         }
 
-        let v = spec.histogram.value(&(0.0, 0.0));
-        assert!(v.is_some());
-        assert_eq!(100.0, v.unwrap().get());
+        let v = spec
+            .histogram
+            .borrow()
+            .value(&(0.0, 0.0))
+            .expect("Value should exist")
+            .clone();
+
+        assert_eq!(100.0, v.get());
     }
     #[test]
     fn clear_1() {
@@ -656,13 +697,23 @@ mod twod_tests {
             spec.handle_event(&e);
         }
 
-        let v = spec.histogram.value(&(0.0, 0.0));
-        assert!(v.is_some());
-        assert_eq!(100.0, v.unwrap().get());
+        let v = spec
+            .histogram
+            .borrow()
+            .value(&(0.0, 0.0))
+            .expect("Value should exist")
+            .clone();
+
+        assert_eq!(100.0, v.get());
 
         spec.clear();
-        let v = spec.histogram.value(&(0.0, 0.0));
-        assert!(v.is_some());
-        assert_eq!(0.0, v.unwrap().get());
+        let v = spec
+            .histogram
+            .borrow()
+            .value(&(0.0, 0.0))
+            .expect("Value should exist")
+            .clone();
+
+        assert_eq!(0.0, v.get());
     }
 }
