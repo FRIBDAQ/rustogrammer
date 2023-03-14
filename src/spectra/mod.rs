@@ -1142,9 +1142,11 @@ mod spec_storage_tests {
         // Make true/false conditions.
 
         let mut cd = ConditionDictionary::new();
-        assert!(cd.insert(String::from("true"), Rc::new(RefCell::new(True {})))
+        assert!(cd
+            .insert(String::from("true"), Rc::new(RefCell::new(True {})))
             .is_none());
-        assert!(cd.insert(String::from("false"), Rc::new(RefCell::new(False {})))
+        assert!(cd
+            .insert(String::from("false"), Rc::new(RefCell::new(False {})))
             .is_none());
 
         // Gate "spec1" on "true" and "spec2" on "false"
@@ -1211,5 +1213,48 @@ mod spec_storage_tests {
             sum2 += c.value.get();
         }
         assert_eq!(0.0, sum2);
+    }
+    #[test]
+    fn remove_1() {
+        // Remove nonexistent spectrum returns None
+
+        let mut store = SpectrumStorage::new();
+        assert!(store.remove("nosuch").is_none());
+    }
+    #[test]
+    fn remove_2() {
+        // remove existing spectrum
+        // 1. returns Some with the spectrum container as the payload.
+        // 2. the spectrum is no longer in the store:
+
+        let pdict = make_params();
+        let spec1 = Oned::new("spec1", "param.1", &pdict, None, None, None)
+            .expect("Failed to make spectrum 1");
+        let spec2 = Twod::new(
+            "spec2",
+            "param.2",
+            "param.3",
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(256),
+            Some(0.),
+            Some(1024.0),
+            Some(256),
+        )
+        .expect("Failed to make spec2");
+
+        // Add the spectra to the container:
+
+        let mut store = SpectrumStorage::new();
+        store.add(Rc::new(RefCell::new(spec1)));
+        store.add(Rc::new(RefCell::new(spec2)));
+
+        // REmove "spec1"
+
+        let s1 = store.remove("spec1");
+        assert!(s1.is_some());
+        assert_eq!(String::from("spec1"), s1.unwrap().borrow().get_name());
+        assert!(store.remove("spec1").is_none());
     }
 }
