@@ -157,7 +157,7 @@ impl ParameterDictionary {
     /// Attempt to add a new named parameter to the dictioary.
     /// There are really two cases:
     ///
-    /// * The parameter does not exist, it is added and Ok<&mut ref is > returned.
+    /// * The parameter does not exist, it is added and Ok<String::from(name) > returned.
     /// * The parameter exists Err("Duplicate parameter") is returned
     ///
     pub fn add(&mut self, name: &str) -> Result<String, String> {
@@ -227,7 +227,7 @@ impl fmt::Display for EventParameter {
 }
 /// An event is just a vector of EventParameter s.
 
-type Event = Vec<EventParameter>;
+pub type Event = Vec<EventParameter>;
 
 /// ParameterIdMap provides a correspondence between
 /// parameter ids in an Event and parameter ids in some dictionary.
