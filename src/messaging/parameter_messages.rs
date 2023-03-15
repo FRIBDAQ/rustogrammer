@@ -203,3 +203,59 @@ pub fn modify_parameter_metadata(
         Err(String::from("BUG!!! : Invalid reply type from histogramer"))
     }
 }
+
+// Test for public functions note this implicitly tests the
+// public functions in mod.rs
+// Note that tests will, of necessity need to create threads
+// that deal with a single request in a well defined way and
+// then exit.
+#[cfg(test)]
+mod param_msg_tests {
+    use super::*;
+    use std::sync::mpsc::channel;
+    use std::thread;
+
+    #[test]
+    fn create_1() {
+        // Ok return.
+        let (req_send, req_rcv) = channel();
+        let (rep_send, rep_rcv) = channel();
+
+        let tjh = thread::spawn(move || {
+            let req = Request::get_request(req_rcv);
+            // success:
+
+            let rep = Reply::Parameter(ParameterReply::Created);
+            req.send_reply(rep);
+        });
+
+        let reply = create_parameter(req_send, rep_send, rep_rcv, "junk");
+        tjh.join().unwrap();
+
+        assert!(reply.is_ok()); // Was received and properly processed.
+    }
+    #[test]
+    fn create_2() {
+        // Error reply:
+
+        let (req_send, req_rcv) = channel();
+        let (rep_send, rep_rcv) = channel();
+        let tjh = thread::spawn(move || {
+            let req = Request::get_request(req_rcv);
+            // Duplicate4 e.g
+
+            let rep = Reply::Parameter(ParameterReply::Error(String::from(
+                "Duplicate parameter 'junk'",
+            )));
+            req.send_reply(rep);
+        });
+
+        let reply = create_parameter(req_send, rep_send, rep_rcv, "junk");
+        tjh.join().unwrap();
+        assert!(reply.is_err());
+        assert_eq!(
+            String::from("Duplicate parameter 'junk'"),
+            reply.unwrap_err()
+        );
+    }
+}

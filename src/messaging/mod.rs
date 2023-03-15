@@ -88,7 +88,7 @@ impl Request {
     }
     /// Get a request (by the histogramer).
     ///
-    pub fn get_request(&self, chan: mpsc::Receiver<Request>) -> Request {
+    pub fn get_request(chan: mpsc::Receiver<Request>) -> Request {
         let result = chan.recv().expect("Receive by histogramer failed!");
         result
     }
