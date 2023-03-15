@@ -24,12 +24,16 @@
 //!
 use std::sync::mpsc;
 
+// Re exports
+pub mod parameter_messages;
+pub use parameter_messages::*;
+
 /// The MessageType enum defines which subset of functionality
 /// a message is adressed to.
 
 #[derive(Clone)]
 pub enum MessageType {
-    Parameter,
+    Parameter(ParameterRequest),
 }
 
 /// The Reply enum defines the sorts of things that can be sent
@@ -38,7 +42,8 @@ pub enum MessageType {
 /// subdivision.
 #[derive(Clone)]
 pub enum Reply {
-    Parameter,
+    Parameter(ParameterReply),
+    Condition,
 }
 
 ///
