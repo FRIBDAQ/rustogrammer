@@ -35,6 +35,18 @@ pub enum ParameterRequest {
         description: Option<String>,
     },
 }
+/// The following are possible reply mesages:
+#[derive(Clone)]
+pub enum ParameterReply {
+    Error(String),
+    Created,
+    Listing(Vec<Parameter>),
+    Modified,
+}
+/// Result types:
+
+pub type ParameterResult = Result<(), String>; // /Generic result.
+pub type ListResult = Result<Vec<Parameter>, String>; // Result from list request.
 
 // Internal functions to create paramete requests:
 
@@ -62,18 +74,6 @@ fn make_modify_request(
     };
     MessageType::Parameter(req_data)
 }
-/// The following are possible reply mesages:
-#[derive(Clone)]
-pub enum ParameterReply {
-    Error(String),
-    Created,
-    Listing(Vec<Parameter>),
-    Modified,
-}
-/// Result types:
-
-pub type ParameterResult = Result<(), String>; // /Generic result.
-pub type ListResult = Result<Vec<Parameter>, String>; // Result from list request.
 
 ///
 /// Request the creation of a new parameter.
@@ -125,7 +125,7 @@ pub fn create_parameter(
 /// can, of course, be empty.
 /// On error, the payload is a human readable error string.
 ///
-pub fn list_parameter(
+pub fn list_parameters(
     req_chan: mpsc::Sender<Request>,
     rep_send: mpsc::Sender<Reply>,
     rep_rcv: mpsc::Receiver<Reply>,
@@ -212,6 +212,7 @@ pub fn modify_parameter_metadata(
 #[cfg(test)]
 mod param_msg_tests {
     use super::*;
+    use crate::parameters::Parameter;
     use std::sync::mpsc::channel;
     use std::thread;
 
@@ -257,5 +258,95 @@ mod param_msg_tests {
             String::from("Duplicate parameter 'junk'"),
             reply.unwrap_err()
         );
+    }
+    #[test]
+    fn list_1() {
+        // Successful list of  a parameter:
+
+        let (req_send, req_rcv) = channel();
+        let (rep_send, rep_rcv) = channel();
+        let tjh = thread::spawn(move || {
+            let req = Request::get_request(req_rcv);
+
+            let mut pvec = vec![Parameter::new("a", 1), Parameter::new("b", 2)];
+            pvec[0].set_limits(0.0, 4096.0);
+            pvec[0].set_bins(4096);
+            pvec[0].set_units("chans");
+            pvec[0].set_description("Raw channel a");
+
+            let rep = Reply::Parameter(ParameterReply::Listing(pvec));
+            req.send_reply(rep);
+        });
+        let reply = list_parameters(req_send, rep_send, rep_rcv, "*");
+        assert!(reply.is_ok());
+        let pars = reply.unwrap();
+        assert_eq!(2, pars.len());
+        assert_eq!(String::from("a"), pars[0].get_name());
+        assert_eq!(1, pars[0].get_id());
+
+        let lims = pars[0].get_limits();
+        assert!(lims.0.is_some());
+        assert_eq!(0.0, lims.0.unwrap());
+        assert!(lims.1.is_some());
+        assert_eq!(4096.0, lims.1.unwrap());
+
+        let bins = pars[0].get_bins();
+        assert!(bins.is_some());
+        assert_eq!(4096, bins.unwrap());
+
+        let units = pars[0].get_units();
+        assert!(units.is_some());
+        assert_eq!(String::from("chans"), units.unwrap());
+
+        let d = pars[0].get_description();
+        assert!(d.is_some());
+        assert_eq!(String::from("Raw channel a"), d.unwrap());
+
+        assert_eq!(String::from("b"), pars[1].get_name());
+        assert_eq!(2, pars[1].get_id());
+
+        assert_eq!((None, None), pars[1].get_limits());
+        assert_eq!(None, pars[1].get_bins());
+        assert_eq!(None, pars[1].get_units());
+        assert_eq!(None, pars[1].get_description())
+    }
+    #[test]
+    fn mod_1() {
+        // Successful modify of metadata:
+
+        let (req_send, req_rcv) = channel();
+        let (rep_send, rep_rcv) = channel();
+        let tjh = thread::spawn(move || {
+            let req = Request::get_request(req_rcv);
+            // Duplicate4 e.g
+
+            let rep = Reply::Parameter(ParameterReply::Modified);
+            req.send_reply(rep);
+        });
+
+        let reply =
+            modify_parameter_metadata(req_send, rep_send, rep_rcv, "junk", None, None, None, None);
+        assert!(reply.is_ok());
+    }
+    fn mod_2() {
+        // Failed modify of metadata:
+
+        let (req_send, req_rcv) = channel();
+        let (rep_send, rep_rcv) = channel();
+        let tjh = thread::spawn(move || {
+            let req = Request::get_request(req_rcv);
+            // Duplicate4 e.g
+
+            let rep = Reply::Parameter(ParameterReply::Error(String::from(
+                "No such parameter 'junk'",
+            )));
+            req.send_reply(rep);
+        });
+
+        let reply =
+            modify_parameter_metadata(req_send, rep_send, rep_rcv, "junk", None, None, None, None);
+        tjh.join().unwrap();
+        assert!(reply.is_err());
+        assert_eq!(String::from("No such parameter 'junk'"), reply.unwrap_err());
     }
 }
