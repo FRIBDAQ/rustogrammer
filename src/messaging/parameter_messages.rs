@@ -17,7 +17,9 @@ use super::MessageType;
 use super::Reply;
 use super::Request;
 
-use crate::parameters::Parameter;
+use glob::Pattern;
+
+use crate::parameters::{Parameter, ParameterDictionary};
 use std::sync::mpsc;
 
 /// ParameterRequest
@@ -201,6 +203,90 @@ pub fn modify_parameter_metadata(
         }
     } else {
         Err(String::from("BUG!!! : Invalid reply type from histogramer"))
+    }
+}
+
+/// ParameterProcessor is a struct that encapsulates a ParmeterDictionary
+/// and implements code that can process ParameterRequest objects
+/// using that dictionary producing the correct ParameterReply object.
+///
+pub struct ParameterProcessor {
+    dict: ParameterDictionary,
+}
+impl ParameterProcessor {
+    // Private methods:
+
+    // Create a new parameter
+
+    fn create(&mut self, name: &str) -> ParameterReply {
+        let result = self.dict.add(name);
+        match result {
+            Err(s) => ParameterReply::Error(s),
+            Ok(_) => ParameterReply::Created,
+        }
+    }
+    fn list(&self, pattern: &str) -> ParameterReply {
+        let mut result = Vec::<Parameter>::new();
+        let pat = Pattern::new(pattern);
+        if pat.is_err() {
+            return ParameterReply::Error(String::from(pat.unwrap_err().msg));
+        }
+        let pat = pat.unwrap();
+        for (name, p) in self.dict.iter() {
+            if pat.matches(&name) {
+                result.push(p.clone());
+            }
+        }
+        ParameterReply::Listing(result)
+    }
+    fn modify(
+        &mut self,
+        name: &str,
+        bins: Option<u32>,
+        limits: Option<(f64, f64)>,
+        units: Option<String>,
+        desc: Option<String>,
+    ) -> ParameterReply {
+        if let Some(p) = self.dict.lookup_mut(name) {
+            if bins.is_some() {
+                p.set_bins(bins.unwrap());
+            }
+            if limits.is_some() {
+                let lims = limits.unwrap();
+                p.set_limits(lims.0, lims.1);
+            }
+            if units.is_some() {
+                p.set_units(&units.unwrap());
+            }
+            if desc.is_some() {
+                p.set_description(&desc.unwrap());
+            }
+            ParameterReply::Modified
+        } else {
+            ParameterReply::Error(format!("Parameter {} does not exist", name))
+        }
+    }
+
+    /// Create a new processor.
+    pub fn new() -> ParameterProcessor {
+        ParameterProcessor {
+            dict: ParameterDictionary::new(),
+        }
+    }
+    /// Process a request returning the reply.
+    ///
+    fn process_request(&mut self, req: ParameterRequest) -> ParameterReply {
+        match req {
+            ParameterRequest::Create(name) => self.create(&name),
+            ParameterRequest::List(pattern) => self.list(&pattern),
+            ParameterRequest::SetMetaData {
+                name,
+                bins,
+                limits,
+                units,
+                description,
+            } => self.modify(&name, bins, limits, units, description),
+        }
     }
 }
 
