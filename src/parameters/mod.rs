@@ -211,6 +211,9 @@ impl ParameterDictionary {
     pub fn iter_mut(&mut self) -> IterMut<'_, String, Parameter> {
         self.dictionary.iter_mut()
     }
+    pub fn len(&self) -> usize {
+        self.dictionary.len()
+    }
 }
 ///
 /// Display trait:
