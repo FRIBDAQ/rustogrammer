@@ -457,6 +457,20 @@ mod pprocessor_tests {
             panic!("make_list_request did not make a ParameterRequest object");
         }
     }
+    fn modify_req(
+        name: &str,
+        bins: Option<u32>,
+        limits: Option<(f64, f64)>,
+        units: Option<String>,
+        description: Option<String>,
+    ) -> ParameterRequest {
+        let result = make_modify_request(name, bins, limits, units, description);
+        if let MessageType::Parameter(req) = result {
+            return req;
+        } else {
+            panic!("make_mdify_request did not make a parameter request object");
+        }
+    }
     // Make 10 parameters named param.0..9
     // and 10 more parameter named others.0..9
     //
@@ -608,5 +622,142 @@ mod pprocessor_tests {
         } else {
             panic!("Bad glob pattern was ok.")
         }
+    }
+    #[test]
+    fn modify_1() {
+        // Modify bins the metadata for an existing parameter:
+
+        let mut pp = create_some_params();
+        if let ParameterReply::Modified =
+            pp.process_request(modify_req("param.1", Some(1024), None, None, None))
+        {
+            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1")) {
+                assert_eq!(1, v.len());
+                assert_eq!(String::from("param.1"), v[0].get_name());
+                let bins = v[0].get_bins();
+                assert!(bins.is_some());
+                assert_eq!(1024, bins.unwrap());
+            } else {
+                panic!("Could not get param1");
+            }
+        } else {
+            panic!("process-request for modify returned the wrrong reply type");
+        }
+    }
+    #[test]
+    fn modify_2() {
+        // modify limits for an existing parameter:
+        let mut pp = create_some_params();
+        if let ParameterReply::Modified = pp.process_request(modify_req(
+            "param.1",
+            Some(1024),
+            Some((0.0, 2048.0)),
+            None,
+            None,
+        )) {
+            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1")) {
+                assert_eq!(1, v.len());
+                assert_eq!(String::from("param.1"), v[0].get_name());
+                let bins = v[0].get_bins();
+                assert!(bins.is_some());
+                assert_eq!(1024, bins.unwrap());
+
+                let limits = v[0].get_limits();
+                assert!(limits.0.is_some());
+                assert_eq!(0.0, limits.0.unwrap());
+                assert!(limits.1.is_some());
+                assert_eq!(2048.0, limits.1.unwrap());
+            } else {
+                panic!("Could not get param1");
+            }
+        } else {
+            panic!("process-request for modify returned the wrrong reply type");
+        }
+    }
+    #[test]
+    fn modify_3() {
+        // test ability to modify the units of a parameter:
+
+        let mut pp = create_some_params();
+        if let ParameterReply::Modified = pp.process_request(modify_req(
+            "param.1",
+            Some(1024),
+            Some((0.0, 2048.0)),
+            Some(String::from("cm")),
+            None,
+        )) {
+            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1")) {
+                assert_eq!(1, v.len());
+                assert_eq!(String::from("param.1"), v[0].get_name());
+                let bins = v[0].get_bins();
+                assert!(bins.is_some());
+                assert_eq!(1024, bins.unwrap());
+
+                let limits = v[0].get_limits();
+                assert!(limits.0.is_some());
+                assert_eq!(0.0, limits.0.unwrap());
+                assert!(limits.1.is_some());
+                assert_eq!(2048.0, limits.1.unwrap());
+
+                let units = v[0].get_units();
+                assert!(units.is_some());
+                assert_eq!(String::from("cm"), units.unwrap());
+            } else {
+                panic!("Could not get param1");
+            }
+        } else {
+            panic!("process-request for modify returned the wrrong reply type");
+        }
+    }
+    #[test]
+    fn modify_4() {
+        // test ability to modify description
+
+        let mut pp = create_some_params();
+        if let ParameterReply::Modified = pp.process_request(modify_req(
+            "param.1",
+            Some(1024),
+            Some((0.0, 2048.0)),
+            Some(String::from("cm")),
+            Some(String::from("A test parameter")),
+        )) {
+            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1")) {
+                assert_eq!(1, v.len());
+                assert_eq!(String::from("param.1"), v[0].get_name());
+                let bins = v[0].get_bins();
+                assert!(bins.is_some());
+                assert_eq!(1024, bins.unwrap());
+
+                let limits = v[0].get_limits();
+                assert!(limits.0.is_some());
+                assert_eq!(0.0, limits.0.unwrap());
+                assert!(limits.1.is_some());
+                assert_eq!(2048.0, limits.1.unwrap());
+
+                let units = v[0].get_units();
+                assert!(units.is_some());
+                assert_eq!(String::from("cm"), units.unwrap());
+
+                let desc = v[0].get_description();
+                assert_eq!(String::from("A test parameter"), desc.unwrap());
+            } else {
+                panic!("Could not get param1");
+            }
+        } else {
+            panic!("process-request for modify returned the wrrong reply type");
+        }
+    }
+    #[test]
+    fn modify_5() {
+        // modify of nonexisting parameter results in an error:
+
+        let mut pp = create_some_params();
+        if let ParameterReply::Error(_) = pp.process_request(modify_req("no.such.parameter", None, None, None, None)) {
+            assert!(true);
+        } else {
+            panic!("Return for modifying no such parameter is not an error!");
+        }
+
+
     }
 }
