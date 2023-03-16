@@ -436,3 +436,14 @@ mod param_msg_tests {
         assert_eq!(String::from("No such parameter 'junk'"), reply.unwrap_err());
     }
 }
+// Tests for the ParameterProcessor implementation.
+#[cfg(test)]
+mod pprocessor_tests {
+    use super::*;
+
+    #[test]
+    fn new_1() {
+        let pp = ParameterProcessor::new();
+        assert_eq!(0, pp.dict.len())
+    }
+}
