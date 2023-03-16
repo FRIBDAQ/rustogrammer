@@ -73,6 +73,20 @@ impl Condition for Not {
             d.borrow_mut().invalidate_cache();
         }
     }
+    fn gate_type(&self) -> String {
+        String::from("Not")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        Vec::<(f64, f64)>::new()
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        let mut result = Vec::<ContainerReference>::new();
+        result.push(self.dependent.clone());
+        result
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        Vec::<u32>::new()
+    }
 }
 //  The ConditionList provides common structure and code for
 //  maintainng an arbitrary list of dependent conditions.
@@ -80,13 +94,13 @@ impl Condition for Not {
 //  common caching logic can be used.
 //  this struct need not be exposed to the world:
 struct ConditionList {
-    dependent_conditions: Vec<Weak<RefCell<dyn Condition>>>,
+    dependent_conditions: Vec<ContainerReference>,
     cache: Option<bool>,
 }
 impl ConditionList {
     pub fn new() -> ConditionList {
         ConditionList {
-            dependent_conditions: Vec::new(),
+            dependent_conditions: Vec::<ContainerReference>::new(),
             cache: None,
         }
     }
@@ -100,6 +114,13 @@ impl ConditionList {
     pub fn clear(&mut self) -> &mut Self {
         self.dependent_conditions.clear();
         self
+    }
+    pub fn clone_conditions(&self) -> Vec<ContainerReference> {
+        let mut result = Vec::<ContainerReference>::new();
+        for c in self.dependent_conditions.iter() {
+            result.push(c.clone());
+        }
+        result
     }
 }
 
@@ -153,6 +174,19 @@ impl Condition for And {
 
         self.dependencies.cache = Some(result);
         result
+    }
+    fn gate_type(&self) -> String {
+        String::from("And")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        Vec::<(f64, f64)>::new()
+    }
+
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        self.dependencies.clone_conditions()
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        Vec::<u32>::new()
     }
     fn get_cached_value(&self) -> Option<bool> {
         self.dependencies.cache
@@ -216,6 +250,19 @@ impl Condition for Or {
         }
         self.dependencies.cache = Some(result);
         result
+    }
+    fn gate_type(&self) -> String {
+        String::from("Or")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        Vec::<(f64, f64)>::new()
+    }
+
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        self.dependencies.clone_conditions()
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        Vec::<u32>::new()
     }
     fn get_cached_value(&self) -> Option<bool> {
         self.dependencies.cache

@@ -201,6 +201,26 @@ impl Condition for Band {
             false
         }
     }
+    fn gate_type(&self) -> String {
+        String::from("Band")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        let mut result = Vec::<(f64, f64)>::new();
+        for p in self.points.iter() {
+            result.push((p.x, p.y));
+        }
+
+        result
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        Vec::<ContainerReference>::new()
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        let mut result = Vec::<u32>::new();
+        result.push(self.parameters.0);
+        result.push(self.parameters.1);
+        result
+    }
     fn get_cached_value(&self) -> Option<bool> {
         self.cache
     }
@@ -332,6 +352,26 @@ impl Condition for Contour {
             }
         };
         self.cache = Some(result);
+        result
+    }
+    fn gate_type(&self) -> String {
+        String::from("Contour")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        let mut result = Vec::<(f64, f64)>::new();
+        for p in self.pts.iter() {
+            result.push((p.x, p.y));
+        }
+
+        result
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        Vec::<ContainerReference>::new()
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        let mut result = Vec::<u32>::new();
+        result.push(self.p1);
+        result.push(self.p2);
         result
     }
     fn get_cached_value(&self) -> Option<bool> {

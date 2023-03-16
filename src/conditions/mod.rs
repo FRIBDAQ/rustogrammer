@@ -81,6 +81,13 @@ pub trait Condition {
     ///
     fn evaluate(&mut self, event: &parameters::FlatEvent) -> bool;
 
+    // Stuff to describe a gate:
+
+    fn gate_type(&self) -> String; // Type of gate.
+    fn gate_points(&self) -> Vec<(f64, f64)>;
+    fn dependent_gates(&self) -> Vec<ContainerReference>;
+    fn dependent_parameters(&self) ->Vec<u32>;
+
     /// Optional methods:
     /// Caching not implemented is the default.
     ///
@@ -117,6 +124,21 @@ pub type ContainerReference = Weak<RefCell<dyn Condition>>;
 /// a condition to an spectrum.
 ///
 pub type ConditionDictionary = HashMap<String, Container>;
+///
+/// Given a condition container which we _think_ lives in a condition dictionary,
+///  return the name of the gate.  This is not particluarly fast,
+///  we iterate over all key value pairs and if we find one where the
+///  RefCell's in the container point to the same underlying object, we
+///  return its name.
+pub fn gate_name(dict: ConditionDictionary, gate: Container) -> Option<String> {
+    for (k, v) in dict.iter() {
+        if gate.as_ptr() == v.as_ptr() {
+            // Same underlying gates.
+            return Some(k.clone());
+        }
+    }
+    None
+}
 
 ///
 /// Given a condition dictionary, this free fuction will
@@ -138,6 +160,18 @@ impl Condition for True {
     fn evaluate(&mut self, _event: &parameters::FlatEvent) -> bool {
         true
     }
+    fn gate_type(&self) -> String {
+        String::from("True")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        Vec::<(f64, f64)>::new()
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        Vec::<ContainerReference>::new()
+    }
+    fn dependent_parameters(&self)  ->Vec<u32> {
+        Vec::<u32>::new()
+    }
 }
 
 /// The false gate is implemented in this module and returns
@@ -148,6 +182,18 @@ pub struct False {}
 impl Condition for False {
     fn evaluate(&mut self, _event: &parameters::FlatEvent) -> bool {
         false
+    }
+    fn gate_type(&self) -> String {
+        String::from("False")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        Vec::<(f64, f64)>::new()
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        Vec::<ContainerReference>::new()
+    }
+    fn dependent_parameters(&self)  ->Vec<u32> {
+        Vec::<u32>::new()
     }
 }
 

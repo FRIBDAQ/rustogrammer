@@ -51,8 +51,25 @@ impl Condition for Cut {
         self.cache = Some(result);
         result
     }
+    fn gate_type(&self) -> String {
+        String::from("Cut")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        let mut result = Vec::<(f64, f64)>::new();
+        result.push((self.low, 0.0));
+        result.push((self.high, 0.0));
+        result
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        Vec::<ContainerReference>::new()
+    }
     fn get_cached_value(&self) -> Option<bool> {
         self.cache
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        let mut result = Vec::<u32>::new();
+        result.push(self.parameter_id);
+        result
     }
     fn invalidate_cache(&mut self) {
         self.cache = None;
