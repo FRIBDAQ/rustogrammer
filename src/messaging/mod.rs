@@ -34,6 +34,7 @@ pub use parameter_messages::*;
 #[derive(Clone)]
 pub enum MessageType {
     Parameter(ParameterRequest),
+    Exit,
 }
 
 /// The Reply enum defines the sorts of things that can be sent
@@ -43,7 +44,7 @@ pub enum MessageType {
 #[derive(Clone)]
 pub enum Reply {
     Parameter(ParameterReply),
-    Condition,
+    Exiting,
 }
 
 ///
