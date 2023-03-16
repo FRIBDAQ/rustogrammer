@@ -575,15 +575,8 @@ mod pprocessor_tests {
         if let ParameterReply::Listing(v) = pp.process_request(list_req("param.*")) {
             assert_eq!(10, v.len());
             let expected_names = vec![
-                "param.1",
-                "param.2",
-                "param.3",
-                "param.4",
-                "param.5",
-                "param.6",
-                "param.7",
-                "param.8",
-                "param.9",
+                "param.1", "param.2", "param.3", "param.4", "param.5", "param.6", "param.7",
+                "param.8", "param.9",
             ];
             let mut got = HashSet::new();
             for p in v.iter() {
@@ -599,9 +592,21 @@ mod pprocessor_tests {
     #[test]
     fn list_3() {
         // Pattern with no matches - ok but emtpy list
+        let mut pp = create_some_params();
+        if let ParameterReply::Listing(v) = pp.process_request(list_req("junk*")) {
+            assert_eq!(0, v.len());
+        } else {
+            panic!("process_request for list returned the wrong reply type");
+        }
     }
     #[test]
     fn list_4() {
         // Glob pattern syntax errors ->Error return.
+        let mut pp = create_some_params();
+        if let ParameterReply::Error(_) = pp.process_request(list_req("p[")) {
+            assert!(true);
+        } else {
+            panic!("Bad glob pattern was ok.")
+        }
     }
 }
