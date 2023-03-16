@@ -86,7 +86,7 @@ pub trait Condition {
     fn gate_type(&self) -> String; // Type of gate.
     fn gate_points(&self) -> Vec<(f64, f64)>;
     fn dependent_gates(&self) -> Vec<ContainerReference>;
-    fn dependent_parameters(&self) ->Vec<u32>;
+    fn dependent_parameters(&self) -> Vec<u32>;
 
     /// Optional methods:
     /// Caching not implemented is the default.
@@ -139,6 +139,13 @@ pub fn gate_name(dict: ConditionDictionary, gate: Container) -> Option<String> {
     }
     None
 }
+pub fn gate_name_from_ref(dict: ConditionDictionary, gate: ContainerReference) -> Option<String> {
+    if let Some(s) = gate.upgrade() {
+        gate_name(dict, s)
+    } else {
+        None
+    }
+}
 
 ///
 /// Given a condition dictionary, this free fuction will
@@ -169,7 +176,7 @@ impl Condition for True {
     fn dependent_gates(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
-    fn dependent_parameters(&self)  ->Vec<u32> {
+    fn dependent_parameters(&self) -> Vec<u32> {
         Vec::<u32>::new()
     }
 }
@@ -192,7 +199,7 @@ impl Condition for False {
     fn dependent_gates(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
-    fn dependent_parameters(&self)  ->Vec<u32> {
+    fn dependent_parameters(&self) -> Vec<u32> {
         Vec::<u32>::new()
     }
 }
