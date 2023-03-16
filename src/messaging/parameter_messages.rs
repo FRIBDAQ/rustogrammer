@@ -434,13 +434,13 @@ mod param_msg_tests {
             modify_parameter_metadata(req_send, rep_send, rep_rcv, "junk", None, None, None, None);
         tjh.join().unwrap();
         assert!(reply.is_err());
-       
     }
 }
 // Tests for the ParameterProcessor implementation.
 #[cfg(test)]
 mod pprocessor_tests {
     use super::*;
+    use std::collections::HashSet;
     fn create_req(name: &str) -> ParameterRequest {
         let result = make_create_request(name);
         if let MessageType::Parameter(req) = result {
@@ -448,6 +448,34 @@ mod pprocessor_tests {
         } else {
             panic!("make_create_request did not make a ParameterRequest object");
         }
+    }
+    fn list_req(patt: &str) -> ParameterRequest {
+        let result = make_list_request(patt);
+        if let MessageType::Parameter(req) = result {
+            return req;
+        } else {
+            panic!("make_list_request did not make a ParameterRequest object");
+        }
+    }
+    // Make 10 parameters named param.0..9
+    // and 10 more parameter named others.0..9
+    //
+    fn create_some_params() -> ParameterProcessor {
+        let mut p = ParameterProcessor::new();
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            assert_eq!(
+                ParameterReply::Created,
+                p.process_request(create_req(&name))
+            );
+            let name = format!("others.{}", i);
+            assert_eq!(
+                ParameterReply::Created,
+                p.process_request(create_req(&name))
+            );
+        }
+
+        p
     }
 
     #[test]
@@ -509,5 +537,71 @@ mod pprocessor_tests {
         assert!(pp.dict.lookup("test.1").is_some());
         assert!(pp.dict.lookup("test.2").is_some());
         assert!(pp.dict.lookup("test.3").is_some());
+    }
+    #[test]
+    fn list_1() {
+        // all inclusive list:
+
+        let mut pp = create_some_params();
+
+        if let ParameterReply::Listing(v) = pp.process_request(list_req("*")) {
+            assert_eq!(20, v.len());
+            // We're not gauranteed about the order of parameter names
+            // so make a set with all of them.  Meanwhile we expect:
+
+            let expected_names = vec![
+                "param.1", "others.1", "param.2", "others.2", "param.3", "others.3", "param.4",
+                "others.4", "param.5", "others.5", "param.6", "others.6", "param.7", "others.7",
+                "param.8", "others.8", "param.9", "others.9",
+            ];
+            let mut got = HashSet::new();
+            for p in v.iter() {
+                got.insert(p.get_name());
+            }
+            // make sure all expected names are in the list:
+
+            for name in expected_names {
+                assert!(got.contains(name), "Missing {}", name);
+            }
+        } else {
+            panic!("process_request for list returned the wrong reply type");
+        }
+    }
+    #[test]
+    fn list_2() {
+        // list with pattern:
+
+        let mut pp = create_some_params();
+        if let ParameterReply::Listing(v) = pp.process_request(list_req("param.*")) {
+            assert_eq!(10, v.len());
+            let expected_names = vec![
+                "param.1",
+                "param.2",
+                "param.3",
+                "param.4",
+                "param.5",
+                "param.6",
+                "param.7",
+                "param.8",
+                "param.9",
+            ];
+            let mut got = HashSet::new();
+            for p in v.iter() {
+                got.insert(p.get_name());
+            }
+            for name in expected_names {
+                assert!(got.contains(name), "Missing {}", name);
+            }
+        } else {
+            panic!("process_request for list returned the wrong reply type");
+        }
+    }
+    #[test]
+    fn list_3() {
+        // Pattern with no matches - ok but emtpy list
+    }
+    #[test]
+    fn list_4() {
+        // Glob pattern syntax errors ->Error return.
     }
 }
