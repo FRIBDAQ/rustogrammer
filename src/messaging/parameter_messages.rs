@@ -25,7 +25,7 @@ use std::sync::mpsc;
 /// ParameterRequest
 /// Is the enum that defines requests of the parameter subsystem.
 ///
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ParameterRequest {
     Create(String),
     List(String),
@@ -38,7 +38,7 @@ pub enum ParameterRequest {
     },
 }
 /// The following are possible reply mesages:
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ParameterReply {
     Error(String),
     Created,
@@ -445,5 +445,30 @@ mod pprocessor_tests {
     fn new_1() {
         let pp = ParameterProcessor::new();
         assert_eq!(0, pp.dict.len())
+    }
+    #[test]
+    fn add_1() {
+        // Create a single parameter in an empty processor:
+        // Should return Created reply:
+
+        let mut pp = ParameterProcessor::new();
+
+        if let MessageType::Parameter(req) = make_create_request("Test") {
+            let result = pp.process_request(req);
+            assert_eq!(ParameterReply::Created, result);
+        } else {
+            assert!(false); // make_create_request failed.
+        }
+
+        // Make sure the parameter is in the dict and properly formed:
+
+        assert_eq!(1, pp.dict.len());
+        let p = pp.dict.lookup("Test").expect("Failed parameter lookup");
+        assert_eq!(String::from("Test"), p.get_name());
+        assert_eq!(1, p.get_id()); // Ids start at 1 I think.
+        assert_eq!((None, None), p.get_limits());
+        assert!(p.get_bins().is_none());
+        assert!(p.get_units().is_none());
+        assert!(p.get_description().is_none());
     }
 }
