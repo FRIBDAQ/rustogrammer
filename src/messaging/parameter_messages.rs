@@ -752,12 +752,12 @@ mod pprocessor_tests {
         // modify of nonexisting parameter results in an error:
 
         let mut pp = create_some_params();
-        if let ParameterReply::Error(_) = pp.process_request(modify_req("no.such.parameter", None, None, None, None)) {
+        if let ParameterReply::Error(_) =
+            pp.process_request(modify_req("no.such.parameter", None, None, None, None))
+        {
             assert!(true);
         } else {
             panic!("Return for modifying no such parameter is not an error!");
         }
-
-
     }
 }
