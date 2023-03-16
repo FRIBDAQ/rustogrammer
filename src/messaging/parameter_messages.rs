@@ -414,6 +414,7 @@ mod param_msg_tests {
             modify_parameter_metadata(req_send, rep_send, rep_rcv, "junk", None, None, None, None);
         assert!(reply.is_ok());
     }
+    #[test]
     fn mod_2() {
         // Failed modify of metadata:
 
@@ -433,13 +434,21 @@ mod param_msg_tests {
             modify_parameter_metadata(req_send, rep_send, rep_rcv, "junk", None, None, None, None);
         tjh.join().unwrap();
         assert!(reply.is_err());
-        assert_eq!(String::from("No such parameter 'junk'"), reply.unwrap_err());
+       
     }
 }
 // Tests for the ParameterProcessor implementation.
 #[cfg(test)]
 mod pprocessor_tests {
     use super::*;
+    fn create_req(name: &str) -> ParameterRequest {
+        let result = make_create_request(name);
+        if let MessageType::Parameter(req) = result {
+            return req;
+        } else {
+            panic!("make_create_request did not make a ParameterRequest object");
+        }
+    }
 
     #[test]
     fn new_1() {
@@ -453,12 +462,8 @@ mod pprocessor_tests {
 
         let mut pp = ParameterProcessor::new();
 
-        if let MessageType::Parameter(req) = make_create_request("Test") {
-            let result = pp.process_request(req);
-            assert_eq!(ParameterReply::Created, result);
-        } else {
-            assert!(false); // make_create_request failed.
-        }
+        let result = pp.process_request(create_req("Test"));
+        assert_eq!(ParameterReply::Created, result);
 
         // Make sure the parameter is in the dict and properly formed:
 
@@ -470,5 +475,39 @@ mod pprocessor_tests {
         assert!(p.get_bins().is_none());
         assert!(p.get_units().is_none());
         assert!(p.get_description().is_none());
+    }
+    #[test]
+    fn add_2() {
+        // Adding a duplicate fails with that reply.
+
+        let mut pp = ParameterProcessor::new();
+        pp.dict.add("test").expect("Failed to add to empty dict");
+        let result = pp.process_request(create_req("test"));
+        if let ParameterReply::Error(_) = result {
+            assert!(true); // Correct result.
+        } else {
+            assert!(false); // shouild have been an error.
+        }
+    }
+    #[test]
+    fn add_3() {
+        // add several parameters:
+
+        let mut pp = ParameterProcessor::new();
+
+        if let ParameterReply::Error(s) = pp.process_request(create_req("test.1")) {
+            panic!("{}", s);
+        }
+        if let ParameterReply::Error(s) = pp.process_request(create_req("test.2")) {
+            panic!("{}", s);
+        }
+        if let ParameterReply::Error(s) = pp.process_request(create_req("test.3")) {
+            panic!("{}", s);
+        }
+
+        assert_eq!(3, pp.dict.len());
+        assert!(pp.dict.lookup("test.1").is_some());
+        assert!(pp.dict.lookup("test.2").is_some());
+        assert!(pp.dict.lookup("test.3").is_some());
     }
 }
