@@ -141,7 +141,7 @@ pub struct Band {
     cache: Option<bool>,
 }
 impl Band {
-    fn new(p1: u32, p2: u32, pts: Points) -> Option<Band> {
+    pub fn new(p1: u32, p2: u32, pts: Points) -> Option<Band> {
         if pts.len() >= 2 {
             let mut etbl: EdgeTable = Vec::<Edge>::new();
             for i in 0..(pts.len() - 1) {
