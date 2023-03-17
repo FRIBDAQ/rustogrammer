@@ -9,7 +9,9 @@ use super::Reply;
 use super::Request;
 use crate::conditions::*;
 
-use glob;
+use glob::Pattern;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::mpsc;
 
 ///
@@ -52,12 +54,11 @@ pub enum ConditionRequest {
     },
     DeleteCondition(String),
     List(String),
-    GetProperties(String),
 }
 /// This structure provides condition properties:
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConditionProperties {
-    gate_name: String,
+    cond_name: String,
     type_name: String,
     points: Vec<(f64, f64)>,
     gates: Vec<String>,
@@ -506,10 +507,199 @@ struct ConditionProcessor {
     dict: ConditionDictionary,
 }
 impl ConditionProcessor {
+    // Private methods:
+
+    fn add_condition<T: Condition + Sized + 'static>(
+        &mut self,
+        name: &str,
+        cond: T,
+    ) -> ConditionReply {
+        let c: Container = Rc::new(RefCell::<T>::new(cond));
+        match self.dict.get(&String::from(name)) {
+            Some(_) => {
+                self.dict.insert(String::from(name), c);
+                ConditionReply::Replaced
+            }
+            None => {
+                self.dict.insert(String::from(name), c);
+                ConditionReply::Created
+            }
+        }
+    }
+
+    fn add_true(&mut self, name: &str) -> ConditionReply {
+        let t = True {};
+        self.add_condition(name, t)
+    }
+    fn add_false(&mut self, name: &str) -> ConditionReply {
+        let f = False {};
+        self.add_condition(name, f)
+    }
+    fn add_not(&mut self, name: &str, dependent: &str) -> ConditionReply {
+        // Get the depdent condition:
+
+        let d = self.dict.get(&String::from(dependent));
+        if let Some(d) = d {
+            let n = Not::new(d);
+            self.add_condition(name, n)
+        } else {
+            ConditionReply::Error(format!("Dependent gate {} not found", dependent))
+        }
+    }
+    fn add_and(&mut self, name: &str, dependents: Vec<String>) -> ConditionReply {
+        let mut a = And::new();
+        // now try to add all of the dependencies:
+
+        for n in dependents {
+            if let Some(c) = self.dict.get(&n) {
+                a.add_condition(c);
+            } else {
+                return ConditionReply::Error(format!("Dependent gate {} not found", name));
+            }
+        }
+        self.add_condition(name, a)
+    }
+    fn add_or(&mut self, name: &str, dependents: Vec<String>) -> ConditionReply {
+        let mut o = Or::new();
+
+        // add the dependecies:
+
+        for n in dependents {
+            if let Some(c) = self.dict.get(&n) {
+                o.add_condition(c);
+            } else {
+                return ConditionReply::Error(format!("Dependent gate {} not found", name));
+            }
+        }
+        self.add_condition(name, o)
+    }
+    fn add_cut(&mut self, name: &str, param_id: u32, low: f64, high: f64) -> ConditionReply {
+        let c = Cut::new(param_id, low, high);
+        self.add_condition(name, c)
+    }
+
+    // Turn the points as tuples into Vec<Point>
+
+    fn convert_points(points: Vec<(f64, f64)>) -> Vec<Point> {
+        let mut result = Vec::<Point>::new();
+        for p in points {
+            result.push(Point::new(p.0, p.1));
+        }
+        result
+    }
+
+    fn add_band(
+        &mut self,
+        name: &str,
+        x_id: u32,
+        y_id: u32,
+        points: Vec<(f64, f64)>,
+    ) -> ConditionReply {
+        let b = Band::new(x_id, y_id, Self::convert_points(points));
+        if let Some(b) = b {
+            self.add_condition(name, b)
+        } else {
+            ConditionReply::Error(String::from("Too few points for  band"))
+        }
+    }
+
+    fn add_contour(
+        &mut self,
+        name: &str,
+        x_id: u32,
+        y_id: u32,
+        points: Vec<(f64, f64)>,
+    ) -> ConditionReply {
+        let c = Contour::new(x_id, y_id, Self::convert_points(points));
+        if let Some(c) = c {
+            self.add_condition(name, c)
+        } else {
+            ConditionReply::Error(String::from("Too few points for a contour"))
+        }
+    }
+    fn remove_condition(&mut self, name: &str) -> ConditionReply {
+        if let Some(_) = self.dict.remove(&String::from(name)) {
+            ConditionReply::Deleted
+        } else {
+            ConditionReply::Error(format!("No such condition {}", name))
+        }
+    }
+    // make CondtionPropreties from a condition and its name.
+
+    fn make_props(&self, name: &str, c: &Container) -> ConditionProperties {
+        // Need to make the dependent gates:
+        let dependencies = c.borrow().dependent_gates();
+        let mut d_names = Vec::<String>::new();
+        for d in dependencies.iter() {
+            if let Some(s) = gate_name_from_ref(&self.dict, d) {
+                d_names.push(s)
+            } else {
+                d_names.push(String::from("-deleted-"));
+            }
+        }
+
+        ConditionProperties {
+            cond_name: String::from(name),
+            type_name: c.borrow().gate_type(),
+            points: c.borrow().gate_points(),
+            gates: d_names,
+            parameters: c.borrow().dependent_parameters(),
+        }
+    }
+
+    fn list_conditions(&self, pattern: &str) -> ConditionReply {
+        // compile the pattern if that fails return an error:
+
+        let patt = Pattern::new(pattern);
+        if patt.is_err() {
+            return ConditionReply::Error(String::from(patt.unwrap_err().msg));
+        }
+        let patt = patt.unwrap();
+
+        let mut props = Vec::<ConditionProperties>::new();
+        for (name, cond) in self.dict.iter() {
+            if patt.matches(&name) {
+                props.push(self.make_props(&name, cond))
+            }
+        }
+        ConditionReply::Listing(props)
+    }
+
     /// Invalidates all the cached condition evaulations
     /// in our dict.
-
+    ///
     pub fn invalidate_cache(&mut self) {
         invalidate_cache(&mut self.dict);
+    }
+    /// Process a request returning a reply:
+    ///
+    pub fn process_request(&mut self, req: ConditionRequest) -> ConditionReply {
+        match req {
+            ConditionRequest::CreateTrue(name) => self.add_true(&name),
+            ConditionRequest::CreateFalse(name) => self.add_false(&name),
+            ConditionRequest::CreateNot { name, dependent } => self.add_not(&name, &dependent),
+            ConditionRequest::CreateAnd { name, dependents } => self.add_and(&name, dependents),
+            ConditionRequest::CreateOr { name, dependents } => self.add_or(&name, dependents),
+            ConditionRequest::CreateCut {
+                name,
+                param_id,
+                low,
+                high,
+            } => self.add_cut(&name, param_id, low, high),
+            ConditionRequest::CreateBand {
+                name,
+                x_id,
+                y_id,
+                points,
+            } => self.add_band(&name, x_id, y_id, points),
+            ConditionRequest::CreateContour {
+                name,
+                x_id,
+                y_id,
+                points,
+            } => self.add_contour(&name, x_id, y_id, points),
+            ConditionRequest::DeleteCondition(name) => self.remove_condition(&name),
+            ConditionRequest::List(pattern) => self.list_conditions(&pattern),
+        }
     }
 }
