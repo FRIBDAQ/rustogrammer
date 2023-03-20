@@ -50,10 +50,10 @@
 //!
 
 use crate::parameters;
+use std::boxed::Box;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
-
 // Re-exported module:
 
 pub mod cut;
@@ -114,8 +114,8 @@ pub trait Condition {
 /// Condition objects get dynamic dispatch to their checking
 /// Condition methods
 ///
-pub type Container = Rc<RefCell<dyn Condition>>;
-pub type ContainerReference = Weak<RefCell<dyn Condition>>;
+pub type Container = Rc<RefCell<Box<dyn Condition>>>;
+pub type ContainerReference = Weak<RefCell<Box<dyn Condition>>>;
 
 /// ConditionDictionary contains a correspondence between textual
 /// names and conditions held in Containers.
@@ -215,7 +215,7 @@ mod condition_tests {
         let mut dict = ConditionDictionary::new();
         let t: True = True {};
         let k = String::from("true");
-        dict.insert(k.clone(), Rc::new(RefCell::new(t)));
+        dict.insert(k.clone(), Rc::new(RefCell::new(Box::new(t))));
 
         let lookedup = dict.get(&k);
         assert!(lookedup.is_some());
@@ -228,7 +228,7 @@ mod condition_tests {
         let mut dict = ConditionDictionary::new();
         let t: False = False {};
         let k = String::from("false");
-        dict.insert(k.clone(), Rc::new(RefCell::new(t)));
+        dict.insert(k.clone(), Rc::new(RefCell::new(Box::new(t))));
 
         let lookedup = dict.get(&k);
         assert!(lookedup.is_some());
@@ -244,8 +244,8 @@ mod condition_tests {
         let k1 = String::from("true");
         let k2 = String::from("false");
 
-        dict.insert(k1.clone(), Rc::new(RefCell::new(t)));
-        dict.insert(k2.clone(), Rc::new(RefCell::new(f)));
+        dict.insert(k1.clone(), Rc::new(RefCell::new(Box::new(t))));
+        dict.insert(k2.clone(), Rc::new(RefCell::new(Box::new(f))));
         let e = FlatEvent::new();
 
         assert!(dict.get(&k1).unwrap().borrow_mut().check(&e));

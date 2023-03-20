@@ -514,14 +514,14 @@ impl ConditionProcessor {
         name: &str,
         cond: T,
     ) -> ConditionReply {
-        let c: Container = Rc::new(RefCell::<T>::new(cond));
+        let b = Box::new(cond);
         match self.dict.get(&String::from(name)) {
-            Some(_) => {
-                self.dict.insert(String::from(name), c);
+            Some(prior) => {
+                prior.replace(b);
                 ConditionReply::Replaced
             }
             None => {
-                self.dict.insert(String::from(name), c);
+                self.dict.insert(String::from(name), Rc::new(RefCell::new(b)));
                 ConditionReply::Created
             }
         }

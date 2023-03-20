@@ -658,7 +658,10 @@ mod twodsum_tests {
         // Gate the spectrum:
 
         let mut cd = ConditionDictionary::new();
-        cd.insert(String::from("true"), Rc::new(RefCell::new(True {})));
+        cd.insert(
+            String::from("true"),
+            Rc::new(RefCell::new(Box::new(True {}))),
+        );
 
         spec.gate("true", &cd).expect("Unable to gate spectrum");
 
@@ -726,7 +729,10 @@ mod twodsum_tests {
         // Gate the spectrum:
 
         let mut cd = ConditionDictionary::new();
-        cd.insert(String::from("false"), Rc::new(RefCell::new(False {})));
+        cd.insert(
+            String::from("false"),
+            Rc::new(RefCell::new(Box::new(False {}))),
+        );
 
         spec.gate("false", &cd).expect("Unable to gate spectrum");
 

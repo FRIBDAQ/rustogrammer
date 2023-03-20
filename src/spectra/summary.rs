@@ -426,7 +426,10 @@ mod summary_tests {
 
         let mut gd = ConditionDictionary::new();
         assert!(gd
-            .insert(String::from("true"), Rc::new(RefCell::new(True {})))
+            .insert(
+                String::from("true"),
+                Rc::new(RefCell::new(Box::new(True {})))
+            )
             .is_none());
         s.gate("true", &gd).expect("Could not gate");
         let mut fe = FlatEvent::new();
@@ -477,7 +480,10 @@ mod summary_tests {
 
         let mut gd = ConditionDictionary::new();
         assert!(gd
-            .insert(String::from("false"), Rc::new(RefCell::new(False {})))
+            .insert(
+                String::from("false"),
+                Rc::new(RefCell::new(Box::new(False {})))
+            )
             .is_none());
         s.gate("false", &gd).expect("Could not gate");
         let mut fe = FlatEvent::new();

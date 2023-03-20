@@ -541,7 +541,10 @@ mod multi2d_tests {
         // With an applied true gate:
 
         let mut cd = ConditionDictionary::new();
-        cd.insert(String::from("true"), Rc::new(RefCell::new(True {})));
+        cd.insert(
+            String::from("true"),
+            Rc::new(RefCell::new(Box::new(True {}))),
+        );
         spec.gate("true", &cd)
             .expect("Unable to apply gate to spectrum");
         spec.handle_event(&fe);
@@ -589,7 +592,10 @@ mod multi2d_tests {
         // With an applied False gate:
 
         let mut cd = ConditionDictionary::new();
-        cd.insert(String::from("false"), Rc::new(RefCell::new(False {})));
+        cd.insert(
+            String::from("false"),
+            Rc::new(RefCell::new(Box::new(False {}))),
+        );
         spec.gate("false", &cd)
             .expect("Unable to apply gate to spectrum");
         spec.handle_event(&fe);

@@ -157,7 +157,7 @@ mod cut_tests {
         let c = Cut::new(12, 100.0, 200.0);
         let mut dict = ConditionDictionary::new();
         let k = String::from("acut");
-        dict.insert(k.clone(), Rc::new(RefCell::new(c)));
+        dict.insert(k.clone(), Rc::new(RefCell::new(Box::new(c))));
 
         let mut e = FlatEvent::new();
 
@@ -179,11 +179,11 @@ mod cut_tests {
         let mut dict = ConditionDictionary::new();
         let c1 = Cut::new(12, 100.0, 200.0);
         let k1 = String::from("cut1");
-        dict.insert(k1.clone(), Rc::new(RefCell::new(c1)));
+        dict.insert(k1.clone(), Rc::new(RefCell::new(Box::new(c1))));
 
         let c2 = Cut::new(15, 50.0, 100.0);
         let k2 = String::from("cut2");
-        dict.insert(k2.clone(), Rc::new(RefCell::new(c2)));
+        dict.insert(k2.clone(), Rc::new(RefCell::new(Box::new(c2))));
 
         let mut e = FlatEvent::new();
         assert!(!dict.get(&k1).unwrap().borrow_mut().check(&e));
