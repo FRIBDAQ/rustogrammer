@@ -665,7 +665,12 @@ impl ConditionProcessor {
         }
         ConditionReply::Listing(props)
     }
-
+    /// Constructor:
+    pub fn new() -> ConditionProcessor {
+        ConditionProcessor {
+            dict : ConditionDictionary::new()
+        }
+    }
     /// Invalidates all the cached condition evaulations
     /// in our dict.
     ///
@@ -702,5 +707,18 @@ impl ConditionProcessor {
             ConditionRequest::DeleteCondition(name) => self.remove_condition(&name),
             ConditionRequest::List(pattern) => self.list_conditions(&pattern),
         }
+    }
+}
+// Direct tests of the ConditionProcessor (no messaging).
+
+#[cfg(test)]
+mod cp_tests {
+    use super::*;
+    #[test]
+    fn new_1() {
+        // Construction makes a valid empty dict:
+
+        let cp = ConditionProcessor::new();
+        assert_eq!(0, cp.dict.len())
     }
 }
