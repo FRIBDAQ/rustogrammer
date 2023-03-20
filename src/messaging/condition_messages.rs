@@ -979,6 +979,42 @@ mod cnd_processor_tests {
         assert_eq!(100.0, pts[0].0);
         assert_eq!(200.0, pts[1].0);
     }
+    #[test]
+    fn make_band_1() {
+        let mut cp = ConditionProcessor::new();
+        let gate_pts = vec![
+            (0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)
+        ];
+        let rep = cp.process_request(make_band_creation("band", 10, 15, &gate_pts));
+        assert_eq!(ConditionReply::Created, rep);
+
+        let cond = cp.dict.get("band").unwrap();
+        assert_eq!(String::from("Band"), cond.borrow().gate_type());
+        let pts = cond.borrow().gate_points();
+        assert_eq!(gate_pts.len(), pts.len());
+        for (i, p) in gate_pts.iter().enumerate() {
+            assert_eq!(p.0, pts[i].0);
+            assert_eq!(p.1, pts[i].1);
+        }
+    }
+    #[test]
+    fn make_contour_1() {
+        let mut cp = ConditionProcessor::new();
+        let gate_pts = vec![
+            (0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)
+        ];
+        let rep = cp.process_request(make_contour_creation("contour", 10, 15, &gate_pts));
+        assert_eq!(ConditionReply::Created, rep);
+
+        let cond = cp.dict.get("contour").unwrap();
+        assert_eq!(String::from("Contour"), cond.borrow().gate_type());
+        let pts = cond.borrow().gate_points();
+        assert_eq!(gate_pts.len(), pts.len());
+        for (i, p) in gate_pts.iter().enumerate() {
+            assert_eq!(p.0, pts[i].0);
+            assert_eq!(p.1, pts[i].1);
+        }
+    }
     // Creation replacement
 
     // Other requests.
