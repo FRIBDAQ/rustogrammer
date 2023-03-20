@@ -1032,4 +1032,34 @@ mod cnd_processor_tests {
     }
 
     // Other requests.
+
+    #[test]
+    fn delete_1() {
+        let mut cp = ConditionProcessor::new();
+        cp.process_request(make_true_creation("true"));
+        cp.process_request(make_false_creation("false"));
+
+        // Delete the true gate
+
+        let reply = cp.process_request(make_delete("true"));
+        assert_eq!(ConditionReply::Deleted, reply); // Success.
+
+        // It's gone:
+
+        assert_eq!(1, cp.dict.len());
+        assert!(cp.dict.get("true").is_none());
+    }
+    #[test]
+    fn delete_2() {
+        // unsuccessful delete:
+
+        let mut cp = ConditionProcessor::new();
+        cp.process_request(make_true_creation("true"));
+        let reply = cp.process_request(make_delete("false"));
+        if let ConditionReply::Error(_) = reply {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
+    }
 }
