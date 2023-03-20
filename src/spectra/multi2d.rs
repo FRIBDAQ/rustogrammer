@@ -191,7 +191,6 @@ mod multi2d_tests {
     use ndhistogram::axis::*;
     use std::cell::RefCell;
     use std::rc::Rc;
-
     #[test]
     fn new_1() {
         let mut pdict = ParameterDictionary::new();

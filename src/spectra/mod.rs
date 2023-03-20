@@ -41,7 +41,6 @@
 
 use super::conditions::*;
 use super::parameters::*;
-use ndhistogram::axis::*;
 use ndhistogram::*;
 use std::cell::RefCell;
 use std::collections::HashMap;

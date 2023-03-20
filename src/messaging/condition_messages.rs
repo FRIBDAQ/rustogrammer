@@ -521,7 +521,8 @@ impl ConditionProcessor {
                 ConditionReply::Replaced
             }
             None => {
-                self.dict.insert(String::from(name), Rc::new(RefCell::new(b)));
+                self.dict
+                    .insert(String::from(name), Rc::new(RefCell::new(b)));
                 ConditionReply::Created
             }
         }

@@ -176,7 +176,6 @@ mod summary_tests {
     use ndhistogram::axis::*;
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gating.
-
     #[test]
     fn new_1() {
         // Works -- all parameters have same limits/bins, default:

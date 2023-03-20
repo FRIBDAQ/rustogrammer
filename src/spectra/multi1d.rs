@@ -144,7 +144,6 @@ mod multi1d_tests {
     use ndhistogram::axis::*;
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gating.
-
     #[test]
     fn new_1() {
         // Success with default x axis and uniform parameter defs:
@@ -393,7 +392,10 @@ mod multi1d_tests {
         fe.load_event(&e);
 
         let mut cd = ConditionDictionary::new();
-        cd.insert(String::from("true"), Rc::new(RefCell::new(Box::new(True {}))));
+        cd.insert(
+            String::from("true"),
+            Rc::new(RefCell::new(Box::new(True {}))),
+        );
         spec.gate("true", &cd).expect("Can't gate");
 
         fe.load_event(&e);
@@ -437,7 +439,10 @@ mod multi1d_tests {
         fe.load_event(&e);
 
         let mut cd = ConditionDictionary::new();
-        cd.insert(String::from("false"), Rc::new(RefCell::new(Box::new(False {}))));
+        cd.insert(
+            String::from("false"),
+            Rc::new(RefCell::new(Box::new(False {}))),
+        );
         spec.gate("false", &cd).expect("Can't gate");
 
         fe.load_event(&e);

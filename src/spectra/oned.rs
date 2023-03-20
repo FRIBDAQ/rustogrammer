@@ -313,7 +313,10 @@ mod oned_tests {
         // Spectrum with a true gate:
 
         let mut gdict = ConditionDictionary::new();
-        gdict.insert(String::from("true"), Rc::new(RefCell::new(Box::new(True {}))));
+        gdict.insert(
+            String::from("true"),
+            Rc::new(RefCell::new(Box::new(True {}))),
+        );
         let mut s = make_1d();
         let pid = s.parameter_id;
         s.gate("true", &gdict).unwrap();
@@ -334,7 +337,10 @@ mod oned_tests {
         // Spectrum with false gate won't increment:
 
         let mut gdict = ConditionDictionary::new();
-        gdict.insert(String::from("false"), Rc::new(RefCell::new(Box::new(False {}))));
+        gdict.insert(
+            String::from("false"),
+            Rc::new(RefCell::new(Box::new(False {}))),
+        );
         let mut s = make_1d();
         let pid = s.parameter_id;
         s.gate("false", &gdict).unwrap();
