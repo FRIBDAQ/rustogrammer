@@ -877,6 +877,7 @@ mod cnd_processor_tests {
         let cp = ConditionProcessor::new();
         assert_eq!(0, cp.dict.len())
     }
+    // Basic condition creation.
     #[test]
     fn make_true_1() {
         let mut cp = ConditionProcessor::new();
@@ -886,6 +887,87 @@ mod cnd_processor_tests {
         let item = cp.dict.get("true-cond");
         assert!(item.is_some());
         assert_eq!(String::from("True"), item.unwrap().borrow().gate_type());
-    
     }
+    #[test]
+    fn make_false_1() {
+        let mut cp = ConditionProcessor::new();
+        let rep = cp.process_request(make_false_creation("false-cond"));
+        assert_eq!(ConditionReply::Created, rep);
+
+        let item = cp.dict.get("false-cond");
+        assert!(item.is_some());
+        assert_eq!(String::from("False"), item.unwrap().borrow().gate_type());
+    }
+    #[test]
+    fn make_not_1() {
+        let mut cp = ConditionProcessor::new();
+        cp.process_request(make_false_creation("false"));
+        let rep = cp.process_request(make_not_creation("true", "false"));
+        assert_eq!(ConditionReply::Created, rep);
+
+        let item = cp.dict.get("true");
+        assert!(item.is_some());
+        let cond = item.unwrap();
+        assert_eq!(String::from("Not"), cond.borrow().gate_type());
+        let dep = cond.borrow().dependent_gates();
+        assert_eq!(1, dep.len());
+        assert_eq!(
+            String::from("False"),
+            dep[0].upgrade().unwrap().borrow().gate_type()
+        );
+    }
+    #[test]
+    fn make_and_1() {
+        let mut cp = ConditionProcessor::new();
+        cp.process_request(make_true_creation("true"));
+        cp.process_request(make_false_creation("false"));
+        let rep = cp.process_request(make_and_creation(
+            "and",
+            &vec![String::from("true"), String::from("false")],
+        ));
+        assert_eq!(ConditionReply::Created, rep);
+
+        let cond = cp.dict.get("and").unwrap();
+        assert_eq!(String::from("And"), cond.borrow().gate_type());
+        let deps = cond.borrow().dependent_gates();
+
+        assert_eq!(2, deps.len());
+        assert_eq!(
+            String::from("True"),
+            deps[0].upgrade().unwrap().borrow().gate_type()
+        );
+        assert_eq!(
+            String::from("False"),
+            deps[1].upgrade().unwrap().borrow().gate_type()
+        );
+        
+    }
+    #[test]
+    fn make_or_1() {
+        let mut cp = ConditionProcessor::new();
+        cp.process_request(make_true_creation("true"));
+        cp.process_request(make_false_creation("false"));
+        let rep = cp.process_request(make_or_creation(
+            "or",
+            &vec![String::from("true"), String::from("false")],
+        ));
+        assert_eq!(ConditionReply::Created, rep);
+
+        let cond = cp.dict.get("or").unwrap();
+        assert_eq!(String::from("Or"), cond.borrow().gate_type());
+        let deps = cond.borrow().dependent_gates();
+
+        assert_eq!(2, deps.len());
+        assert_eq!(
+            String::from("True"),
+            deps[0].upgrade().unwrap().borrow().gate_type()
+        );
+        assert_eq!(
+            String::from("False"),
+            deps[1].upgrade().unwrap().borrow().gate_type()
+        );  
+    }
+    // Creation replacement
+
+    // Other requests.
 }
