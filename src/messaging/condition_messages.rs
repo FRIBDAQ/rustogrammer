@@ -834,7 +834,7 @@ mod cond_msg_tests {
     fn make_contour_1() {
         let pts = vec![(0.0, 100.0), (10.0, 50.0), (50.0, 25.0), (75.0, 0.0)];
         let mr = make_contour_creation("cont", 2, 5, &pts);
-        if let ConditionRequest::CreateContour   {
+        if let ConditionRequest::CreateContour {
             name,
             x_id,
             y_id,
@@ -851,6 +851,24 @@ mod cond_msg_tests {
             }
         } else {
             panic!("make_contour_creation did not return a ConditionRequest::CreateContour");
+        }
+    }
+    #[test]
+    fn make_delete_1() {
+        let mr = make_delete("junk");
+        if let ConditionRequest::DeleteCondition(s) = mr {
+            assert_eq!(String::from("junk"), s);
+        } else {
+            panic!("make_delete did not create DeleteCondition request");
+        }
+    }
+    #[test]
+    fn make_list_1() {
+        let mr = make_list("*");
+        if let ConditionRequest::List(p) = mr {
+            assert_eq!(String::from("*"), p);
+        } else {
+            panic!("make_list did not create a List request");
         }
     }
 }
