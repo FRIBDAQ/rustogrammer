@@ -869,6 +869,7 @@ mod cond_msg_tests {
 #[cfg(test)]
 mod cnd_processor_tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn new_1() {
@@ -1060,6 +1061,89 @@ mod cnd_processor_tests {
             assert!(true);
         } else {
             assert!(false);
+        }
+    }
+    fn make_list_conditions() -> ConditionProcessor {
+        let mut cp = ConditionProcessor::new();
+        cp.process_request(make_true_creation("true"));
+        cp.process_request(make_false_creation("false"));
+        cp.process_request(make_cut_creation("t-cut", 12, 100.0, 200.0));
+        cp.process_request(make_and_creation(
+            "fake",
+            &vec![String::from("true"), String::from("t-cut")],
+        ));
+
+        cp
+    }
+    #[test]
+    fn list_1() {
+        // List all gates:
+        let mut cp = make_list_conditions();
+        let reply = cp.process_request(make_list("*"));
+        if let ConditionReply::Listing(list) = reply {
+            assert_eq!(4, list.len());
+            // we don't know the order in which these come back so
+            // toss them into a hash indexed by name
+
+            let mut hash = HashMap::<String, ConditionProperties>::new();
+            for c in list {
+                let name = c.cond_name.clone();
+                hash.insert(name, c);
+            }
+            let t = hash.get("true").unwrap();
+            assert_eq!(String::from("True"), t.type_name);
+
+            let f = hash.get("false").unwrap();
+            assert_eq!(String::from("False"), f.type_name);
+
+            let c = hash.get("t-cut").unwrap();
+            assert_eq!(String::from("Cut"), c.type_name);
+            assert_eq!(2, c.points.len());
+            assert_eq!(100.0, c.points[0].0);
+            assert_eq!(200.0, c.points[1].0);
+            assert_eq!(1, c.parameters.len());
+            assert_eq!(12, c.parameters[0]);
+
+            let a = hash.get("fake").unwrap();
+            assert_eq!(String::from("And"), a.type_name);
+            assert_eq!(2, a.gates.len());
+            assert_eq!(String::from("true"), a.gates[0]);
+            assert_eq!(String::from("t-cut"), a.gates[1]);
+        } else {
+            panic!("list request did not return a listing");
+        }
+    }
+    #[test]
+    fn list_2() {
+        // List gates whose names start with "f"
+
+        let mut cp = make_list_conditions();
+        let reply = cp.process_request(make_list("f*"));
+        if let ConditionReply::Listing(list) = reply {
+            assert_eq!(2, list.len());
+            // we don't know the order in which these come back so
+            // toss them into a hash indexed by name
+
+            let mut hash = HashMap::<String, ConditionProperties>::new();
+            for c in list {
+                let name = c.cond_name.clone();
+                hash.insert(name, c);
+            }
+            assert!(hash.get("true").is_none());  // not in f*
+            
+
+            let f = hash.get("false").unwrap();
+            assert_eq!(String::from("False"), f.type_name);
+
+            assert!(hash.get("t-cut").is_none()); // not in f*
+
+            let a = hash.get("fake").unwrap();
+            assert_eq!(String::from("And"), a.type_name);
+            assert_eq!(2, a.gates.len());
+            assert_eq!(String::from("true"), a.gates[0]);
+            assert_eq!(String::from("t-cut"), a.gates[1]);
+        } else {
+            panic!("List operation did not return ConditionReply::Listing")
         }
     }
 }
