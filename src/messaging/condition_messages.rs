@@ -1129,8 +1129,7 @@ mod cnd_processor_tests {
                 let name = c.cond_name.clone();
                 hash.insert(name, c);
             }
-            assert!(hash.get("true").is_none());  // not in f*
-            
+            assert!(hash.get("true").is_none()); // not in f*
 
             let f = hash.get("false").unwrap();
             assert_eq!(String::from("False"), f.type_name);
@@ -1144,6 +1143,18 @@ mod cnd_processor_tests {
             assert_eq!(String::from("t-cut"), a.gates[1]);
         } else {
             panic!("List operation did not return ConditionReply::Listing")
+        }
+    }
+    #[test]
+    fn list_3() {
+        // Bad glob expression gives an error:
+
+        let mut cp = make_list_conditions();
+        let reply = cp.process_request(make_list("[Astuff"));
+        if let ConditionReply::Error(_) = reply {
+            assert!(true);
+        } else {
+            assert!(false);
         }
     }
 }
