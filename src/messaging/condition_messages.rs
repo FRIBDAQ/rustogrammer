@@ -668,7 +668,7 @@ impl ConditionProcessor {
     /// Constructor:
     pub fn new() -> ConditionProcessor {
         ConditionProcessor {
-            dict : ConditionDictionary::new()
+            dict: ConditionDictionary::new(),
         }
     }
     /// Invalidates all the cached condition evaulations
@@ -720,5 +720,25 @@ mod cp_tests {
 
         let cp = ConditionProcessor::new();
         assert_eq!(0, cp.dict.len())
+    }
+    // let's be sure the ConditionRequest builders make valid requests:
+
+    #[test]
+    fn make_true_1() {
+        let mtr = make_true_creation("a-condition");
+        if let ConditionRequest::CreateTrue(t) = mtr {
+            assert_eq!(String::from("a-condition"), t)
+        } else {
+            panic!("make_true_creation did not make ConditionRequest::CreateTrue");
+        }
+    }
+    #[test]
+    fn make_false_1() {
+        let mfr = make_false_creation("false-cond");
+        if let ConditionRequest::CreateFalse(n) = mfr {
+            assert_eq!(String::from("false-cond"), n);
+        } else {
+            panic!("make_false_creation did not make a ConditionRequest::CreateFalse");
+        }
     }
 }
