@@ -975,16 +975,14 @@ mod cnd_processor_tests {
         let cond = cp.dict.get("cut").unwrap();
         assert_eq!("Cut", cond.borrow().gate_type());
         let pts = cond.borrow().gate_points();
-        assert_eq!(2,pts.len());
+        assert_eq!(2, pts.len());
         assert_eq!(100.0, pts[0].0);
         assert_eq!(200.0, pts[1].0);
     }
     #[test]
     fn make_band_1() {
         let mut cp = ConditionProcessor::new();
-        let gate_pts = vec![
-            (0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)
-        ];
+        let gate_pts = vec![(0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)];
         let rep = cp.process_request(make_band_creation("band", 10, 15, &gate_pts));
         assert_eq!(ConditionReply::Created, rep);
 
@@ -1000,9 +998,7 @@ mod cnd_processor_tests {
     #[test]
     fn make_contour_1() {
         let mut cp = ConditionProcessor::new();
-        let gate_pts = vec![
-            (0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)
-        ];
+        let gate_pts = vec![(0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)];
         let rep = cp.process_request(make_contour_creation("contour", 10, 15, &gate_pts));
         assert_eq!(ConditionReply::Created, rep);
 
@@ -1016,6 +1012,24 @@ mod cnd_processor_tests {
         }
     }
     // Creation replacement
+
+    #[test]
+    fn make_replace_1() {
+        let mut cp = ConditionProcessor::new();
+        cp.process_request(make_true_creation("agate"));
+
+        let cond = cp.dict.get("agate").unwrap();
+        assert_eq!("True", cond.borrow().gate_type());
+        let cond = Rc::downgrade(cond); // Weak now
+
+        // Replacing the gate should happen transparently
+        // to our cond:
+
+        let result = cp.process_request(make_false_creation("agate"));
+        assert_eq!(ConditionReply::Replaced, result);
+
+        assert_eq!("False", cond.upgrade().unwrap().borrow().gate_type());
+    }
 
     // Other requests.
 }
