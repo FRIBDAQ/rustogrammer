@@ -789,4 +789,16 @@ mod cond_msg_tests {
             panic!("make_and_creation did not return a ConditionRequest::CrateAnd");
         }
     }
+    #[test]
+    fn make_cut_1() {
+        let mr = make_cut_creation("a-cut", 12, 100.0, 200.0);
+        if let ConditionRequest::CreateCut{name, param_id, low, high} = mr {
+            assert_eq!(String::from("a-cut"), name);
+            assert_eq!(12, param_id);
+            assert_eq!(100.0, low);
+            assert_eq!(200.0, high);
+        } else {
+            panic!("make_cut_creation did not return a ConditionRequest::CreateCut");
+        }
+    }
 }
