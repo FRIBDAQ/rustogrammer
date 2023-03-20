@@ -792,13 +792,65 @@ mod cond_msg_tests {
     #[test]
     fn make_cut_1() {
         let mr = make_cut_creation("a-cut", 12, 100.0, 200.0);
-        if let ConditionRequest::CreateCut{name, param_id, low, high} = mr {
+        if let ConditionRequest::CreateCut {
+            name,
+            param_id,
+            low,
+            high,
+        } = mr
+        {
             assert_eq!(String::from("a-cut"), name);
             assert_eq!(12, param_id);
             assert_eq!(100.0, low);
             assert_eq!(200.0, high);
         } else {
             panic!("make_cut_creation did not return a ConditionRequest::CreateCut");
+        }
+    }
+    #[test]
+    fn make_band_1() {
+        let pts = vec![(0.0, 100.0), (10.0, 50.0), (50.0, 25.0), (75.0, 0.0)];
+        let mr = make_band_creation("band", 2, 5, &pts);
+        if let ConditionRequest::CreateBand {
+            name,
+            x_id,
+            y_id,
+            points,
+        } = mr
+        {
+            assert_eq!(String::from("band"), name);
+            assert_eq!(2, x_id);
+            assert_eq!(5, y_id);
+            assert_eq!(pts.len(), points.len());
+            for (i, p) in pts.iter().enumerate() {
+                assert_eq!(p.0, points[i].0);
+                assert_eq!(p.1, points[i].1);
+            }
+        } else {
+            panic!("make_band_creation did not return a ConditionRequest::CreateBand");
+        }
+    }
+    #[test]
+    fn make_contour_1() {
+        let pts = vec![(0.0, 100.0), (10.0, 50.0), (50.0, 25.0), (75.0, 0.0)];
+        let mr = make_contour_creation("cont", 2, 5, &pts);
+        if let ConditionRequest::CreateContour   {
+            name,
+            x_id,
+            y_id,
+            points,
+        } = mr
+        {
+            assert_eq!(String::from("cont"), name);
+            assert_eq!(2, x_id);
+            assert_eq!(5, y_id);
+            assert_eq!(pts.len(), points.len());
+            for (i, p) in pts.iter().enumerate() {
+                assert_eq!(p.0, points[i].0);
+                assert_eq!(p.1, points[i].1);
+            }
+        } else {
+            panic!("make_contour_creation did not return a ConditionRequest::CreateContour");
         }
     }
 }
