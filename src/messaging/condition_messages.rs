@@ -753,6 +753,40 @@ mod cond_msg_tests {
     }
     #[test]
     fn make_and_1() {
-
+        let dependent_conds = vec![
+            String::from("cond1"),
+            String::from("cond2"),
+            String::from("cond3"),
+            String::from("cond4"),
+        ];
+        let mr = make_and_creation("test", &dependent_conds);
+        if let ConditionRequest::CreateAnd { name, dependents } = mr {
+            assert_eq!(String::from("test"), name);
+            assert_eq!(dependent_conds.len(), dependents.len());
+            for (i, dep) in dependent_conds.iter().enumerate() {
+                assert_eq!(*dep, dependents[i]);
+            }
+        } else {
+            panic!("make_and_creation did not return a ConditionRequest::CrateAnd");
+        }
+    }
+    #[test]
+    fn make_or_1() {
+        let dependent_conds = vec![
+            String::from("cond1"),
+            String::from("cond2"),
+            String::from("cond3"),
+            String::from("cond4"),
+        ];
+        let mr = make_or_creation("test", &dependent_conds);
+        if let ConditionRequest::CreateOr { name, dependents } = mr {
+            assert_eq!(String::from("test"), name);
+            assert_eq!(dependent_conds.len(), dependents.len());
+            for (i, dep) in dependent_conds.iter().enumerate() {
+                assert_eq!(*dep, dependents[i]);
+            }
+        } else {
+            panic!("make_and_creation did not return a ConditionRequest::CrateAnd");
+        }
     }
 }
