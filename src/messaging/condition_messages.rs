@@ -709,10 +709,10 @@ impl ConditionProcessor {
         }
     }
 }
-// Direct tests of the ConditionProcessor (no messaging).
+// Tests of request message generators.
 
 #[cfg(test)]
-mod cp_tests {
+mod cond_msg_tests {
     use super::*;
     #[test]
     fn new_1() {
@@ -740,5 +740,19 @@ mod cp_tests {
         } else {
             panic!("make_false_creation did not make a ConditionRequest::CreateFalse");
         }
+    }
+    #[test]
+    fn make_not_1() {
+        let mr = make_not_creation("not-cond", "dependent-cond");
+        if let ConditionRequest::CreateNot { name, dependent } = mr {
+            assert_eq!(String::from("not-cond"), name);
+            assert_eq!(String::from("dependent-cond"), dependent);
+        } else {
+            panic!("make_not_creation did not make a ConditionRequest::CreateNot");
+        }
+    }
+    #[test]
+    fn make_and_1() {
+
     }
 }
