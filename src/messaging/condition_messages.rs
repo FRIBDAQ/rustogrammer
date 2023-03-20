@@ -714,13 +714,7 @@ impl ConditionProcessor {
 #[cfg(test)]
 mod cond_msg_tests {
     use super::*;
-    #[test]
-    fn new_1() {
-        // Construction makes a valid empty dict:
 
-        let cp = ConditionProcessor::new();
-        assert_eq!(0, cp.dict.len())
-    }
     // let's be sure the ConditionRequest builders make valid requests:
 
     #[test]
@@ -870,5 +864,28 @@ mod cond_msg_tests {
         } else {
             panic!("make_list did not create a List request");
         }
+    }
+}
+#[cfg(test)]
+mod cnd_processor_tests {
+    use super::*;
+
+    #[test]
+    fn new_1() {
+        // Construction makes a valid empty dict:
+
+        let cp = ConditionProcessor::new();
+        assert_eq!(0, cp.dict.len())
+    }
+    #[test]
+    fn make_true_1() {
+        let mut cp = ConditionProcessor::new();
+        let rep = cp.process_request(make_true_creation("true-cond"));
+        assert_eq!(ConditionReply::Created, rep);
+
+        let item = cp.dict.get("true-cond");
+        assert!(item.is_some());
+        assert_eq!(String::from("True"), item.unwrap().borrow().gate_type());
+    
     }
 }
