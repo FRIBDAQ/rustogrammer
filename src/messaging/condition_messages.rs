@@ -940,7 +940,6 @@ mod cnd_processor_tests {
             String::from("False"),
             deps[1].upgrade().unwrap().borrow().gate_type()
         );
-        
     }
     #[test]
     fn make_or_1() {
@@ -965,7 +964,20 @@ mod cnd_processor_tests {
         assert_eq!(
             String::from("False"),
             deps[1].upgrade().unwrap().borrow().gate_type()
-        );  
+        );
+    }
+    #[test]
+    fn make_cut_1() {
+        let mut cp = ConditionProcessor::new();
+        let rep = cp.process_request(make_cut_creation("cut", 12, 100.0, 200.0));
+        assert_eq!(ConditionReply::Created, rep);
+
+        let cond = cp.dict.get("cut").unwrap();
+        assert_eq!("Cut", cond.borrow().gate_type());
+        let pts = cond.borrow().gate_points();
+        assert_eq!(2,pts.len());
+        assert_eq!(100.0, pts[0].0);
+        assert_eq!(200.0, pts[1].0);
     }
     // Creation replacement
 
