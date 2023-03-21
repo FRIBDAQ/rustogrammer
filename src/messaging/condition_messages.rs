@@ -1390,4 +1390,71 @@ mod cnd_api_tests {
         }
         stop_server(jh, send);
     }
+    // just make some points for either band or contour.
+
+    fn make_points() -> Vec<(f64, f64)> {
+        vec![(0.0, 100.0), (100.0, 100.0), (200.0, 50.0), (400.0, 0.0)]
+    }
+    #[test]
+    fn band_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_read) = channel::<Reply>();
+        let points = make_points();
+
+        if let ConditionReply::Created =
+            create_band_condition(send.clone(), rep_send, rep_read, "band", 5, 6, &points)
+        {
+            let (rep_send, rep_read) = channel::<Reply>();
+            if let ConditionReply::Listing(l) =
+                list_conditions(send.clone(), rep_send, rep_read, "*")
+            {
+                assert_eq!(1, l.len());
+                assert_eq!(String::from("Band"), l[0].type_name);
+                assert_eq!(points.len(), l[0].points.len());
+                for (i, (x, y)) in points.iter().enumerate() {
+                    assert_eq!(*x, l[0].points[i].0);
+                    assert_eq!(*y, l[0].points[i].1);
+                }
+                assert_eq!(2, l[0].parameters.len());
+                assert_eq!(5, l[0].parameters[0]);
+                assert_eq!(6, l[0].parameters[1]);
+            } else {
+                panic!("Failed to get listing");
+            }
+        } else {
+            panic!("Failed to make band condition.");
+        }
+        stop_server(jh, send);
+    }
+    #[test]
+    fn contour_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_read) = channel::<Reply>();
+        let points = make_points();
+
+        if let ConditionReply::Created =
+            create_contour_condition(send.clone(), rep_send, rep_read, "contour", 5, 6, &points)
+        {
+            let (rep_send, rep_read) = channel::<Reply>();
+            if let ConditionReply::Listing(l) =
+                list_conditions(send.clone(), rep_send, rep_read, "*")
+            {
+                assert_eq!(1, l.len());
+                assert_eq!(String::from("Contour"), l[0].type_name);
+                assert_eq!(points.len(), l[0].points.len());
+                for (i, (x, y)) in points.iter().enumerate() {
+                    assert_eq!(*x, l[0].points[i].0);
+                    assert_eq!(*y, l[0].points[i].1);
+                }
+                assert_eq!(2, l[0].parameters.len());
+                assert_eq!(5, l[0].parameters[0]);
+                assert_eq!(6, l[0].parameters[1]);
+            } else {
+                panic!("Failed to get listing");
+            }
+        } else {
+            panic!("Failed to make band condition.");
+        }
+        stop_server(jh, send);
+    }
 }
