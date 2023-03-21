@@ -12,6 +12,7 @@
 use super::*;
 use crate::conditions;
 use crate::parameters;
+use crate::spectra::*;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AxisSpecification {
@@ -114,4 +115,34 @@ pub enum SpectrumReply {
     Contents(SpectrumContents),       // Contents of a spectrum.
     Listing(Vec<SpectrumProperties>), // List of spectrum props.
     Processed,                        // Events processed.
+}
+
+///
+/// SpectrumProcessor is the struct that processes
+/// spectrum requests.  Some requests will need
+/// a parameter and condition dictionary.  
+/// Note that the implementation is divorced from the
+/// actual message.  This makes testing the impl easier.
+pub struct SpectrumProcessor {
+    dict: SpectrumDictionary,
+}
+
+impl SpectrumProcessor {
+    /// Construction
+
+    pub fn new() -> SpectrumProcessor {
+        SpectrumProcessor {
+            dict: SpectrumDictionary::new(),
+        }
+    }
+    /// Process requests returning replies:
+
+    pub fn process_request(
+        &mut self,
+        req: SpectrumRequest,
+        params: &parameters::ParameterDictionary,
+        conditions: &conditions::ConditionDictionary,
+    ) -> SpectrumReply {
+        SpectrumReply::Error(String::from("Placeholder method"))
+    }
 }
