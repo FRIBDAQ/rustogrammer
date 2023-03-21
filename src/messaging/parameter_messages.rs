@@ -288,6 +288,9 @@ impl ParameterProcessor {
             } => self.modify(&name, bins, limits, units, description),
         }
     }
+    pub fn get_dict(&mut self) -> &mut ParameterDictionary {
+        &mut self.dict
+    }
 }
 
 // Test for public functions note this implicitly tests the

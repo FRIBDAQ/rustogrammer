@@ -682,6 +682,9 @@ impl ConditionProcessor {
             ConditionRequest::List(pattern) => self.list_conditions(&pattern),
         }
     }
+    pub fn get_dict(&mut self) -> &mut ConditionDictionary {
+        &mut self.dict
+    }
 }
 // Tests of request message generators.
 
