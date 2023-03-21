@@ -467,32 +467,6 @@ pub fn list_conditions(
 ) -> ConditionReply {
     transaction(req_send, rep_send, rep_read, make_list(pattern))
 }
-///
-/// Given a single condition name, get its properties.  Note this
-/// is really list_conditions with a name rather than a pattern.
-///
-///  *  req_send - channel  to which the request should be sent.
-///  *  rep_send - channel the server should use to send the reply.
-///  *  rep_read - channel from which our thread should read that reply.
-///  *  name - name of the condition whose properties will be gotten.
-//
-/// Returns ConditionProperties or panics on errors.
-///
-pub fn get_properties(
-    req_send: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_read: mpsc::Receiver<Reply>,
-    name: &str,
-) -> ConditionProperties {
-    let result = transaction(req_send, rep_send, rep_read, make_list(name));
-
-    if let ConditionReply::Listing(properties) = result {
-        assert_eq!(1, properties.len()); // Shold only be one item:
-        properties[0].clone()
-    } else {
-        panic!("Expected Listing in get_properties but got somethjing different");
-    }
-}
 
 // Sever side stuff.
 
@@ -1456,5 +1430,34 @@ mod cnd_api_tests {
             panic!("Failed to make band condition.");
         }
         stop_server(jh, send);
+    }
+    #[test]
+    fn delete_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_read) = channel::<Reply>();
+        let names = make_some_conditions(&send);
+        if let ConditionReply::Deleted =
+            delete_condition(send.clone(), rep_send, rep_read, "condition.0")
+        {
+            let (rep_send, rep_read) = channel::<Reply>();
+            if let ConditionReply::Listing(l) =
+                list_conditions(send.clone(), rep_send, rep_read, "condition.0")
+            {
+                assert_eq!(0, l.len());
+            } else {
+                panic!("failed to list conditions");
+            }
+        } else {
+            panic!("Not Deleted answer back from delete_condition");
+        }
+        stop_server(jh, send);
+    }
+    // Check that we get a replacement status if we replace a condition:
+
+    #[test]
+    fn replace_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_read) = channel::<Reply>();
+        let names = make_some_conditions(&send);
     }
 }
