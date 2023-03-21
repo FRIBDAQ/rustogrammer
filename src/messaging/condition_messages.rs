@@ -1435,7 +1435,7 @@ mod cnd_api_tests {
     fn delete_1() {
         let (jh, send) = start_server();
         let (rep_send, rep_read) = channel::<Reply>();
-        let names = make_some_conditions(&send);
+        make_some_conditions(&send);
         if let ConditionReply::Deleted =
             delete_condition(send.clone(), rep_send, rep_read, "condition.0")
         {
@@ -1458,6 +1458,20 @@ mod cnd_api_tests {
     fn replace_1() {
         let (jh, send) = start_server();
         let (rep_send, rep_read) = channel::<Reply>();
-        let names = make_some_conditions(&send);
+        make_some_conditions(&send);
+
+        if let ConditionReply::Replaced =
+            create_false_condition(send.clone(), rep_send, rep_read, "condition.1")
+        {
+            let (rep_send, rep_read) = channel::<Reply>();
+            if let ConditionReply::Listing(l) =
+                list_conditions(send.clone(), rep_send, rep_read, "condition.1")
+            {
+                assert_eq!(1, l.len());
+                assert_eq!(String::from("False"), l[0].type_name);
+            }
+        } else {
+            panic!("Replacement did not return replaced reply.");
+        }
     }
 }
