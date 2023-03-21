@@ -1286,5 +1286,50 @@ mod cnd_api_tests {
         } else {
             panic!("Failed to make not conditions");
         }
+        stop_server(jh, send);
+    }
+    fn make_some_conditions(send: &Sender<Request>) {
+        for i in 0..5 {
+            let name = format!("condition.{}", i);
+            let (rep_send, rep_read) = channel::<Reply>();
+            if let ConditionReply::Created =
+                create_true_condition(send.clone(), rep_send, rep_read, &name)
+            {
+            } else {
+                panic!("Unable to creae condition {}", name);
+            }
+        }
+    }
+    #[test]
+    fn and_1() {
+        let (jh, send) = start_server();
+        make_some_conditions(&send);
+        let names = vec![
+            String::from("condition.1"),
+            String::from("condition.2"),
+            String::from("condition.3"), // Dependent conditions.
+            String::from("condition.4"),
+        ];
+        let (rep_send, rep_read) = channel::<Reply>();
+        if let ConditionReply::Created =
+            create_and_condition(send.clone(), rep_send, rep_read, "and", &names)
+        {
+            let (rep_send, rep_read) = channel::<Reply>();
+            if let ConditionReply::Listing(l) =
+                list_conditions(send.clone(), rep_send, rep_read, "and")
+            {
+                assert_eq!(1, l.len());
+                assert_eq!(String::from("And"), l[0].type_name);
+                assert_eq!(names.len(), l[0].gates.len());
+                for (i, n) in names.iter().enumerate() {
+                    assert_eq!(*n, l[0].gates[i]);
+                }
+            } else {
+                panic!("Listing failed in some way");
+            }
+        } else {
+            panic!("Could not make and condition");
+        }
+        stop_server(jh, send);
     }
 }
