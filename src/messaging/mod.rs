@@ -30,6 +30,8 @@ pub mod parameter_messages;
 pub use parameter_messages::*;
 pub mod condition_messages;
 pub use condition_messages::*;
+pub mod spectrum_messages;
+pub use spectrum_messages::*;
 
 /// The MessageType enum defines which subset of functionality
 /// a message is adressed to.
@@ -38,6 +40,7 @@ pub use condition_messages::*;
 pub enum MessageType {
     Parameter(ParameterRequest),
     Condition(ConditionRequest),
+    Spectrum(SpectrumRequest),
     Exit,
 }
 
