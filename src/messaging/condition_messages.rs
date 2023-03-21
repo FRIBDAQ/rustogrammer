@@ -1225,4 +1225,25 @@ mod cnd_api_tests {
         }
         stop_server(jh, send);
     }
+    #[test]
+    fn false_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_read) = channel::<Reply>();
+        let repl = create_false_condition(send.clone(), rep_send, rep_read, "false");
+        if let ConditionReply::Created = repl {
+            let (rep_send, rep_read) = channel::<Reply>();
+            let lrepl = list_conditions(send.clone(), rep_send, rep_read, "*");
+            if let ConditionReply::Listing(l) = lrepl {
+                assert_eq!(1, l.len());
+                assert_eq!(String::from("false"), l[0].cond_name);
+                assert_eq!(String::from("False"), l[0].type_name);
+            } else {
+                panic!("Failed to list conditions.")
+            }
+        } else {
+            panic!("Failed to create a false condition");
+        }
+
+        stop_server(jh, send);
+    }
 }
