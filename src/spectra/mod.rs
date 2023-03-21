@@ -41,7 +41,6 @@
 
 use super::conditions::*;
 use super::parameters::*;
-use ndhistogram::axis::*;
 use ndhistogram::*;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -498,7 +497,10 @@ mod gate_tests {
         // Put a true condition in the dict:
 
         let test_gate = True {};
-        dict.insert(String::from("true"), Rc::new(RefCell::new(test_gate)));
+        dict.insert(
+            String::from("true"),
+            Rc::new(RefCell::new(Box::new(test_gate))),
+        );
 
         let result = g.set_gate("true", &dict);
         assert!(result.is_ok());
@@ -526,7 +528,10 @@ mod gate_tests {
         // Put a true condition in the dict:
 
         let test_gate = True {};
-        dict.insert(String::from("true"), Rc::new(RefCell::new(test_gate)));
+        dict.insert(
+            String::from("true"),
+            Rc::new(RefCell::new(Box::new(test_gate))),
+        );
 
         let result = g.set_gate("true", &dict);
         assert!(result.is_ok());
@@ -557,7 +562,10 @@ mod gate_tests {
         // Put a true condition in the dict:
 
         let test_gate = True {};
-        dict.insert(String::from("true"), Rc::new(RefCell::new(test_gate)));
+        dict.insert(
+            String::from("true"),
+            Rc::new(RefCell::new(Box::new(test_gate))),
+        );
 
         g.set_gate("true", &dict).expect("Couldn't find gate");
 
@@ -572,7 +580,10 @@ mod gate_tests {
         // Put a true condition in the dict:
 
         let test_gate = False {};
-        dict.insert(String::from("false"), Rc::new(RefCell::new(test_gate)));
+        dict.insert(
+            String::from("false"),
+            Rc::new(RefCell::new(Box::new(test_gate))),
+        );
 
         g.set_gate("false", &dict).expect("Couldn't find gate");
 
@@ -587,7 +598,10 @@ mod gate_tests {
         // Put a true condition in the dict:
 
         let test_gate = False {};
-        dict.insert(String::from("false"), Rc::new(RefCell::new(test_gate)));
+        dict.insert(
+            String::from("false"),
+            Rc::new(RefCell::new(Box::new(test_gate))),
+        );
 
         g.set_gate("false", &dict).expect("Couldn't find gate");
 
@@ -1143,10 +1157,16 @@ mod spec_storage_tests {
 
         let mut cd = ConditionDictionary::new();
         assert!(cd
-            .insert(String::from("true"), Rc::new(RefCell::new(True {})))
+            .insert(
+                String::from("true"),
+                Rc::new(RefCell::new(Box::new(True {})))
+            )
             .is_none());
         assert!(cd
-            .insert(String::from("false"), Rc::new(RefCell::new(False {})))
+            .insert(
+                String::from("false"),
+                Rc::new(RefCell::new(Box::new(False {})))
+            )
             .is_none());
 
         // Gate "spec1" on "true" and "spec2" on "false"

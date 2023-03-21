@@ -627,7 +627,10 @@ mod pgamma_tests {
 
         let mut gdict = ConditionDictionary::new();
         assert!(gdict
-            .insert(String::from("true"), Rc::new(RefCell::new(True {})))
+            .insert(
+                String::from("true"),
+                Rc::new(RefCell::new(Box::new(True {})))
+            )
             .is_none());
         spec.gate("true", &gdict)
             .expect("Could not apply true gate");
@@ -694,7 +697,10 @@ mod pgamma_tests {
 
         let mut gdict = ConditionDictionary::new();
         assert!(gdict
-            .insert(String::from("false"), Rc::new(RefCell::new(False {})))
+            .insert(
+                String::from("false"),
+                Rc::new(RefCell::new(Box::new(False {})))
+            )
             .is_none());
         spec.gate("false", &gdict)
             .expect("Could not apply false gate");

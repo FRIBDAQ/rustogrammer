@@ -30,9 +30,6 @@
 //!
 use super::*;
 use crate::parameters::*;
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::rc::Weak;
 
 ///
 /// Not conditions take a single dependent condition and
@@ -42,14 +39,14 @@ use std::rc::Weak;
 /// a caching condition.
 ///
 pub struct Not {
-    dependent: Weak<RefCell<dyn Condition>>,
+    dependent: ContainerReference,
     cache: Option<bool>,
 }
 
 impl Not {
     pub fn new(cond: &Container) -> Not {
         Not {
-            dependent: Rc::downgrade(&cond.clone()),
+            dependent: Rc::downgrade(&cond),
             cache: None,
         }
     }
@@ -73,6 +70,20 @@ impl Condition for Not {
             d.borrow_mut().invalidate_cache();
         }
     }
+    fn gate_type(&self) -> String {
+        String::from("Not")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        Vec::<(f64, f64)>::new()
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        let mut result = Vec::<ContainerReference>::new();
+        result.push(self.dependent.clone());
+        result
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        Vec::<u32>::new()
+    }
 }
 //  The ConditionList provides common structure and code for
 //  maintainng an arbitrary list of dependent conditions.
@@ -80,13 +91,13 @@ impl Condition for Not {
 //  common caching logic can be used.
 //  this struct need not be exposed to the world:
 struct ConditionList {
-    dependent_conditions: Vec<Weak<RefCell<dyn Condition>>>,
+    dependent_conditions: Vec<ContainerReference>,
     cache: Option<bool>,
 }
 impl ConditionList {
     pub fn new() -> ConditionList {
         ConditionList {
-            dependent_conditions: Vec::new(),
+            dependent_conditions: Vec::<ContainerReference>::new(),
             cache: None,
         }
     }
@@ -100,6 +111,13 @@ impl ConditionList {
     pub fn clear(&mut self) -> &mut Self {
         self.dependent_conditions.clear();
         self
+    }
+    pub fn clone_conditions(&self) -> Vec<ContainerReference> {
+        let mut result = Vec::<ContainerReference>::new();
+        for c in self.dependent_conditions.iter() {
+            result.push(c.clone());
+        }
+        result
     }
 }
 
@@ -153,6 +171,19 @@ impl Condition for And {
 
         self.dependencies.cache = Some(result);
         result
+    }
+    fn gate_type(&self) -> String {
+        String::from("And")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        Vec::<(f64, f64)>::new()
+    }
+
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        self.dependencies.clone_conditions()
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        Vec::<u32>::new()
     }
     fn get_cached_value(&self) -> Option<bool> {
         self.dependencies.cache
@@ -217,6 +248,19 @@ impl Condition for Or {
         self.dependencies.cache = Some(result);
         result
     }
+    fn gate_type(&self) -> String {
+        String::from("Or")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        Vec::<(f64, f64)>::new()
+    }
+
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        self.dependencies.clone_conditions()
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        Vec::<u32>::new()
+    }
     fn get_cached_value(&self) -> Option<bool> {
         self.dependencies.cache
     }
@@ -236,7 +280,7 @@ mod not_tests {
     #[test]
     fn new_1() {
         let cut = Cut::new(1, -100.0, 100.0);
-        let c: Container = Rc::new(RefCell::new(cut));
+        let c: Container = Rc::new(RefCell::new(Box::new(cut)));
         let not = Not::new(&c);
         assert_eq!(None, not.cache);
 
@@ -247,7 +291,7 @@ mod not_tests {
     #[test]
     fn check_1() {
         let t = True {};
-        let c: Container = Rc::new(RefCell::new(t));
+        let c: Container = Rc::new(RefCell::new(Box::new(t)));
         let mut not = Not::new(&c);
         let e = FlatEvent::new();
         assert!(!not.check(&e));
@@ -255,7 +299,7 @@ mod not_tests {
     #[test]
     fn check_2() {
         let f = False {};
-        let c: Container = Rc::new(RefCell::new(f));
+        let c: Container = Rc::new(RefCell::new(Box::new(f)));
         let mut not = Not::new(&c);
         let e = FlatEvent::new();
         assert!(not.check(&e));
@@ -276,7 +320,7 @@ mod and_tests {
         // Add a T gate
 
         let t = True {};
-        let c: Container = Rc::new(RefCell::new(t));
+        let c: Container = Rc::new(RefCell::new(Box::new(t)));
         let mut a = And::new();
         a.add_condition(&c);
         assert_eq!(1, a.dependencies.dependent_conditions.len());
@@ -287,8 +331,8 @@ mod and_tests {
 
         let t = True {};
         let f = False {};
-        let ct: Container = Rc::new(RefCell::new(t));
-        let cf: Container = Rc::new(RefCell::new(f));
+        let ct: Container = Rc::new(RefCell::new(Box::new(t)));
+        let cf: Container = Rc::new(RefCell::new(Box::new(f)));
 
         let mut a = And::new();
         a.add_condition(&ct);
@@ -300,8 +344,8 @@ mod and_tests {
     fn clear_1() {
         let t = True {};
         let f = False {};
-        let ct: Container = Rc::new(RefCell::new(t));
-        let cf: Container = Rc::new(RefCell::new(f));
+        let ct: Container = Rc::new(RefCell::new(Box::new(t)));
+        let cf: Container = Rc::new(RefCell::new(Box::new(f)));
 
         let mut a = And::new();
         a.add_condition(&ct);
@@ -334,7 +378,7 @@ mod and_tests {
         let mut a = And::new();
         let e = FlatEvent::new();
         let t = True {};
-        let c: Container = Rc::new(RefCell::new(t));
+        let c: Container = Rc::new(RefCell::new(Box::new(t)));
         a.add_condition(&c);
         assert!(a.check(&e));
     }
@@ -345,9 +389,9 @@ mod and_tests {
         let mut a = And::new();
         let e = FlatEvent::new();
         let t1 = True {};
-        let c1: Container = Rc::new(RefCell::new(t1));
+        let c1: Container = Rc::new(RefCell::new(Box::new(t1)));
         let t2 = True {};
-        let c2: Container = Rc::new(RefCell::new(t2));
+        let c2: Container = Rc::new(RefCell::new(Box::new(t2)));
 
         a.add_condition(&c1);
         a.add_condition(&c2);
@@ -360,9 +404,9 @@ mod and_tests {
         let mut a = And::new();
         let e = FlatEvent::new();
         let t1 = True {};
-        let c1: Container = Rc::new(RefCell::new(t1));
+        let c1: Container = Rc::new(RefCell::new(Box::new(t1)));
         let f2 = False {};
-        let c2: Container = Rc::new(RefCell::new(f2));
+        let c2: Container = Rc::new(RefCell::new(Box::new(f2)));
 
         a.add_condition(&c1);
         a.add_condition(&c2);
@@ -381,9 +425,9 @@ mod and_tests {
         let mut a = And::new();
         let e = FlatEvent::new();
         let f = False {};
-        let c1: Container = Rc::new(RefCell::new(f));
+        let c1: Container = Rc::new(RefCell::new(Box::new(f)));
         let s = Cut::new(1, 100.0, 200.0);
-        let c2: Container = Rc::new(RefCell::new(s));
+        let c2: Container = Rc::new(RefCell::new(Box::new(s)));
 
         a.add_condition(&c1);
         a.add_condition(&c2);
@@ -406,7 +450,7 @@ mod or_tests {
     fn add_1() {
         let mut o = Or::new();
         let t = True {};
-        let c: Container = Rc::new(RefCell::new(t));
+        let c: Container = Rc::new(RefCell::new(Box::new(t)));
 
         o.add_condition(&c);
 
@@ -416,9 +460,9 @@ mod or_tests {
     fn add_2() {
         let mut o = Or::new();
         let t = True {};
-        let ct: Container = Rc::new(RefCell::new(t));
+        let ct: Container = Rc::new(RefCell::new(Box::new(t)));
         let f = False {};
-        let cf: Container = Rc::new(RefCell::new(f));
+        let cf: Container = Rc::new(RefCell::new(Box::new(f)));
 
         o.add_condition(&ct);
         o.add_condition(&cf);
@@ -429,9 +473,9 @@ mod or_tests {
     fn clear_1() {
         let mut o = Or::new();
         let t = True {};
-        let ct: Container = Rc::new(RefCell::new(t));
+        let ct: Container = Rc::new(RefCell::new(Box::new(t)));
         let f = False {};
-        let cf: Container = Rc::new(RefCell::new(f));
+        let cf: Container = Rc::new(RefCell::new(Box::new(f)));
 
         o.add_condition(&ct);
         o.add_condition(&cf);
@@ -456,7 +500,7 @@ mod or_tests {
         let mut o = Or::new();
         let e = FlatEvent::new();
         let t = True {};
-        let c: Container = Rc::new(RefCell::new(t));
+        let c: Container = Rc::new(RefCell::new(Box::new(t)));
         o.add_condition(&c);
 
         assert!(o.check(&e));
@@ -469,8 +513,8 @@ mod or_tests {
         let e = FlatEvent::new();
         let t = True {};
         let f = False {};
-        let ct: Container = Rc::new(RefCell::new(t));
-        let cf: Container = Rc::new(RefCell::new(f));
+        let ct: Container = Rc::new(RefCell::new(Box::new(t)));
+        let cf: Container = Rc::new(RefCell::new(Box::new(f)));
 
         o.add_condition(&ct);
         o.add_condition(&cf);
@@ -485,8 +529,8 @@ mod or_tests {
         let e = FlatEvent::new();
         let t = True {};
         let f = False {};
-        let ct: Container = Rc::new(RefCell::new(t));
-        let cf: Container = Rc::new(RefCell::new(f));
+        let ct: Container = Rc::new(RefCell::new(Box::new(t)));
+        let cf: Container = Rc::new(RefCell::new(Box::new(f)));
 
         o.add_condition(&cf);
         o.add_condition(&ct);
@@ -499,7 +543,7 @@ mod or_tests {
         let mut o = Or::new();
         let e = FlatEvent::new();
         let f = False {};
-        let cf: Container = Rc::new(RefCell::new(f));
+        let cf: Container = Rc::new(RefCell::new(Box::new(f)));
 
         o.add_condition(&cf);
 
@@ -512,9 +556,9 @@ mod or_tests {
         let mut o = Or::new();
         let e = FlatEvent::new();
         let f1 = False {};
-        let cf1: Container = Rc::new(RefCell::new(f1));
+        let cf1: Container = Rc::new(RefCell::new(Box::new(f1)));
         let f2 = False {};
-        let cf2: Container = Rc::new(RefCell::new(f2));
+        let cf2: Container = Rc::new(RefCell::new(Box::new(f2)));
 
         o.add_condition(&cf1);
         o.add_condition(&cf2);

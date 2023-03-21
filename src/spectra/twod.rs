@@ -492,7 +492,10 @@ mod twod_tests {
         e.load_event(&event);
 
         let mut gd = ConditionDictionary::new();
-        gd.insert(String::from("true"), Rc::new(RefCell::new(True {})));
+        gd.insert(
+            String::from("true"),
+            Rc::new(RefCell::new(Box::new(True {}))),
+        );
         spec.gate("true", &gd).unwrap();
 
         spec.handle_event(&e);
@@ -519,7 +522,10 @@ mod twod_tests {
         e.load_event(&event);
 
         let mut gd = ConditionDictionary::new();
-        gd.insert(String::from("false"), Rc::new(RefCell::new(False {})));
+        gd.insert(
+            String::from("false"),
+            Rc::new(RefCell::new(Box::new(False {}))),
+        );
         spec.gate("false", &gd).unwrap();
 
         spec.handle_event(&e);

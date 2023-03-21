@@ -51,8 +51,25 @@ impl Condition for Cut {
         self.cache = Some(result);
         result
     }
+    fn gate_type(&self) -> String {
+        String::from("Cut")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        let mut result = Vec::<(f64, f64)>::new();
+        result.push((self.low, 0.0));
+        result.push((self.high, 0.0));
+        result
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        Vec::<ContainerReference>::new()
+    }
     fn get_cached_value(&self) -> Option<bool> {
         self.cache
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        let mut result = Vec::<u32>::new();
+        result.push(self.parameter_id);
+        result
     }
     fn invalidate_cache(&mut self) {
         self.cache = None;
@@ -140,7 +157,7 @@ mod cut_tests {
         let c = Cut::new(12, 100.0, 200.0);
         let mut dict = ConditionDictionary::new();
         let k = String::from("acut");
-        dict.insert(k.clone(), Rc::new(RefCell::new(c)));
+        dict.insert(k.clone(), Rc::new(RefCell::new(Box::new(c))));
 
         let mut e = FlatEvent::new();
 
@@ -162,11 +179,11 @@ mod cut_tests {
         let mut dict = ConditionDictionary::new();
         let c1 = Cut::new(12, 100.0, 200.0);
         let k1 = String::from("cut1");
-        dict.insert(k1.clone(), Rc::new(RefCell::new(c1)));
+        dict.insert(k1.clone(), Rc::new(RefCell::new(Box::new(c1))));
 
         let c2 = Cut::new(15, 50.0, 100.0);
         let k2 = String::from("cut2");
-        dict.insert(k2.clone(), Rc::new(RefCell::new(c2)));
+        dict.insert(k2.clone(), Rc::new(RefCell::new(Box::new(c2))));
 
         let mut e = FlatEvent::new();
         assert!(!dict.get(&k1).unwrap().borrow_mut().check(&e));

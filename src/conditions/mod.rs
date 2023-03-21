@@ -50,10 +50,10 @@
 //!
 
 use crate::parameters;
+use std::boxed::Box;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
-
 // Re-exported module:
 
 pub mod cut;
@@ -81,6 +81,13 @@ pub trait Condition {
     ///
     fn evaluate(&mut self, event: &parameters::FlatEvent) -> bool;
 
+    // Stuff to describe a gate:
+
+    fn gate_type(&self) -> String; // Type of gate.
+    fn gate_points(&self) -> Vec<(f64, f64)>;
+    fn dependent_gates(&self) -> Vec<ContainerReference>;
+    fn dependent_parameters(&self) -> Vec<u32>;
+
     /// Optional methods:
     /// Caching not implemented is the default.
     ///
@@ -107,8 +114,8 @@ pub trait Condition {
 /// Condition objects get dynamic dispatch to their checking
 /// Condition methods
 ///
-pub type Container = Rc<RefCell<dyn Condition>>;
-pub type ContainerReference = Weak<RefCell<dyn Condition>>;
+pub type Container = Rc<RefCell<Box<dyn Condition>>>;
+pub type ContainerReference = Weak<RefCell<Box<dyn Condition>>>;
 
 /// ConditionDictionary contains a correspondence between textual
 /// names and conditions held in Containers.
@@ -117,6 +124,28 @@ pub type ContainerReference = Weak<RefCell<dyn Condition>>;
 /// a condition to an spectrum.
 ///
 pub type ConditionDictionary = HashMap<String, Container>;
+///
+/// Given a condition container which we _think_ lives in a condition dictionary,
+///  return the name of the gate.  This is not particluarly fast,
+///  we iterate over all key value pairs and if we find one where the
+///  RefCell's in the container point to the same underlying object, we
+///  return its name.
+pub fn gate_name(dict: &ConditionDictionary, gate: &Container) -> Option<String> {
+    for (k, v) in dict.iter() {
+        if gate.as_ptr() == v.as_ptr() {
+            // Same underlying gates.
+            return Some(k.clone());
+        }
+    }
+    None
+}
+pub fn gate_name_from_ref(dict: &ConditionDictionary, gate: &ContainerReference) -> Option<String> {
+    if let Some(s) = gate.upgrade() {
+        gate_name(dict, &s)
+    } else {
+        None
+    }
+}
 
 ///
 /// Given a condition dictionary, this free fuction will
@@ -138,6 +167,18 @@ impl Condition for True {
     fn evaluate(&mut self, _event: &parameters::FlatEvent) -> bool {
         true
     }
+    fn gate_type(&self) -> String {
+        String::from("True")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        Vec::<(f64, f64)>::new()
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        Vec::<ContainerReference>::new()
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        Vec::<u32>::new()
+    }
 }
 
 /// The false gate is implemented in this module and returns
@@ -148,6 +189,18 @@ pub struct False {}
 impl Condition for False {
     fn evaluate(&mut self, _event: &parameters::FlatEvent) -> bool {
         false
+    }
+    fn gate_type(&self) -> String {
+        String::from("False")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        Vec::<(f64, f64)>::new()
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        Vec::<ContainerReference>::new()
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        Vec::<u32>::new()
     }
 }
 
@@ -162,7 +215,7 @@ mod condition_tests {
         let mut dict = ConditionDictionary::new();
         let t: True = True {};
         let k = String::from("true");
-        dict.insert(k.clone(), Rc::new(RefCell::new(t)));
+        dict.insert(k.clone(), Rc::new(RefCell::new(Box::new(t))));
 
         let lookedup = dict.get(&k);
         assert!(lookedup.is_some());
@@ -175,7 +228,7 @@ mod condition_tests {
         let mut dict = ConditionDictionary::new();
         let t: False = False {};
         let k = String::from("false");
-        dict.insert(k.clone(), Rc::new(RefCell::new(t)));
+        dict.insert(k.clone(), Rc::new(RefCell::new(Box::new(t))));
 
         let lookedup = dict.get(&k);
         assert!(lookedup.is_some());
@@ -191,8 +244,8 @@ mod condition_tests {
         let k1 = String::from("true");
         let k2 = String::from("false");
 
-        dict.insert(k1.clone(), Rc::new(RefCell::new(t)));
-        dict.insert(k2.clone(), Rc::new(RefCell::new(f)));
+        dict.insert(k1.clone(), Rc::new(RefCell::new(Box::new(t))));
+        dict.insert(k2.clone(), Rc::new(RefCell::new(Box::new(f))));
         let e = FlatEvent::new();
 
         assert!(dict.get(&k1).unwrap().borrow_mut().check(&e));
