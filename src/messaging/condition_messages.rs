@@ -1158,3 +1158,71 @@ mod cnd_processor_tests {
         }
     }
 }
+#[cfg(test)]
+mod cnd_api_tests {
+    use super::*;
+    use std::sync::mpsc::*;
+    use std::thread;
+
+    // We need a fake server we can run.
+    // It will understand all Condition requests and
+    // Exit
+
+    fn fake_server(reader: Receiver<Request>) {
+        let mut processor = ConditionProcessor::new();
+
+        loop {
+            let request = reader.recv().unwrap();
+            match request.message {
+                MessageType::Condition(req) => {
+                    request
+                        .reply_channel
+                        .send(Reply::Condition(processor.process_request(req)))
+                        .expect("Failed to send reply message");
+                }
+                MessageType::Exit => {
+                    request
+                        .reply_channel
+                        .send(Reply::Exiting)
+                        .expect("Failed to send exiting message");
+                    break;
+                }
+                _ => {
+                    panic!("This fake server only understands Exit and Condition requests");
+                }
+            }
+        }
+    }
+    fn start_server() -> (thread::JoinHandle<()>, Sender<Request>) {
+        let (sender, receiver) = channel::<Request>();
+        let handle = thread::spawn(move || fake_server(receiver));
+        (handle, sender)
+    }
+    fn stop_server(handle: thread::JoinHandle<()>, send: Sender<Request>) {
+        let (repl_send, repl_receive) = channel::<Reply>();
+        let req = Request {
+            reply_channel: repl_send,
+            message: MessageType::Exit,
+        };
+        let reply = req.transaction(send, repl_receive);
+        if let Reply::Exiting = reply {
+            handle.join().expect("Fake server join failed");
+        } else {
+            panic!("Asked for an exit and did not get it");
+        }
+    }
+    // Note that all tests will need for the list to work:
+
+    #[test]
+    fn list_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_read) = channel::<Reply>();
+        let repl = list_conditions(send.clone(), rep_send, rep_read, "*");
+        if let ConditionReply::Listing(l) = repl {
+            assert_eq!(0, l.len());
+        } else {
+            panic!("List did not give a Listing reply");
+        }
+        stop_server(jh, send);
+    }
+}
