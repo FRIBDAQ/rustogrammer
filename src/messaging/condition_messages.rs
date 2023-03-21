@@ -1364,4 +1364,30 @@ mod cnd_api_tests {
         }
         stop_server(jh, send);
     }
+    #[test]
+    fn cut_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_read) = channel::<Reply>();
+        if let ConditionReply::Created =
+            create_cut_condition(send.clone(), rep_send, rep_read, "cut", 12, 100.0, 250.0)
+        {
+            let (rep_send, rep_read) = channel::<Reply>();
+            if let ConditionReply::Listing(l) =
+                list_conditions(send.clone(), rep_send, rep_read, "*")
+            {
+                assert_eq!(1, l.len());
+                assert_eq!(String::from("Cut"), l[0].type_name);
+                assert_eq!(2, l[0].points.len());
+                assert_eq!(100.0, l[0].points[0].0);
+                assert_eq!(250.0, l[0].points[1].0);
+                assert_eq!(1, l[0].parameters.len());
+                assert_eq!(12, l[0].parameters[0]);
+            } else {
+                panic!("Failed to get Listing from list request");
+            }
+        } else {
+            panic!("Did not get Created back from creation of cut");
+        }
+        stop_server(jh, send);
+    }
 }
