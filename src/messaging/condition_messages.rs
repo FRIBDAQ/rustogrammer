@@ -1264,6 +1264,27 @@ mod cnd_api_tests {
         } else {
             panic!("Failed to create a false condition");
         }
-
+    }
+    #[test]
+    fn not_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_read) = channel::<Reply>();
+        create_false_condition(send.clone(), rep_send, rep_read, "false");
+        let (rep_send, rep_read) = channel::<Reply>();
+        let repl = create_not_condition(send.clone(), rep_send, rep_read, "true", "false");
+        if let ConditionReply::Created = repl {
+            let (rep_send, rep_read) = channel::<Reply>();
+            let lrepl = list_conditions(send.clone(), rep_send, rep_read, "true");
+            if let ConditionReply::Listing(l) = lrepl {
+                assert_eq!(1, l.len()); // due to filter pattern.
+                assert_eq!(String::from("Not"), l[0].type_name);
+                assert_eq!(1, l[0].gates.len());
+                assert_eq!(String::from("false"), l[0].gates[0]);
+            } else {
+                panic!("failed to list the conditions");
+            }
+        } else {
+            panic!("Failed to make not conditions");
+        }
     }
 }
