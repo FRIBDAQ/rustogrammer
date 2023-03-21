@@ -52,6 +52,7 @@ pub enum MessageType {
 pub enum Reply {
     Parameter(ParameterReply),
     Condition(ConditionReply),
+    Spectrum(SpectrumReply),
     Exiting,
 }
 
