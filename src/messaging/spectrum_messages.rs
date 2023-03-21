@@ -77,7 +77,7 @@ pub enum SpectrumRequest {
         xaxis: AxisSpecification,
         yaxis: AxisSpecification,
     },
-    Create2dSum {
+    Create2DSum {
         name: String,
         xparams: Vec<String>,
         yparams: Vec<String>,
@@ -140,9 +140,45 @@ impl SpectrumProcessor {
     pub fn process_request(
         &mut self,
         req: SpectrumRequest,
-        params: &parameters::ParameterDictionary,
-        conditions: &conditions::ConditionDictionary,
+        pdict: &parameters::ParameterDictionary,
+        cdict: &conditions::ConditionDictionary,
     ) -> SpectrumReply {
+        match req {
+            SpectrumRequest::Create1D {
+                name,
+                parameter,
+                axis,
+            } =>
+                self.make_1d(&name, &parameter, &axis, &pdict),
+            SpectrumRequest::CreateMulti1D{ name, params, axis} => 
+                self.make_multi1d(&name, &axis, &params, &pdict),
+            SpectrumRequest::CreateMulti2D{name, params, xaxis, yaxis} =>
+                self.make_multi2d(&name, &params, &xaxis, &yaxis),
+            SpectrumRequest::CreatePGamma{name, xparams, yparams, xaxis, yaxis} =>
+                self.make_pgammma(&name, &xparams, &yparams, &xaxis, &yaxis, &pdict),
+            SpectrumRequest::CreateSummary{name, params, yaxis} => 
+                self.make_summary(&name, &params, &yaxis, &pdict),
+            SpectrumRequest::Create2D {name, xparam, yparam, xaxis, yaxis} =>
+                self.make_2d(&name, &xparam, &yparam, &xaxis, &yaxis, &pdict),
+            SpectrumRequest::Create2DSum {name, xparams, yparams, xaxis, yaxis} =>
+                make_2dsum(&name, &xparams, &yparams, &xaxis, &yaxis, &pdict),
+            SpectrumRequest::Delete(name) =>
+                delete_spectrum(&name),
+            SpectrumRequest::List(pattern) =>
+                list_spectra(&pattern),
+            SpectrumRequest::Gate{spectrum, gate} =>
+                gate_spectrum(&spectrum, &gate, &cdict),
+            SpectrumRequest::Ungate(name) =>
+                ungate_spectrum(&name),
+            SpectrumRequest::Clear(pattern) =>
+                clear_spectra(&pattern),
+            SpectrumRequest::GetContents{name, xlow, xhigh, ylow, yhigh} =>
+                get_contents(&name, xlow, xhigh, ylow, yhigh)
+            SpectrumRequest::Events(events) =>
+                process_events(&events)                
+            }
+
+        }
         SpectrumReply::Error(String::from("Placeholder method"))
     }
 }
