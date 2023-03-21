@@ -1332,4 +1332,36 @@ mod cnd_api_tests {
         }
         stop_server(jh, send);
     }
+    #[test]
+    fn or_1() {
+        let (jh, send) = start_server();
+        make_some_conditions(&send);
+        let names = vec![
+            String::from("condition.1"),
+            String::from("condition.2"),
+            String::from("condition.3"), // Dependent conditions.
+            String::from("condition.4"),
+        ];
+        let (rep_send, rep_read) = channel::<Reply>();
+        if let ConditionReply::Created =
+            create_or_condition(send.clone(), rep_send, rep_read, "or", &names)
+        {
+            let (rep_send, rep_read) = channel::<Reply>();
+            if let ConditionReply::Listing(l) =
+                list_conditions(send.clone(), rep_send, rep_read, "or")
+            {
+                assert_eq!(1, l.len());
+                assert_eq!(String::from("Or"), l[0].type_name);
+                assert_eq!(names.len(), l[0].gates.len());
+                for (i, n) in names.iter().enumerate() {
+                    assert_eq!(*n, l[0].gates[i]);
+                }
+            } else {
+                panic!("Listing failed in some way");
+            }
+        } else {
+            panic!("Could not make and condition");
+        }
+        stop_server(jh, send);
+    }
 }
