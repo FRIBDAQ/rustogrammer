@@ -74,6 +74,7 @@ pub use pgamma::*;
 /// which condition is applied to the spectrum.
 /// The gate is the weakened Rc::RefCell that 'points' to the gate.
 ///
+#[derive(Clone)]
 pub struct Gate {
     condition_name: String,
     gate: ContainerReference,
@@ -82,6 +83,7 @@ pub struct Gate {
 /// have a 'special' True gate, we'll put one of these into the
 /// spectrum and a None value for the gate field means the spetrum is
 /// ungated.
+#[derive(Clone)]
 pub struct SpectrumGate {
     gate: Option<Gate>,
 }
@@ -134,6 +136,8 @@ impl SpectrumGate {
             true
         }
     }
+    
+
 }
 
 /// We have the following 1-d and 2-d spectra
@@ -173,9 +177,17 @@ pub trait Spectrum {
     fn required_parameter(&self) -> Option<u32> {
         None
     }
+    // Property getters:
+
     /// Return the spectrum name:
     ///
     fn get_name(&self) -> String;
+    fn get_type(&self) -> String;
+    fn get_xparams(&self) -> Vec<String>;
+    fn get_yparams(&self) -> Vec<String>;
+    fn get_xaxis(&self) -> Option<(f64, f64, u32)>;
+    fn get_yaxis(&self) -> Option<(f64, f64, u32)>;
+    fn get_gate(&self) -> Option<String>;
 
     // Methods that handle gate application:
 

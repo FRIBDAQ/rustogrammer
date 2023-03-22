@@ -1,4 +1,5 @@
 use super::*;
+use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 
 /// This is a simple 1-d histogram with f64 valued channels.
@@ -31,6 +32,29 @@ impl Spectrum for Oned {
     }
     fn get_name(&self) -> String {
         self.name.clone()
+    }
+    fn get_type(&self) -> String {
+        String::from("Multi2d")
+    }
+    fn get_xparams(&self) -> Vec<String> {
+        vec![self.parameter_name.clone()]
+    }
+    fn get_yparams(&self) -> Vec<String> {
+        vec![]
+    }
+    fn get_xaxis(&self) -> Option<(f64, f64, u32)> {
+        let x = self.histogram.borrow().axes().as_tuple().0.clone();
+        Some((*x.low(), *x.high(), x.num_bins() as u32))
+    }
+    fn get_yaxis(&self) -> Option<(f64, f64, u32)> {
+        None
+    }
+    fn get_gate(&self) -> Option<String> {
+        if let Some(g) = self.applied_gate.gate.clone() {
+            Some(g.condition_name)
+        } else {
+            None
+        }
     }
     fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
         self.applied_gate.set_gate(name, dict)

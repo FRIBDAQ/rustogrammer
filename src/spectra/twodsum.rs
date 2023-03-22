@@ -20,6 +20,7 @@
 //!  the x axis and all y parameters for the y axis.
 //!
 use super::*;
+use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 
 // 2d sum spectra are defined on x/y parameter pairs.
@@ -70,6 +71,38 @@ impl Spectrum for TwodSum {
     }
     fn get_name(&self) -> String {
         self.name.clone()
+    }
+    fn get_type(&self) -> String {
+        String::from("Multi2d")
+    }
+    fn get_xparams(&self) -> Vec<String> {
+        let mut result = Vec::<String>::new();
+        for n in self.parameters.iter() {
+            result.push(n.x_name.clone());
+        }
+        result
+    }
+    fn get_yparams(&self) -> Vec<String> {
+        let mut result = Vec::<String>::new();
+        for n in self.parameters.iter() {
+            result.push(n.y_name.clone());
+        }
+        result
+    }
+    fn get_xaxis(&self) -> Option<(f64, f64, u32)> {
+        let x = self.histogram.borrow().axes().as_tuple().0.clone();
+        Some((*x.low(), *x.high(), x.num_bins() as u32))
+    }
+    fn get_yaxis(&self) -> Option<(f64, f64, u32)> {
+        let y = self.histogram.borrow().axes().as_tuple().1.clone();
+        Some((*y.low(), *y.high(), y.num_bins() as u32))
+    }
+    fn get_gate(&self) -> Option<String> {
+        if let Some(g) = self.applied_gate.gate.clone() {
+            Some(g.condition_name)
+        } else {
+            None
+        }
     }
     fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
         self.applied_gate.set_gate(name, dict)
