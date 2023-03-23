@@ -951,4 +951,166 @@ mod spproc_tests {
         }
         assert!(to.processor.dict.exists("test"));
     }
+    #[test]
+    fn createmult2_1() {
+        // Successfully create a multi-2:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let params = vec![
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.7"),
+        ];
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti2D {
+                name: String::from("test"),
+                params: params.clone(),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+                yaxis: AxisSpecification {
+                    low: -512.0,
+                    high: 512.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        assert!(to.processor.dict.exists("test"));
+        let spc = to.processor.dict.get("test");
+        assert!(spc.is_some());
+        let spc = spc.unwrap().borrow();
+
+        assert_eq!(String::from("test"), spc.get_name());
+        assert_eq!(String::from("Multi2d"), spc.get_type());
+        assert_eq!(params, spc.get_xparams());
+        assert_eq!(0, spc.get_yparams().len());
+
+        let x = spc.get_xaxis();
+        assert!(x.is_some());
+        let x = x.unwrap();
+        assert_eq!(
+            AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1026 // under/over flow bins.
+            },
+            AxisSpecification {
+                low: x.0,
+                high: x.1,
+                bins: x.2
+            }
+        );
+        let y = spc.get_yaxis();
+        assert!(y.is_some());
+        let y = y.unwrap();
+        assert_eq!(
+            AxisSpecification {
+                low: -512.0,
+                high: 512.0,
+                bins: 1026
+            },
+            AxisSpecification {
+                low: y.0,
+                high: y.1,
+                bins: y.2
+            }
+        );
+        assert!(spc.get_gate().is_none());
+    }
+    #[test]
+    fn creatmult2_2() {
+        // invalid parametr:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let params = vec![
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.71"),
+        ];
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti2D {
+                name: String::from("test"),
+                params: params.clone(),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+                yaxis: AxisSpecification {
+                    low: -512.0,
+                    high: 512.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        if let SpectrumReply::Error(_) = reply {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
+    }
+    #[test]
+    fn createmult2_3() {
+        // duplicate spectrum:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let params = vec![
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.7"),
+        ];
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti2D {
+                name: String::from("test"),
+                params: params.clone(),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+                yaxis: AxisSpecification {
+                    low: -512.0,
+                    high: 512.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti2D {
+                name: String::from("test"),
+                params: params.clone(),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+                yaxis: AxisSpecification {
+                    low: -512.0,
+                    high: 512.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        if let SpectrumReply::Error(_) = reply {
+            assert!(true);
+        } else {
+            assert!(false);
+        }
+        assert!(to.processor.dict.exists("test"));
+    }
 }
