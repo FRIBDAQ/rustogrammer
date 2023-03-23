@@ -34,7 +34,7 @@ impl Spectrum for Oned {
         self.name.clone()
     }
     fn get_type(&self) -> String {
-        String::from("Multi2d")
+        String::from("1D")
     }
     fn get_xparams(&self) -> Vec<String> {
         vec![self.parameter_name.clone()]
