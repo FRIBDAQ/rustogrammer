@@ -661,3 +661,21 @@ impl SpectrumProcessor {
         }
     }
 }
+
+#[cfg(test)]
+mod spproc_tests {
+    use super::*;
+    use crate::conditions::*;
+    use crate::parameters::*;
+    use crate::spectra::*;
+
+    #[test]
+    fn new_1() {
+        let processor = SpectrumProcessor::new();
+        let mut num_spec = 0;
+        for (_, _) in processor.dict.iter() {
+            num_spec += 1;
+        }
+        assert_eq!(0, num_spec);
+    }
+}
