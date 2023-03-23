@@ -43,7 +43,7 @@ use super::conditions::*;
 use super::parameters::*;
 use ndhistogram::*;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 use std::rc::{Rc, Weak};
 
 // Re-exports
@@ -136,8 +136,6 @@ impl SpectrumGate {
             true
         }
     }
-    
-
 }
 
 /// We have the following 1-d and 2-d spectra
@@ -280,6 +278,12 @@ impl SpectrumStorage {
             other_spectra: SpectrumReferences::new(),
         }
     }
+    /// Iterate over the dict:
+    ///
+    pub fn iter(&self) -> hash_map::Iter<'_, String, SpectrumContainer> {
+        self.dict.iter()
+    }
+
     /// Add a spectrum encapslated in a SpectrumContainer to the
     /// spectrum storage:
     /// -    We clone the input spectrum twice, once for the
@@ -326,6 +330,12 @@ impl SpectrumStorage {
         }
         result
     }
+    /// Does the specified spectrum exist?
+    ///
+    pub fn exists(&self, name: &str) -> bool {
+        self.dict.contains_key(name)
+    }
+
     /// get the spectrum with a given name.  The result is an Option:
     /// -    None if there is no matching spectrum.
     /// -    Some(&SpectrumContainer) if there is.
