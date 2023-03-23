@@ -13,6 +13,8 @@ use super::*;
 use crate::conditions;
 use crate::parameters;
 use crate::spectra;
+use ndhistogram::axis::*;
+use ndhistogram::*;
 
 use glob::Pattern;
 use std::cell::RefCell;
@@ -25,7 +27,14 @@ pub struct AxisSpecification {
     pub bins: u32,
 }
 #[derive(Clone, Debug, PartialEq)]
+pub enum ChannelType {
+    Underflow,
+    Overflow,
+    Bin,
+}
+#[derive(Clone, Debug, PartialEq)]
 pub struct Channel {
+    pub chan_type: ChannelType,
     pub x: f64,
     pub y: f64,
     pub value: f64,
@@ -128,7 +137,7 @@ pub enum SpectrumReply {
 /// Note that the implementation is divorced from the
 /// actual message.  This makes testing the impl easier.
 pub struct SpectrumProcessor {
-    dict: spectra::SpectrumDictionary,
+    dict: spectra::SpectrumStorage,
 }
 
 type ParamLookupResult = Result<u32, String>;
@@ -146,7 +155,7 @@ impl SpectrumProcessor {
         pdict: &parameters::ParameterDictionary,
     ) -> SpectrumReply {
         let sname = String::from(name);
-        if !self.dict.contains_key(name) {
+        if !self.dict.exists(name) {
             match spectra::Oned::new(
                 name,
                 parameter,
@@ -156,7 +165,7 @@ impl SpectrumProcessor {
                 Some(axis.bins),
             ) {
                 Ok(spec) => {
-                    self.dict.insert(sname, Rc::new(RefCell::new(spec)));
+                    self.dict.add(Rc::new(RefCell::new(spec)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -176,7 +185,7 @@ impl SpectrumProcessor {
         axis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
     ) -> SpectrumReply {
-        if !self.dict.contains_key(name) {
+        if !self.dict.exists(name) {
             match spectra::Multi1d::new(
                 name,
                 params.clone(),
@@ -186,8 +195,7 @@ impl SpectrumProcessor {
                 Some(axis.bins),
             ) {
                 Ok(spec) => {
-                    self.dict
-                        .insert(String::from(name), Rc::new(RefCell::new(spec)));
+                    self.dict.add(Rc::new(RefCell::new(spec)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -208,7 +216,7 @@ impl SpectrumProcessor {
         yaxis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
     ) -> SpectrumReply {
-        if !self.dict.contains_key(name) {
+        if !self.dict.exists(name) {
             match spectra::Multi2d::new(
                 name,
                 params.clone(),
@@ -221,8 +229,7 @@ impl SpectrumProcessor {
                 Some(yaxis.bins),
             ) {
                 Ok(spec) => {
-                    self.dict
-                        .insert(String::from(name), Rc::new(RefCell::new(spec)));
+                    self.dict.add(Rc::new(RefCell::new(spec)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -244,7 +251,7 @@ impl SpectrumProcessor {
         yaxis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
     ) -> SpectrumReply {
-        if !self.dict.contains_key(name) {
+        if !self.dict.exists(name) {
             match spectra::PGamma::new(
                 name,
                 xparams,
@@ -258,8 +265,7 @@ impl SpectrumProcessor {
                 Some(yaxis.bins),
             ) {
                 Ok(spec) => {
-                    self.dict
-                        .insert(String::from(name), Rc::new(RefCell::new(spec)));
+                    self.dict.add(Rc::new(RefCell::new(spec)));
                     return SpectrumReply::Created;
                 }
                 Err(str) => {
@@ -279,7 +285,7 @@ impl SpectrumProcessor {
         xaxis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
     ) -> SpectrumReply {
-        if !self.dict.contains_key(name) {
+        if !self.dict.exists(name) {
             match spectra::Summary::new(
                 name,
                 params.clone(),
@@ -289,8 +295,7 @@ impl SpectrumProcessor {
                 Some(xaxis.bins),
             ) {
                 Ok(spec) => {
-                    self.dict
-                        .insert(String::from(name), Rc::new(RefCell::new(spec)));
+                    self.dict.add(Rc::new(RefCell::new(spec)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -312,7 +317,7 @@ impl SpectrumProcessor {
         yaxis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
     ) -> SpectrumReply {
-        if !self.dict.contains_key(name) {
+        if !self.dict.exists(name) {
             match spectra::Twod::new(
                 name,
                 xparam,
@@ -326,8 +331,7 @@ impl SpectrumProcessor {
                 Some(yaxis.bins),
             ) {
                 Ok(spec) => {
-                    self.dict
-                        .insert(String::from(name), Rc::new(RefCell::new(spec)));
+                    self.dict.add(Rc::new(RefCell::new(spec)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -349,7 +353,7 @@ impl SpectrumProcessor {
         yaxis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
     ) -> SpectrumReply {
-        if !self.dict.contains_key(name) {
+        if !self.dict.exists(name) {
             if xparams.len() != yparams.len() {
                 return SpectrumReply::Error(String::from(
                     "Number of xparams must be the same as number of y params",
@@ -372,8 +376,7 @@ impl SpectrumProcessor {
                 Some(yaxis.bins),
             ) {
                 Ok(spec) => {
-                    self.dict
-                        .insert(String::from(name), Rc::new(RefCell::new(spec)));
+                    self.dict.add(Rc::new(RefCell::new(spec)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -395,22 +398,88 @@ impl SpectrumProcessor {
     }
     // List spectra and properties.
 
+    fn get_properties(spec: &spectra::SpectrumContainer) -> SpectrumProperties {
+        let s = spec.borrow();
+        let x = s.get_xaxis();
+        let y = s.get_yaxis();
+        SpectrumProperties {
+            name: s.get_name(),
+            type_name: s.get_type(),
+            xparams: s.get_xparams(),
+            yparams: s.get_yparams(),
+            xaxis: if let Some(xa) = x {
+                Some(AxisSpecification {
+                    low: xa.0,
+                    high: xa.1,
+                    bins: xa.2,
+                })
+            } else {
+                None
+            },
+            yaxis: if let Some(xa) = y {
+                Some(AxisSpecification {
+                    low: xa.0,
+                    high: xa.1,
+                    bins: xa.2,
+                })
+            } else {
+                None
+            },
+            gate: s.get_gate(),
+        }
+    }
+
     fn list_spectra(&self, pattern: &str) -> SpectrumReply {
-        SpectrumReply::Error(String::from("Unimplemnented operation"))
+        let mut listing = Vec::<SpectrumProperties>::new();
+        let p = Pattern::new(pattern);
+        if let Err(reason) = p {
+            return SpectrumReply::Error(format!("Bad glob pattern {}", reason.msg));
+        }
+        let p = p.unwrap();
+        for (name, s) in self.dict.iter() {
+            if p.matches(name) {
+                listing.push(Self::get_properties(s));
+            }
+        }
+
+        SpectrumReply::Listing(listing)
     }
     fn gate_spectrum(
         &self,
-        spectrum: &str,
-        gate: &str,
+        sname: &str,
+        gname: &str,
         cdict: &conditions::ConditionDictionary,
     ) -> SpectrumReply {
-        SpectrumReply::Error(String::from("Unimplemnented operation"))
+        if let Some(spec) = self.dict.get(sname) {
+            if let Err(msg) = spec.borrow_mut().gate(gname, cdict) {
+                return SpectrumReply::Error(msg);
+            } else {
+                return SpectrumReply::Gated;
+            }
+        } else {
+            return SpectrumReply::Error(format!("Spectrum {} does not exist", sname));
+        }
     }
     fn ungate_spectrum(&self, spectrum: &str) -> SpectrumReply {
-        SpectrumReply::Error(String::from("Unimplemnented operation"))
+        if let Some(spec) = self.dict.get(spectrum) {
+            spec.borrow_mut().ungate();
+            return SpectrumReply::Ungated;
+        } else {
+            return SpectrumReply::Error(format!("Spectrum {} does not exist", spectrum));
+        }
     }
     fn clear_spectra(&self, pattern: &str) -> SpectrumReply {
-        SpectrumReply::Error(String::from("Unimplemnented operation"))
+        let pat = Pattern::new(pattern);
+        if let Err(e) = pat {
+            return SpectrumReply::Error(format!("Bad glob pattern: {}", e.msg));
+        }
+        let pat = pat.unwrap();
+        for (name, s) in self.dict.iter() {
+            if pat.matches(name) {
+                s.borrow_mut().clear();
+            }
+        }
+        SpectrumReply::Cleared
     }
     fn get_contents(
         &self,
@@ -420,10 +489,101 @@ impl SpectrumProcessor {
         ylow: f64,
         yhigh: f64,
     ) -> SpectrumReply {
-        SpectrumReply::Error(String::from("Unimplemnented operation"))
+        // How we iterate depends on the type of histogram:
+
+        let mut result = SpectrumContents::new();
+        if let Some(spec) = self.dict.get(name) {
+            if let Some(spectrum) = spec.borrow().get_histogram_1d() {
+                for c in spectrum.borrow().iter() {
+                    let v = c.value.get();
+                    if v != 0.0 {
+                        match c.bin {
+                            BinInterval::Underflow { end } => {
+                                result.push(Channel {
+                                    chan_type: ChannelType::Underflow,
+                                    value: v,
+                                    x: 0.0,
+                                    y: 0.0,
+                                });
+                            }
+                            BinInterval::Overflow { start } => {
+                                result.push(Channel {
+                                    chan_type: ChannelType::Overflow,
+                                    value: v,
+                                    x: 0.0,
+                                    y: 0.0,
+                                });
+                            }
+                            BinInterval::Bin { start, end } => {
+                                result.push(Channel {
+                                    chan_type: ChannelType::Bin,
+                                    x: start,
+                                    y: 0.0,
+                                    value: v,
+                                });
+                            }
+                        }
+                    }
+                }
+            } else {
+                let spectrum = spec.borrow().get_histogram_2d().unwrap();
+                for c in spectrum.borrow().iter() {
+                    let v = c.value.get();
+                    let xbin = c.bin.0;
+                    let ybin = c.bin.1;
+                    let mut x = 0.0;
+                    let mut y = 0.0;
+                    let mut ctype = ChannelType::Bin;
+
+                    match xbin {
+                        BinInterval::Overflow { start } => {
+                            ctype = ChannelType::Overflow;
+                        }
+                        BinInterval::Underflow { end } => {
+                            ctype = ChannelType::Underflow;
+                        }
+                        BinInterval::Bin { start, end } => {
+                            x = start;
+                        }
+                    };
+                    match ybin {
+                        BinInterval::Overflow { start } => {
+                            if ctype == ChannelType::Bin {
+                                ctype = ChannelType::Overflow;
+                            }
+                        }
+                        BinInterval::Underflow { end } => {
+                            if ctype == ChannelType::Bin {
+                                ctype = ChannelType::Underflow;
+                            }
+                        }
+                        BinInterval::Bin { start, end } => {
+                            y = start;
+                        }
+                    };
+                    result.push(Channel {
+                        chan_type: ctype,
+                        x: x,
+                        y: y,
+                        value: v,
+                    });
+                }
+            }
+            return SpectrumReply::Contents(result);
+        } else {
+            return SpectrumReply::Error(format!("Spectrum {} does not exist", name));
+        }
     }
-    fn process_events(&mut self, events: &Vec<parameters::Event>) -> SpectrumReply {
-        SpectrumReply::Error(String::from("Unimplemnented operation"))
+    fn process_events(
+        &mut self,
+        events: &Vec<parameters::Event>,
+        cdict: &mut conditions::ConditionDictionary,
+    ) -> SpectrumReply {
+        for e in events.iter() {
+            conditions::invalidate_cache(cdict);
+            self.dict.process_event(e);
+        }
+        SpectrumReply::Processed
     }
 
     // Public methods
@@ -431,7 +591,7 @@ impl SpectrumProcessor {
 
     pub fn new() -> SpectrumProcessor {
         SpectrumProcessor {
-            dict: spectra::SpectrumDictionary::new(),
+            dict: spectra::SpectrumStorage::new(),
         }
     }
     /// Process requests returning replies:
@@ -440,7 +600,7 @@ impl SpectrumProcessor {
         &mut self,
         req: SpectrumRequest,
         pdict: &parameters::ParameterDictionary,
-        cdict: &conditions::ConditionDictionary,
+        cdict: &mut conditions::ConditionDictionary,
     ) -> SpectrumReply {
         match req {
             SpectrumRequest::Create1D {
@@ -497,7 +657,7 @@ impl SpectrumProcessor {
                 ylow,
                 yhigh,
             } => self.get_contents(&name, xlow, xhigh, ylow, yhigh),
-            SpectrumRequest::Events(events) => self.process_events(&events),
+            SpectrumRequest::Events(events) => self.process_events(&events, cdict),
         }
     }
 }
