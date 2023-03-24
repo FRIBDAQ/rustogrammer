@@ -1878,7 +1878,6 @@ mod spproc_tests {
         } else {
             false
         });
-        
     }
     #[test]
     fn del_1() {
@@ -1904,11 +1903,11 @@ mod spproc_tests {
 
         let reply = to.processor.process_request(
             SpectrumRequest::Delete(String::from("test")),
-            &to.parameters, &mut to.conditions
+            &to.parameters,
+            &mut to.conditions,
         );
         assert_eq!(SpectrumReply::Deleted, reply);
         assert!(!to.processor.dict.exists("test"));
-
     }
     #[test]
     fn del_2() {
@@ -1938,7 +1937,7 @@ mod spproc_tests {
             assert_eq!(SpectrumReply::Created, reply);
         }
 
-        let reply = to.processor.process_request( 
+        let reply = to.processor.process_request(
             SpectrumRequest::Delete(String::from("test.5")),
             &to.parameters,
             &mut to.conditions,
@@ -1974,8 +1973,117 @@ mod spproc_tests {
         let reply = to.processor.process_request(
             SpectrumRequest::Delete(String::from("param.1")),
             &to.parameters,
-            &mut to.conditions
+            &mut to.conditions,
         );
-        assert!(if let SpectrumReply::Error(_) = reply { true } else { false });
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn clear_1() {
+        // Put some data in a histogram then clear it
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        for i in 0..10 {
+            let name = format!("test.{}", i);
+            let pname = format!("param.{}", i);
+            let reply = to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: name,
+                    parameter: pname,
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024,
+                    },
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert_eq!(SpectrumReply::Created, reply);
+        }
+        let spec = to.processor.dict.get("test.1").expect("Missing spectrum");
+        let h = spec
+            .borrow()
+            .get_histogram_1d()
+            .expect("Not 1d but should be");
+        h.borrow_mut().fill(&100.0);
+        h.borrow_mut().fill(&110.0);
+
+        // good enough for now I suspect clear them all.
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Clear(String::from("*")),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Cleared, reply);
+        let mut sum = 0.0;
+        for c in h.borrow().iter() {
+            sum += c.value.get();
+        }
+        assert_eq!(0.0, sum);
+    }
+    #[test]
+    fn clear_2() {
+        // pattern selectivity:
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        for i in 0..10 {
+            let name = format!("test.{}", i);
+            let pname = format!("param.{}", i);
+            let reply = to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: name,
+                    parameter: pname,
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024,
+                    },
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert_eq!(SpectrumReply::Created, reply);
+        }
+        let spec = to.processor.dict.get("test.1").expect("Missing spectrum");
+        let h = spec
+            .borrow()
+            .get_histogram_1d()
+            .expect("Not 1d but should be");
+        h.borrow_mut().fill(&100.0);
+        h.borrow_mut().fill(&110.0);
+
+        // Clear the 'wrong' one:
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Clear(String::from("test.2")),
+            &to.parameters, &mut to.conditions
+        );
+        assert_eq!(SpectrumReply::Cleared, reply);
+        let mut sum = 0.0;
+        for c in h.borrow().iter() {
+            sum += c.value.get();
+        }
+        assert_eq!(2.0, sum);    // did not clear.
+
+        // clear the right one:
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Clear(String::from("test.1")),
+            &to.parameters, &mut to.conditions
+        );
+        assert_eq!(SpectrumReply::Cleared, reply);
+        let mut sum = 0.0;
+        for c in h.borrow().iter() {
+            sum += c.value.get();
+        }
+        assert_eq!(0.0, sum);
     }
 }
