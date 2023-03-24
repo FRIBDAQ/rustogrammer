@@ -20,13 +20,13 @@ use glob::Pattern;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AxisSpecification {
     pub low: f64,
     pub high: f64,
     pub bins: u32,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ChannelType {
     Underflow,
     Overflow,
@@ -668,6 +668,7 @@ mod spproc_tests {
     use crate::conditions::*;
     use crate::parameters::*;
     use crate::spectra::*;
+    use std::cmp::Ordering;
 
     #[test]
     fn new_1() {
@@ -2064,20 +2065,22 @@ mod spproc_tests {
 
         let reply = to.processor.process_request(
             SpectrumRequest::Clear(String::from("test.2")),
-            &to.parameters, &mut to.conditions
+            &to.parameters,
+            &mut to.conditions,
         );
         assert_eq!(SpectrumReply::Cleared, reply);
         let mut sum = 0.0;
         for c in h.borrow().iter() {
             sum += c.value.get();
         }
-        assert_eq!(2.0, sum);    // did not clear.
+        assert_eq!(2.0, sum); // did not clear.
 
         // clear the right one:
 
         let reply = to.processor.process_request(
             SpectrumRequest::Clear(String::from("test.1")),
-            &to.parameters, &mut to.conditions
+            &to.parameters,
+            &mut to.conditions,
         );
         assert_eq!(SpectrumReply::Cleared, reply);
         let mut sum = 0.0;
@@ -2085,5 +2088,116 @@ mod spproc_tests {
             sum += c.value.get();
         }
         assert_eq!(0.0, sum);
+    }
+    #[test]
+    fn list_1() {
+        // list all spectra.
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        for i in 0..10 {
+            let name = format!("test.{}", i);
+            let pname = format!("param.{}", i);
+            let reply = to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: name,
+                    parameter: pname,
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024,
+                    },
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert_eq!(SpectrumReply::Created, reply);
+        }
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::List(String::from("*")),
+            &to.parameters,
+            &mut to.conditions,
+        );
+
+        if let SpectrumReply::Listing(mut l) = reply {
+            assert_eq!(10, l.len());
+
+            // There's no ordering so order by name:
+            l.sort_by(|a, b| {
+                if a.name > b.name {
+                    Ordering::Greater
+                } else if a.name < b.name {
+                    Ordering::Less
+                } else {
+                    Ordering::Equal
+                }
+            });
+
+            // /The listing comes in an arbitrary order so:
+
+            for i in 0..10 {
+                let name = format!("test.{}", i);
+                let pname = format!("param.{}", i);
+
+                assert_eq!(name, l[i].name);
+                assert_eq!(String::from("1D"), l[i].type_name);
+                assert_eq!(vec![pname], l[i].xparams);
+                assert_eq!(0, l[i].yparams.len());
+                assert!(l[i].yaxis.is_none());
+
+                assert_eq!(
+                    AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1026,
+                    },
+                    l[i].xaxis.expect("No x axis")
+                );
+                assert!(l[i].gate.is_none());
+            }
+        } else {
+            panic!("listing failed");
+        }
+    }
+    #[test]
+    fn list_2() {
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        for i in 0..10 {
+            let name = format!("test.{}", i);
+            let pname = format!("param.{}", i);
+            let reply = to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: name,
+                    parameter: pname,
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024,
+                    },
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert_eq!(SpectrumReply::Created, reply);
+        }
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::List(String::from("test.9")),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        if let SpectrumReply::Listing(l) = reply {
+            assert_eq!(1, l.len());
+            // Just check the name as we know the rest is ok from
+            // list_1:
+
+            assert_eq!(String::from("test.9"), l[0].name);
+        } else {
+            panic!("Listing failed");
+        }
     }
 }
