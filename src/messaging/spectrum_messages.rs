@@ -1518,4 +1518,96 @@ mod spproc_tests {
         assert!(spec.get_gate().is_none());
 
     }
+    #[test]
+    fn cr2d_2() {
+        // invalid x parameter.
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request( 
+            SpectrumRequest::Create2D {
+                name: String::from("test"), 
+                xparam: String::from("param.15"),
+                yparam: String::from("param.7"),
+                xaxis : AxisSpecification {
+                    low: -10.0,
+                    high: 10.0,
+                    bins: 100
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 256
+                }
+            }, &to.parameters, &mut to.conditions
+        );
+        assert!(if let SpectrumReply::Error(_) = reply { true} else {false});
+    }
+    #[test]
+    fn cr2d_3() {
+        // invalid y parameter;
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request( 
+            SpectrumRequest::Create2D {
+                name: String::from("test"), 
+                xparam: String::from("param.5"),
+                yparam: String::from("param.17"),
+                xaxis : AxisSpecification {
+                    low: -10.0,
+                    high: 10.0,
+                    bins: 100
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 256
+                }
+            }, &to.parameters, &mut to.conditions
+        );
+        assert!(if let SpectrumReply::Error(_) = reply { true} else {false});
+    }
+    #[test]
+    fn cr2d_4() {
+        // duplicate spectrum:
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request( 
+            SpectrumRequest::Create2D {
+                name: String::from("test"), 
+                xparam: String::from("param.5"),
+                yparam: String::from("param.7"),
+                xaxis : AxisSpecification {
+                    low: -10.0,
+                    high: 10.0,
+                    bins: 100
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 256
+                }
+            }, &to.parameters, &mut to.conditions
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let reply = to.processor.process_request( 
+            SpectrumRequest::Create2D {
+                name: String::from("test"), 
+                xparam: String::from("param.5"),
+                yparam: String::from("param.7"),
+                xaxis : AxisSpecification {
+                    low: -10.0,
+                    high: 10.0,
+                    bins: 100
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 256
+                }
+            }, &to.parameters, &mut to.conditions
+        );
+        assert!(if let SpectrumReply::Error(_) = reply { true} else {false});
+    }
 }
