@@ -1907,6 +1907,75 @@ mod spproc_tests {
             &to.parameters, &mut to.conditions
         );
         assert_eq!(SpectrumReply::Deleted, reply);
+        assert!(!to.processor.dict.exists("test"));
 
+    }
+    #[test]
+    fn del_2() {
+        // the right one is deleted:
+
+        // delete an existing spectrum:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        for i in 0..10 {
+            let name = format!("test.{}", i);
+            let pname = format!("param.{}", i);
+            let reply = to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: name,
+                    parameter: pname,
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024,
+                    },
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert_eq!(SpectrumReply::Created, reply);
+        }
+
+        let reply = to.processor.process_request( 
+            SpectrumRequest::Delete(String::from("test.5")),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Deleted, reply);
+        assert!(!to.processor.dict.exists("test.5"));
+    }
+    #[test]
+    fn del_3() {
+        // Delete nonexisting is an error:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        for i in 0..10 {
+            let name = format!("test.{}", i);
+            let pname = format!("param.{}", i);
+            let reply = to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: name,
+                    parameter: pname,
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024,
+                    },
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert_eq!(SpectrumReply::Created, reply);
+        }
+        let reply = to.processor.process_request(
+            SpectrumRequest::Delete(String::from("param.1")),
+            &to.parameters,
+            &mut to.conditions
+        );
+        assert!(if let SpectrumReply::Error(_) = reply { true } else { false });
     }
 }
