@@ -73,7 +73,7 @@ impl Spectrum for TwodSum {
         self.name.clone()
     }
     fn get_type(&self) -> String {
-        String::from("Multi2d")
+        String::from("2DSum")
     }
     fn get_xparams(&self) -> Vec<String> {
         let mut result = Vec::<String>::new();
