@@ -47,7 +47,7 @@ impl Spectrum for Twod {
         self.name.clone()
     }
     fn get_type(&self) -> String {
-        String::from("Multi2d")
+        String::from("2D")
     }
     fn get_xparams(&self) -> Vec<String> {
         vec![self.x_name.clone()]

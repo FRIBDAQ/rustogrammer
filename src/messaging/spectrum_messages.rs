@@ -1183,6 +1183,7 @@ mod spproc_tests {
                 bins: y.2
             }
         );
+        assert!(spc.get_gate().is_none());
     }
     #[test]
     fn createpgamma_2() {
@@ -1384,6 +1385,7 @@ mod spproc_tests {
                 bins: y.2
             }
         );
+        assert!(spec.get_gate().is_none());
     }
     #[test]
     fn crsummary_2() {
@@ -1394,7 +1396,7 @@ mod spproc_tests {
         let params = vec![
             String::from("param.1"),
             String::from("param.2"),
-            String::from("param.14"), // bad
+            String::from("param.14"),  // bad
             String::from("param.8"),
         ];
         let reply = to.processor.process_request(
@@ -1410,11 +1412,7 @@ mod spproc_tests {
             &to.parameters,
             &mut to.conditions,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(if let SpectrumReply::Error(_) = reply { true } else { false });
     }
     #[test]
     fn crsummary_3() {
@@ -1455,10 +1453,69 @@ mod spproc_tests {
             &to.parameters,
             &mut to.conditions,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(if let SpectrumReply::Error(_) = reply {true} else { false});
+    }
+    #[test]
+    fn cr2d_1() {
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request( 
+            SpectrumRequest::Create2D {
+                name: String::from("test"), 
+                xparam: String::from("param.5"),
+                yparam: String::from("param.7"),
+                xaxis : AxisSpecification {
+                    low: -10.0,
+                    high: 10.0,
+                    bins: 100
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 256
+                }
+            }, &to.parameters, &mut to.conditions
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let spec = to.processor.dict.get("test").expect("Missing spectru").borrow();
+
+        assert_eq!(String::from("test"), spec.get_name());
+        assert_eq!(String::from("2D"), spec.get_type());
+        let xp = spec.get_xparams();
+        assert_eq!(1, xp.len());
+        assert_eq!(String::from("param.5"), xp[0]);
+        let yp = spec.get_yparams();
+        assert_eq!(1, yp.len());
+        assert_eq!(String::from("param.7"), yp[0]);
+
+        let x = spec.get_xaxis().expect("Missing x axis");
+        assert_eq!(
+            AxisSpecification {
+                low: -10.0,
+                high: 10.0,
+                bins: 102
+            },
+            AxisSpecification {
+                low : x.0,
+                high : x.1,
+                bins: x.2
+            }
+
+        );
+        let y=  spec.get_yaxis().expect("Missing y axis");
+        assert_eq!(
+            AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }, 
+            AxisSpecification {
+                low: y.0,
+                high: y.1,
+                bins: y.2
+            }
+        );
+        assert!(spec.get_gate().is_none());
+
     }
 }
