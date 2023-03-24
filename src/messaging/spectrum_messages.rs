@@ -1334,4 +1334,131 @@ mod spproc_tests {
             false
         });
     }
+    #[test]
+    fn crsummary_1() {
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let params = vec![
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.4"),
+            String::from("param.8"),
+        ];
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateSummary {
+                name: String::from("test"),
+                params: params.clone(),
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1.0,
+                    bins: 100,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        assert!(to.processor.dict.exists("test"));
+
+        let spec = to
+            .processor
+            .dict
+            .get("test")
+            .expect("Missing summary spectrum")
+            .borrow();
+        assert_eq!(String::from("test"), spec.get_name());
+        assert_eq!(String::from("Summary"), spec.get_type());
+        assert_eq!(params, spec.get_xparams());
+        assert_eq!(0, spec.get_yparams().len());
+        assert!(spec.get_xaxis().is_none());
+        let y = spec.get_yaxis().expect("Missing y axis ");
+        assert_eq!(
+            AxisSpecification {
+                low: 0.0,
+                high: 1.0,
+                bins: 102,
+            },
+            AxisSpecification {
+                low: y.0,
+                high: y.1,
+                bins: y.2
+            }
+        );
+    }
+    #[test]
+    fn crsummary_2() {
+        // bad parameter name:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let params = vec![
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.14"), // bad
+            String::from("param.8"),
+        ];
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateSummary {
+                name: String::from("test"),
+                params: params.clone(),
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1.0,
+                    bins: 100,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn crsummary_3() {
+        // duplicate spectrum:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let params = vec![
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.4"),
+            String::from("param.8"),
+        ];
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateSummary {
+                name: String::from("test"),
+                params: params.clone(),
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1.0,
+                    bins: 100,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateSummary {
+                name: String::from("test"),
+                params: params.clone(),
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1.0,
+                    bins: 100,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
 }
