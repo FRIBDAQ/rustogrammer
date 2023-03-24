@@ -1720,7 +1720,193 @@ mod spproc_tests {
                 bins: y.2
             }
         );
+    }
+    #[test]
+    fn cr2dsum_2() {
+        // bad x parameter:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let xpars = vec![
+            String::from("param.0"),
+            String::from("param.2"),
+            String::from("param.4"),
+            String::from("param.16"),
+            String::from("param.7"),
+        ];
+        let ypars = vec![
+            String::from("param.1"),
+            String::from("param.3"),
+            String::from("param.5"),
+            String::from("param.7"),
+            String::from("param.9"),
+        ];
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2DSum {
+                name: String::from("test"),
+                xparams: xpars.clone(),
+                yparams: ypars.clone(),
+                xaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 4096.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn cr2dsum_3() {
+        // bad y parameter:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let xpars = vec![
+            String::from("param.0"),
+            String::from("param.2"),
+            String::from("param.4"),
+            String::from("param.6"),
+            String::from("param.7"),
+        ];
+        let ypars = vec![
+            String::from("param.11"),
+            String::from("param.3"),
+            String::from("param.5"),
+            String::from("param.7"),
+            String::from("param.9"),
+        ];
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2DSum {
+                name: String::from("test"),
+                xparams: xpars.clone(),
+                yparams: ypars.clone(),
+                xaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 4096.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn cr2dsum_4() {
+        // duplicate spectrum:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let xpars = vec![
+            String::from("param.0"),
+            String::from("param.2"),
+            String::from("param.4"),
+            String::from("param.6"),
+            String::from("param.7"),
+        ];
+        let ypars = vec![
+            String::from("param.1"),
+            String::from("param.3"),
+            String::from("param.5"),
+            String::from("param.7"),
+            String::from("param.9"),
+        ];
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2DSum {
+                name: String::from("test"),
+                xparams: xpars.clone(),
+                yparams: ypars.clone(),
+                xaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 4096.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2DSum {
+                name: String::from("test"),
+                xparams: xpars.clone(),
+                yparams: ypars.clone(),
+                xaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 4096.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+        
+    }
+    #[test]
+    fn del_1() {
+        // delete an existing spectrum:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Delete(String::from("test")),
+            &to.parameters, &mut to.conditions
+        );
+        assert_eq!(SpectrumReply::Deleted, reply);
 
     }
-    
 }
