@@ -1113,4 +1113,225 @@ mod spproc_tests {
         }
         assert!(to.processor.dict.exists("test"));
     }
+    #[test]
+    fn createpgamma_1() {
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let xparams = vec![
+            String::from("param.0"),
+            String::from("param.2"),
+            String::from("param.4"),
+            String::from("param.6"),
+        ];
+        let yparams = vec![
+            String::from("param.1"),
+            String::from("param.3"),
+            String::from("param.5"),
+            String::from("param.7"),
+        ];
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreatePGamma {
+                name: String::from("test"),
+                xparams: xparams.clone(),
+                yparams: yparams.clone(),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 4096.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 100,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        assert!(to.processor.dict.exists("test"));
+        let spc = to.processor.dict.get("test");
+        assert!(spc.is_some());
+        let spc = spc.unwrap().borrow(); // Ref to spectrum (readonly)
+        assert_eq!(String::from("test"), spc.get_name());
+        assert_eq!(String::from("PGamma"), spc.get_type());
+        assert_eq!(xparams, spc.get_xparams());
+        assert_eq!(yparams, spc.get_yparams());
+        let x = spc.get_xaxis().expect("Missing x axis");
+        assert_eq!(
+            AxisSpecification {
+                low: 0.0,
+                high: 4096.0,
+                bins: 514
+            },
+            AxisSpecification {
+                low: x.0,
+                high: x.1,
+                bins: x.2
+            }
+        );
+        let y = spc.get_yaxis().expect("Missing y axis");
+        assert_eq!(
+            AxisSpecification {
+                low: -1.0,
+                high: 1.0,
+                bins: 102,
+            },
+            AxisSpecification {
+                low: y.0,
+                high: y.1,
+                bins: y.2
+            }
+        );
+    }
+    #[test]
+    fn createpgamma_2() {
+        // An x parameter is bad:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let xparams = vec![
+            String::from("param.0"),
+            String::from("param.2"),
+            String::from("param.10"), // bad.
+            String::from("param.6"),
+        ];
+        let yparams = vec![
+            String::from("param.1"),
+            String::from("param.3"),
+            String::from("param.5"),
+            String::from("param.7"),
+        ];
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreatePGamma {
+                name: String::from("test"),
+                xparams: xparams.clone(),
+                yparams: yparams.clone(),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 4096.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 100,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        // maybe is more Rusty than the earlier efforts.
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn createpgamma_3() {
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        // bad y parameter.
+        let xparams = vec![
+            String::from("param.0"),
+            String::from("param.2"),
+            String::from("param.4"),
+            String::from("param.6"),
+        ];
+        let yparams = vec![
+            String::from("param.11"), // bad.
+            String::from("param.3"),
+            String::from("param.5"),
+            String::from("param.7"),
+        ];
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreatePGamma {
+                name: String::from("test"),
+                xparams: xparams.clone(),
+                yparams: yparams.clone(),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 4096.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 100,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn createpgamma_4() {
+        // Duplicate spectrum:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let xparams = vec![
+            String::from("param.0"),
+            String::from("param.2"),
+            String::from("param.4"),
+            String::from("param.6"),
+        ];
+        let yparams = vec![
+            String::from("param.1"),
+            String::from("param.3"),
+            String::from("param.5"),
+            String::from("param.7"),
+        ];
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreatePGamma {
+                name: String::from("test"),
+                xparams: xparams.clone(),
+                yparams: yparams.clone(),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 4096.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 100,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreatePGamma {
+                name: String::from("test"),
+                xparams: xparams.clone(),
+                yparams: yparams.clone(),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 4096.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 100,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
 }
