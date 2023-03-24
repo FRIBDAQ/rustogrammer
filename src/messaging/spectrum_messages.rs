@@ -32,7 +32,7 @@ pub enum ChannelType {
     Overflow,
     Bin,
 }
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Channel {
     pub chan_type: ChannelType,
     pub x: f64,
@@ -2196,6 +2196,61 @@ mod spproc_tests {
             // list_1:
 
             assert_eq!(String::from("test.9"), l[0].name);
+        } else {
+            panic!("Listing failed");
+        }
+    }
+
+    // For our gate test we need some gates:
+
+    fn make_some_gates(cd: &mut ConditionDictionary) {
+        for i in 0..10 {
+            let name = format!("cond.{}", i);
+            cd.insert(name, Rc::new(RefCell::new(Box::new(conditions::True {}))));
+        }
+    }
+    #[test]
+    fn gate_1() {
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        make_some_gates(&mut to.conditions);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Gate {
+                spectrum: String::from("test"),
+                gate: String::from("cond.5"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Gated, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::List(String::from("*")),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        if let SpectrumReply::Listing(l) = reply {
+            assert_eq!(1, l.len());
+            assert_eq!(
+                String::from("cond.5"),
+                l[0].clone().gate.expect("Missing gate")
+            );
         } else {
             panic!("Listing failed");
         }
