@@ -515,12 +515,14 @@ impl SpectrumProcessor {
                                 });
                             }
                             BinInterval::Bin { start, end } => {
-                                result.push(Channel {
-                                    chan_type: ChannelType::Bin,
-                                    x: start,
-                                    y: 0.0,
-                                    value: v,
-                                });
+                                if (start >= xlow) && (start <= xhigh) {
+                                    result.push(Channel {
+                                        chan_type: ChannelType::Bin,
+                                        x: start,
+                                        y: 0.0,
+                                        value: v,
+                                    });
+                                };
                             }
                         }
                     }
@@ -561,12 +563,14 @@ impl SpectrumProcessor {
                             y = start;
                         }
                     };
-                    result.push(Channel {
-                        chan_type: ctype,
-                        x: x,
-                        y: y,
-                        value: v,
-                    });
+                    if (x >= xlow) && (x <= xhigh) && (y >= ylow) && (y <= yhigh) {
+                        result.push(Channel {
+                            chan_type: ctype,
+                            x: x,
+                            y: y,
+                            value: v,
+                        });
+                    }
                 }
             }
             return SpectrumReply::Contents(result);
@@ -2379,8 +2383,306 @@ mod spproc_tests {
             &to.parameters,
             &mut to.conditions,
         );
-        assert!(if let SpectrumReply::Error(_) = reply  { 
+        assert!(if let SpectrumReply::Error(_) = reply {
             true
-        } else { false });
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn events_1() {
+        // Increment some spectra via an event:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        for i in 0..10 {
+            let name = format!("spec.{}", i);
+            let par = format!("param.{}", i);
+            let reply = to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: name,
+                    parameter: par,
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024,
+                    },
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert_eq!(SpectrumReply::Created, reply);
+        }
+        // Make some evnts and fill some (not all) of the spectra:
+
+        let id1 = to.parameters.lookup("param.5").unwrap().get_id();
+        let id2 = to.parameters.lookup("param.7").unwrap().get_id();
+
+        let events = vec![
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+        ];
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Events(events),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Processed, reply);
+        let with_counts = vec![
+            (String::from("spec.5"), 512.0),
+            (String::from("spec.7"), 700.0),
+        ];
+        let no_counts = vec![
+            String::from("spec.0"),
+            String::from("spec.1"),
+            String::from("spec.2"),
+            String::from("spec.3"),
+            String::from("spec.4"),
+            String::from("spec.6"),
+            String::from("spec.8"),
+            String::from("spec.9"),
+        ];
+        // These should havve counts in the indicated channels:
+
+        for (name, chan) in with_counts {
+            let spec = to.processor.dict.get(&name).unwrap().borrow();
+            for ch in spec.get_histogram_1d().unwrap().borrow().iter() {
+                let d = ch.value.get();
+                if d != 0.0 {
+                    assert_eq!(5.0, d);
+                    if let BinInterval::Bin { start, end } = ch.bin {
+                        assert_eq!(chan, start);
+                    } else {
+                        panic!("Under or overflow counts in histogram");
+                    }
+                }
+            }
+        }
+        // these should have no counts.
+        for name in no_counts {
+            let spec = to.processor.dict.get(&name).unwrap().borrow();
+            for ch in spec.get_histogram_1d().unwrap().borrow().iter() {
+                assert_eq!(0.0, ch.value.get());
+            }
+        }
+    }
+    #[test]
+    fn contents_1() {
+        // Process some events as in events_1, get the
+        // contents of the spectra...
+        // should be one channel entry for each of the
+        // two histograms with data and non for those with none
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        for i in 0..10 {
+            let name = format!("spec.{}", i);
+            let par = format!("param.{}", i);
+            let reply = to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: name,
+                    parameter: par,
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024,
+                    },
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert_eq!(SpectrumReply::Created, reply);
+        }
+        // Make some evnts and fill some (not all) of the spectra:
+
+        let id1 = to.parameters.lookup("param.5").unwrap().get_id();
+        let id2 = to.parameters.lookup("param.7").unwrap().get_id();
+
+        let events = vec![
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+        ];
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Events(events),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Processed, reply);
+        let with_counts = vec![
+            (String::from("spec.5"), 512.0),
+            (String::from("spec.7"), 700.0),
+        ];
+        let no_counts = vec![
+            String::from("spec.0"),
+            String::from("spec.1"),
+            String::from("spec.2"),
+            String::from("spec.3"),
+            String::from("spec.4"),
+            String::from("spec.6"),
+            String::from("spec.8"),
+            String::from("spec.9"),
+        ];
+        // we'll ask for the entire ROI:
+        for (name, chan) in with_counts {
+            let reply = to.processor.process_request(
+                SpectrumRequest::GetContents {
+                    name: name,
+                    xlow: 0.0,
+                    xhigh: 1024.0,
+                    ylow: 0.0,
+                    yhigh: 0.0,
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert!(if let SpectrumReply::Contents(sc) = reply {
+                assert_eq!(1, sc.len());
+                assert_eq!(ChannelType::Bin, sc[0].chan_type);
+                assert_eq!(chan, sc[0].x);
+                assert_eq!(5.0, sc[0].value);
+                true
+            } else {
+                false
+            });
+        }
+        // Nobody else should have counts:
+
+        for name in no_counts {
+            let reply = to.processor.process_request(
+                SpectrumRequest::GetContents {
+                    name: name,
+                    xlow: 0.0,
+                    xhigh: 1024.0,
+                    ylow: 0.0,
+                    yhigh: 0.0,
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert!(if let SpectrumReply::Contents(sc) = reply {
+                assert_eq!(0, sc.len());
+                true
+            } else {
+                false
+            });
+        }
+    }
+    #[test]
+    fn contents_2() {
+        // Ask with ROI outside of where counts are:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        for i in 0..10 {
+            let name = format!("spec.{}", i);
+            let par = format!("param.{}", i);
+            let reply = to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: name,
+                    parameter: par,
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024,
+                    },
+                },
+                &to.parameters,
+                &mut to.conditions,
+            );
+            assert_eq!(SpectrumReply::Created, reply);
+        }
+        // Make some evnts and fill some (not all) of the spectra:
+
+        let id1 = to.parameters.lookup("param.5").unwrap().get_id();
+        let id2 = to.parameters.lookup("param.7").unwrap().get_id();
+
+        let events = vec![
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+        ];
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Events(events),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Processed, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetContents {
+                name: String::from("spec.5"),
+                xlow: 0.0,
+                xhigh: 200.0,
+                ylow: 0.0,
+                yhigh: 0.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Contents(sc) = reply {
+            assert_eq!(0, sc.len());
+            true
+        } else {
+            false
+        });
     }
 }
