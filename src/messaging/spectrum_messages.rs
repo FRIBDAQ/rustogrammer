@@ -2312,4 +2312,75 @@ mod spproc_tests {
             false
         });
     }
+
+    #[test]
+    fn ungate_1() {
+        // Good ungate:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        make_some_gates(&mut to.conditions);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Gate {
+                spectrum: String::from("test"),
+                gate: String::from("cond.5"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Gated, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Ungate(String::from("test")),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Ungated, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::List(String::from("test")),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Listing(l) = reply {
+            assert_eq!(1, l.len());
+            assert!(l[0].gate.is_none());
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn ungate_2() {
+        // no such spectrum
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        make_some_gates(&mut to.conditions);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Ungate(String::from("test")),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply  { 
+            true
+        } else { false });
+    }
 }
