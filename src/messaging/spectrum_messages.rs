@@ -2255,4 +2255,61 @@ mod spproc_tests {
             panic!("Listing failed");
         }
     }
+    #[test]
+    fn gate_2() {
+        // No such gate:
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        make_some_gates(&mut to.conditions);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Gate {
+                spectrum: String::from("test"),
+                gate: String::from("kond.5"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn gate_3() {
+        // no such spectrum:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        make_some_gates(&mut to.conditions);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Gate {
+                spectrum: String::from("test"),
+                gate: String::from("cond.5"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
 }
