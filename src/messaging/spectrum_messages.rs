@@ -666,6 +666,193 @@ impl SpectrumProcessor {
     }
 }
 
+// The unbound functions below provide private message formatting
+// used by the client code:
+
+fn create1d_request(
+    name: &str,
+    parameter: &str,
+    low: f64,
+    high: f64,
+    bins: u32,
+) -> SpectrumRequest {
+    SpectrumRequest::Create1D {
+        name: String::from(name),
+        parameter: String::from(parameter),
+        axis: AxisSpecification { low, high, bins },
+    }
+}
+
+fn createmulti1d_request(
+    name: &str,
+    params: &Vec<String>,
+    low: f64,
+    high: f64,
+    bins: u32,
+) -> SpectrumRequest {
+    SpectrumRequest::CreateMulti1D {
+        name: String::from(name),
+        params: params.clone(),
+        axis: AxisSpecification { low, high, bins },
+    }
+}
+fn createmulti2d_request(
+    name: &str,
+    params: &Vec<String>,
+    xlow: f64,
+    xhigh: f64,
+    xbins: u32,
+    ylow: f64,
+    yhigh: f64,
+    ybins: u32,
+) -> SpectrumRequest {
+    SpectrumRequest::CreateMulti2D {
+        name: String::from(name),
+        params: params.clone(),
+        xaxis: AxisSpecification {
+            low: xlow,
+            high: xhigh,
+            bins: xbins,
+        },
+        yaxis: AxisSpecification {
+            low: ylow,
+            high: yhigh,
+            bins: ybins,
+        },
+    }
+}
+fn createpgamma_request(
+    name: &str,
+    xparams: &Vec<String>,
+    yparams: &Vec<String>,
+    xlow: f64,
+    xhigh: f64,
+    xbins: u32,
+    ylow: f64,
+    yhigh: f64,
+    ybins: u32,
+) -> SpectrumRequest {
+    SpectrumRequest::CreatePGamma {
+        name: String::from(name),
+        xparams: xparams.clone(),
+        yparams: yparams.clone(),
+        xaxis: AxisSpecification {
+            low: xlow,
+            high: xhigh,
+            bins: xbins,
+        },
+        yaxis: AxisSpecification {
+            low: ylow,
+            high: yhigh,
+            bins: ybins,
+        },
+    }
+}
+fn createsummary_request(
+    name: &str,
+    params: Vec<String>,
+    low: f64,
+    high: f64,
+    bins: u32,
+) -> SpectrumRequest {
+    SpectrumRequest::CreateSummary {
+        name: String::from(name),
+        params: params.clone(),
+        yaxis: AxisSpecification { low, high, bins },
+    }
+}
+fn create2d_request(
+    name: &str,
+    xparam: &str,
+    yparam: &str,
+    xlow: f64,
+    xhigh: f64,
+    xbins: u32,
+    ylow: f64,
+    yhigh: f64,
+    ybins: u32,
+) -> SpectrumRequest {
+    SpectrumRequest::Create2D {
+        name: String::from(name),
+        xparam: String::from(xparam),
+        yparam: String::from(yparam),
+        xaxis: AxisSpecification {
+            low: xlow,
+            high: xhigh,
+            bins: xbins,
+        },
+        yaxis: AxisSpecification {
+            low: ylow,
+            high: yhigh,
+            bins: ybins,
+        },
+    }
+}
+fn create2dsum_request(
+    name: &str,
+    xparams: &Vec<String>,
+    yparams: &Vec<String>,
+    xlow: f64,
+    xhigh: f64,
+    xbins: u32,
+    ylow: f64,
+    yhigh: f64,
+    ybins: u32,
+) -> SpectrumRequest {
+    SpectrumRequest::Create2DSum {
+        name: String::from(name),
+        xparams: xparams.clone(),
+        yparams: yparams.clone(),
+        xaxis: AxisSpecification {
+            low: xlow,
+            high: xhigh,
+            bins: xbins,
+        },
+        yaxis: AxisSpecification {
+            low: ylow,
+            high: yhigh,
+            bins: ybins,
+        },
+    }
+}
+fn delete_request(name: &str) -> SpectrumRequest {
+    SpectrumRequest::Delete(String::from(name))
+}
+fn list_request(pattern: &str) -> SpectrumRequest {
+    SpectrumRequest::List(String::from(pattern))
+}
+fn gate_request(spectrum: &str, condition: &str) -> SpectrumRequest {
+    SpectrumRequest::Gate {
+        spectrum: String::from(spectrum),
+        gate: String::from(condition),
+    }
+}
+fn ungate_request(name: &str) -> SpectrumRequest {
+    SpectrumRequest::Ungate(String::from(name))
+}
+fn clear_request(pattern: &str) -> SpectrumRequest {
+    SpectrumRequest::Clear(String::from(pattern))
+}
+fn getcontents_request(
+    name: &str,
+    xlow: f64,
+    xhigh: f64,
+    ylow: f64,
+    yhigh: f64,
+) -> SpectrumRequest {
+    SpectrumRequest::GetContents {
+        name: String::from(name),
+        xlow,
+        xhigh,
+        ylow,
+        yhigh,
+    }
+}
+fn events_request(events: &Vec<parameters::Event>) -> SpectrumRequest {
+    SpectrumRequest::Events(events.clone())
+}
+//--------------------------- Tests ------------------------------
+
 #[cfg(test)]
 mod spproc_tests {
     use super::*;
