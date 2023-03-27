@@ -563,7 +563,7 @@ impl SpectrumProcessor {
                             y = start;
                         }
                     };
-                    if (x >= xlow) && (x <= xhigh) && (y >= ylow) && (y <= yhigh) {
+                    if (v != 0.0) &&(x >= xlow) && (x <= xhigh) && (y >= ylow) && (y <= yhigh) {
                         result.push(Channel {
                             chan_type: ctype,
                             x: x,
@@ -2680,6 +2680,94 @@ mod spproc_tests {
         );
         assert!(if let SpectrumReply::Contents(sc) = reply {
             assert_eq!(0, sc.len());
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn events_2() {
+        // Events for a 2-d histogram:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.5"),
+                yparam: String::from("param.7"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // Make and process events that will fill (512.0, 700.0):
+
+        let id1 = to.parameters.lookup("param.5").unwrap().get_id();
+        let id2 = to.parameters.lookup("param.7").unwrap().get_id();
+
+        let events = vec![
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+            vec![
+                EventParameter::new(id1, 512.0),
+                EventParameter::new(id2, 700.0),
+            ],
+        ];
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Events(events),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Processed, reply);
+
+        // Contents over the whole spectrum should only have 5
+        // counts in channel 512.0, 700.0
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetContents {
+                name: String::from("test"),
+                xlow: 0.0,
+                xhigh: 1024.0,
+                ylow: 0.0,
+                yhigh: 1024.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Contents(l) = reply {
+            assert_eq!(1, l.len());
+            assert_eq!(ChannelType::Bin, l[0].chan_type);
+            assert_eq!(5.0, l[0].value);
+            assert_eq!(512.0, l[0].x);
+            assert_eq!(700.0, l[0].y);
             true
         } else {
             false
