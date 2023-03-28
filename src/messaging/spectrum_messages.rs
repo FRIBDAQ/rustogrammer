@@ -3097,3 +3097,89 @@ mod spproc_tests {
         });
     }
 }
+#[cfg(test)]
+mod reqstruct_tests {
+    // Test the request structure marshallers.
+    use super::*;
+
+    #[test]
+    fn c1d_1() {
+        let req = create1d_request("test", "par1", 0.0, 1024.0, 1024);
+        assert_eq!(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("par1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024
+                }
+            },
+            req
+        )
+    }
+    #[test]
+    fn cm1d_1() {
+        let req = createmulti1d_request(
+            "test",
+            &vec![String::from("p1"), String::from("p2"), String::from("p3")],
+            0.0,
+            1024.0,
+            1024,
+        );
+        assert!(
+            if let SpectrumRequest::CreateMulti1D { name, params, axis } = req {
+                assert_eq!(String::from("test"), name);
+                assert_eq!(
+                    vec![String::from("p1"), String::from("p2"), String::from("p3")],
+                    params
+                );
+                assert_eq!(
+                    AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    },
+                    axis
+                );
+                true
+            } else {
+                false
+            }
+        );
+    }
+    #[test]
+    fn cm2d_1() {
+        let p = vec![String::from("p1"), String::from("p2"), String::from("p3")];
+        let req = createmulti2d_request("test", &p, 0.0, 1024.0, 1024, -1.0, 1.0, 100);
+        assert!(if let SpectrumRequest::CreateMulti2D {
+            name,
+            params,
+            xaxis,
+            yaxis,
+        } = req
+        {
+            assert_eq!(String::from("test"), name);
+            assert_eq!(p, params);
+            assert_eq!(
+                AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024
+                },
+                xaxis
+            );
+            assert_eq!(
+                AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 100
+                },
+                yaxis
+            );
+            true
+        } else {
+            false
+        });
+    }
+}
