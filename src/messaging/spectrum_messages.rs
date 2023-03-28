@@ -15,6 +15,7 @@ use crate::parameters;
 use crate::spectra;
 use ndhistogram::axis::*;
 use ndhistogram::*;
+use std::sync::mpsc;
 
 use glob::Pattern;
 use std::cell::RefCell;
@@ -665,7 +666,7 @@ impl SpectrumProcessor {
         }
     }
 }
-
+//----------------------------------------------------------------
 // The unbound functions below provide private message formatting
 // used by the client code:
 
@@ -843,7 +844,7 @@ fn getcontents_request(
     SpectrumRequest::GetContents {
         name: String::from(name),
         xlow,
-        xhigh,
+        xhigh, 
         ylow,
         yhigh,
     }
@@ -851,6 +852,140 @@ fn getcontents_request(
 fn events_request(events: &Vec<parameters::Event>) -> SpectrumRequest {
     SpectrumRequest::Events(events.clone())
 }
+//------------------- Client API methods-------------------------
+
+pub type SpectrumServerEmptyResult = Result<(), String>;
+///
+/// Perform an arbitrary transaction.  This could actually
+/// be private but,  since the request and reply structs
+/// are public this is too:
+///
+/// *  req  - The request object
+/// *  req_chan - Channel to which to send the request.
+/// *  reply_send - Channel to which the server shouild send the reply
+/// *  reply_recv - Channel on which the client receives the reply.
+///
+/// *   Returns: SpectrumReply
+/// *   Note:  if the reply is not a SpectrumReply, panics.
+/// *   Note:  The request is consumed.
+pub fn transact(
+    req: SpectrumRequest,
+    req_chan: mpsc::Sender<Request>,
+    reply_send: mpsc::Sender<Reply>,
+    reply_recv: mpsc::Receiver<Reply>,
+) -> SpectrumReply {
+    let request = Request {
+        reply_channel: reply_send,
+        message: MessageType::Spectrum(req),
+    };
+    let reply = request.transaction(req_chan, reply_recv);
+    if let Reply::Spectrum(r) = reply {
+        r
+    } else {
+        panic!("Expected Spectrum reply got something else");
+    }
+}
+///
+/// Create a 1d spectrum:
+/// 
+/// *  name - name of the spectrum to create.
+/// *  parameter - name of the parameter to histogram 
+/// *  low, high, bins - axis specification for the spectrum.
+/// *  req - request channely
+/// *  reply_send - channel on which to send the reply.
+/// *  reply_recv  - Chanel on which to recieve the reply.
+///
+/// Returns: SpectrumServerEmptyResult
+///
+pub fn create_spectrum_1d(name: &str, parameter: &str, low: f64, high: f64, bins: u32, req : mpsc::Sender<Request>, reply_send : mpsc::Sender<Reply>, reply_recv : mpsc::Receiver<Reply>) 
+ -> SpectrumServerEmptyResult {
+    let reply = transact(
+        create1d_request(name, parameter, low, high, bins), req, reply_send, reply_recv
+    );
+    if let SpectrumReply::Error(s) = reply {
+        Err(s)
+    } else {
+        Ok(())
+    }
+ }
+ /// Create a mutiply incremented 1d spectrum (gamma 1d).
+ ///
+///
+/// *   name - name of the spectrum.
+/// *   params - Names of the parameters to histogram.
+/// *   low, high, bins - axis specifications.
+/// *  req - request channel
+/// *  reply_send - channel on which to send the reply.
+/// *  reply_recv  - Chanel on which to recieve the reply.
+///
+/// Returns: SpectrumServerEmptyResult
+///
+pub fn create_spectrum_multi1d(
+    name: &str, parameters: &Vec<String>, low: f64, high: f64, bins: u32, req : mpsc::Sender<Request>, reply_send : mpsc::Sender<Reply>, reply_recv : mpsc::Receiver<Reply>) -> SpectrumServerEmptyResult {
+
+    let reply = transact(
+        createmulti1d_request(name, parameters, low, high, bins),
+        req, reply_send, reply_recv
+    );
+    if let SpectrumReply::Error(s) = reply {
+        Err(s)
+    } else {
+        Ok(())
+    }
+}
+/// Create a muliply incremented 2d spectrum (gamma 2)
+///
+/// *   name - spectrum name.
+/// *   parameters - vector of  parameters (reference)
+/// *   xlow, xhigh, xbins - x axis specification.
+/// *   ylow, yhigh, ybins - y axis specification.
+/// *  req - request channel
+/// *  reply_send - channel on which to send the reply.
+/// *  reply_recv  - Chanel on which to recieve the reply.
+///
+/// Returns: SpectrumServerEmptyResult
+
+pub fn create_spectrum_multi2d(
+    name: &str, parameters: &Vec<String>, xlow: f64, xhigh: f64, xbins: u32, ylow: f64, yhigh: f64, ybins: u32, req : mpsc::Sender<Request>, reply_send : mpsc::Sender<Reply>, reply_recv: mpsc::Receiver<Reply>
+) -> SpectrumServerEmptyResult {
+    let reply = transact(
+        createmulti2d_request(name, parameters, xlow, xhigh, xbins, ylow, yhigh, ybins),
+        req, reply_send, reply_recv
+    );
+    if let SpectrumReply::Error(s) = reply {
+        Err(s)
+    } else {
+        Ok(())
+    }
+}
+///  Create a particle gamma spectrum (gamma delux).
+///
+/// *   name -spectrum name.
+/// *   xparams - xaxis parameters.
+/// *   yparams - yaxis parameters.
+/// *   xlow, xhigh, xbins - x axis specification.
+/// *   ylow, yhigh, ybins - y axis specification.
+/// *  req - request channel
+/// *  reply_send - channel on which to send the reply.
+/// *  reply_recv  - Chanel on which to recieve the reply.
+///
+/// Returns: SpectrumServerEmptyResult
+
+pub fn create_spectrum_pgamma(
+    name: &str, xparams : &Vec<String>, yparams : &Vec<String>, xlow : f64, xhigh: f64, xbins: u32, ylow: f64, yhigh: f64, ybins: u32, req: mpsc::Sender<Request>, reply_send: mpsc::Sender<Reply>, reply_recv: mpsc::Receiver<Reply>
+) -> SpectrumServerEmptyResult {
+    let reply = transact(
+        createpgamma_request(name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins),
+        req, reply_send, reply_recv
+    );
+    if let SpectrumReply::Error(s) = reply {
+        Err(s)
+    } else {
+        Ok(())
+    }
+}
+
+
 //--------------------------- Tests ------------------------------
 
 #[cfg(test)]
@@ -3328,8 +3463,6 @@ mod reqstruct_tests {
             ],
         ];
         let req = events_request(&events);
-        assert_eq!(
-            SpectrumRequest::Events(events), req
-        );
+        assert_eq!(SpectrumRequest::Events(events), req);
     }
 }
