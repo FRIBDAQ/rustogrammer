@@ -3101,6 +3101,7 @@ mod spproc_tests {
 mod reqstruct_tests {
     // Test the request structure marshallers.
     use super::*;
+    use crate::parameters::*;
 
     #[test]
     fn c1d_1() {
@@ -3222,9 +3223,7 @@ mod reqstruct_tests {
     }
     #[test]
     fn c2d_1() {
-        let req = create2d_request(
-            "test", "px", "py", 0.0, 1024.0, 1024, -1.0, 1.0, 100
-        );
+        let req = create2d_request("test", "px", "py", 0.0, 1024.0, 1024, -1.0, 1.0, 100);
         assert_eq!(
             SpectrumRequest::Create2D {
                 name: String::from("test"),
@@ -3249,21 +3248,88 @@ mod reqstruct_tests {
         let xp = vec![String::from("x1"), String::from("x2"), String::from("x3")];
         let yp = vec![String::from("y1"), String::from("y2"), String::from("y3")];
 
-        let req = create2dsum_request(
-            "test", &xp, &yp, 0.0, 1024.0, 1024, -1.0, 1.0, 100
-        );
+        let req = create2dsum_request("test", &xp, &yp, 0.0, 1024.0, 1024, -1.0, 1.0, 100);
         assert_eq!(
             SpectrumRequest::Create2DSum {
                 name: String::from("test"),
                 xparams: xp.clone(),
                 yparams: yp.clone(),
-                xaxis : AxisSpecification {
-                    low: 0.0, high:1024.0, bins: 1024
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024
                 },
-                yaxis : AxisSpecification {
-                    low: -1.0, high: 1.0, bins: 100
+                yaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 100
                 }
-            }, req
+            },
+            req
+        );
+    }
+    #[test]
+    fn del_1() {
+        let req = delete_request("test");
+        assert_eq!(SpectrumRequest::Delete(String::from("test")), req);
+    }
+    #[test]
+    fn list_1() {
+        let req = list_request("*");
+        assert_eq!(SpectrumRequest::List(String::from("*")), req);
+    }
+    #[test]
+    fn gate_1() {
+        let req = gate_request("spectrum", "gate");
+        assert_eq!(
+            SpectrumRequest::Gate {
+                spectrum: String::from("spectrum"),
+                gate: String::from("gate")
+            },
+            req
+        );
+    }
+    #[test]
+    fn ungate_1() {
+        let req = ungate_request("test");
+        assert_eq!(SpectrumRequest::Ungate(String::from("test")), req)
+    }
+    #[test]
+    fn clear_1() {
+        let req = clear_request("t*");
+        assert_eq!(SpectrumRequest::Clear(String::from("t*")), req);
+    }
+    #[test]
+    fn get_1() {
+        let req = getcontents_request("test", 0.0, 50.0, 100.0, 125.0);
+        assert_eq!(
+            SpectrumRequest::GetContents {
+                name: String::from("test"),
+                xlow: 0.0,
+                xhigh: 50.0,
+                ylow: 100.0,
+                yhigh: 125.0
+            },
+            req
+        );
+    }
+    fn process_1() {
+        let events = vec![
+            vec![EventParameter::new(1, 2.0), EventParameter::new(7, 100.)],
+            vec![
+                EventParameter::new(12, 1.345),
+                EventParameter::new(77, 3.1416),
+            ],
+            vec![
+                EventParameter::new(1, 2.0),
+                EventParameter::new(7, 100.),
+                EventParameter::new(12, 1.345),
+                EventParameter::new(77, 3.1416),
+            ],
+        ];
+        let req = events_request(&events);
+        assert_eq!(
+            SpectrumRequest::Events(events), req
         );
     }
 }
