@@ -3182,4 +3182,88 @@ mod reqstruct_tests {
             false
         });
     }
+    #[test]
+    fn cpgamma_1() {
+        let xp = vec![String::from("x1"), String::from("x2"), String::from("x3")];
+        let yp = vec![String::from("y1"), String::from("y2")];
+
+        let req = createpgamma_request("test", &xp, &yp, 0.0, 1024.0, 1024, -1.0, 1.0, 100);
+        assert!(if let SpectrumRequest::CreatePGamma {
+            name,
+            xparams,
+            yparams,
+            xaxis,
+            yaxis,
+        } = req
+        {
+            assert_eq!(String::from("test"), name);
+            assert_eq!(xp, xparams);
+            assert_eq!(yp, yparams);
+            assert_eq!(
+                AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024
+                },
+                xaxis
+            );
+            assert_eq!(
+                AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 100
+                },
+                yaxis
+            );
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn c2d_1() {
+        let req = create2d_request(
+            "test", "px", "py", 0.0, 1024.0, 1024, -1.0, 1.0, 100
+        );
+        assert_eq!(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("px"),
+                yparam: String::from("py"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024
+                },
+                yaxis: AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 100
+                }
+            },
+            req
+        );
+    }
+    #[test]
+    fn c2dsum_1() {
+        let xp = vec![String::from("x1"), String::from("x2"), String::from("x3")];
+        let yp = vec![String::from("y1"), String::from("y2"), String::from("y3")];
+
+        let req = create2dsum_request(
+            "test", &xp, &yp, 0.0, 1024.0, 1024, -1.0, 1.0, 100
+        );
+        assert_eq!(
+            SpectrumRequest::Create2DSum {
+                name: String::from("test"),
+                xparams: xp.clone(),
+                yparams: yp.clone(),
+                xaxis : AxisSpecification {
+                    low: 0.0, high:1024.0, bins: 1024
+                },
+                yaxis : AxisSpecification {
+                    low: -1.0, high: 1.0, bins: 100
+                }
+            }, req
+        );
+    }
 }
