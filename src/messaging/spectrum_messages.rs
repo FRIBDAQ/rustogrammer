@@ -4365,5 +4365,35 @@ mod spectrum_api_tests {
         let l = list_spectra("*", send.clone(), rep_send, rep_recv).expect("listing failed");
         assert_eq!(1, l.len());
         assert_eq!(Some(String::from("true.1")), l[0].gate);
+        stop_server(jh, send);
+    }
+    #[test]
+    fn ungate_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        create_spectrum_1d(
+            "test",
+            "param.1",
+            0.0,
+            1024.0,
+            1024,
+            send.clone(),
+            rep_send,
+            rep_recv,
+        )
+        .expect("Failed to create spectrum");
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        gate_spectrum("test", "true.1", send.clone(), rep_send, rep_recv)
+            .expect("Failed to gate spectrum");
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        ungate_spectrum("test", send.clone(), rep_send, rep_recv).expect("Failed to ungate");
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let l =
+            list_spectra("*", send.clone(), rep_send, rep_recv).expect("failed to list spectra");
+        assert_eq!(None, l[0].gate);
+        stop_server(jh, send);
     }
 }
