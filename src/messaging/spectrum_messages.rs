@@ -3809,7 +3809,9 @@ mod spectrum_api_tests {
     //   start_server - which starts the server.
     //   stop_server - which ends the server and joins with it.
     //
-    //
+    // Note failing tests can leave hanging threads but
+    // they are harmless as new servers are creaed for each
+    // test.
     fn fake_server(reader: mpsc::Receiver<Request>) {
         let mut processor = SpectrumProcessor::new();
         let mut params = parameters::ParameterDictionary::new();
@@ -3888,11 +3890,68 @@ mod spectrum_api_tests {
         let (rep_send, rep_recv) = mpsc::channel::<Reply>();
         let reply = list_spectra("*", send.clone(), rep_send, rep_recv);
         assert!(if let Ok(l) = reply {
+            
             assert_eq!(0, l.len()); // Nothing to list
             true
         } else {
-            stop_server(jh, send);
+            
             false
-        })
+        });
+        stop_server(jh, send);
+    }
+    // Now we can try to make a spectrum and see if we can get
+    // it listed back:
+    // Note the need to clone channels and make reply channels each
+    // time since Receivers don't support cloning (that's the single receiver
+    // part of these channels getting enforced)
+    #[test]
+    fn make1d_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+
+        // Create the spectrum:
+
+        assert!(if let Ok(()) = create_spectrum_1d(
+            "test",
+            "param.1",
+            0.0,
+            1024.0,
+            1024,
+            send.clone(),
+            rep_send,
+            rep_recv
+        ) {
+            true
+        } else {
+            
+            false
+        });
+        // See if the server knows it:
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        assert!(
+            if let Ok(listing) = list_spectra("*", send.clone(), rep_send, rep_recv) {
+                assert_eq!(1, listing.len());
+                assert_eq!(
+                    SpectrumProperties {
+                        name: String::from("test"),
+                        type_name: String::from("1D"),
+                        xparams :vec![String::from("param.1")],
+                        yparams: vec![],
+                        xaxis : Some(AxisSpecification{
+                            low: 0.0, high: 1024.0, bins: 1026
+                        }),
+                        yaxis : None,
+                        gate : None
+                    },
+                    listing[0]
+                );
+                true
+            } else { 
+                false
+            }
+        );
+        
+        stop_server(jh, send);
     }
 }
