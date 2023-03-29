@@ -4179,6 +4179,7 @@ mod spectrum_api_tests {
 
         stop_server(jh, send);
     }
+    #[test]
     fn make2d_1() {
         let (jh, send) = start_server();
         let (rep_send, rep_recv) = mpsc::channel::<Reply>();
@@ -4198,5 +4199,11 @@ mod spectrum_api_tests {
             rep_recv,
         )
         .expect("Failed to make 2d spectrum");
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let l =
+            list_spectra("*", send.clone(), rep_send, rep_recv).expect("Failed to list spectra");
+
+        stop_server(jh, send);
     }
 }
