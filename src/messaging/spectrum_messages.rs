@@ -1307,6 +1307,26 @@ pub fn get_contents(
         _ => Err(String::from("Unexpected reply type for get_contents")),
     }
 }
+///
+/// Process events.
+///
+/// *  events - vector of flat event.
+/// *  send - send channel.
+/// *  rep_send - channel we send our respons oin,
+/// *  rep_reply - Channels the clent reads.
+///
+pub fn process_events(
+    e: &Vec<parameters::Event>,
+    req: mpsc::Sender<Request>,
+    rep_send: mpsc::Sender<Reply>,
+    rep_recv: mpsc::Receiver<Reply>,
+) -> SpectrumServerEmptyResult {
+    match transact(events_request(e), req, rep_send, rep_recv) {
+        SpectrumReply::Processed => Ok(()),
+        SpectrumReply::Error(s) => Err(s),
+        _ => Err(String::from("processEvents -unexpected reply type")),
+    }
+}
 
 //--------------------------- Tests ------------------------------
 
@@ -4396,4 +4416,6 @@ mod spectrum_api_tests {
         assert_eq!(None, l[0].gate);
         stop_server(jh, send);
     }
+    // For clear and process, we need to have some confidence in
+    // being able to get the contents.
 }
