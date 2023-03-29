@@ -4041,22 +4041,94 @@ mod spectrum_api_tests {
                     SpectrumProperties {
                         name: String::from("test"),
                         type_name: String::from("Multi2d"),
-                        xparams : params,
+                        xparams: params,
                         yparams: vec![],
                         xaxis: Some(AxisSpecification {
-                            low: 0.0, high: 1024.0, bins: 1026
+                            low: 0.0,
+                            high: 1024.0,
+                            bins: 1026
                         }),
                         yaxis: Some(AxisSpecification {
-                            low: -1.0, high: 1.0, bins: 102
+                            low: -1.0,
+                            high: 1.0,
+                            bins: 102
                         }),
                         gate: None
-                    }, l[0]
+                    },
+                    l[0]
                 );
                 true
             } else {
                 false
             }
         );
+        stop_server(jh, send);
+    }
+    #[test]
+    fn makepg_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let xparams = vec![
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+            String::from("param.5"),
+        ];
+        let yparams = vec![
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+        assert_eq!(
+            Ok(()),
+            create_spectrum_pgamma(
+                "test",
+                &xparams,
+                &yparams,
+                0.0,
+                1024.0,
+                1024,
+                -1.0,
+                1.0,
+                100,
+                send.clone(),
+                rep_send,
+                rep_recv
+            )
+        );
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        assert!(
+            if let Ok(l) = list_spectra("*", send.clone(), rep_send, rep_recv) {
+                assert_eq!(1, l.len());
+                assert_eq!(
+                    SpectrumProperties {
+                        name: String::from("test"),
+                        type_name: String::from("PGamma"),
+                        xparams: xparams,
+                        yparams: yparams,
+                        xaxis: Some(AxisSpecification {
+                            low: 0.0,
+                            high: 1024.0,
+                            bins: 1026
+                        }),
+                        yaxis: Some(AxisSpecification {
+                            low: -1.0,
+                            high: 1.0,
+                            bins: 102
+                        }),
+                        gate: None
+                    },
+                    l[0]
+                );
+                true
+            } else {
+                false
+            }
+        );
+
         stop_server(jh, send);
     }
 }
