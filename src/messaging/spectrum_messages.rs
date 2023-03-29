@@ -854,7 +854,19 @@ fn events_request(events: &Vec<parameters::Event>) -> SpectrumRequest {
 }
 //------------------- Client API methods-------------------------
 
+/// This is a Result where the server has nothing of
+/// of interest to say to the caller.
+///
 pub type SpectrumServerEmptyResult = Result<(), String>;
+
+/// This is a result where the server, on success will
+/// provide a list of properties of some spectra:
+///
+pub type SpectrumServerListingResult = Result<Vec<SpectrumProperties>, String>;
+///
+/// This type is a result the API will sue to return spectrum
+/// contents:
+pub type SpectrumServerContentsResult = Result<SpectrumContents, String>;
 ///
 /// Perform an arbitrary transaction.  This could actually
 /// be private but,  since the request and reply structs
@@ -1143,6 +1155,156 @@ pub fn create_spectrum_2dsum(
         Err(s)
     } else {
         Ok(())
+    }
+}
+
+/// Delete a spectrum.
+///
+/// * name - name of the spectrum to delete.
+/// *  req - request channel
+/// *  reply_send - channel on which to send the reply.
+/// *  reply_recv  - Chanel on which to recieve the reply.
+///
+/// Returns SpectrumServerEmptyResult
+///
+pub fn delete_spectrum(
+    name: &str,
+    req: mpsc::Sender<Request>,
+    rep_send: mpsc::Sender<Reply>,
+    rep_recv: mpsc::Receiver<Reply>,
+) -> SpectrumServerEmptyResult {
+    let reply = transact(delete_request(name), req, rep_send, rep_recv);
+    if let SpectrumReply::Error(s) = reply {
+        Err(s)
+    } else {
+        Ok(())
+    }
+}
+/// list spectra
+///
+/// *   pattern - Glob pattern the server will list information
+/// for all spectra that match the pattern. Note that "*" will
+/// match all spectgra.
+/// *  req - request channel
+/// *  reply_send - channel on which to send the reply.
+/// *  reply_recv  - Chanel on which to recieve the reply.
+///
+/// Returns : SpectrumServerListingResult
+///
+pub fn list_spectra(
+    pattern: &str,
+    req: mpsc::Sender<Request>,
+    rep_send: mpsc::Sender<Reply>,
+    rep_recv: mpsc::Receiver<Reply>,
+) -> SpectrumServerListingResult {
+    match transact(list_request(pattern), req, rep_send, rep_recv) {
+        SpectrumReply::Error(s) => Err(s),
+        SpectrumReply::Listing(l) => Ok(l),
+        _ => Err(String::from("Unexpected server result for list request")),
+    }
+}
+/// Apply a gate to a spectrum:
+///
+/// * spectrum -name of the spectrum.
+/// * gate - name of the gate to apply.
+/// *  req - request channel
+/// *  reply_send - channel on which to send the reply.
+/// *  reply_recv  - Chanel on which to recieve the reply.
+///
+/// Retuns: SpectrumServerEmptyResult.
+///
+pub fn gate_spectrum(
+    spectrum: &str,
+    gate: &str,
+    req: mpsc::Sender<Request>,
+    rep_send: mpsc::Sender<Reply>,
+    rep_recv: mpsc::Receiver<Reply>,
+) -> SpectrumServerEmptyResult {
+    let reply = transact(gate_request(spectrum, gate), req, rep_send, rep_recv);
+    if let SpectrumReply::Error(s) = reply {
+        Err(s)
+    } else {
+        Ok(())
+    }
+}
+/// Ungate a spectrum.  
+///
+/// *  name - name of the spectrum
+/// *  req - request channel
+/// *  reply_send - channel on which to send the reply.
+/// *  reply_recv  - Chanel on which to recieve the reply.
+///
+/// Retuns: SpectrumServerEmptyResult.
+///
+pub fn ungate_spectrum(
+    name: &str,
+    req: mpsc::Sender<Request>,
+    rep_send: mpsc::Sender<Reply>,
+    rep_recv: mpsc::Receiver<Reply>,
+) -> SpectrumServerEmptyResult {
+    let reply = transact(ungate_request(name), req, rep_send, rep_recv);
+    if let SpectrumReply::Error(s) = reply {
+        Err(s)
+    } else {
+        Ok(())
+    }
+}
+
+/// clear spectra
+///
+/// *  pattern - glob pattern that describes the spectra to clear.
+/// e.g. "*" clears them all.
+/// *  req - request channel
+/// *  reply_send - channel on which to send the reply.
+/// *  reply_recv  - Chanel on which to recieve the reply.
+///
+/// Retuns: SpectrumServerEmptyResult.
+///
+pub fn clear_spectrum(
+    pattern: &str,
+    req: mpsc::Sender<Request>,
+    rep_send: mpsc::Sender<Reply>,
+    rep_recv: mpsc::Receiver<Reply>,
+) -> SpectrumServerEmptyResult {
+    let reply = transact(clear_request(pattern), req, rep_send, rep_recv);
+    if let SpectrumReply::Error(s) = reply {
+        Err(s)
+    } else {
+        Ok(())
+    }
+}
+///
+/// Get the contents of a spectrum.
+///
+/// * name - name of the spectrum.
+/// * xlow, xhigh, ylow, yhigh - a rectangular region of interest in
+/// parameter coordinate space within which the data are returned.
+/// Note that only data with non-zero channel values are returned.
+/// *  req - request channel
+/// *  reply_send - channel on which to send the reply.
+/// *  reply_recv  - Chanel on which to recieve the reply.
+///
+/// Returns:  SpectrumServerContentsResult
+///
+pub fn get_contents(
+    name: &str,
+    xlow: f64,
+    xhigh: f64,
+    ylow: f64,
+    yhigh: f64,
+    req: mpsc::Sender<Request>,
+    rep_send: mpsc::Sender<Reply>,
+    rep_recv: mpsc::Receiver<Reply>,
+) -> SpectrumServerContentsResult {
+    match transact(
+        getcontents_request(name, xlow, xhigh, ylow, yhigh),
+        req,
+        rep_send,
+        rep_recv,
+    ) {
+        SpectrumReply::Error(s) => Err(s),
+        SpectrumReply::Contents(c) => Ok(c),
+        _ => Err(String::from("Unexpected reply type for get_contents")),
     }
 }
 
