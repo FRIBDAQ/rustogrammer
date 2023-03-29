@@ -4131,4 +4131,72 @@ mod spectrum_api_tests {
 
         stop_server(jh, send);
     }
+    #[test]
+    fn makesummary_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let params = vec![
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+            String::from("param.5"),
+        ];
+        assert_eq!(
+            Ok(()),
+            create_spectrum_summary(
+                "test",
+                &params,
+                0.0,
+                1024.0,
+                1024,
+                send.clone(),
+                rep_send,
+                rep_recv
+            )
+        );
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let l =
+            list_spectra("*", send.clone(), rep_send, rep_recv).expect("Failed to list spectra");
+        assert_eq!(1, l.len());
+        assert_eq!(
+            SpectrumProperties {
+                name: String::from("test"),
+                type_name: String::from("Summary"),
+                xparams: params,
+                yparams: vec![],
+                xaxis: None,
+                yaxis: Some(AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1026
+                }),
+                gate: None
+            },
+            l[0]
+        );
+
+        stop_server(jh, send);
+    }
+    fn make2d_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+
+        create_spectrum_2d(
+            "test",
+            "param.0",
+            "param.1",
+            0.0,
+            1024.0,
+            1024,
+            -1.0,
+            1.0,
+            100,
+            send.clone(),
+            rep_send,
+            rep_recv,
+        )
+        .expect("Failed to make 2d spectrum");
+    }
 }
