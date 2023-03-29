@@ -4329,4 +4329,16 @@ mod spectrum_api_tests {
 
         stop_server(jh, send);
     }
+    // Test list spectra with a bad glob pattern:
+
+    #[test]
+    fn list_2() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+
+        let result = list_spectra("test[...", send.clone(), rep_send, rep_recv);
+        stop_server(jh, send);
+
+        assert!(result.is_err());
+    }
 }
