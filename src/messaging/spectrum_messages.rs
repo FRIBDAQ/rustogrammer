@@ -4288,4 +4288,45 @@ mod spectrum_api_tests {
 
         stop_server(jh, send);
     }
+    #[test]
+    fn delete_1() {
+        let (jh, send) = start_server();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            let sname = format!("test.{}", i);
+            let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+            create_spectrum_1d(
+                &sname,
+                &pname,
+                0.0,
+                1024.0,
+                1024,
+                send.clone(),
+                rep_send,
+                rep_recv,
+            )
+            .expect("failed to make spectrum");
+        }
+        // There are now 10 spectra - delete test.00:
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        delete_spectrum("test.0", send.clone(), rep_send, rep_recv)
+            .expect("Delete spectrum failed");
+
+        // Should not be able to list test.0:
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let l = list_spectra("test.0", send.clone(), rep_send, rep_recv)
+            .expect("Failed to list spectra");
+        assert_eq!(0, l.len());
+
+        // should be 9 left:
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let l = list_spectra("test.*", send.clone(), rep_send, rep_recv)
+            .expect("Failed to list multiple spectra");
+        assert_eq!(9, l.len());
+
+        stop_server(jh, send);
+    }
 }
