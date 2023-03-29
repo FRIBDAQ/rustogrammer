@@ -4341,4 +4341,29 @@ mod spectrum_api_tests {
 
         assert!(result.is_err());
     }
+    #[test]
+    fn gate_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        create_spectrum_1d(
+            "test",
+            "param.1",
+            0.0,
+            1024.0,
+            1024,
+            send.clone(),
+            rep_send,
+            rep_recv,
+        )
+        .expect("Failed to create spectrum");
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        gate_spectrum("test", "true.1", send.clone(), rep_send, rep_recv)
+            .expect("Failed to gate spectrum");
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let l = list_spectra("*", send.clone(), rep_send, rep_recv).expect("listing failed");
+        assert_eq!(1, l.len());
+        assert_eq!(Some(String::from("true.1")), l[0].gate);
+    }
 }
