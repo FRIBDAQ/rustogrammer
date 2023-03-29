@@ -3788,3 +3788,111 @@ mod reqstruct_tests {
         assert_eq!(SpectrumRequest::Events(events), req);
     }
 }
+#[cfg(test)]
+mod spectrum_api_tests {
+    use super::*;
+    use std::sync::mpsc;
+    use std::thread;
+
+    // This is a fake server thread:
+    // Creates the spectrum processor, a parameter dictionary
+    // with few parameters in it and a condition dictionary
+    // with a few harmless conditions.
+    // Then accepts Requests until Exit.  If something other
+    // than Exit or a Spectrum request arrives, panics.
+    // Spectrum requests are passed to the spectrum processor
+    // and the return is used to provide a spectrum reply that's
+    // send back to the client.
+    // All of this supports testing the spectrum section of the
+    // histogram server.
+    // See also:
+    //   start_server - which starts the server.
+    //   stop_server - which ends the server and joins with it.
+    //
+    //
+    fn fake_server(reader: mpsc::Receiver<Request>) {
+        let mut processor = SpectrumProcessor::new();
+        let mut params = parameters::ParameterDictionary::new();
+        let mut cdict = conditions::ConditionDictionary::new();
+
+        // Make some parameters:
+        // Note these wil have ids 1..10 (white box).
+
+        for i in 0..10 {
+            params
+                .add(&format!("param.{}", i))
+                .expect("Failed to add parameters");
+        }
+        // Make some conditions:
+
+        for i in 0..10 {
+            cdict.insert(
+                format!("true.{}", i),
+                Rc::new(RefCell::new(Box::new(conditions::True {}))),
+            );
+        }
+        for i in 0..10 {
+            cdict.insert(
+                format!("false.{}", i),
+                Rc::new(RefCell::new(Box::new(conditions::False {}))),
+            );
+        }
+        // process requests:
+
+        loop {
+            let request = reader.recv().expect("Request read failed");
+            match request.message {
+                MessageType::Exit => {
+                    request.reply_channel.send(Reply::Exiting);
+                    break;
+                }
+                MessageType::Spectrum(sreq) => {
+                    let reply = processor.process_request(sreq, &params, &mut cdict);
+                    request
+                        .reply_channel
+                        .send(Reply::Spectrum(reply))
+                        .expect("Reply to client failed");
+                }
+                _ => {
+                    panic!("Unexpected message type in fake server");
+                }
+            }
+        }
+    }
+    // Starting the server returns a join handle and the request channel.
+
+    fn start_server() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
+        let (sender, receiver) = mpsc::channel::<Request>();
+        let handle = thread::spawn(move || fake_server(receiver));
+        (handle, sender)
+    }
+    fn stop_server(handle: thread::JoinHandle<()>, req_chan: mpsc::Sender<Request>) {
+        let (repl_send, repl_receive) = mpsc::channel::<Reply>();
+        let req = Request {
+            reply_channel: repl_send,
+            message: MessageType::Exit,
+        };
+        let reply = req.transaction(req_chan, repl_receive);
+        if let Reply::Exiting = reply {
+            handle.join().expect("Fake server join failed");
+        } else {
+            panic!("Requested exit from server but didn't get back Exiting reply");
+        }
+    }
+    // Note that tests will need for list to work to probe server contents.
+    // (alternative is to wrap the spectrum processor in an Arc/Mutex and make
+    // it shared but we need list to work anyway so wth):
+    #[test]
+    fn list_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let reply = list_spectra("*", send.clone(), rep_send, rep_recv);
+        assert!(if let Ok(l) = reply {
+            assert_eq!(0, l.len()); // Nothing to list
+            true
+        } else {
+            stop_server(jh, send);
+            false
+        })
+    }
+}
