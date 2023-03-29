@@ -3985,7 +3985,7 @@ mod spectrum_api_tests {
                 assert_eq!(
                     SpectrumProperties {
                         name: String::from("test"),
-                        type_name: String::from("Multi1D"),
+                        type_name: String::from("Multi1d"),
                         xparams: params,
                         yparams: vec![],
                         xaxis: Some(AxisSpecification {
@@ -3995,7 +3995,7 @@ mod spectrum_api_tests {
                         gate: None
                     },
                     l[0]
-                )
+                );
                 true
             } else {
                 false
