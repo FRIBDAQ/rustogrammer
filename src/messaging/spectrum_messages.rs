@@ -4203,6 +4203,88 @@ mod spectrum_api_tests {
         let (rep_send, rep_recv) = mpsc::channel::<Reply>();
         let l =
             list_spectra("*", send.clone(), rep_send, rep_recv).expect("Failed to list spectra");
+        assert_eq!(1, l.len());
+        assert_eq!(
+            SpectrumProperties {
+                name: String::from("test"),
+                type_name: String::from("2D"),
+                xparams: vec![String::from("param.0")],
+                yparams: vec![String::from("param.1")],
+                xaxis: Some(AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1026
+                }),
+                yaxis: Some(AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 102
+                }),
+                gate: None
+            },
+            l[0]
+        );
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn make2dsum_1() {
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let xparams = vec![
+            String::from("param.1"),
+            String::from("param.2"),
+            String::from("param.3"),
+            String::from("param.4"),
+            String::from("param.5"),
+        ];
+        let yparams = vec![
+            String::from("param.0"),
+            String::from("param.6"),
+            String::from("param.7"),
+            String::from("param.8"),
+            String::from("param.9"),
+        ];
+        create_spectrum_2dsum(
+            "test",
+            &xparams,
+            &yparams,
+            0.0,
+            1024.0,
+            1024,
+            -1.0,
+            1.0,
+            100,
+            send.clone(),
+            rep_send,
+            rep_recv,
+        )
+        .expect("Failed to try to make a 2dsum");
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let l = list_spectra("*", send.clone(), rep_send, rep_recv)
+            .expect("Failed to get  spectrum listing");
+        assert_eq!(1, l.len());
+        assert_eq!(
+            SpectrumProperties {
+                name: String::from("test"),
+                type_name: String::from("2DSum"),
+                xparams: xparams,
+                yparams: yparams,
+                xaxis: Some(AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1026
+                }),
+                yaxis: Some(AxisSpecification {
+                    low: -1.0,
+                    high: 1.0,
+                    bins: 102
+                }),
+                gate: None
+            },
+            l[0]
+        );
 
         stop_server(jh, send);
     }
