@@ -4450,5 +4450,67 @@ mod spectrum_api_tests {
         )
         .expect("Failed to get spectrum contents");
         assert_eq!(0, contents.len());
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn event_1() {
+        // only way to put non-zero contents in spectra
+        // is via events.
+        // Note that param.0 is id 1 param1. id 2 etc...
+        //
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+
+        create_spectrum_1d(
+            "test",
+            "param.1",
+            0.0,
+            1024.0,
+            1024,
+            send.clone(),
+            rep_send,
+            rep_recv,
+        )
+        .expect("Failed to make spectrum");
+
+        // Make events to send to the server to put some
+        // counts into the spectrum:
+
+        let events = vec![
+            vec![parameters::EventParameter::new(2, 100.0)],
+            vec![parameters::EventParameter::new(2, 100.0)],
+            vec![parameters::EventParameter::new(2, 100.0)],
+            vec![parameters::EventParameter::new(2, 100.0)],
+            vec![parameters::EventParameter::new(2, 100.0)],
+            vec![parameters::EventParameter::new(2, 100.0)],
+        ]; // 6 bcounts at 100.0
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        process_events(&events, send.clone(), rep_send, rep_recv)
+            .expect("Failed to process events");
+
+        // Now get the contents should be one entry with 6 counts
+        // at 100.0:
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let contents = get_contents(
+            "test",
+            0.0,
+            1024.0,
+            0.0,
+            0.0,
+            send.clone(),
+            rep_send,
+            rep_recv,
+        )
+        .expect("Unable to get spectrumcontents");
+        assert_eq!(1, contents.len());
+        let c = contents[0];
+        assert_eq!(ChannelType::Bin, c.chan_type);
+        assert_eq!(100.0, c.x);
+        assert_eq!(6.0, c.value);
+
+        stop_server(jh, send);
     }
 }
