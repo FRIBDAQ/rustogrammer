@@ -1241,6 +1241,7 @@ mod cnd_api_tests {
         } else {
             panic!("Failed to create a false condition");
         }
+        stop_server(jh, send);
     }
     #[test]
     fn not_1() {
@@ -1476,5 +1477,6 @@ mod cnd_api_tests {
         } else {
             panic!("Replacement did not return replaced reply.");
         }
+        stop_server(jh, send);
     }
 }

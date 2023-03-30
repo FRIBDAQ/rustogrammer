@@ -120,7 +120,6 @@ impl Oned {
 #[cfg(test)]
 mod oned_tests {
     use super::*;
-    use ndhistogram::axis::*;
     use std::cell::RefCell;
     use std::rc::Rc;
 

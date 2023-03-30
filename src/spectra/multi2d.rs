@@ -212,7 +212,6 @@ impl Multi2d {
 #[cfg(test)]
 mod multi2d_tests {
     use super::*;
-    use ndhistogram::axis::*;
     use std::cell::RefCell;
     use std::rc::Rc;
     #[test]

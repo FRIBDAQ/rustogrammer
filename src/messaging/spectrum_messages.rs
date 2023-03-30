@@ -155,7 +155,6 @@ impl SpectrumProcessor {
         axis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
     ) -> SpectrumReply {
-        let sname = String::from(name);
         if !self.dict.exists(name) {
             match spectra::Oned::new(
                 name,
@@ -499,7 +498,7 @@ impl SpectrumProcessor {
                     let v = c.value.get();
                     if v != 0.0 {
                         match c.bin {
-                            BinInterval::Underflow { end } => {
+                            BinInterval::Underflow { end: _end } => {
                                 result.push(Channel {
                                     chan_type: ChannelType::Underflow,
                                     value: v,
@@ -507,7 +506,7 @@ impl SpectrumProcessor {
                                     y: 0.0,
                                 });
                             }
-                            BinInterval::Overflow { start } => {
+                            BinInterval::Overflow { start: _start } => {
                                 result.push(Channel {
                                     chan_type: ChannelType::Overflow,
                                     value: v,
@@ -515,7 +514,7 @@ impl SpectrumProcessor {
                                     y: 0.0,
                                 });
                             }
-                            BinInterval::Bin { start, end } => {
+                            BinInterval::Bin { start, end: _end } => {
                                 if (start >= xlow) && (start <= xhigh) {
                                     result.push(Channel {
                                         chan_type: ChannelType::Bin,
@@ -539,28 +538,28 @@ impl SpectrumProcessor {
                     let mut ctype = ChannelType::Bin;
 
                     match xbin {
-                        BinInterval::Overflow { start } => {
+                        BinInterval::Overflow { start: _start } => {
                             ctype = ChannelType::Overflow;
                         }
-                        BinInterval::Underflow { end } => {
+                        BinInterval::Underflow { end: _end } => {
                             ctype = ChannelType::Underflow;
                         }
-                        BinInterval::Bin { start, end } => {
+                        BinInterval::Bin { start, end: _end } => {
                             x = start;
                         }
                     };
                     match ybin {
-                        BinInterval::Overflow { start } => {
+                        BinInterval::Overflow { start: _start } => {
                             if ctype == ChannelType::Bin {
                                 ctype = ChannelType::Overflow;
                             }
                         }
-                        BinInterval::Underflow { end } => {
+                        BinInterval::Underflow { end: _end } => {
                             if ctype == ChannelType::Bin {
                                 ctype = ChannelType::Underflow;
                             }
                         }
-                        BinInterval::Bin { start, end } => {
+                        BinInterval::Bin { start, end: _end } => {
                             y = start;
                         }
                     };
@@ -1335,7 +1334,6 @@ mod spproc_tests {
     use super::*;
     use crate::conditions::*;
     use crate::parameters::*;
-    use crate::spectra::*;
     use std::cmp::Ordering;
 
     #[test]
@@ -3134,7 +3132,7 @@ mod spproc_tests {
                 let d = ch.value.get();
                 if d != 0.0 {
                     assert_eq!(5.0, d);
-                    if let BinInterval::Bin { start, end } = ch.bin {
+                    if let BinInterval::Bin { start, end: _end } = ch.bin {
                         assert_eq!(chan, start);
                     } else {
                         panic!("Under or overflow counts in histogram");

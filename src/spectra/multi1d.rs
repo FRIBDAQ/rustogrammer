@@ -14,7 +14,6 @@
 use super::*;
 use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
-use ndhistogram::*;
 
 ///
 /// *  applied_gate - is the gate that can conditionalize increments.
@@ -168,7 +167,7 @@ impl Multi1d {
 #[cfg(test)]
 mod multi1d_tests {
     use super::*;
-    use ndhistogram::axis::*;
+    // use ndhistogram::axis::*;
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gating.
     #[test]

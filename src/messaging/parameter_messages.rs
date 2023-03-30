@@ -397,7 +397,9 @@ mod param_msg_tests {
         assert_eq!((None, None), pars[1].get_limits());
         assert_eq!(None, pars[1].get_bins());
         assert_eq!(None, pars[1].get_units());
-        assert_eq!(None, pars[1].get_description())
+        assert_eq!(None, pars[1].get_description());
+
+        tjh.join().unwrap();
     }
     #[test]
     fn mod_1() {
@@ -416,6 +418,7 @@ mod param_msg_tests {
         let reply =
             modify_parameter_metadata(req_send, rep_send, rep_rcv, "junk", None, None, None, None);
         assert!(reply.is_ok());
+        tjh.join().unwrap();
     }
     #[test]
     fn mod_2() {
