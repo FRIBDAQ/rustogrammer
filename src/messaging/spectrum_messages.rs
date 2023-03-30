@@ -666,192 +666,7 @@ impl SpectrumProcessor {
     }
 }
 //----------------------------------------------------------------
-// The unbound functions below provide private message formatting
-// used by the client code:
-
-fn create1d_request(
-    name: &str,
-    parameter: &str,
-    low: f64,
-    high: f64,
-    bins: u32,
-) -> SpectrumRequest {
-    SpectrumRequest::Create1D {
-        name: String::from(name),
-        parameter: String::from(parameter),
-        axis: AxisSpecification { low, high, bins },
-    }
-}
-
-fn createmulti1d_request(
-    name: &str,
-    params: &Vec<String>,
-    low: f64,
-    high: f64,
-    bins: u32,
-) -> SpectrumRequest {
-    SpectrumRequest::CreateMulti1D {
-        name: String::from(name),
-        params: params.clone(),
-        axis: AxisSpecification { low, high, bins },
-    }
-}
-fn createmulti2d_request(
-    name: &str,
-    params: &Vec<String>,
-    xlow: f64,
-    xhigh: f64,
-    xbins: u32,
-    ylow: f64,
-    yhigh: f64,
-    ybins: u32,
-) -> SpectrumRequest {
-    SpectrumRequest::CreateMulti2D {
-        name: String::from(name),
-        params: params.clone(),
-        xaxis: AxisSpecification {
-            low: xlow,
-            high: xhigh,
-            bins: xbins,
-        },
-        yaxis: AxisSpecification {
-            low: ylow,
-            high: yhigh,
-            bins: ybins,
-        },
-    }
-}
-fn createpgamma_request(
-    name: &str,
-    xparams: &Vec<String>,
-    yparams: &Vec<String>,
-    xlow: f64,
-    xhigh: f64,
-    xbins: u32,
-    ylow: f64,
-    yhigh: f64,
-    ybins: u32,
-) -> SpectrumRequest {
-    SpectrumRequest::CreatePGamma {
-        name: String::from(name),
-        xparams: xparams.clone(),
-        yparams: yparams.clone(),
-        xaxis: AxisSpecification {
-            low: xlow,
-            high: xhigh,
-            bins: xbins,
-        },
-        yaxis: AxisSpecification {
-            low: ylow,
-            high: yhigh,
-            bins: ybins,
-        },
-    }
-}
-fn createsummary_request(
-    name: &str,
-    params: &Vec<String>,
-    low: f64,
-    high: f64,
-    bins: u32,
-) -> SpectrumRequest {
-    SpectrumRequest::CreateSummary {
-        name: String::from(name),
-        params: params.clone(),
-        yaxis: AxisSpecification { low, high, bins },
-    }
-}
-fn create2d_request(
-    name: &str,
-    xparam: &str,
-    yparam: &str,
-    xlow: f64,
-    xhigh: f64,
-    xbins: u32,
-    ylow: f64,
-    yhigh: f64,
-    ybins: u32,
-) -> SpectrumRequest {
-    SpectrumRequest::Create2D {
-        name: String::from(name),
-        xparam: String::from(xparam),
-        yparam: String::from(yparam),
-        xaxis: AxisSpecification {
-            low: xlow,
-            high: xhigh,
-            bins: xbins,
-        },
-        yaxis: AxisSpecification {
-            low: ylow,
-            high: yhigh,
-            bins: ybins,
-        },
-    }
-}
-fn create2dsum_request(
-    name: &str,
-    xparams: &Vec<String>,
-    yparams: &Vec<String>,
-    xlow: f64,
-    xhigh: f64,
-    xbins: u32,
-    ylow: f64,
-    yhigh: f64,
-    ybins: u32,
-) -> SpectrumRequest {
-    SpectrumRequest::Create2DSum {
-        name: String::from(name),
-        xparams: xparams.clone(),
-        yparams: yparams.clone(),
-        xaxis: AxisSpecification {
-            low: xlow,
-            high: xhigh,
-            bins: xbins,
-        },
-        yaxis: AxisSpecification {
-            low: ylow,
-            high: yhigh,
-            bins: ybins,
-        },
-    }
-}
-fn delete_request(name: &str) -> SpectrumRequest {
-    SpectrumRequest::Delete(String::from(name))
-}
-fn list_request(pattern: &str) -> SpectrumRequest {
-    SpectrumRequest::List(String::from(pattern))
-}
-fn gate_request(spectrum: &str, condition: &str) -> SpectrumRequest {
-    SpectrumRequest::Gate {
-        spectrum: String::from(spectrum),
-        gate: String::from(condition),
-    }
-}
-fn ungate_request(name: &str) -> SpectrumRequest {
-    SpectrumRequest::Ungate(String::from(name))
-}
-fn clear_request(pattern: &str) -> SpectrumRequest {
-    SpectrumRequest::Clear(String::from(pattern))
-}
-fn getcontents_request(
-    name: &str,
-    xlow: f64,
-    xhigh: f64,
-    ylow: f64,
-    yhigh: f64,
-) -> SpectrumRequest {
-    SpectrumRequest::GetContents {
-        name: String::from(name),
-        xlow,
-        xhigh,
-        ylow,
-        yhigh,
-    }
-}
-fn events_request(events: &Vec<parameters::Event>) -> SpectrumRequest {
-    SpectrumRequest::Events(events.clone())
-}
-//------------------- Client API methods-------------------------
+// Client code:
 
 /// This is a Result where the server has nothing of
 /// of interest to say to the caller.
@@ -866,467 +681,539 @@ pub type SpectrumServerListingResult = Result<Vec<SpectrumProperties>, String>;
 /// This type is a result the API will sue to return spectrum
 /// contents:
 pub type SpectrumServerContentsResult = Result<SpectrumContents, String>;
+
 ///
-/// Perform an arbitrary transaction.  This could actually
-/// be private but,  since the request and reply structs
-/// are public this is too:
+/// This struct provides a container for the channel used to
+/// make server requests.  The implementation can then be simplified
+/// as each request can make the reply channel pair.
 ///
-/// *  req  - The request object
-/// *  req_chan - Channel to which to send the request.
-/// *  reply_send - Channel to which the server shouild send the reply
-/// *  reply_recv - Channel on which the client receives the reply.
-///
-/// *   Returns: SpectrumReply
-/// *   Note:  if the reply is not a SpectrumReply, panics.
-/// *   Note:  The request is consumed.
-pub fn transact(
-    req: SpectrumRequest,
+pub struct SpectrumMessageClient {
     req_chan: mpsc::Sender<Request>,
-    reply_send: mpsc::Sender<Reply>,
-    reply_recv: mpsc::Receiver<Reply>,
-) -> SpectrumReply {
-    let request = Request {
-        reply_channel: reply_send,
-        message: MessageType::Spectrum(req),
-    };
-    let reply = request.transaction(req_chan, reply_recv);
-    if let Reply::Spectrum(r) = reply {
-        r
-    } else {
-        panic!("Expected Spectrum reply got something else");
-    }
 }
-///
-/// Create a 1d spectrum:
-///
-/// *  name - name of the spectrum to create.
-/// *  parameter - name of the parameter to histogram
-/// *  low, high, bins - axis specification for the spectrum.
-/// *  req - request channely
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Returns: SpectrumServerEmptyResult
-///
-pub fn create_spectrum_1d(
-    name: &str,
-    parameter: &str,
-    low: f64,
-    high: f64,
-    bins: u32,
-    req: mpsc::Sender<Request>,
-    reply_send: mpsc::Sender<Reply>,
-    reply_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(
-        create1d_request(name, parameter, low, high, bins),
-        req,
-        reply_send,
-        reply_recv,
-    );
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
-    }
-}
-/// Create a mutiply incremented 1d spectrum (gamma 1d).
-///
-///
-/// *   name - name of the spectrum.
-/// *   params - Names of the parameters to histogram.
-/// *   low, high, bins - axis specifications.
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Returns: SpectrumServerEmptyResult
-///
-pub fn create_spectrum_multi1d(
-    name: &str,
-    parameters: &Vec<String>,
-    low: f64,
-    high: f64,
-    bins: u32,
-    req: mpsc::Sender<Request>,
-    reply_send: mpsc::Sender<Reply>,
-    reply_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(
-        createmulti1d_request(name, parameters, low, high, bins),
-        req,
-        reply_send,
-        reply_recv,
-    );
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
-    }
-}
-/// Create a muliply incremented 2d spectrum (gamma 2)
-///
-/// *   name - spectrum name.
-/// *   parameters - vector of  parameters (reference)
-/// *   xlow, xhigh, xbins - x axis specification.
-/// *   ylow, yhigh, ybins - y axis specification.
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Returns: SpectrumServerEmptyResult
 
-pub fn create_spectrum_multi2d(
-    name: &str,
-    parameters: &Vec<String>,
-    xlow: f64,
-    xhigh: f64,
-    xbins: u32,
-    ylow: f64,
-    yhigh: f64,
-    ybins: u32,
-    req: mpsc::Sender<Request>,
-    reply_send: mpsc::Sender<Reply>,
-    reply_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(
-        createmulti2d_request(name, parameters, xlow, xhigh, xbins, ylow, yhigh, ybins),
-        req,
-        reply_send,
-        reply_recv,
-    );
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
+impl SpectrumMessageClient {
+    fn create1d_request(
+        name: &str,
+        parameter: &str,
+        low: f64,
+        high: f64,
+        bins: u32,
+    ) -> SpectrumRequest {
+        SpectrumRequest::Create1D {
+            name: String::from(name),
+            parameter: String::from(parameter),
+            axis: AxisSpecification { low, high, bins },
+        }
     }
-}
-///  Create a particle gamma spectrum (gamma delux).
-///
-/// *   name -spectrum name.
-/// *   xparams - xaxis parameters.
-/// *   yparams - yaxis parameters.
-/// *   xlow, xhigh, xbins - x axis specification.
-/// *   ylow, yhigh, ybins - y axis specification.
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Returns: SpectrumServerEmptyResult
 
-pub fn create_spectrum_pgamma(
-    name: &str,
-    xparams: &Vec<String>,
-    yparams: &Vec<String>,
-    xlow: f64,
-    xhigh: f64,
-    xbins: u32,
-    ylow: f64,
-    yhigh: f64,
-    ybins: u32,
-    req: mpsc::Sender<Request>,
-    reply_send: mpsc::Sender<Reply>,
-    reply_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(
-        createpgamma_request(
+    fn createmulti1d_request(
+        name: &str,
+        params: &Vec<String>,
+        low: f64,
+        high: f64,
+        bins: u32,
+    ) -> SpectrumRequest {
+        SpectrumRequest::CreateMulti1D {
+            name: String::from(name),
+            params: params.clone(),
+            axis: AxisSpecification { low, high, bins },
+        }
+    }
+    fn createmulti2d_request(
+        name: &str,
+        params: &Vec<String>,
+        xlow: f64,
+        xhigh: f64,
+        xbins: u32,
+        ylow: f64,
+        yhigh: f64,
+        ybins: u32,
+    ) -> SpectrumRequest {
+        SpectrumRequest::CreateMulti2D {
+            name: String::from(name),
+            params: params.clone(),
+            xaxis: AxisSpecification {
+                low: xlow,
+                high: xhigh,
+                bins: xbins,
+            },
+            yaxis: AxisSpecification {
+                low: ylow,
+                high: yhigh,
+                bins: ybins,
+            },
+        }
+    }
+    fn createpgamma_request(
+        name: &str,
+        xparams: &Vec<String>,
+        yparams: &Vec<String>,
+        xlow: f64,
+        xhigh: f64,
+        xbins: u32,
+        ylow: f64,
+        yhigh: f64,
+        ybins: u32,
+    ) -> SpectrumRequest {
+        SpectrumRequest::CreatePGamma {
+            name: String::from(name),
+            xparams: xparams.clone(),
+            yparams: yparams.clone(),
+            xaxis: AxisSpecification {
+                low: xlow,
+                high: xhigh,
+                bins: xbins,
+            },
+            yaxis: AxisSpecification {
+                low: ylow,
+                high: yhigh,
+                bins: ybins,
+            },
+        }
+    }
+    fn createsummary_request(
+        name: &str,
+        params: &Vec<String>,
+        low: f64,
+        high: f64,
+        bins: u32,
+    ) -> SpectrumRequest {
+        SpectrumRequest::CreateSummary {
+            name: String::from(name),
+            params: params.clone(),
+            yaxis: AxisSpecification { low, high, bins },
+        }
+    }
+    fn create2d_request(
+        name: &str,
+        xparam: &str,
+        yparam: &str,
+        xlow: f64,
+        xhigh: f64,
+        xbins: u32,
+        ylow: f64,
+        yhigh: f64,
+        ybins: u32,
+    ) -> SpectrumRequest {
+        SpectrumRequest::Create2D {
+            name: String::from(name),
+            xparam: String::from(xparam),
+            yparam: String::from(yparam),
+            xaxis: AxisSpecification {
+                low: xlow,
+                high: xhigh,
+                bins: xbins,
+            },
+            yaxis: AxisSpecification {
+                low: ylow,
+                high: yhigh,
+                bins: ybins,
+            },
+        }
+    }
+    fn create2dsum_request(
+        name: &str,
+        xparams: &Vec<String>,
+        yparams: &Vec<String>,
+        xlow: f64,
+        xhigh: f64,
+        xbins: u32,
+        ylow: f64,
+        yhigh: f64,
+        ybins: u32,
+    ) -> SpectrumRequest {
+        SpectrumRequest::Create2DSum {
+            name: String::from(name),
+            xparams: xparams.clone(),
+            yparams: yparams.clone(),
+            xaxis: AxisSpecification {
+                low: xlow,
+                high: xhigh,
+                bins: xbins,
+            },
+            yaxis: AxisSpecification {
+                low: ylow,
+                high: yhigh,
+                bins: ybins,
+            },
+        }
+    }
+    fn delete_request(name: &str) -> SpectrumRequest {
+        SpectrumRequest::Delete(String::from(name))
+    }
+    fn list_request(pattern: &str) -> SpectrumRequest {
+        SpectrumRequest::List(String::from(pattern))
+    }
+    fn gate_request(spectrum: &str, condition: &str) -> SpectrumRequest {
+        SpectrumRequest::Gate {
+            spectrum: String::from(spectrum),
+            gate: String::from(condition),
+        }
+    }
+    fn ungate_request(name: &str) -> SpectrumRequest {
+        SpectrumRequest::Ungate(String::from(name))
+    }
+    fn clear_request(pattern: &str) -> SpectrumRequest {
+        SpectrumRequest::Clear(String::from(pattern))
+    }
+    fn getcontents_request(
+        name: &str,
+        xlow: f64,
+        xhigh: f64,
+        ylow: f64,
+        yhigh: f64,
+    ) -> SpectrumRequest {
+        SpectrumRequest::GetContents {
+            name: String::from(name),
+            xlow,
+            xhigh,
+            ylow,
+            yhigh,
+        }
+    }
+    fn events_request(events: &Vec<parameters::Event>) -> SpectrumRequest {
+        SpectrumRequest::Events(events.clone())
+    }
+
+    fn transact(&self, req: SpectrumRequest) -> SpectrumReply {
+        let (reply_send, reply_recv) = mpsc::channel::<Reply>();
+        let request = Request {
+            reply_channel: reply_send,
+            message: MessageType::Spectrum(req),
+        };
+        let reply = request.transaction(self.req_chan.clone(), reply_recv);
+        if let Reply::Spectrum(r) = reply {
+            r
+        } else {
+            panic!("Expected Spectrum reply got something else");
+        }
+    }
+
+    //------------------- Client API methods-------------------------
+
+    /// Create an instance of the api:
+
+    pub fn new(req_chan: &mpsc::Sender<Request>) -> SpectrumMessageClient {
+        SpectrumMessageClient {
+            req_chan: req_chan.clone(),
+        }
+    }
+
+    ///
+    /// Create a 1d spectrum:
+    ///
+    /// *  name - name of the spectrum to create.
+    /// *  parameter - name of the parameter to histogram
+    /// *  low, high, bins - axis specification for the spectrum.
+
+    ///
+    /// Returns: SpectrumServerEmptyResult
+    ///
+    pub fn create_spectrum_1d(
+        &self,
+        name: &str,
+        parameter: &str,
+        low: f64,
+        high: f64,
+        bins: u32,
+    ) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::create1d_request(name, parameter, low, high, bins));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
+    }
+    /// Create a mutiply incremented 1d spectrum (gamma 1d).
+    ///
+    ///
+    /// *   name - name of the spectrum.
+    /// *   params - Names of the parameters to histogram.
+    /// *   low, high, bins - axis specifications.
+
+    ///
+    /// Returns: SpectrumServerEmptyResult
+    ///
+    pub fn create_spectrum_multi1d(
+        &self,
+        name: &str,
+        parameters: &Vec<String>,
+        low: f64,
+        high: f64,
+        bins: u32,
+    ) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::createmulti1d_request(
+            name, parameters, low, high, bins,
+        ));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
+    }
+    /// Create a muliply incremented 2d spectrum (gamma 2)
+    ///
+    /// *   name - spectrum name.
+    /// *   parameters - vector of  parameters (reference)
+    /// *   xlow, xhigh, xbins - x axis specification.
+    /// *   ylow, yhigh, ybins - y axis specification.
+    ///
+    /// Returns: SpectrumServerEmptyResult
+
+    pub fn create_spectrum_multi2d(
+        &self,
+        name: &str,
+        parameters: &Vec<String>,
+        xlow: f64,
+        xhigh: f64,
+        xbins: u32,
+        ylow: f64,
+        yhigh: f64,
+        ybins: u32,
+    ) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::createmulti2d_request(
+            name, parameters, xlow, xhigh, xbins, ylow, yhigh, ybins,
+        ));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
+    }
+    ///  Create a particle gamma spectrum (gamma delux).
+    ///
+    /// *   name -spectrum name.
+    /// *   xparams - xaxis parameters.
+    /// *   yparams - yaxis parameters.
+    /// *   xlow, xhigh, xbins - x axis specification.
+    /// *   ylow, yhigh, ybins - y axis specification.
+
+    ///
+    /// Returns: SpectrumServerEmptyResult
+
+    pub fn create_spectrum_pgamma(
+        &self,
+        name: &str,
+        xparams: &Vec<String>,
+        yparams: &Vec<String>,
+        xlow: f64,
+        xhigh: f64,
+        xbins: u32,
+        ylow: f64,
+        yhigh: f64,
+        ybins: u32,
+    ) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::createpgamma_request(
             name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins,
-        ),
-        req,
-        reply_send,
-        reply_recv,
-    );
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
+        ));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
     }
-}
-/// Create a summary spectrum:
-///
-/// *  name - name of the spectrum
-/// *  params - The parameters to histogram.
-/// *  low, high, bins - axis specifications (y axis).
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Returns: SpectrumServerEmptyResult
+    /// Create a summary spectrum:
+    ///
+    /// *  name - name of the spectrum
+    /// *  params - The parameters to histogram.
+    /// *  low, high, bins - axis specifications (y axis).
+    ///
+    /// Returns: SpectrumServerEmptyResult
 
-pub fn create_spectrum_summary(
-    name: &str,
-    params: &Vec<String>,
-    low: f64,
-    high: f64,
-    bins: u32,
-    req: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(
-        createsummary_request(name, params, low, high, bins),
-        req,
-        rep_send,
-        rep_recv,
-    );
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
+    pub fn create_spectrum_summary(
+        &self,
+        name: &str,
+        params: &Vec<String>,
+        low: f64,
+        high: f64,
+        bins: u32,
+    ) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::createsummary_request(name, params, low, high, bins));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
     }
-}
-/// Create 2d spectrum.
-///
-/// * name - name of the spectrum.
-/// * xparam - parameter on x axis.
-/// * yparam - parameter on yaxis.
-/// * xlow, xhigh, xbins - X axis specification.
-/// * ylow, yhigh, ybins - Y axis specification.
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Returns: SpectrumServerEmptyResult
+    /// Create 2d spectrum.
+    ///
+    /// * name - name of the spectrum.
+    /// * xparam - parameter on x axis.
+    /// * yparam - parameter on yaxis.
+    /// * xlow, xhigh, xbins - X axis specification.
+    /// * ylow, yhigh, ybins - Y axis specification.
+    /// *  req - request channel
+    /// *  reply_send - channel on which to send the reply.
+    /// *  reply_recv  - Chanel on which to recieve the reply.
+    ///
+    /// Returns: SpectrumServerEmptyResult
 
-pub fn create_spectrum_2d(
-    name: &str,
-    xparam: &str,
-    yparam: &str,
-    xlow: f64,
-    xhigh: f64,
-    xbins: u32,
-    ylow: f64,
-    yhigh: f64,
-    ybins: u32,
-    req: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(
-        create2d_request(name, xparam, yparam, xlow, xhigh, xbins, ylow, yhigh, ybins),
-        req,
-        rep_send,
-        rep_recv,
-    );
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
+    pub fn create_spectrum_2d(
+        &self,
+        name: &str,
+        xparam: &str,
+        yparam: &str,
+        xlow: f64,
+        xhigh: f64,
+        xbins: u32,
+        ylow: f64,
+        yhigh: f64,
+        ybins: u32,
+    ) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::create2d_request(
+            name, xparam, yparam, xlow, xhigh, xbins, ylow, yhigh, ybins,
+        ));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
     }
-}
-///  Create a 2d spectrum that is the sum of 2d spectra.
-///
-/// * name - name of the spectrum.
-/// * xparams - Parameters on x axis.
-/// * yparams - parameters on the y axis.
-/// * xlow, xhigh, xbins - xaxis specification.
-/// * ylow, yhigh, ybins - yaxis specification.
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Returns: SpectrumServerEmptyResult
-/// *  Note:  The size of xparams and yparams must be identical.
-///
-pub fn create_spectrum_2dsum(
-    name: &str,
-    xparams: &Vec<String>,
-    yparams: &Vec<String>,
-    xlow: f64,
-    xhigh: f64,
-    xbins: u32,
-    ylow: f64,
-    yhigh: f64,
-    ybins: u32,
-    req: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(
-        create2dsum_request(
+    ///  Create a 2d spectrum that is the sum of 2d spectra.
+    ///
+    /// * name - name of the spectrum.
+    /// * xparams - Parameters on x axis.
+    /// * yparams - parameters on the y axis.
+    /// * xlow, xhigh, xbins - xaxis specification.
+    /// * ylow, yhigh, ybins - yaxis specification.
+    ///
+    /// Returns: SpectrumServerEmptyResult
+    /// *  Note:  The size of xparams and yparams must be identical.
+    ///
+    pub fn create_spectrum_2dsum(
+        &self,
+        name: &str,
+        xparams: &Vec<String>,
+        yparams: &Vec<String>,
+        xlow: f64,
+        xhigh: f64,
+        xbins: u32,
+        ylow: f64,
+        yhigh: f64,
+        ybins: u32,
+    ) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::create2dsum_request(
             name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins,
-        ),
-        req,
-        rep_send,
-        rep_recv,
-    );
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
+        ));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
     }
-}
 
-/// Delete a spectrum.
-///
-/// * name - name of the spectrum to delete.
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Returns SpectrumServerEmptyResult
-///
-pub fn delete_spectrum(
-    name: &str,
-    req: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(delete_request(name), req, rep_send, rep_recv);
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
+    /// Delete a spectrum.
+    ///
+    /// * name - name of the spectrum to delete.
+    ///
+    /// Returns SpectrumServerEmptyResult
+    ///
+    pub fn delete_spectrum(&self, name: &str) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::delete_request(name));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
     }
-}
-/// list spectra
-///
-/// *   pattern - Glob pattern the server will list information
-/// for all spectra that match the pattern. Note that "*" will
-/// match all spectgra.
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Returns : SpectrumServerListingResult
-///
-pub fn list_spectra(
-    pattern: &str,
-    req: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerListingResult {
-    match transact(list_request(pattern), req, rep_send, rep_recv) {
-        SpectrumReply::Error(s) => Err(s),
-        SpectrumReply::Listing(l) => Ok(l),
-        _ => Err(String::from("Unexpected server result for list request")),
+    /// list spectra
+    ///
+    /// *   pattern - Glob pattern the server will list information
+    /// for all spectra that match the pattern. Note that "*" will
+    /// match all spectgra.
+    ///
+    /// Returns : SpectrumServerListingResult
+    ///
+    pub fn list_spectra(&self, pattern: &str) -> SpectrumServerListingResult {
+        match self.transact(Self::list_request(pattern)) {
+            SpectrumReply::Error(s) => Err(s),
+            SpectrumReply::Listing(l) => Ok(l),
+            _ => Err(String::from("Unexpected server result for list request")),
+        }
     }
-}
-/// Apply a gate to a spectrum:
-///
-/// * spectrum -name of the spectrum.
-/// * gate - name of the gate to apply.
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Retuns: SpectrumServerEmptyResult.
-///
-pub fn gate_spectrum(
-    spectrum: &str,
-    gate: &str,
-    req: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(gate_request(spectrum, gate), req, rep_send, rep_recv);
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
+    /// Apply a gate to a spectrum:
+    ///
+    /// * spectrum -name of the spectrum.
+    /// * gate - name of the gate to apply.
+    ///
+    /// Retuns: SpectrumServerEmptyResult.
+    ///
+    pub fn gate_spectrum(&self, spectrum: &str, gate: &str) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::gate_request(spectrum, gate));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
     }
-}
-/// Ungate a spectrum.  
-///
-/// *  name - name of the spectrum
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Retuns: SpectrumServerEmptyResult.
-///
-pub fn ungate_spectrum(
-    name: &str,
-    req: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(ungate_request(name), req, rep_send, rep_recv);
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
+    /// Ungate a spectrum.  
+    ///
+    /// *  name - name of the spectrum
+    ///
+    /// Retuns: SpectrumServerEmptyResult.
+    ///
+    pub fn ungate_spectrum(&self, name: &str) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::ungate_request(name));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
     }
-}
 
-/// clear spectra
-///
-/// *  pattern - glob pattern that describes the spectra to clear.
-/// e.g. "*" clears them all.
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Retuns: SpectrumServerEmptyResult.
-///
-pub fn clear_spectra(
-    pattern: &str,
-    req: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    let reply = transact(clear_request(pattern), req, rep_send, rep_recv);
-    if let SpectrumReply::Error(s) = reply {
-        Err(s)
-    } else {
-        Ok(())
+    /// clear spectra
+    ///
+    /// *  pattern - glob pattern that describes the spectra to clear.
+    /// e.g. "*" clears them all.
+    ///
+    /// Retuns: SpectrumServerEmptyResult.
+    ///
+    pub fn clear_spectra(&self, pattern: &str) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::clear_request(pattern));
+        if let SpectrumReply::Error(s) = reply {
+            Err(s)
+        } else {
+            Ok(())
+        }
     }
-}
-///
-/// Get the contents of a spectrum.
-///
-/// * name - name of the spectrum.
-/// * xlow, xhigh, ylow, yhigh - a rectangular region of interest in
-/// parameter coordinate space within which the data are returned.
-/// Note that only data with non-zero channel values are returned.
-/// *  req - request channel
-/// *  reply_send - channel on which to send the reply.
-/// *  reply_recv  - Chanel on which to recieve the reply.
-///
-/// Returns:  SpectrumServerContentsResult
-///
-pub fn get_contents(
-    name: &str,
-    xlow: f64,
-    xhigh: f64,
-    ylow: f64,
-    yhigh: f64,
-    req: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerContentsResult {
-    match transact(
-        getcontents_request(name, xlow, xhigh, ylow, yhigh),
-        req,
-        rep_send,
-        rep_recv,
-    ) {
-        SpectrumReply::Error(s) => Err(s),
-        SpectrumReply::Contents(c) => Ok(c),
-        _ => Err(String::from("Unexpected reply type for get_contents")),
+    ///
+    /// Get the contents of a spectrum.
+    ///
+    /// * name - name of the spectrum.
+    /// * xlow, xhigh, ylow, yhigh - a rectangular region of interest in
+    /// parameter coordinate space within which the data are returned.
+    /// Note that only data with non-zero channel values are returned.
+    ///
+    /// Returns:  SpectrumServerContentsResult
+    ///
+    pub fn get_contents(
+        &self,
+        name: &str,
+        xlow: f64,
+        xhigh: f64,
+        ylow: f64,
+        yhigh: f64,
+    ) -> SpectrumServerContentsResult {
+        match self.transact(Self::getcontents_request(name, xlow, xhigh, ylow, yhigh)) {
+            SpectrumReply::Error(s) => Err(s),
+            SpectrumReply::Contents(c) => Ok(c),
+            _ => Err(String::from("Unexpected reply type for get_contents")),
+        }
     }
-}
-///
-/// Process events.
-///
-/// *  events - vector of flat event.
-/// *  send - send channel.
-/// *  rep_send - channel we send our respons oin,
-/// *  rep_reply - Channels the clent reads.
-///
-pub fn process_events(
-    e: &Vec<parameters::Event>,
-    req: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_recv: mpsc::Receiver<Reply>,
-) -> SpectrumServerEmptyResult {
-    match transact(events_request(e), req, rep_send, rep_recv) {
-        SpectrumReply::Processed => Ok(()),
-        SpectrumReply::Error(s) => Err(s),
-        _ => Err(String::from("processEvents -unexpected reply type")),
-    }
-}
+    ///
+    /// Process events.
+    ///
+    /// *  events - vector of flat event.
 
+    ///
+    pub fn process_events(&self, e: &Vec<parameters::Event>) -> SpectrumServerEmptyResult {
+        match self.transact(Self::events_request(e)) {
+            SpectrumReply::Processed => Ok(()),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("processEvents -unexpected reply type")),
+        }
+    }
+}
 //--------------------------- Tests ------------------------------
 
 #[cfg(test)]
@@ -3580,7 +3467,7 @@ mod reqstruct_tests {
 
     #[test]
     fn c1d_1() {
-        let req = create1d_request("test", "par1", 0.0, 1024.0, 1024);
+        let req = SpectrumMessageClient::create1d_request("test", "par1", 0.0, 1024.0, 1024);
         assert_eq!(
             SpectrumRequest::Create1D {
                 name: String::from("test"),
@@ -3596,7 +3483,7 @@ mod reqstruct_tests {
     }
     #[test]
     fn cm1d_1() {
-        let req = createmulti1d_request(
+        let req = SpectrumMessageClient::createmulti1d_request(
             "test",
             &vec![String::from("p1"), String::from("p2"), String::from("p3")],
             0.0,
@@ -3627,7 +3514,9 @@ mod reqstruct_tests {
     #[test]
     fn cm2d_1() {
         let p = vec![String::from("p1"), String::from("p2"), String::from("p3")];
-        let req = createmulti2d_request("test", &p, 0.0, 1024.0, 1024, -1.0, 1.0, 100);
+        let req = SpectrumMessageClient::createmulti2d_request(
+            "test", &p, 0.0, 1024.0, 1024, -1.0, 1.0, 100,
+        );
         assert!(if let SpectrumRequest::CreateMulti2D {
             name,
             params,
@@ -3663,7 +3552,9 @@ mod reqstruct_tests {
         let xp = vec![String::from("x1"), String::from("x2"), String::from("x3")];
         let yp = vec![String::from("y1"), String::from("y2")];
 
-        let req = createpgamma_request("test", &xp, &yp, 0.0, 1024.0, 1024, -1.0, 1.0, 100);
+        let req = SpectrumMessageClient::createpgamma_request(
+            "test", &xp, &yp, 0.0, 1024.0, 1024, -1.0, 1.0, 100,
+        );
         assert!(if let SpectrumRequest::CreatePGamma {
             name,
             xparams,
@@ -3698,7 +3589,9 @@ mod reqstruct_tests {
     }
     #[test]
     fn c2d_1() {
-        let req = create2d_request("test", "px", "py", 0.0, 1024.0, 1024, -1.0, 1.0, 100);
+        let req = SpectrumMessageClient::create2d_request(
+            "test", "px", "py", 0.0, 1024.0, 1024, -1.0, 1.0, 100,
+        );
         assert_eq!(
             SpectrumRequest::Create2D {
                 name: String::from("test"),
@@ -3723,7 +3616,9 @@ mod reqstruct_tests {
         let xp = vec![String::from("x1"), String::from("x2"), String::from("x3")];
         let yp = vec![String::from("y1"), String::from("y2"), String::from("y3")];
 
-        let req = create2dsum_request("test", &xp, &yp, 0.0, 1024.0, 1024, -1.0, 1.0, 100);
+        let req = SpectrumMessageClient::create2dsum_request(
+            "test", &xp, &yp, 0.0, 1024.0, 1024, -1.0, 1.0, 100,
+        );
         assert_eq!(
             SpectrumRequest::Create2DSum {
                 name: String::from("test"),
@@ -3745,17 +3640,17 @@ mod reqstruct_tests {
     }
     #[test]
     fn del_1() {
-        let req = delete_request("test");
+        let req = SpectrumMessageClient::delete_request("test");
         assert_eq!(SpectrumRequest::Delete(String::from("test")), req);
     }
     #[test]
     fn list_1() {
-        let req = list_request("*");
+        let req = SpectrumMessageClient::list_request("*");
         assert_eq!(SpectrumRequest::List(String::from("*")), req);
     }
     #[test]
     fn gate_1() {
-        let req = gate_request("spectrum", "gate");
+        let req = SpectrumMessageClient::gate_request("spectrum", "gate");
         assert_eq!(
             SpectrumRequest::Gate {
                 spectrum: String::from("spectrum"),
@@ -3766,17 +3661,17 @@ mod reqstruct_tests {
     }
     #[test]
     fn ungate_1() {
-        let req = ungate_request("test");
+        let req = SpectrumMessageClient::ungate_request("test");
         assert_eq!(SpectrumRequest::Ungate(String::from("test")), req)
     }
     #[test]
     fn clear_1() {
-        let req = clear_request("t*");
+        let req = SpectrumMessageClient::clear_request("t*");
         assert_eq!(SpectrumRequest::Clear(String::from("t*")), req);
     }
     #[test]
     fn get_1() {
-        let req = getcontents_request("test", 0.0, 50.0, 100.0, 125.0);
+        let req = SpectrumMessageClient::getcontents_request("test", 0.0, 50.0, 100.0, 125.0);
         assert_eq!(
             SpectrumRequest::GetContents {
                 name: String::from("test"),
@@ -3802,7 +3697,7 @@ mod reqstruct_tests {
                 EventParameter::new(77, 3.1416),
             ],
         ];
-        let req = events_request(&events);
+        let req = SpectrumMessageClient::events_request(&events);
         assert_eq!(SpectrumRequest::Events(events), req);
     }
 }
@@ -3908,8 +3803,9 @@ mod spectrum_api_tests {
     #[test]
     fn list_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let reply = list_spectra("*", send.clone(), rep_send, rep_recv);
+        let api = SpectrumMessageClient::new(&send);
+
+        let reply = api.list_spectra("*");
         assert!(if let Ok(l) = reply {
             assert_eq!(0, l.len()); // Nothing to list
             true
@@ -3926,58 +3822,48 @@ mod spectrum_api_tests {
     #[test]
     fn make1d_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
 
         // Create the spectrum:
 
-        assert!(if let Ok(()) = create_spectrum_1d(
-            "test",
-            "param.1",
-            0.0,
-            1024.0,
-            1024,
-            send.clone(),
-            rep_send,
-            rep_recv
-        ) {
-            true
-        } else {
-            false
-        });
-        // See if the server knows it:
-
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
         assert!(
-            if let Ok(listing) = list_spectra("*", send.clone(), rep_send, rep_recv) {
-                assert_eq!(1, listing.len());
-                assert_eq!(
-                    SpectrumProperties {
-                        name: String::from("test"),
-                        type_name: String::from("1D"),
-                        xparams: vec![String::from("param.1")],
-                        yparams: vec![],
-                        xaxis: Some(AxisSpecification {
-                            low: 0.0,
-                            high: 1024.0,
-                            bins: 1026
-                        }),
-                        yaxis: None,
-                        gate: None
-                    },
-                    listing[0]
-                );
+            if let Ok(()) = api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024,) {
                 true
             } else {
                 false
             }
         );
+        // See if the server knows it:
+
+        assert!(if let Ok(listing) = api.list_spectra("*",) {
+            assert_eq!(1, listing.len());
+            assert_eq!(
+                SpectrumProperties {
+                    name: String::from("test"),
+                    type_name: String::from("1D"),
+                    xparams: vec![String::from("param.1")],
+                    yparams: vec![],
+                    xaxis: Some(AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1026
+                    }),
+                    yaxis: None,
+                    gate: None
+                },
+                listing[0]
+            );
+            true
+        } else {
+            false
+        });
 
         stop_server(jh, send);
     }
     #[test]
     fn make1dmulti_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
         let params = vec![
             String::from("param.1"),
             String::from("param.2"),
@@ -3987,50 +3873,38 @@ mod spectrum_api_tests {
         ];
         assert_eq!(
             Ok(()),
-            create_spectrum_multi1d(
-                "test",
-                &params,
-                0.0,
-                1024.0,
-                1024,
-                send.clone(),
-                rep_send,
-                rep_recv
-            )
+            api.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024,)
         );
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        assert!(
-            if let Ok(l) = list_spectra("*", send.clone(), rep_send, rep_recv) {
-                assert_eq!(1, l.len());
-                assert_eq!(
-                    SpectrumProperties {
-                        name: String::from("test"),
-                        type_name: String::from("Multi1d"),
-                        xparams: params,
-                        yparams: vec![],
-                        xaxis: Some(AxisSpecification {
-                            low: 0.0,
-                            high: 1024.0,
-                            bins: 1026
-                        }),
-                        yaxis: None,
-                        gate: None
-                    },
-                    l[0]
-                );
-                true
-            } else {
-                false
-            }
-        );
+        assert!(if let Ok(l) = api.list_spectra("*") {
+            assert_eq!(1, l.len());
+            assert_eq!(
+                SpectrumProperties {
+                    name: String::from("test"),
+                    type_name: String::from("Multi1d"),
+                    xparams: params,
+                    yparams: vec![],
+                    xaxis: Some(AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1026
+                    }),
+                    yaxis: None,
+                    gate: None
+                },
+                l[0]
+            );
+            true
+        } else {
+            false
+        });
 
         stop_server(jh, send);
     }
     #[test]
     fn make2dmulti_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
         let params = vec![
             String::from("param.1"),
             String::from("param.2"),
@@ -4040,55 +3914,41 @@ mod spectrum_api_tests {
         ];
         assert_eq!(
             Ok(()),
-            create_spectrum_multi2d(
-                "test",
-                &params,
-                0.0,
-                1024.0,
-                1024,
-                -1.0,
-                1.0,
-                100,
-                send.clone(),
-                rep_send,
-                rep_recv
-            )
+            api.create_spectrum_multi2d("test", &params, 0.0, 1024.0, 1024, -1.0, 1.0, 100)
         );
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        assert!(
-            if let Ok(l) = list_spectra("*", send.clone(), rep_send, rep_recv) {
-                assert_eq!(1, l.len());
-                assert_eq!(
-                    SpectrumProperties {
-                        name: String::from("test"),
-                        type_name: String::from("Multi2d"),
-                        xparams: params,
-                        yparams: vec![],
-                        xaxis: Some(AxisSpecification {
-                            low: 0.0,
-                            high: 1024.0,
-                            bins: 1026
-                        }),
-                        yaxis: Some(AxisSpecification {
-                            low: -1.0,
-                            high: 1.0,
-                            bins: 102
-                        }),
-                        gate: None
-                    },
-                    l[0]
-                );
-                true
-            } else {
-                false
-            }
-        );
+
+        assert!(if let Ok(l) = api.list_spectra("*") {
+            assert_eq!(1, l.len());
+            assert_eq!(
+                SpectrumProperties {
+                    name: String::from("test"),
+                    type_name: String::from("Multi2d"),
+                    xparams: params,
+                    yparams: vec![],
+                    xaxis: Some(AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1026
+                    }),
+                    yaxis: Some(AxisSpecification {
+                        low: -1.0,
+                        high: 1.0,
+                        bins: 102
+                    }),
+                    gate: None
+                },
+                l[0]
+            );
+            true
+        } else {
+            false
+        });
         stop_server(jh, send);
     }
     #[test]
     fn makepg_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
         let xparams = vec![
             String::from("param.1"),
             String::from("param.2"),
@@ -4104,58 +3964,44 @@ mod spectrum_api_tests {
         ];
         assert_eq!(
             Ok(()),
-            create_spectrum_pgamma(
-                "test",
-                &xparams,
-                &yparams,
-                0.0,
-                1024.0,
-                1024,
-                -1.0,
-                1.0,
-                100,
-                send.clone(),
-                rep_send,
-                rep_recv
+            api.create_spectrum_pgamma(
+                "test", &xparams, &yparams, 0.0, 1024.0, 1024, -1.0, 1.0, 100,
             )
         );
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        assert!(
-            if let Ok(l) = list_spectra("*", send.clone(), rep_send, rep_recv) {
-                assert_eq!(1, l.len());
-                assert_eq!(
-                    SpectrumProperties {
-                        name: String::from("test"),
-                        type_name: String::from("PGamma"),
-                        xparams: xparams,
-                        yparams: yparams,
-                        xaxis: Some(AxisSpecification {
-                            low: 0.0,
-                            high: 1024.0,
-                            bins: 1026
-                        }),
-                        yaxis: Some(AxisSpecification {
-                            low: -1.0,
-                            high: 1.0,
-                            bins: 102
-                        }),
-                        gate: None
-                    },
-                    l[0]
-                );
-                true
-            } else {
-                false
-            }
-        );
+        assert!(if let Ok(l) = api.list_spectra("*") {
+            assert_eq!(1, l.len());
+            assert_eq!(
+                SpectrumProperties {
+                    name: String::from("test"),
+                    type_name: String::from("PGamma"),
+                    xparams: xparams,
+                    yparams: yparams,
+                    xaxis: Some(AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1026
+                    }),
+                    yaxis: Some(AxisSpecification {
+                        low: -1.0,
+                        high: 1.0,
+                        bins: 102
+                    }),
+                    gate: None
+                },
+                l[0]
+            );
+            true
+        } else {
+            false
+        });
 
         stop_server(jh, send);
     }
     #[test]
     fn makesummary_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
         let params = vec![
             String::from("param.1"),
             String::from("param.2"),
@@ -4165,21 +4011,10 @@ mod spectrum_api_tests {
         ];
         assert_eq!(
             Ok(()),
-            create_spectrum_summary(
-                "test",
-                &params,
-                0.0,
-                1024.0,
-                1024,
-                send.clone(),
-                rep_send,
-                rep_recv
-            )
+            api.create_spectrum_summary("test", &params, 0.0, 1024.0, 1024,)
         );
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let l =
-            list_spectra("*", send.clone(), rep_send, rep_recv).expect("Failed to list spectra");
+        let l = api.list_spectra("*").expect("Failed to list spectra");
         assert_eq!(1, l.len());
         assert_eq!(
             SpectrumProperties {
@@ -4203,27 +4038,14 @@ mod spectrum_api_tests {
     #[test]
     fn make2d_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
 
-        create_spectrum_2d(
-            "test",
-            "param.0",
-            "param.1",
-            0.0,
-            1024.0,
-            1024,
-            -1.0,
-            1.0,
-            100,
-            send.clone(),
-            rep_send,
-            rep_recv,
+        api.create_spectrum_2d(
+            "test", "param.0", "param.1", 0.0, 1024.0, 1024, -1.0, 1.0, 100,
         )
         .expect("Failed to make 2d spectrum");
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let l =
-            list_spectra("*", send.clone(), rep_send, rep_recv).expect("Failed to list spectra");
+        let l = api.list_spectra("*").expect("Failed to list spectra");
         assert_eq!(1, l.len());
         assert_eq!(
             SpectrumProperties {
@@ -4251,7 +4073,7 @@ mod spectrum_api_tests {
     #[test]
     fn make2dsum_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
         let xparams = vec![
             String::from("param.1"),
             String::from("param.2"),
@@ -4266,24 +4088,13 @@ mod spectrum_api_tests {
             String::from("param.8"),
             String::from("param.9"),
         ];
-        create_spectrum_2dsum(
-            "test",
-            &xparams,
-            &yparams,
-            0.0,
-            1024.0,
-            1024,
-            -1.0,
-            1.0,
-            100,
-            send.clone(),
-            rep_send,
-            rep_recv,
+        api.create_spectrum_2dsum(
+            "test", &xparams, &yparams, 0.0, 1024.0, 1024, -1.0, 1.0, 100,
         )
         .expect("Failed to try to make a 2dsum");
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let l = list_spectra("*", send.clone(), rep_send, rep_recv)
+        let l = api
+            .list_spectra("*")
             .expect("Failed to get  spectrum listing");
         assert_eq!(1, l.len());
         assert_eq!(
@@ -4312,39 +4123,28 @@ mod spectrum_api_tests {
     #[test]
     fn delete_1() {
         let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
         for i in 0..10 {
             let pname = format!("param.{}", i);
             let sname = format!("test.{}", i);
-            let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-            create_spectrum_1d(
-                &sname,
-                &pname,
-                0.0,
-                1024.0,
-                1024,
-                send.clone(),
-                rep_send,
-                rep_recv,
-            )
-            .expect("failed to make spectrum");
+
+            api.create_spectrum_1d(&sname, &pname, 0.0, 1024.0, 1024)
+                .expect("failed to make spectrum");
         }
         // There are now 10 spectra - delete test.00:
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        delete_spectrum("test.0", send.clone(), rep_send, rep_recv)
+        api.delete_spectrum("test.0")
             .expect("Delete spectrum failed");
 
         // Should not be able to list test.0:
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let l = list_spectra("test.0", send.clone(), rep_send, rep_recv)
-            .expect("Failed to list spectra");
+        let l = api.list_spectra("test.0").expect("Failed to list spectra");
         assert_eq!(0, l.len());
 
         // should be 9 left:
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let l = list_spectra("test.*", send.clone(), rep_send, rep_recv)
+        let l = api
+            .list_spectra("test.*")
             .expect("Failed to list multiple spectra");
         assert_eq!(9, l.len());
 
@@ -4355,9 +4155,9 @@ mod spectrum_api_tests {
     #[test]
     fn list_2() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
 
-        let result = list_spectra("test[...", send.clone(), rep_send, rep_recv);
+        let result = api.list_spectra("test[...");
         stop_server(jh, send);
 
         assert!(result.is_err());
@@ -4365,25 +4165,13 @@ mod spectrum_api_tests {
     #[test]
     fn gate_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        create_spectrum_1d(
-            "test",
-            "param.1",
-            0.0,
-            1024.0,
-            1024,
-            send.clone(),
-            rep_send,
-            rep_recv,
-        )
-        .expect("Failed to create spectrum");
-
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        gate_spectrum("test", "true.1", send.clone(), rep_send, rep_recv)
+        let api = SpectrumMessageClient::new(&send);
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to create spectrum");
+        api.gate_spectrum("test", "true.1")
             .expect("Failed to gate spectrum");
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let l = list_spectra("*", send.clone(), rep_send, rep_recv).expect("listing failed");
+        let l = api.list_spectra("*").expect("listing failed");
         assert_eq!(1, l.len());
         assert_eq!(Some(String::from("true.1")), l[0].gate);
         stop_server(jh, send);
@@ -4391,65 +4179,35 @@ mod spectrum_api_tests {
     #[test]
     fn ungate_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        create_spectrum_1d(
-            "test",
-            "param.1",
-            0.0,
-            1024.0,
-            1024,
-            send.clone(),
-            rep_send,
-            rep_recv,
-        )
-        .expect("Failed to create spectrum");
+        let api = SpectrumMessageClient::new(&send);
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to create spectrum");
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        gate_spectrum("test", "true.1", send.clone(), rep_send, rep_recv)
+        api.gate_spectrum("test", "true.1")
             .expect("Failed to gate spectrum");
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        ungate_spectrum("test", send.clone(), rep_send, rep_recv).expect("Failed to ungate");
+        api.ungate_spectrum("test").expect("Failed to ungate");
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let l =
-            list_spectra("*", send.clone(), rep_send, rep_recv).expect("failed to list spectra");
+        let l = api.list_spectra("*").expect("failed to list spectra");
         assert_eq!(None, l[0].gate);
         stop_server(jh, send);
     }
     // For clear and process, we need to have some confidence in
     // being able to get the contents.
+
     #[test]
     fn get_contents_1() {
         // This will give an empty value:
 
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
 
-        create_spectrum_1d(
-            "test",
-            "param.1",
-            0.0,
-            1024.0,
-            1024,
-            send.clone(),
-            rep_send,
-            rep_recv,
-        )
-        .expect("Failed to make spectrum");
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to make spectrum");
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let contents = get_contents(
-            "test",
-            0.0,
-            1024.0,
-            0.0,
-            0.0,
-            send.clone(),
-            rep_send,
-            rep_recv,
-        )
-        .expect("Failed to get spectrum contents");
+        let contents = api
+            .get_contents("test", 0.0, 1024.0, 0.0, 0.0)
+            .expect("Failed to get spectrum contents");
         assert_eq!(0, contents.len());
 
         stop_server(jh, send);
@@ -4461,19 +4219,10 @@ mod spectrum_api_tests {
         // Note that param.0 is id 1 param1. id 2 etc...
         //
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
 
-        create_spectrum_1d(
-            "test",
-            "param.1",
-            0.0,
-            1024.0,
-            1024,
-            send.clone(),
-            rep_send,
-            rep_recv,
-        )
-        .expect("Failed to make spectrum");
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to make spectrum");
 
         // Make events to send to the server to put some
         // counts into the spectrum:
@@ -4487,25 +4236,15 @@ mod spectrum_api_tests {
             vec![parameters::EventParameter::new(2, 100.0)],
         ]; // 6 bcounts at 100.0
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        process_events(&events, send.clone(), rep_send, rep_recv)
+        api.process_events(&events)
             .expect("Failed to process events");
 
         // Now get the contents should be one entry with 6 counts
         // at 100.0:
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let contents = get_contents(
-            "test",
-            0.0,
-            1024.0,
-            0.0,
-            0.0,
-            send.clone(),
-            rep_send,
-            rep_recv,
-        )
-        .expect("Unable to get spectrumcontents");
+        let contents = api
+            .get_contents("test", 0.0, 1024.0, 0.0, 0.0)
+            .expect("Unable to get spectrumcontents");
         assert_eq!(1, contents.len());
         let c = contents[0];
         assert_eq!(ChannelType::Bin, c.chan_type);
@@ -4517,19 +4256,10 @@ mod spectrum_api_tests {
     #[test]
     fn clear_1() {
         let (jh, send) = start_server();
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let api = SpectrumMessageClient::new(&send);
 
-        create_spectrum_1d(
-            "test",
-            "param.1",
-            0.0,
-            1024.0,
-            1024,
-            send.clone(),
-            rep_send,
-            rep_recv,
-        )
-        .expect("Failed to make spectrum");
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to make spectrum");
 
         // Make events to send to the server to put some
         // counts into the spectrum:
@@ -4543,25 +4273,16 @@ mod spectrum_api_tests {
             vec![parameters::EventParameter::new(2, 100.0)],
         ]; // 6 bcounts at 100.0
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        process_events(&events, send.clone(), rep_send, rep_recv)
+        api.process_events(&events)
             .expect("Failed to process events");
 
         // Now get the contents should be one entry with 6 counts
         // at 100.0:
 
         let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let contents = get_contents(
-            "test",
-            0.0,
-            1024.0,
-            0.0,
-            0.0,
-            send.clone(),
-            rep_send,
-            rep_recv,
-        )
-        .expect("Unable to get spectrumcontents");
+        let contents = api
+            .get_contents("test", 0.0, 1024.0, 0.0, 0.0)
+            .expect("Unable to get spectrumcontents");
         assert_eq!(1, contents.len());
         let c = contents[0];
         assert_eq!(ChannelType::Bin, c.chan_type);
@@ -4570,20 +4291,11 @@ mod spectrum_api_tests {
 
         // now clear all spectra:
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        clear_spectra("*", send.clone(), rep_send, rep_recv).expect("Failed to request clear");
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
-        let contents = get_contents(
-            "test",
-            0.0,
-            1024.0,
-            0.0,
-            0.0,
-            send.clone(),
-            rep_send,
-            rep_recv,
-        )
-        .expect("Unable to get spectrumcontents");
+        api.clear_spectra("*").expect("Failed to request clear");
+
+        let contents = api
+            .get_contents("test", 0.0, 1024.0, 0.0, 0.0)
+            .expect("Unable to get spectrumcontents");
         assert_eq!(0, contents.len());
 
         stop_server(jh, send);

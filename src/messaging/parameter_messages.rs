@@ -50,162 +50,147 @@ pub enum ParameterReply {
 pub type ParameterResult = Result<(), String>; // /Generic result.
 pub type ListResult = Result<Vec<Parameter>, String>; // Result from list request.
 
-// Internal functions to create paramete requests:
+/// This struct and its implementation are part of the solution to
+/// issue23 which drastically simplifies the clien's use of the
+/// messaging api:
+///
+/// - We hold a clone of the sender channel.
+/// - As needed, we create the per request reply channels.
+/// in the method through which all transations are funelled.
 
-fn make_create_request(name: &str) -> MessageType {
-    let req_data = ParameterRequest::Create(String::from(name));
-    MessageType::Parameter(req_data)
-}
-fn make_list_request(pattern: &str) -> MessageType {
-    let req_data = ParameterRequest::List(String::from(pattern));
-    MessageType::Parameter(req_data)
-}
-fn make_modify_request(
-    name: &str,
-    bins: Option<u32>,
-    limits: Option<(f64, f64)>,
-    units: Option<String>,
-    description: Option<String>,
-) -> MessageType {
-    let req_data = ParameterRequest::SetMetaData {
-        name: String::from(name),
-        bins,
-        limits,
-        units,
-        description,
-    };
-    MessageType::Parameter(req_data)
+pub struct ParameterMessageClient {
+    request_chan: mpsc::Sender<Request>,
 }
 
-///
-/// Request the creation of a new parameter.
-///  -   req_chan is the channel for requests to the histogramer.
-///  -   rep_send is the channel on which replies will be sent by
-/// the histogrammer
-///  -   rep_rcv is the channel on which replies will be recieve by us.
-///  -   name is the name to be given to the new parameter.
-///
-/// A result is returned extracted from the message we get back.
-/// The payload for Err is a human readable reason for the failure.
-///
-pub fn create_parameter(
-    req_chan: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_rcv: mpsc::Receiver<Reply>,
-    name: &str,
-) -> ParameterResult {
-    let create = make_create_request(name);
-    let req = Request {
-        reply_channel: rep_send,
-        message: create,
-    };
-    let result = req.transaction(req_chan, rep_rcv);
+impl ParameterMessageClient {
+    // Internal functions to create paramete requests:
 
-    // Must be a Parameter type:
+    fn make_create_request(name: &str) -> MessageType {
+        let req_data = ParameterRequest::Create(String::from(name));
+        MessageType::Parameter(req_data)
+    }
+    fn make_list_request(pattern: &str) -> MessageType {
+        let req_data = ParameterRequest::List(String::from(pattern));
+        MessageType::Parameter(req_data)
+    }
+    fn make_modify_request(
+        name: &str,
+        bins: Option<u32>,
+        limits: Option<(f64, f64)>,
+        units: Option<String>,
+        description: Option<String>,
+    ) -> MessageType {
+        let req_data = ParameterRequest::SetMetaData {
+            name: String::from(name),
+            bins,
+            limits,
+            units,
+            description,
+        };
+        MessageType::Parameter(req_data)
+    }
+    // Making all transactions go through this simplifies stuff:
 
-    if let Reply::Parameter(valid) = result {
-        match valid {
+    fn transaction(&self, r: MessageType) -> ParameterReply {
+        let (reply_send, reply_recv) = mpsc::channel::<Reply>();
+        let req = Request {
+            reply_channel: reply_send,
+            message: r,
+        };
+        let result = req.transaction(self.request_chan.clone(), reply_recv);
+        if let Reply::Parameter(payload) = result {
+            payload
+        } else {
+            panic!(
+                "Expected a parameter reply for a parameter request and got something different"
+            );
+        }
+    }
+
+    /// Create an API instance:
+
+    pub fn new(chan: &mpsc::Sender<Request>) -> ParameterMessageClient {
+        ParameterMessageClient {
+            request_chan: chan.clone(),
+        }
+    }
+
+    ///
+    /// Request the creation of a new parameter.
+    ///  -   name is the name to be given to the new parameter.
+    ///
+    /// A result is returned extracted from the message we get back.
+    /// The payload for Err is a human readable reason for the failure.
+    ///
+    pub fn create_parameter(&self, name: &str) -> ParameterResult {
+        let create = Self::make_create_request(name);
+        let result = self.transaction(create);
+        match result {
             ParameterReply::Error(s) => Err(s),
             ParameterReply::Created => return Ok(()),
             ParameterReply::Listing(_) => Err(String::from("BUG!! Create got a Listing reply")),
             ParameterReply::Modified => Err(String::from("BUG!! Create got a Modified reply")),
         }
-    } else {
-        Err(String::from("BUG!!! : Invalid reply type from histogramer"))
     }
-}
-/// Request a list of the set of parameters that match a specified pattern.
-///
-///  -   req_chan is the channel for requests to the histogramer.
-///  -   rep_send is the channel on which replies will be sent by
-/// the histogrammer
-///  -   rep_rcv is the channel on which replies will be recieve by us.
-///  -   pattern is a glob pattern to match ("*" matches anything).
-///
-/// The result is a ListResult, which  on success is a list of
-/// the parameter objects (copies) that satisfy the pattern.  This
-/// can, of course, be empty.
-/// On error, the payload is a human readable error string.
-///
-pub fn list_parameters(
-    req_chan: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_rcv: mpsc::Receiver<Reply>,
-    pattern: &str,
-) -> ListResult {
-    let list = make_list_request(pattern);
-    let req = Request {
-        reply_channel: rep_send,
-        message: list,
-    };
+    /// Request a list of the set of parameters that match a specified pattern.
+    ///
+    ///  -   pattern is a glob pattern to match ("*" matches anything).
+    ///
+    /// The result is a ListResult, which  on success is a list of
+    /// the parameter objects (copies) that satisfy the pattern.  This
+    /// can, of course, be empty.
+    /// On error, the payload is a human readable error string.
+    ///
+    pub fn list_parameters(&self, pattern: &str) -> ListResult {
+        let list = Self::make_list_request(pattern);
+        let result = self.transaction(list);
 
-    let result = req.transaction(req_chan, rep_rcv);
+        // Must  be a Listing else that's bad too:
 
-    // must be a parameter type else that's bad.
-    // Must further be a Listing else that's bad too:
-
-    if let Reply::Parameter(valid) = result {
-        if let ParameterReply::Listing(params) = valid {
+        if let ParameterReply::Listing(params) = result {
             Ok(params)
         } else {
             Err(String::from(
                 "Bug: Invalid histogram Parameter response to Parmeter::SetMetadata request",
             ))
         }
-    } else {
-        Err(String::from("BUG!!! : Invalid reply type from histogramer"))
     }
-}
-///
-/// Modify selected metadata in a parameter.  The things that
-/// can be modified (suggested limits, binning, units and description)
-/// are passed as options if an option is None, no modification of that
-/// metadata will be done, if Some the payload of some indicates the
-/// desired modifications.
-/// Parameters:
-///
-///  -   req_chan is the channel for requests to the histogramer.
-///  -   rep_send is the channel on which replies will be sent by
-/// the histogrammer
-///  -   rep_rcv is the channel on which replies will be recieve by us.
-///  -   name is the name of the parameter to modify.
-///  -   bins - Some is a u32 number of suggested bins for he parameter.
-///  -   limits - Some is a (f64, f64) with .0 the suggested low limit
-/// and .1 the suggested high limt.
-///  -    units - Some is a new units of measure string.
-///  -    description - Some is a new description of the parameter.
-///
-/// The return is the generic ParameterResult
-pub fn modify_parameter_metadata(
-    req_chan: mpsc::Sender<Request>,
-    rep_send: mpsc::Sender<Reply>,
-    rep_rcv: mpsc::Receiver<Reply>,
-    name: &str,
-    bins: Option<u32>,
-    limits: Option<(f64, f64)>,
-    units: Option<String>,
-    description: Option<String>,
-) -> ParameterResult {
-    let modify = make_modify_request(name, bins, limits, units, description);
-    let req = Request {
-        reply_channel: rep_send,
-        message: modify,
-    };
-    let reply = req.transaction(req_chan, rep_rcv);
+    ///
+    /// Modify selected metadata in a parameter.  The things that
+    /// can be modified (suggested limits, binning, units and description)
+    /// are passed as options if an option is None, no modification of that
+    /// metadata will be done, if Some the payload of some indicates the
+    /// desired modifications.
+    /// Parameters:
+    ///
+    ///  -   name is the name of the parameter to modify.
+    ///  -   bins - Some is a u32 number of suggested bins for he parameter.
+    ///  -   limits - Some is a (f64, f64) with .0 the suggested low limit
+    /// and .1 the suggested high limt.
+    ///  -    units - Some is a new units of measure string.
+    ///  -    description - Some is a new description of the parameter.
+    ///
+    /// The return is the generic ParameterResult
+    pub fn modify_parameter_metadata(
+        &self,
+        name: &str,
+        bins: Option<u32>,
+        limits: Option<(f64, f64)>,
+        units: Option<String>,
+        description: Option<String>,
+    ) -> ParameterResult {
+        let modify = Self::make_modify_request(name, bins, limits, units, description);
+        let reply = self.transaction(modify);
 
-    if let Reply::Parameter(valid) = reply {
-        if let ParameterReply::Modified = valid {
+        if let ParameterReply::Modified = reply {
             Ok(())
         } else {
             Err(String::from(
                 "Bug: Invalid histogram Parameter response to Parmeter::Modify request",
             ))
         }
-    } else {
-        Err(String::from("BUG!!! : Invalid reply type from histogramer"))
     }
 }
-
 /// ParameterProcessor is a struct that encapsulates a ParmeterDictionary
 /// and implements code that can process ParameterRequest objects
 /// using that dictionary producing the correct ParameterReply object.
@@ -309,7 +294,6 @@ mod param_msg_tests {
     fn create_1() {
         // Ok return.
         let (req_send, req_rcv) = channel();
-        let (rep_send, rep_rcv) = channel();
 
         let tjh = thread::spawn(move || {
             let req = Request::get_request(req_rcv);
@@ -318,8 +302,8 @@ mod param_msg_tests {
             let rep = Reply::Parameter(ParameterReply::Created);
             req.send_reply(rep);
         });
-
-        let reply = create_parameter(req_send, rep_send, rep_rcv, "junk");
+        let api = ParameterMessageClient::new(&req_send);
+        let reply = api.create_parameter("junk");
         tjh.join().unwrap();
 
         assert!(reply.is_ok()); // Was received and properly processed.
@@ -329,18 +313,18 @@ mod param_msg_tests {
         // Error reply:
 
         let (req_send, req_rcv) = channel();
-        let (rep_send, rep_rcv) = channel();
+
         let tjh = thread::spawn(move || {
             let req = Request::get_request(req_rcv);
-            // Duplicate4 e.g
+            // Duplicate e.g
 
             let rep = Reply::Parameter(ParameterReply::Error(String::from(
                 "Duplicate parameter 'junk'",
             )));
             req.send_reply(rep);
         });
-
-        let reply = create_parameter(req_send, rep_send, rep_rcv, "junk");
+        let api = ParameterMessageClient::new(&req_send);
+        let reply = api.create_parameter("junk");
         tjh.join().unwrap();
         assert!(reply.is_err());
         assert_eq!(
@@ -353,7 +337,6 @@ mod param_msg_tests {
         // Successful list of  a parameter:
 
         let (req_send, req_rcv) = channel();
-        let (rep_send, rep_rcv) = channel();
         let tjh = thread::spawn(move || {
             let req = Request::get_request(req_rcv);
 
@@ -366,7 +349,8 @@ mod param_msg_tests {
             let rep = Reply::Parameter(ParameterReply::Listing(pvec));
             req.send_reply(rep);
         });
-        let reply = list_parameters(req_send, rep_send, rep_rcv, "*");
+        let api = ParameterMessageClient::new(&req_send);
+        let reply = api.list_parameters("*");
         assert!(reply.is_ok());
         let pars = reply.unwrap();
         assert_eq!(2, pars.len());
@@ -406,17 +390,15 @@ mod param_msg_tests {
         // Successful modify of metadata:
 
         let (req_send, req_rcv) = channel();
-        let (rep_send, rep_rcv) = channel();
+
         let tjh = thread::spawn(move || {
             let req = Request::get_request(req_rcv);
-            // Duplicate4 e.g
 
             let rep = Reply::Parameter(ParameterReply::Modified);
             req.send_reply(rep);
         });
-
-        let reply =
-            modify_parameter_metadata(req_send, rep_send, rep_rcv, "junk", None, None, None, None);
+        let api = ParameterMessageClient::new(&req_send);
+        let reply = api.modify_parameter_metadata("junk", None, None, None, None);
         assert!(reply.is_ok());
         tjh.join().unwrap();
     }
@@ -425,7 +407,7 @@ mod param_msg_tests {
         // Failed modify of metadata:
 
         let (req_send, req_rcv) = channel();
-        let (rep_send, rep_rcv) = channel();
+
         let tjh = thread::spawn(move || {
             let req = Request::get_request(req_rcv);
             // Duplicate4 e.g
@@ -435,9 +417,8 @@ mod param_msg_tests {
             )));
             req.send_reply(rep);
         });
-
-        let reply =
-            modify_parameter_metadata(req_send, rep_send, rep_rcv, "junk", None, None, None, None);
+        let api = ParameterMessageClient::new(&req_send);
+        let reply = api.modify_parameter_metadata("junk", None, None, None, None);
         tjh.join().unwrap();
         assert!(reply.is_err());
     }
@@ -448,7 +429,7 @@ mod pprocessor_tests {
     use super::*;
     use std::collections::HashSet;
     fn create_req(name: &str) -> ParameterRequest {
-        let result = make_create_request(name);
+        let result = ParameterMessageClient::make_create_request(name);
         if let MessageType::Parameter(req) = result {
             return req;
         } else {
@@ -456,7 +437,7 @@ mod pprocessor_tests {
         }
     }
     fn list_req(patt: &str) -> ParameterRequest {
-        let result = make_list_request(patt);
+        let result = ParameterMessageClient::make_list_request(patt);
         if let MessageType::Parameter(req) = result {
             return req;
         } else {
@@ -470,7 +451,7 @@ mod pprocessor_tests {
         units: Option<String>,
         description: Option<String>,
     ) -> ParameterRequest {
-        let result = make_modify_request(name, bins, limits, units, description);
+        let result = ParameterMessageClient::make_modify_request(name, bins, limits, units, description);
         if let MessageType::Parameter(req) = result {
             return req;
         } else {
