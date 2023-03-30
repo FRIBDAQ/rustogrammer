@@ -4418,4 +4418,37 @@ mod spectrum_api_tests {
     }
     // For clear and process, we need to have some confidence in
     // being able to get the contents.
+    #[test]
+    fn get_contents_1() {
+        // This will give an empty value:
+
+        let (jh, send) = start_server();
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+
+        create_spectrum_1d(
+            "test",
+            "param.1",
+            0.0,
+            1024.0,
+            1024,
+            send.clone(),
+            rep_send,
+            rep_recv,
+        )
+        .expect("Failed to make spectrum");
+
+        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
+        let contents = get_contents(
+            "test",
+            0.0,
+            1024.0,
+            0.0,
+            0.0,
+            send.clone(),
+            rep_send,
+            rep_recv,
+        )
+        .expect("Failed to get spectrum contents");
+        assert_eq!(0, contents.len());
+    }
 }
