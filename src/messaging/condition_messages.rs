@@ -86,7 +86,7 @@ pub enum ConditionReply {
 /// will all generate the reply channels as per request
 /// simplifying the public call signatures and logic
 ///
-struct ConditionMessageClient {
+pub struct ConditionMessageClient {
     req_send: mpsc::Sender<Request>,
 }
 
