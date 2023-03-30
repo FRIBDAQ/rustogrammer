@@ -43,7 +43,7 @@ use super::conditions::*;
 use super::parameters::*;
 use ndhistogram::*;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{hash_map, HashMap};
 use std::rc::{Rc, Weak};
 
 // Re-exports
@@ -74,6 +74,7 @@ pub use pgamma::*;
 /// which condition is applied to the spectrum.
 /// The gate is the weakened Rc::RefCell that 'points' to the gate.
 ///
+#[derive(Clone)]
 pub struct Gate {
     condition_name: String,
     gate: ContainerReference,
@@ -82,6 +83,7 @@ pub struct Gate {
 /// have a 'special' True gate, we'll put one of these into the
 /// spectrum and a None value for the gate field means the spetrum is
 /// ungated.
+#[derive(Clone)]
 pub struct SpectrumGate {
     gate: Option<Gate>,
 }
@@ -173,9 +175,17 @@ pub trait Spectrum {
     fn required_parameter(&self) -> Option<u32> {
         None
     }
+    // Property getters:
+
     /// Return the spectrum name:
     ///
     fn get_name(&self) -> String;
+    fn get_type(&self) -> String;
+    fn get_xparams(&self) -> Vec<String>;
+    fn get_yparams(&self) -> Vec<String>;
+    fn get_xaxis(&self) -> Option<(f64, f64, u32)>;
+    fn get_yaxis(&self) -> Option<(f64, f64, u32)>;
+    fn get_gate(&self) -> Option<String>;
 
     // Methods that handle gate application:
 
@@ -268,6 +278,12 @@ impl SpectrumStorage {
             other_spectra: SpectrumReferences::new(),
         }
     }
+    /// Iterate over the dict:
+    ///
+    pub fn iter(&self) -> hash_map::Iter<'_, String, SpectrumContainer> {
+        self.dict.iter()
+    }
+
     /// Add a spectrum encapslated in a SpectrumContainer to the
     /// spectrum storage:
     /// -    We clone the input spectrum twice, once for the
@@ -314,6 +330,12 @@ impl SpectrumStorage {
         }
         result
     }
+    /// Does the specified spectrum exist?
+    ///
+    pub fn exists(&self, name: &str) -> bool {
+        self.dict.contains_key(name)
+    }
+
     /// get the spectrum with a given name.  The result is an Option:
     /// -    None if there is no matching spectrum.
     /// -    Some(&SpectrumContainer) if there is.

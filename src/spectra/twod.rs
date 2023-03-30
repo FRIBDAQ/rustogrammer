@@ -1,4 +1,5 @@
 use super::*;
+use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 /// Twod is a simple two dimensional spectrum.
 /// It has two parameters x and y and a SpectrumGate
@@ -44,6 +45,30 @@ impl Spectrum for Twod {
     }
     fn get_name(&self) -> String {
         self.name.clone()
+    }
+    fn get_type(&self) -> String {
+        String::from("2D")
+    }
+    fn get_xparams(&self) -> Vec<String> {
+        vec![self.x_name.clone()]
+    }
+    fn get_yparams(&self) -> Vec<String> {
+        vec![self.y_name.clone()]
+    }
+    fn get_xaxis(&self) -> Option<(f64, f64, u32)> {
+        let x = self.histogram.borrow().axes().as_tuple().0.clone();
+        Some((*x.low(), *x.high(), x.num_bins() as u32))
+    }
+    fn get_yaxis(&self) -> Option<(f64, f64, u32)> {
+        let y = self.histogram.borrow().axes().as_tuple().1.clone();
+        Some((*y.low(), *y.high(), y.num_bins() as u32))
+    }
+    fn get_gate(&self) -> Option<String> {
+        if let Some(g) = self.applied_gate.gate.clone() {
+            Some(g.condition_name)
+        } else {
+            None
+        }
     }
     fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
         self.applied_gate.set_gate(name, dict)

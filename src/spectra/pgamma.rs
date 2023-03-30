@@ -20,6 +20,7 @@
 //!  as for all : minimum *_low, maximum of *_high and *_bins.
 //!
 use super::*;
+use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 
 // This struct defines a parameter for the spectrum:
@@ -70,6 +71,38 @@ impl Spectrum for PGamma {
     }
     fn get_name(&self) -> String {
         self.name.clone()
+    }
+    fn get_type(&self) -> String {
+        String::from("PGamma")
+    }
+    fn get_xparams(&self) -> Vec<String> {
+        let mut result = Vec::<String>::new();
+        for p in self.x_params.iter() {
+            result.push(p.name.clone());
+        }
+        result
+    }
+    fn get_yparams(&self) -> Vec<String> {
+        let mut result = Vec::<String>::new();
+        for p in self.y_params.iter() {
+            result.push(p.name.clone());
+        }
+        result
+    }
+    fn get_xaxis(&self) -> Option<(f64, f64, u32)> {
+        let x = self.histogram.borrow().axes().as_tuple().0.clone();
+        Some((*x.low(), *x.high(), x.num_bins() as u32))
+    }
+    fn get_yaxis(&self) -> Option<(f64, f64, u32)> {
+        let y = self.histogram.borrow().axes().as_tuple().1.clone();
+        Some((*y.low(), *y.high(), y.num_bins() as u32))
+    }
+    fn get_gate(&self) -> Option<String> {
+        if let Some(g) = self.applied_gate.gate.clone() {
+            Some(g.condition_name)
+        } else {
+            None
+        }
     }
     fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
         self.applied_gate.set_gate(name, dict)
@@ -220,7 +253,6 @@ impl PGamma {
 #[cfg(test)]
 mod pgamma_tests {
     use super::*;
-    use ndhistogram::axis::*;
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gating.
 

@@ -682,6 +682,9 @@ impl ConditionProcessor {
             ConditionRequest::List(pattern) => self.list_conditions(&pattern),
         }
     }
+    pub fn get_dict(&mut self) -> &mut ConditionDictionary {
+        &mut self.dict
+    }
 }
 // Tests of request message generators.
 
@@ -1238,6 +1241,7 @@ mod cnd_api_tests {
         } else {
             panic!("Failed to create a false condition");
         }
+        stop_server(jh, send);
     }
     #[test]
     fn not_1() {
@@ -1473,5 +1477,6 @@ mod cnd_api_tests {
         } else {
             panic!("Replacement did not return replaced reply.");
         }
+        stop_server(jh, send);
     }
 }

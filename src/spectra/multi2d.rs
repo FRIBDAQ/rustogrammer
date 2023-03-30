@@ -18,8 +18,8 @@
 //! for events for which the gating condition is true.
 
 use super::*;
+use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
-
 pub struct Multi2d {
     applied_gate: SpectrumGate,
     name: String,
@@ -52,6 +52,30 @@ impl Spectrum for Multi2d {
     }
     fn get_name(&self) -> String {
         self.name.clone()
+    }
+    fn get_type(&self) -> String {
+        String::from("Multi2d")
+    }
+    fn get_xparams(&self) -> Vec<String> {
+        self.param_names.clone()
+    }
+    fn get_yparams(&self) -> Vec<String> {
+        vec![]
+    }
+    fn get_xaxis(&self) -> Option<(f64, f64, u32)> {
+        let x = self.histogram.borrow().axes().as_tuple().0.clone();
+        Some((*x.low(), *x.high(), x.num_bins() as u32))
+    }
+    fn get_yaxis(&self) -> Option<(f64, f64, u32)> {
+        let y = self.histogram.borrow().axes().as_tuple().1.clone();
+        Some((*y.low(), *y.high(), y.num_bins() as u32))
+    }
+    fn get_gate(&self) -> Option<String> {
+        if let Some(g) = self.applied_gate.gate.clone() {
+            Some(g.condition_name)
+        } else {
+            None
+        }
     }
     fn gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
         self.applied_gate.set_gate(name, dict)
@@ -188,7 +212,6 @@ impl Multi2d {
 #[cfg(test)]
 mod multi2d_tests {
     use super::*;
-    use ndhistogram::axis::*;
     use std::cell::RefCell;
     use std::rc::Rc;
     #[test]
