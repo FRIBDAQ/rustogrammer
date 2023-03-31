@@ -75,8 +75,8 @@ pub enum Reply {
 ///
 #[derive(Clone)]
 pub struct Request {
-    reply_channel: mpsc::Sender<Reply>,
-    message: MessageType,
+    pub reply_channel: mpsc::Sender<Reply>,
+    pub message: MessageType,
 }
 
 /// These functions send/receive raw messages and

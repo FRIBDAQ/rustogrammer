@@ -12,16 +12,19 @@ use ring_items::FromRaw;
 use std::fs::File;
 
 mod conditions;
+mod histogramer;
 mod messaging;
 mod parameters;
 mod spectra;
 
 fn main() {
+    let (jh, channel) = histogramer::start_server();
     if let Ok(mut f) = File::open("run-0088-00.evt") {
         dump_items(&mut f);
     } else {
         println!("Failed to open input file");
     }
+    histogramer::stop_server(jh, channel);
 }
 // TODO:  In the code below, for to_specific, we should default
 // to a specific version (e.g. V11) but allow format item contents

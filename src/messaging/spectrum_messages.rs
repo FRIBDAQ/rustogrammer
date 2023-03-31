@@ -3683,6 +3683,7 @@ mod reqstruct_tests {
             req
         );
     }
+    #[test]
     fn process_1() {
         let events = vec![
             vec![EventParameter::new(1, 2.0), EventParameter::new(7, 100.)],
