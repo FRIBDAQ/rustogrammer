@@ -225,4 +225,33 @@ mod hgrammer_tests {
 
         stop_server(jh, ch);
     }
+    #[test]
+    fn conditions_1() {
+        // test interactions via conditions API:
+
+        let (jh, ch) = start_server();
+
+        let client = messaging::condition_messages::ConditionMessageClient::new(&ch);
+
+        let reply = client.create_true_condition("true");
+        assert!(
+            if let messaging::condition_messages::ConditionReply::Created = reply {
+                true
+            } else {
+                false
+            }
+        );
+        let reply = client.list_conditions("*");
+        assert!(
+            if let messaging::condition_messages::ConditionReply::Listing(l) = reply {
+                assert_eq!(1, l.len());
+                assert_eq!(String::from("true"), l[0].cond_name);
+                true
+            } else {
+                false
+            }
+        );
+
+        stop_server(jh, ch);
+    }
 }

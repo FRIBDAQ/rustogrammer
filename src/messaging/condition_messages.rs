@@ -58,11 +58,11 @@ pub enum ConditionRequest {
 /// This structure provides condition properties:
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConditionProperties {
-    cond_name: String,
-    type_name: String,
-    points: Vec<(f64, f64)>,
-    gates: Vec<String>,
-    parameters: Vec<u32>,
+    pub cond_name: String,
+    pub type_name: String,
+    pub points: Vec<(f64, f64)>,
+    pub gates: Vec<String>,
+    pub parameters: Vec<u32>,
 }
 ///
 /// These are replies that can be sent from the condition manager
