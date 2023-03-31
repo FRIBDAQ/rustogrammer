@@ -104,6 +104,48 @@ impl Histogramer {
     }
 }
 
+// Stolen from the tests so we already know they work:
+
+/// Start the histogram server the returned tuple contains
+/// the thread's join handle and the channel on which to  send the
+/// server requests.
+/// Note that there are well developed API classes for formating
+/// and sending request message to this server...use them.
+///
+pub fn start_server() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
+    let (req_send, req_recv) = mpsc::channel();
+
+    let join_handle = thread::spawn(move || {
+        let mut processor = Histogramer::new(req_recv);
+        processor.run();
+    });
+
+    (join_handle, req_send)
+}
+/// Stop the histogram server:
+///
+/// * jh - the join handle for the server thread.  On exit from this
+/// function the join has been done.
+/// * req_send - the channel on which requests get sent to the server.
+/// (second element of the tuple returned from the start_server function).
+///
+pub fn stop_server(jh: thread::JoinHandle<()>, req_send: mpsc::Sender<Request>) {
+    let (rep_send, rep_recv) = mpsc::channel();
+    let req = messaging::Request {
+        reply_channel: rep_send,
+        message: messaging::MessageType::Exit,
+    };
+    assert!(
+        if let messaging::Reply::Exiting = req.transaction(req_send, rep_recv) {
+            true
+        } else {
+            false
+        }
+    );
+
+    jh.join().expect("Failed to join server thread");
+}
+
 // Note we're just going to try some simple requests for each
 // type to ensure all branches of the match in process_message work.
 // We assume each request processor has already been extensively
@@ -173,30 +215,10 @@ mod hgrammer_tests {
     use std::thread;
 
     fn start_server() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
-        let (req_send, req_recv) = mpsc::channel();
-
-        let join_handle = thread::spawn(move || {
-            let mut processor = Histogramer::new(req_recv);
-            processor.run();
-        });
-
-        (join_handle, req_send)
+        super::start_server()
     }
     fn stop_server(jh: thread::JoinHandle<()>, req_send: mpsc::Sender<Request>) {
-        let (rep_send, rep_recv) = mpsc::channel();
-        let req = messaging::Request {
-            reply_channel: rep_send,
-            message: messaging::MessageType::Exit,
-        };
-        assert!(
-            if let messaging::Reply::Exiting = req.transaction(req_send, rep_recv) {
-                true
-            } else {
-                false
-            }
-        );
-
-        jh.join().expect("Failed to join server thread");
+        super::stop_server(jh, req_send);
     }
     #[test]
     fn exit_1() {
@@ -251,6 +273,21 @@ mod hgrammer_tests {
                 false
             }
         );
+
+        stop_server(jh, ch);
+    }
+    #[test]
+    fn spectra_() {
+        // Test interactions with spectrum API.
+
+        let (jh, ch) = start_server();
+        let client = messaging::spectrum_messages::SpectrumMessageClient::new(&ch);
+
+        // Simplest thing we cand without needing to add any parameters
+        // is get the empty list of spectra:
+
+        let l = client.list_spectra("*").expect("Failed to list spectra");
+        assert_eq!(0, l.len());
 
         stop_server(jh, ch);
     }
