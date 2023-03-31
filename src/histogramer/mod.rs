@@ -44,7 +44,7 @@ impl RequestProcessor {
     ///  Note that we ignore the Exit message since that must be
     /// handled at the level of the thread that runs us:
     ///
-    pub fn process_message(&mut self, message: messaging::MessageType) -> Reply {
+    pub fn process_message(&mut self, message: messaging::MessageType) -> messaging::Reply {
         match message {
             MessageType::Parameter(req) => Reply::Parameter(self.parameters.process_request(req)),
             MessageType::Condition(req) => Reply::Condition(self.conditions.process_request(req)),
@@ -57,13 +57,31 @@ impl RequestProcessor {
         }
     }
 }
-
+// Note we're just going to try some simple requests for each
+// type to ensure all branches of the match in process_message work.
+// We assume each request processor has already been extensively
+// tested in its own module's tests.
 #[cfg(test)]
 mod request_tests {
     use super::*;
-
+    use messaging::*;
     #[test]
-    fn new_1() {
-        
+    fn param_create_1() {
+        let mut req = RequestProcessor::new();
+        let msg = messaging::MessageType::Parameter(ParameterRequest::Create(String::from("test")));
+        match req.process_message(msg) {
+            messaging::Reply::Parameter(p) => {
+                assert!(if let parameter_messages::ParameterReply::Created = p {
+                    true
+                } else {
+                    false
+                });
+            }
+            _ => {
+                assert!(false, "Invalid reply from process_message");
+            }
+        };
+        let d = req.parameters.get_dict();
+        let p = d.lookup("test").expect("failed to find 'test' parameters");
     }
 }
