@@ -1,4 +1,5 @@
 /target
+/spectcl-rest
 Cargo.lock
 *.evt
 
