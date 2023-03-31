@@ -12,6 +12,8 @@
 
 use super::*;
 use crate::messaging::*;
+use std::sync::mpsc;
+use std::thread;
 
 ///  The Request processor is implemented as a struct which holds
 /// to the request processing structs for each of the categories of
@@ -57,6 +59,51 @@ impl RequestProcessor {
         }
     }
 }
+
+/// The histogramer struct is essentially the the thread.
+/// This layer encapsulates a RequestProcessor and the
+/// Receiver<Request> channel on which requests are received.
+///
+struct Histogramer {
+    processor: RequestProcessor,
+    chan: mpsc::Receiver<Request>,
+}
+impl Histogramer {
+    pub fn new(chan: mpsc::Receiver<Request>) -> Histogramer {
+        Histogramer {
+            processor: RequestProcessor::new(),
+            chan: chan,
+        }
+    }
+    ///
+    /// Invoke this to run the server until it's told to exit.
+    ///
+    pub fn run(&mut self) {
+        loop {
+            let req = self.chan.recv().expect("Failed to read a request");
+            let reply = self.processor.process_message(req.message);
+
+            // The reply is sent to the client but if it's an exit we
+            // return
+            // Since send consumes the reply we need to
+            // do it as per below or clone the reply which
+            // might be computationally expensive (imagine it contains
+            // the contents of a dense, large, 2d histogram e.g.).
+
+            if let Reply::Exiting = reply {
+                req.reply_channel
+                    .send(reply)
+                    .expect("Failed to send reply to request");
+                break;
+            } else {
+                req.reply_channel
+                    .send(reply)
+                    .expect("Failed to send reply to request");
+            }
+        }
+    }
+}
+
 // Note we're just going to try some simple requests for each
 // type to ensure all branches of the match in process_message work.
 // We assume each request processor has already been extensively
@@ -70,12 +117,11 @@ mod request_tests {
         let msg = MessageType::Parameter(ParameterRequest::Create(String::from("test")));
         assert!(
             if let messaging::Reply::Parameter(ParameterReply::Created) = req.process_message(msg) {
-
-                    true
-                } else {
-                    false        
-                }
-            );
+                true
+            } else {
+                false
+            }
+        );
         let d = req.parameters.get_dict();
         d.lookup("test").expect("failed to find 'test' parameters");
     }
