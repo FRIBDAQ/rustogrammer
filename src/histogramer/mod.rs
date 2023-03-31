@@ -222,5 +222,7 @@ mod hgrammer_tests {
         let lr = client.list_parameters("*").expect("list2 failed");
         assert_eq!(1, lr.len());
         assert_eq!(String::from("test"), lr[0].get_name());
+
+        stop_server(jh, ch);
     }
 }
