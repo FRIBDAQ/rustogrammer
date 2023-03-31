@@ -391,7 +391,7 @@ impl ConditionMessageClient {
 /// The actual communication is assumed to have happened external to this
 /// module.
 ///
-struct ConditionProcessor {
+pub struct ConditionProcessor {
     dict: ConditionDictionary,
 }
 impl ConditionProcessor {
