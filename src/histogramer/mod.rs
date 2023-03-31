@@ -68,10 +68,10 @@ mod request_tests {
     #[test]
     fn param_create_1() {
         let mut req = RequestProcessor::new();
-        let msg = messaging::MessageType::Parameter(ParameterRequest::Create(String::from("test")));
+        let msg = MessageType::Parameter(ParameterRequest::Create(String::from("test")));
         match req.process_message(msg) {
             messaging::Reply::Parameter(p) => {
-                assert!(if let parameter_messages::ParameterReply::Created = p {
+                assert!(if let ParameterReply::Created = p {
                     true
                 } else {
                     false
@@ -82,6 +82,21 @@ mod request_tests {
             }
         };
         let d = req.parameters.get_dict();
-        let p = d.lookup("test").expect("failed to find 'test' parameters");
+        d.lookup("test").expect("failed to find 'test' parameters");
+    }
+    #[test]
+    fn cond_create_1() {
+        let mut req = RequestProcessor::new();
+        let msg = MessageType::Condition(ConditionRequest::CreateTrue(String::from("true")));
+        assert!(match req.process_message(msg) {
+            Reply::Condition(ConditionReply::Created) => {
+                true
+            }
+            _ => {
+                false
+            }
+        });
+        let d = req.conditions.get_dict();
+        d.get(&String::from("true")).expect("Failed gate lookup");
     }
 }
