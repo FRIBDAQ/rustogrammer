@@ -64,23 +64,18 @@ impl RequestProcessor {
 #[cfg(test)]
 mod request_tests {
     use super::*;
-    use messaging::*;
     #[test]
     fn param_create_1() {
         let mut req = RequestProcessor::new();
         let msg = MessageType::Parameter(ParameterRequest::Create(String::from("test")));
-        match req.process_message(msg) {
-            messaging::Reply::Parameter(p) => {
-                assert!(if let ParameterReply::Created = p {
+        assert!(
+            if let messaging::Reply::Parameter(ParameterReply::Created) = req.process_message(msg) {
+
                     true
                 } else {
-                    false
-                });
-            }
-            _ => {
-                assert!(false, "Invalid reply from process_message");
-            }
-        };
+                    false        
+                }
+            );
         let d = req.parameters.get_dict();
         d.lookup("test").expect("failed to find 'test' parameters");
     }
@@ -88,14 +83,13 @@ mod request_tests {
     fn cond_create_1() {
         let mut req = RequestProcessor::new();
         let msg = MessageType::Condition(ConditionRequest::CreateTrue(String::from("true")));
-        assert!(match req.process_message(msg) {
-            Reply::Condition(ConditionReply::Created) => {
+        assert!(
+            if let Reply::Condition(ConditionReply::Created) = req.process_message(msg) {
                 true
-            }
-            _ => {
+            } else {
                 false
             }
-        });
+        );
         let d = req.conditions.get_dict();
         d.get(&String::from("true")).expect("Failed gate lookup");
     }
@@ -113,5 +107,15 @@ mod request_tests {
                 false
             }
         );
+    }
+    #[test]
+    fn exit_1() {
+        let mut req = RequestProcessor::new();
+        let msg = MessageType::Exit;
+        assert!(if let Reply::Exiting = req.process_message(msg) {
+            true
+        } else {
+            false
+        });
     }
 }
