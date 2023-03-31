@@ -57,3 +57,13 @@ impl RequestProcessor {
         }
     }
 }
+
+#[cfg(test)]
+mod request_tests {
+    use super::*;
+
+    #[test]
+    fn new_1() {
+        
+    }
+}
