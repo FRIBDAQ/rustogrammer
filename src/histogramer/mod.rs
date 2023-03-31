@@ -99,4 +99,19 @@ mod request_tests {
         let d = req.conditions.get_dict();
         d.get(&String::from("true")).expect("Failed gate lookup");
     }
+    #[test]
+    fn spec_clear_1() {
+        // Clear because we don't actually need any
+        // spectra for that.
+        //
+        let mut req = RequestProcessor::new();
+        let msg = MessageType::Spectrum(SpectrumRequest::Clear(String::from("*")));
+        assert!(
+            if let Reply::Spectrum(SpectrumReply::Cleared) = req.process_message(msg) {
+                true
+            } else {
+                false
+            }
+        );
+    }
 }
