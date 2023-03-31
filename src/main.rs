@@ -12,6 +12,7 @@ use ring_items::FromRaw;
 use std::fs::File;
 
 mod conditions;
+mod histogramer;
 mod messaging;
 mod parameters;
 mod spectra;

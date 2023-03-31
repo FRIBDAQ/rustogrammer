@@ -260,7 +260,7 @@ impl ParameterProcessor {
     }
     /// Process a request returning the reply.
     ///
-    fn process_request(&mut self, req: ParameterRequest) -> ParameterReply {
+    pub fn process_request(&mut self, req: ParameterRequest) -> ParameterReply {
         match req {
             ParameterRequest::Create(name) => self.create(&name),
             ParameterRequest::List(pattern) => self.list(&pattern),
@@ -451,7 +451,8 @@ mod pprocessor_tests {
         units: Option<String>,
         description: Option<String>,
     ) -> ParameterRequest {
-        let result = ParameterMessageClient::make_modify_request(name, bins, limits, units, description);
+        let result =
+            ParameterMessageClient::make_modify_request(name, bins, limits, units, description);
         if let MessageType::Parameter(req) = result {
             return req;
         } else {
