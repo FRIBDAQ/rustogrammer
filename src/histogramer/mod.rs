@@ -165,3 +165,62 @@ mod request_tests {
         });
     }
 }
+#[cfg(test)]
+mod hgrammer_tests {
+    use super::*;
+    use crate::messaging;
+    use std::sync::mpsc;
+    use std::thread;
+
+    fn start_server() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
+        let (req_send, req_recv) = mpsc::channel();
+
+        let join_handle = thread::spawn(move || {
+            let mut processor = Histogramer::new(req_recv);
+            processor.run();
+        });
+
+        (join_handle, req_send)
+    }
+    fn stop_server(jh: thread::JoinHandle<()>, req_send: mpsc::Sender<Request>) {
+        let (rep_send, rep_recv) = mpsc::channel();
+        let req = messaging::Request {
+            reply_channel: rep_send,
+            message: messaging::MessageType::Exit,
+        };
+        assert!(
+            if let messaging::Reply::Exiting = req.transaction(req_send, rep_recv) {
+                true
+            } else {
+                false
+            }
+        );
+
+        jh.join().expect("Failed to join server thread");
+    }
+    #[test]
+    fn exit_1() {
+        // start and stop the thread...all test are in that
+        // Tests server response to Request::Exit
+        let (jh, ch) = start_server();
+        stop_server(jh, ch);
+    }
+    #[test]
+    fn params_1() {
+        // test parameters:
+
+        let (jh, ch) = start_server();
+        let client = messaging::parameter_messages::ParameterMessageClient::new(&ch);
+        let lr = client.list_parameters("*").expect("list failed"); // should be empty but work.
+        assert_eq!(0, lr.len());
+
+        // want a bit more:
+
+        client
+            .create_parameter("test")
+            .expect("create test parameter failed");
+        let lr = client.list_parameters("*").expect("list2 failed");
+        assert_eq!(1, lr.len());
+        assert_eq!(String::from("test"), lr[0].get_name());
+    }
+}
