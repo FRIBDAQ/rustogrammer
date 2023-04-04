@@ -12,3 +12,6 @@ tempfile  = "3.3.0"    # For tests that create ring item files.
 libm = "0.2.6"
 glob = "0.3.1"
 
+[dependencies.rocket]
+version="0.5.0-rc.3"
+features=["json"]

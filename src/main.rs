@@ -10,6 +10,7 @@ use ring_items::text_item;
 use ring_items::triggers_item;
 use ring_items::FromRaw;
 use std::fs::File;
+use std::sync::{Arc, Mutex};
 
 mod conditions;
 mod histogramer;
@@ -17,14 +18,21 @@ mod messaging;
 mod parameters;
 mod spectra;
 
-fn main() {
+// Pull in Rocket features:
+
+#[macro_use]
+extern crate rocket;
+
+// This is now the entry point as Rocket has the main
+//
+#[launch]
+fn rocket() -> _ {
+    // For now to ensure the join handle and channel don't get
+    // dropped start the histogram server in a thread:
+    //
+
     let (jh, channel) = histogramer::start_server();
-    if let Ok(mut f) = File::open("run-0088-00.evt") {
-        dump_items(&mut f);
-    } else {
-        println!("Failed to open input file");
-    }
-    histogramer::stop_server(jh, channel);
+    rocket::build().manage(Mutex::new((jh, channel)))
 }
 // TODO:  In the code below, for to_specific, we should default
 // to a specific version (e.g. V11) but allow format item contents
