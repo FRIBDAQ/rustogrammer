@@ -21,11 +21,14 @@
 //!   that can be used across the modules.
 //!    
 
+// Re exports:
+
+pub mod parameter;
 use crate::messaging::Request;
+pub use parameter as rest_parameter;
 use std::sync::{mpsc, Mutex};
 use std::thread;
 
-///  This type is used by all handler in a state request guard
-///  to obtain the send channel and join handle of the histogram
-///  server:
-type HistogramState = Mutex<(thread::JoinHandle<()>, mpsc::Sender<Request>)>;
+pub struct HistogramState {
+    pub state: Mutex<(thread::JoinHandle<()>, mpsc::Sender<Request>)>,
+}
