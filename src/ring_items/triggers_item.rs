@@ -141,8 +141,8 @@ impl ring_items::FromRaw<PhysicsEventCountItem> for ring_items::RingItem {
 }
 #[cfg(test)]
 mod triggers_test {
+    use super::*;
     use crate::ring_items::*;
-    use crate::triggers_item::*;
     use std::mem::size_of;
     use std::time::SystemTime;
 

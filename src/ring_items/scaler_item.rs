@@ -212,8 +212,8 @@ impl ring_items::FromRaw<ScalerItem> for ring_items::RingItem {
 
 #[cfg(test)]
 mod scaler_tests {
+    use super::*;
     use crate::ring_items::*;
-    use crate::scaler_item::*;
     use std::mem::size_of;
     use std::time::*;
     #[test]

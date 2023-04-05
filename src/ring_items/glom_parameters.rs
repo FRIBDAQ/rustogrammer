@@ -126,7 +126,7 @@ impl ring_items::FromRaw<GlomParameters> for ring_items::RingItem {
 }
 #[cfg(test)]
 mod glom_tests {
-    use crate::glom_parameters::*;
+    use super::*;
     use crate::ring_items::*;
     use std::mem::size_of;
     #[test]

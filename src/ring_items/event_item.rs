@@ -184,7 +184,7 @@ impl ring_items::FromRaw<PhysicsEvent> for ring_items::RingItem {
 }
 #[cfg(test)]
 mod test_event {
-    use crate::event_item::*;
+    use super::*;
     use crate::ring_items::*;
     use std::mem::size_of;
     #[test]

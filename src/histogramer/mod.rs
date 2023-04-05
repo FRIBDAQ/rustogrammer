@@ -10,7 +10,6 @@
 //! * A public function to stop the thread.
 //!
 
-use super::*;
 use crate::messaging::*;
 use std::sync::mpsc;
 use std::thread;
@@ -46,7 +45,7 @@ impl RequestProcessor {
     ///  Note that we ignore the Exit message since that must be
     /// handled at the level of the thread that runs us:
     ///
-    pub fn process_message(&mut self, message: messaging::MessageType) -> messaging::Reply {
+    pub fn process_message(&mut self, message: MessageType) -> Reply {
         match message {
             MessageType::Parameter(req) => Reply::Parameter(self.parameters.process_request(req)),
             MessageType::Condition(req) => Reply::Condition(self.conditions.process_request(req)),
@@ -131,12 +130,12 @@ pub fn start_server() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
 ///
 pub fn stop_server(jh: thread::JoinHandle<()>, req_send: mpsc::Sender<Request>) {
     let (rep_send, rep_recv) = mpsc::channel();
-    let req = messaging::Request {
+    let req = Request {
         reply_channel: rep_send,
-        message: messaging::MessageType::Exit,
+        message: MessageType::Exit,
     };
     assert!(
-        if let messaging::Reply::Exiting = req.transaction(req_send, rep_recv) {
+        if let Reply::Exiting = req.transaction(req_send, rep_recv) {
             true
         } else {
             false
@@ -153,6 +152,7 @@ pub fn stop_server(jh: thread::JoinHandle<()>, req_send: mpsc::Sender<Request>) 
 #[cfg(test)]
 mod request_tests {
     use super::*;
+    use crate::messaging;
     #[test]
     fn param_create_1() {
         let mut req = RequestProcessor::new();

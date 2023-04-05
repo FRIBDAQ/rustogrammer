@@ -41,8 +41,8 @@ impl ring_items::FromRaw<AbnormalEnd> for ring_items::RingItem {
 //
 #[cfg(test)]
 mod abend_tests {
+    use super::*;
     use crate::ring_items::*;
-    use abnormal_end::*;
     use std::mem::size_of;
     #[test]
     fn fromraw_1() {
