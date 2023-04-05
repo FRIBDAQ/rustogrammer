@@ -18,23 +18,21 @@
 //#[macro_use]
 //extern crate rocket;
 
-use rocket::request::{self, FromRequest, Request};
 use rocket::serde::ser::SerializeStruct;
-use rocket::serde::{json::Json, Serialize, Serializer};
+use rocket::serde::{json::Json, Serialize};
 use rocket::State;
 
 use super::*;
 
 use crate::messaging::parameter_messages::ParameterMessageClient;
-use crate::parameters;
 
-use std::sync::Mutex;
-use std::thread;
-
+//------------------------- List operation ---------------------
 // These define structs that will be serialized.
 // to Json:
 // And, where needed their implementation of traits required.
 //
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
 pub struct ParameterDefinition {
     name: String,
     id: u32,
@@ -44,6 +42,7 @@ pub struct ParameterDefinition {
     units: Option<String>,
     description: Option<String>, // New in rustogramer.
 }
+#[cfg(no)]
 impl Serialize for ParameterDefinition {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -60,11 +59,13 @@ impl Serialize for ParameterDefinition {
         s.end()
     }
 }
-
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
 pub struct Parameters {
     status: String,
-    defs: Vec<ParameterDefinition>,
+    detail: Vec<ParameterDefinition>,
 }
+#[cfg(no)]
 impl Serialize for Parameters {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -83,9 +84,9 @@ impl Serialize for Parameters {
 pub fn list_parameters(filter: Option<String>, state: &State<HistogramState>) -> Json<Parameters> {
     let mut result = Parameters {
         status: String::from("OK"),
-        defs: Vec::<ParameterDefinition>::new(),
+        detail: Vec::<ParameterDefinition>::new(),
     };
-    let mut api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
 
     let pattern = if let Some(p) = filter {
         p
@@ -96,7 +97,7 @@ pub fn list_parameters(filter: Option<String>, state: &State<HistogramState>) ->
     match list {
         Ok(listing) => {
             for p in listing {
-                result.defs.push(ParameterDefinition {
+                result.detail.push(ParameterDefinition {
                     name: p.get_name(),
                     id: p.get_id(),
                     bins: p.get_bins(),
@@ -112,4 +113,24 @@ pub fn list_parameters(filter: Option<String>, state: &State<HistogramState>) ->
         }
     }
     Json(result)
+}
+
+//---------------------------------------------------------
+// What we need to provide the version:
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct TreeParameterVersion {
+    status: String,
+    detail: String,
+}
+
+#[get("/version")]
+pub fn parameter_version() -> Json<TreeParameterVersion> {
+    let version = TreeParameterVersion {
+        status: String::from("OK"),
+        detail: String::from("2.0"),
+    };
+
+    Json(version)
 }

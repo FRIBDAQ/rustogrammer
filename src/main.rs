@@ -6,10 +6,8 @@ mod rest;
 mod ring_items;
 mod spectra;
 
-use messaging::Request;
 use rest::rest_parameter;
-use std::sync::{mpsc, Mutex};
-use std::thread;
+use std::sync::Mutex;
 
 // Pull in Rocket features:
 
@@ -35,7 +33,11 @@ fn rocket() -> _ {
     let state = rest::HistogramState {
         state: Mutex::new((jh, channel)),
     };
-    rocket::build()
-        .manage(state)
-        .mount("/spectcl/parameter", routes![rest_parameter::list_parameters])
+    rocket::build().manage(state).mount(
+        "/spectcl/parameter",
+        routes![
+            rest_parameter::list_parameters,
+            rest_parameter::parameter_version,
+        ],
+    )
 }
