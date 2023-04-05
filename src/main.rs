@@ -14,13 +14,7 @@ use std::sync::Mutex;
 #[macro_use]
 extern crate rocket;
 
-///  This type is used by all handler in a state request guard
-///  to obtain the send channel and join handle of the histogram
-///  server:
 
-pub struct HistogramState {
-    junk: String,
-}
 // This is now the entry point as Rocket has the main
 //
 #[launch]
@@ -38,6 +32,7 @@ fn rocket() -> _ {
         routes![
             rest_parameter::list_parameters,
             rest_parameter::parameter_version,
+            rest_parameter::create_parameter,
         ],
     )
 }
