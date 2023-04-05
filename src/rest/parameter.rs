@@ -42,44 +42,13 @@ pub struct ParameterDefinition {
     units: Option<String>,
     description: Option<String>, // New in rustogramer.
 }
-#[cfg(no)]
-impl Serialize for ParameterDefinition {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut s = serializer.serialize_struct("ParmeterDefinition", 7)?;
-        s.serialize_field("name", &self.name)?;
-        s.serialize_field("id", &self.id)?;
-        s.serialize_field("bins", &self.bins)?;
-        s.serialize_field("low", &self.low)?;
-        s.serialize_field("high", &self.high)?;
-        s.serialize_field("units", &self.units)?;
-        s.serialize_field("description", &self.description)?;
-        s.end()
-    }
-}
+
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Parameters {
     status: String,
     detail: Vec<ParameterDefinition>,
 }
-#[cfg(no)]
-impl Serialize for Parameters {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut s = serializer.serialize_struct("Parameters", 2)?;
-        s.serialize_field("status", &self.status)?;
-        for p in self.defs.iter() {
-            s.serialize_field("detail", p);
-        }
-        s.end()
-    }
-}
-
 #[get("/list?<filter>")]
 pub fn list_parameters(filter: Option<String>, state: &State<HistogramState>) -> Json<Parameters> {
     let mut result = Parameters {
