@@ -132,7 +132,29 @@ pub struct CreateResponse {
     status: String,
     detail: String,
 }
-
+///
+/// Implement the create operations for parameters.
+///  The url in general is of the form:
+///
+///    spectcl/parameter/create?name=param_name[&bins=num_bins] \
+///        [&low=low_lim&high=hi_lim][&units=uom][&description=a description]
+///
+/// Note from the above that either both low and high must be
+/// supplied or neither.   The only required parameter is the
+/// parameter name. All others are optional.
+///
+/// The description parameter is an extension from SpecTcl and supports
+/// providing a human readable description of the parameter.
+///
+/// On success, the detail is empty.  On failure the status
+/// provides a top level description of what was being attempted
+/// the detail is a string that describes how it failed.
+///
+/// There are actually two requests made of the internal histogram
+/// server.  The first creates the parameter and the second
+/// then sets any metadata that has been supplied in the URL query
+/// parameters.
+///
 #[get("/create?<name>&<low>&<high>&<bins>&<units>&<description>")]
 pub fn create_parameter(
     name: String,
