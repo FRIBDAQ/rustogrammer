@@ -31,9 +31,12 @@
 
 // Re exports:
 
+pub mod gates;
 pub mod parameter;
-use crate::messaging::Request;
+pub use gates;
 pub use parameter as rest_parameter;
+
+use crate::messaging::Request;
 use std::sync::{mpsc, Mutex};
 use std::thread;
 

@@ -6,6 +6,7 @@ mod rest;
 mod ring_items;
 mod spectra;
 
+use rest::gates;
 use rest::rest_parameter;
 use std::sync::Mutex;
 
@@ -26,20 +27,26 @@ fn rocket() -> _ {
     let state = rest::HistogramState {
         state: Mutex::new((jh, channel)),
     };
-    rocket::build().manage(state).mount(
-        "/spectcl/parameter",
-        routes![
-            rest_parameter::list_parameters,
-            rest_parameter::parameter_version,
-            rest_parameter::create_parameter,
-            rest_parameter::edit_parameter,
-            rest_parameter::promote_parameter,
-            rest_parameter::check_parameter,
-            rest_parameter::uncheck_parameter
-        ],
-    ).mount("/spectcl/rawparameter", routes![
-        rest_parameter::new_rawparameter,
-        rest_parameter::list_rawparameter,
-        rest_parameter::delete_rawparameter
-    ])
+    rocket::build()
+        .manage(state)
+        .mount(
+            "/spectcl/parameter",
+            routes![
+                rest_parameter::list_parameters,
+                rest_parameter::parameter_version,
+                rest_parameter::create_parameter,
+                rest_parameter::edit_parameter,
+                rest_parameter::promote_parameter,
+                rest_parameter::check_parameter,
+                rest_parameter::uncheck_parameter
+            ],
+        )
+        .mount(
+            "/spectcl/rawparameter",
+            routes![
+                rest_parameter::new_rawparameter,
+                rest_parameter::list_rawparameter,
+                rest_parameter::delete_rawparameter
+            ],
+        )
 }
