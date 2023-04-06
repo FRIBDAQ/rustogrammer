@@ -14,7 +14,6 @@ use std::sync::Mutex;
 #[macro_use]
 extern crate rocket;
 
-
 // This is now the entry point as Rocket has the main
 //
 #[launch]
@@ -33,6 +32,7 @@ fn rocket() -> _ {
             rest_parameter::list_parameters,
             rest_parameter::parameter_version,
             rest_parameter::create_parameter,
+            rest_parameter::edit_parameter,
         ],
     )
 }

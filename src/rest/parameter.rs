@@ -128,7 +128,7 @@ pub fn parameter_version() -> Json<TreeParameterVersion> {
 
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
-pub struct CreateResponse {
+pub struct GenericResponse {
     status: String,
     detail: String,
 }
@@ -164,9 +164,9 @@ pub fn create_parameter(
     units: Option<String>,
     description: Option<String>,
     state: &State<HistogramState>,
-) -> Json<CreateResponse> {
-    let mut response = CreateResponse {
-        status: String::from("Ok"),
+) -> Json<GenericResponse> {
+    let mut response = GenericResponse {
+        status: String::from("OK"),
         detail: String::new(),
     };
 
@@ -203,6 +203,47 @@ pub fn create_parameter(
                 response.status = String::from("'treeparameter -create' failed: ");
                 response.detail = s;
             }
+        }
+    }
+    Json(response)
+}
+//------------------------------------------------------------------
+// Edit the metadata associated with a parameter:
+
+#[get("/edit?<name>&<bins>&<low>&<high>&<units>&<description>")]
+pub fn edit_parameter(
+    name: String,
+    bins: Option<u32>,
+    low: Option<f64>,
+    high: Option<f64>,
+    units: Option<String>,
+    description: Option<String>,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    let mut response = GenericResponse {
+        status: String::from("OK"),
+        detail: String::from(""),
+    };
+
+    if (low.is_none() && high.is_some()) || (low.is_some() && high.is_none()) {
+        response.status = String::from("invalid request");
+        response.detail = String::from("Either low and high must be provided or neither");
+    } else {
+        // Fish out low/high given that either both are there or none:
+
+        let limits = if low.is_some() {
+            Some((low.unwrap(), high.unwrap()))
+        } else {
+            None
+        };
+
+        // Make the API so we can create and, if needed,
+        // modify the metadata:
+
+        let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+        if let Err(s) = api.modify_parameter_metadata(&name, bins, limits, units, description) {
+            response.status = String::from("Could not modify metadata");
+            response.detail = s;
         }
     }
     Json(response)

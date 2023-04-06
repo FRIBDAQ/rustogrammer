@@ -147,14 +147,13 @@ impl ParameterMessageClient {
 
         // Must  be a Listing else that's bad too:
 
-         match result {
+        match result {
             ParameterReply::Listing(l) => Ok(l),
             ParameterReply::Error(s) => Err(s),
             _ => Err(String::from(
                 "Bug: Invalid histogram Parameter response to Parmeter::list request",
             )),
         }
-        
     }
     ///
     /// Modify selected metadata in a parameter.  The things that
