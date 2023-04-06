@@ -378,21 +378,7 @@ pub fn new_rawparameter(
     create_parameter(name, low, high, bins, units, description, state)
 }
 
-// Utility method to return the name of a parameter given its id
 
-fn find_parameter_by_id(id: u32, state: &State<HistogramState>) -> Option<String> {
-    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
-    if let Ok(l) = api.list_parameters("*") {
-        for p in l {
-            if p.get_id() == id {
-                return Some(p.get_name());
-            }
-        }
-        None
-    } else {
-        None // Error is non for now.
-    }
-}
 
 ///
 /// list is a front end to the list_parameters method:

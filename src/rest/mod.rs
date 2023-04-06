@@ -33,13 +33,31 @@
 
 pub mod gates;
 pub mod parameter;
-pub use gates;
+
 pub use parameter as rest_parameter;
 
+use crate::messaging::parameter_messages::ParameterMessageClient;
 use crate::messaging::Request;
+use rocket::State;
 use std::sync::{mpsc, Mutex};
 use std::thread;
 
 pub struct HistogramState {
     pub state: Mutex<(thread::JoinHandle<()>, mpsc::Sender<Request>)>,
+}
+
+// Utility method to return the name of a parameter given its id
+
+fn find_parameter_by_id(id: u32, state: &State<HistogramState>) -> Option<String> {
+    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    if let Ok(l) = api.list_parameters("*") {
+        for p in l {
+            if p.get_id() == id {
+                return Some(p.get_name());
+            }
+        }
+        None
+    } else {
+        None // Error is non for now.
+    }
 }
