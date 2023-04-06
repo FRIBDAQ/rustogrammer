@@ -283,3 +283,48 @@ pub fn promote_parameter(
 ) -> Json<GenericResponse> {
     edit_parameter(name, bins, low, high, units, description, state)
 }
+//--------------------------------------------------------------------
+// CHeck status
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct CheckResponse {
+    status: String,
+    detail: Option<u8>,
+}
+///
+/// /spectcl/parameter/check
+///
+/// There is no check flag on Rustogramer status items so
+/// this always return false.
+///
+/// The sole query parameter is _name_ - the name of the parameter
+/// to modify.
+/// We do go through the trouble of ensuring that parameter
+/// actually exists first.  Returns:
+///
+/// Success:  status is OK and detail is 0
+/// Failure:  Status is a top level error message and
+/// Empty.
+#[get("/check?<name>")]
+pub fn check_parameter(name: String, state: &State<HistogramState>) -> Json<CheckResponse> {
+    let mut response = CheckResponse {
+        status: String::from("OK"),
+        detail: Some(0),
+    };
+    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let result = api.list_parameters(&name);
+    match result {
+        Ok(listing) => {
+            if listing.len() == 0 {
+                response.status = format!("No such parameter {}", name);
+                response.detail = None;
+            }
+        }
+        Err(s) => {
+            response.status = format!("Check of parameter failed: {}", s);
+            response.detail = None;
+        }
+    }
+    Json(response)
+}
