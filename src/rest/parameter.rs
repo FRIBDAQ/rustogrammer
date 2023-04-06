@@ -292,6 +292,31 @@ pub struct CheckResponse {
     status: String,
     detail: Option<u8>,
 }
+// This method is used by check and uncheck to factor out their
+// mostly similar code:
+
+fn check_uncheck_common_code(name : &str, state : &State<HistogramState>) -> CheckResponse {
+    let mut response = CheckResponse {
+        status: String::from("OK"),
+        detail: Some(0),
+    };
+    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let result = api.list_parameters(name);
+    match result {
+        Ok(listing) => {
+            if listing.len() == 0 {
+                response.status = format!("No such parameter {}", name);
+                response.detail = None;
+            }
+        }
+        Err(s) => {
+            response.status = format!("Check of parameter failed: {}", s);
+            response.detail = None;
+        }
+    }
+    response
+}
+
 ///
 /// /spectcl/parameter/check
 ///
@@ -308,24 +333,7 @@ pub struct CheckResponse {
 /// Empty.
 #[get("/check?<name>")]
 pub fn check_parameter(name: String, state: &State<HistogramState>) -> Json<CheckResponse> {
-    let mut response = CheckResponse {
-        status: String::from("OK"),
-        detail: Some(0),
-    };
-    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
-    let result = api.list_parameters(&name);
-    match result {
-        Ok(listing) => {
-            if listing.len() == 0 {
-                response.status = format!("No such parameter {}", name);
-                response.detail = None;
-            }
-        }
-        Err(s) => {
-            response.status = format!("Check of parameter failed: {}", s);
-            response.detail = None;
-        }
-    }
+    let response = check_uncheck_common_code(&name, state);
     Json(response)
 }
 //----------------------------------------------------------------
@@ -342,25 +350,8 @@ pub fn check_parameter(name: String, state: &State<HistogramState>) -> Json<Chec
 ///
 #[get("/uncheck?<name>")]
 pub fn uncheck_parameter(name: String, state: &State<HistogramState>) -> Json<CheckResponse> {
-    // THis is really check_parameter but forcing detail to none -- can factor:
+    let mut response = check_uncheck_common_code(&name, state);
+    response.detail = None;   // Fix up resposne.
 
-    let mut response = CheckResponse {
-        status: String::from("OK"),
-        detail: None,
-    };
-    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
-    let result = api.list_parameters(&name);
-    match result {
-        Ok(listing) => {
-            if listing.len() == 0 {
-                response.status = format!("No such parameter {}", name);
-                response.detail = None;
-            }
-        }
-        Err(s) => {
-            response.status = format!("Uncheck of parameter failed: {}", s);
-            response.detail = None;
-        }
-    }
     Json(response)
 }
