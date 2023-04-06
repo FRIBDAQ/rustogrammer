@@ -377,3 +377,70 @@ pub fn new_rawparameter(
 ) -> Json<GenericResponse> {
     create_parameter(name, low, high, bins, units, description, state)
 }
+
+// Utility method for list_rawparameters below:
+
+fn find_parameter_by_id(id : u32, state :&State<HistogramState>) -> Option<String> {
+    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    if let Ok(l) = api.list_parameters("*") {
+        for  p in l {
+            if p.get_id() == id {
+                return Some(p.get_name())
+            }
+        }
+        None
+    } else {
+        None          // Error is non for now.
+    }
+}
+
+///
+/// list is a front end to the list_parameters method:
+///
+///  1.  The user must only supply either a pattern or an id:
+/// else we throw an error back.
+///  2. If the user supplies a pattern we can directly delegate to
+/// list_parameters.
+///  3. If the user supplies an id, we get the list of all parameters
+/// and find the one with the correct id - if we find it, we can
+/// us its name as a pattern to call list_parameters otherwise
+/// toss an error back
+///
+#[get("/list?<name>&<id>")]
+pub fn list_rawparameter(name: Option<String>, id : Option<u32>, state : &State<HistogramState>) -> Json<Parameters> {
+    if name.is_some() && id.is_some() {
+        Json(Parameters {
+            status: String::from("Only id or pattern can be supplied, not both"),
+            detail: Vec::<ParameterDefinition>::new()
+        })
+    } else if name.is_none() && id.is_none() {
+        Json(Parameters {
+            status : String::from("One of name or id must be supplied neither were"),
+            detail: Vec::<ParameterDefinition>::new()
+        })
+    } else {
+        if let Some(_) = name {
+            list_parameters(name, state)
+        } else {
+            let name = find_parameter_by_id(id.unwrap(), state);
+            if name.is_some() {
+                list_parameters(name, state)
+            } else {
+                Json(Parameters {
+                    status: format!("No parameter with id {} exists", id.unwrap()),
+                    detail: Vec::<ParameterDefinition>::new()
+                })
+            }
+        }
+    }
+}
+/// delete is not supported and will always return an error:
+
+#[get("/delete")]
+pub fn delete_rawparameter() -> Json<GenericResponse> {
+    let result = GenericResponse {
+        status : String::from("Deletion of parameters is not supported"),
+        detail: String::from(""),
+    };
+    Json(result)
+}

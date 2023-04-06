@@ -38,6 +38,8 @@ fn rocket() -> _ {
             rest_parameter::uncheck_parameter
         ],
     ).mount("/spectcl/rawparameter", routes![
-        rest_parameter::new_rawparameter
+        rest_parameter::new_rawparameter,
+        rest_parameter::list_rawparameter,
+        rest_parameter::delete_rawparameter
     ])
 }
