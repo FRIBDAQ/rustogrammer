@@ -295,7 +295,7 @@ pub struct CheckResponse {
 // This method is used by check and uncheck to factor out their
 // mostly similar code:
 
-fn check_uncheck_common_code(name : &str, state : &State<HistogramState>) -> CheckResponse {
+fn check_uncheck_common_code(name: &str, state: &State<HistogramState>) -> CheckResponse {
     let mut response = CheckResponse {
         status: String::from("OK"),
         detail: Some(0),
@@ -351,12 +351,12 @@ pub fn check_parameter(name: String, state: &State<HistogramState>) -> Json<Chec
 #[get("/uncheck?<name>")]
 pub fn uncheck_parameter(name: String, state: &State<HistogramState>) -> Json<CheckResponse> {
     let mut response = check_uncheck_common_code(&name, state);
-    response.detail = None;   // Fix up resposne.
+    response.detail = None; // Fix up resposne.
 
     Json(response)
 }
 //------------------------------------------------------------
-// Rawparameters has some similar properties to 
+// Rawparameters has some similar properties to
 // parameters and, therefore, can share some code.
 //
 
@@ -378,19 +378,19 @@ pub fn new_rawparameter(
     create_parameter(name, low, high, bins, units, description, state)
 }
 
-// Utility method for list_rawparameters below:
+// Utility method to return the name of a parameter given its id
 
-fn find_parameter_by_id(id : u32, state :&State<HistogramState>) -> Option<String> {
+fn find_parameter_by_id(id: u32, state: &State<HistogramState>) -> Option<String> {
     let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
     if let Ok(l) = api.list_parameters("*") {
-        for  p in l {
+        for p in l {
             if p.get_id() == id {
-                return Some(p.get_name())
+                return Some(p.get_name());
             }
         }
         None
     } else {
-        None          // Error is non for now.
+        None // Error is non for now.
     }
 }
 
@@ -407,16 +407,20 @@ fn find_parameter_by_id(id : u32, state :&State<HistogramState>) -> Option<Strin
 /// toss an error back
 ///
 #[get("/list?<name>&<id>")]
-pub fn list_rawparameter(name: Option<String>, id : Option<u32>, state : &State<HistogramState>) -> Json<Parameters> {
+pub fn list_rawparameter(
+    name: Option<String>,
+    id: Option<u32>,
+    state: &State<HistogramState>,
+) -> Json<Parameters> {
     if name.is_some() && id.is_some() {
         Json(Parameters {
             status: String::from("Only id or pattern can be supplied, not both"),
-            detail: Vec::<ParameterDefinition>::new()
+            detail: Vec::<ParameterDefinition>::new(),
         })
     } else if name.is_none() && id.is_none() {
         Json(Parameters {
-            status : String::from("One of name or id must be supplied neither were"),
-            detail: Vec::<ParameterDefinition>::new()
+            status: String::from("One of name or id must be supplied neither were"),
+            detail: Vec::<ParameterDefinition>::new(),
         })
     } else {
         if let Some(_) = name {
@@ -428,7 +432,7 @@ pub fn list_rawparameter(name: Option<String>, id : Option<u32>, state : &State<
             } else {
                 Json(Parameters {
                     status: format!("No parameter with id {} exists", id.unwrap()),
-                    detail: Vec::<ParameterDefinition>::new()
+                    detail: Vec::<ParameterDefinition>::new(),
                 })
             }
         }
@@ -439,7 +443,7 @@ pub fn list_rawparameter(name: Option<String>, id : Option<u32>, state : &State<
 #[get("/delete")]
 pub fn delete_rawparameter() -> Json<GenericResponse> {
     let result = GenericResponse {
-        status : String::from("Deletion of parameters is not supported"),
+        status: String::from("Deletion of parameters is not supported"),
         detail: String::from(""),
     };
     Json(result)
