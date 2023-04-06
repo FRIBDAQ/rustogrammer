@@ -355,3 +355,25 @@ pub fn uncheck_parameter(name: String, state: &State<HistogramState>) -> Json<Ch
 
     Json(response)
 }
+//------------------------------------------------------------
+// Rawparameters has some similar properties to 
+// parameters and, therefore, can share some code.
+//
+
+///
+/// new is essentially create.
+/// the SpecTcl interface supports an id query parameter which
+/// we just ignore as IDs get assigned by the parameter dictionary
+/// in the histogramer server:
+#[get("/new?<name>&<low>&<high>&<bins>&<units>&<description>")]
+pub fn new_rawparameter(
+    name: String,
+    low: Option<f64>,
+    high: Option<f64>,
+    bins: Option<u32>,
+    units: Option<String>,
+    description: Option<String>,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    create_parameter(name, low, high, bins, units, description, state)
+}
