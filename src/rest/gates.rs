@@ -22,3 +22,58 @@ use super::*;
 
 use crate::messaging::condition_messages::ConditionMessageClient;
 use crate::messaging::parameter_messages::ParameterMessageClient;
+
+// Private mappings between SpecTcl <-> Rustogramer gate types:
+// Note making a static hashmap is possible but requires unsafe to access.
+// Making the hashmap each time is possible but slower
+// so we'll just use if chains.
+//
+fn rg_condition_to_spctl(rg_type : &str) -> String {
+    match rg_type {
+        "True" => String::from("T"),
+        "False" => String::from("F"),
+        "And"  => String::from("*"),
+        "Or"  => String::from("+"),
+        "Not" => String::from("-"),
+        "Band" => String::from("b"),
+        "Contour" => String::from("c"),
+        "Cut" => String::from("s"),
+        _ => String::from("-unsupported-")
+        
+    }
+}
+fn  spc_gate_to_rg(spc_type : &str) -> String  {
+    match spc_type {
+        "T" => String::from("True"),
+        "F" => String::from("False"),
+        "*" => String::from("And"),
+        "+" => String::from("Or"),
+        "-" => String::from("Not"),
+        "b" => String::from("Band"),
+        "c" => String::from("Contour"),
+        "s" => String::from("Slice"),
+        _ => String::from("Unsupported")
+    }
+}
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct GatePoint {
+    x : f64,
+    y : f64
+}
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct GateProperties {
+    name : String,
+    #[serde(rename = "type")]
+    type_name : String,
+    gates : Vec<String>,     // Dependencies.
+    parameters : Vec<String>,
+    points : Vec<GatePoint>,
+    low : f64,
+    high : f64,
+    // value : u32            // Note Rustogrammer has no support for mask gates.
+}
+
