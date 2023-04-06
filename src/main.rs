@@ -49,4 +49,5 @@ fn rocket() -> _ {
                 rest_parameter::delete_rawparameter
             ],
         )
+        .mount("/spectcl/gate", routes![gates::list_gates])
 }

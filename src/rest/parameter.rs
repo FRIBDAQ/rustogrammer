@@ -378,8 +378,6 @@ pub fn new_rawparameter(
     create_parameter(name, low, high, bins, units, description, state)
 }
 
-
-
 ///
 /// list is a front end to the list_parameters method:
 ///
