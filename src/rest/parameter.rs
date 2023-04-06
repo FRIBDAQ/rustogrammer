@@ -210,6 +210,23 @@ pub fn create_parameter(
 //------------------------------------------------------------------
 // Edit the metadata associated with a parameter:
 
+///
+/// Modify the metadata associated with a parameter.
+/// Base URL is spectcl/parameter/edit
+/// Query parameters are:
+///
+/// *  name - required -name of the parameter to modify.
+/// *  bins - optional - number of bins metadata
+/// *  low  - optional - Low limit metadata
+/// *  high  - optional - high limit metadata.
+/// *  units - optional - units of measure metadata.
+/// *  descdription - optional - parameter description.  This is
+/// new metadata with Rustogramer.
+///
+/// The reply on success as status "OK" and detail an empty thing.
+/// On failure status is a top level error string with additional
+/// information in detail.
+///
 #[get("/edit?<name>&<bins>&<low>&<high>&<units>&<description>")]
 pub fn edit_parameter(
     name: String,
@@ -247,4 +264,22 @@ pub fn edit_parameter(
         }
     }
     Json(response)
+}
+// Note that Promote is the same as edit since all parameters in
+// rustogrammer have implicit metadata
+
+/// See edit for information about the query parameters asnd
+/// return data - this just calls that method.
+///
+#[get("/promote?<name>&<bins>&<low>&<high>&<units>&<description>")]
+pub fn promote_parameter(
+    name: String,
+    bins: Option<u32>,
+    low: Option<f64>,
+    high: Option<f64>,
+    units: Option<String>,
+    description: Option<String>,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    edit_parameter(name, bins, low, high, units, description, state)
 }

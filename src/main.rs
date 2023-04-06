@@ -33,6 +33,7 @@ fn rocket() -> _ {
             rest_parameter::parameter_version,
             rest_parameter::create_parameter,
             rest_parameter::edit_parameter,
+            rest_parameter::promote_parameter
         ],
     )
 }
