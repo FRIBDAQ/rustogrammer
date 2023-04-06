@@ -328,3 +328,39 @@ pub fn check_parameter(name: String, state: &State<HistogramState>) -> Json<Chec
     }
     Json(response)
 }
+//----------------------------------------------------------------
+// uncheck
+
+///
+/// This is a no-op
+///
+/// Query parameter _name_ specifies the name of the parameter to
+/// 'check'.
+///
+/// Successful reply:  status is OK, detail is Null.
+/// Failed repsly:  Status is a detailed error message detail is null.
+///
+#[get("/uncheck?<name>")]
+pub fn uncheck_parameter(name: String, state: &State<HistogramState>) -> Json<CheckResponse> {
+    // THis is really check_parameter but forcing detail to none -- can factor:
+
+    let mut response = CheckResponse {
+        status: String::from("OK"),
+        detail: None,
+    };
+    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let result = api.list_parameters(&name);
+    match result {
+        Ok(listing) => {
+            if listing.len() == 0 {
+                response.status = format!("No such parameter {}", name);
+                response.detail = None;
+            }
+        }
+        Err(s) => {
+            response.status = format!("Uncheck of parameter failed: {}", s);
+            response.detail = None;
+        }
+    }
+    Json(response)
+}
