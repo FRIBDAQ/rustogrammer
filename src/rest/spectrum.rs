@@ -13,8 +13,8 @@ use rocket::State;
 use super::*;
 
 use crate::messaging::spectrum_messages::{
-    SpectrumMessageClient, SpectrumServerContentsResult, SpectrumServerEmptyResult,
-    SpectrumServerListingResult,
+    SpectrumMessageClient, SpectrumProperties, SpectrumServerContentsResult,
+    SpectrumServerEmptyResult, SpectrumServerListingResult,
 };
 // as with gates we need to map from Rustogramer spectrum
 // types to SpecTcl spectrum types.
@@ -49,7 +49,7 @@ pub struct SpectrumDescription {
     name: String,
     #[serde(rename = "type")]
     spectrum_type: String,
-    params: Vec<String>,
+    parameters: Vec<String>,
     axes: Vec<Axis>,
     chantype: String,
     gate: Option<String>,
@@ -62,10 +62,61 @@ pub struct ListResponse {
     detail: Vec<SpectrumDescription>,
 }
 
+// Convert the listing from the message client to a vector
+// of spectrum descriptions:
+
+fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
+    let mut result = Vec::<SpectrumDescription>::new();
+    for mut d in l {
+        let mut def = SpectrumDescription {
+            name: d.name,
+            spectrum_type : rg_sptype_to_spectcl(&d.type_name),
+            parameters :d.xparams,
+            axes : Vec::<Axis>::new(),
+            chantype: String::from("f64"),
+            gate : d.gate
+        };
+        def.parameters.append(&mut d.yparams);
+        if let Some(x) = d.xaxis {
+            def.axes.push(Axis {
+                low: x.low,
+                high : x.high,
+                bins : x.bins
+            });
+        }
+        if let Some(y) = d.yaxis {
+            def.axes.push(Axis {
+                low: y.low,
+                high : y.high,
+                bins: y.bins
+            });
+        }
+
+        result.push(def);
+    }
+    result
+}
+
 #[get("/list?<filter>")]
 pub fn list_spectrum(filter: OptionalString, state: &State<HistogramState>) -> Json<ListResponse> {
-    Json(ListResponse {
-        status: String::from("OK"),
-        detail: Vec::<SpectrumDescription>::new(),
-    })
+    let pattern = if let Some(p) = filter {
+        p
+    } else {
+        String::from("*")
+    };
+
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+
+    let response = match api.list_spectra(&pattern) {
+        Ok(l) => ListResponse {
+            status: String::from("OK"),
+            detail: list_to_detail(l),
+        },
+        Err(s) => ListResponse {
+            status: format!("Failed to list spectra: {}", s),
+            detail: Vec::<SpectrumDescription>::new(),
+        },
+    };
+
+    Json(response)
 }
