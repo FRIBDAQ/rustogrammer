@@ -274,7 +274,20 @@ pub fn edit_gate(
     let raw_result = match r#type.as_str() {
         "T" => api.create_true_condition(&name),
         "F" => api.create_false_condition(&name),
+        "-" => {
+            // There must be exactly one gate:
 
+            if gate.is_some() {
+                let gate = gate.unwrap();
+                if gate.len()  == 1 {
+                    api.create_not_condition(&name, &gate[0])
+                } else {
+                    ConditionReply::Error(String::from("Not gates can have at most one dependent gate"))
+                }
+            } else {
+                ConditionReply::Error(String::from("gate is a required query parameter for not gatess"))
+            }
+        }
         _ => ConditionReply::Error(format!("Unsupported gate type: {}", r#type)),
     };
 
