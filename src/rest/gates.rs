@@ -188,6 +188,8 @@ pub fn list_gates(pattern: Option<String>, state: &State<HistogramState>) -> Jso
     };
     Json(reply)
 }
+//--------------------------------------------------------------------
+// Delete condition
 
 /// Delete a gate.
 ///
@@ -216,6 +218,38 @@ pub fn delete_gate(name: String, state: &State<HistogramState>) -> Json<GenericR
     };
     Json(response)
 }
+//--------------------------------------------------------------
+// Edit/create conditions:
+
+// Validate the query parameters needed to make a slice gate and extract them
+//
+fn validate_slice_parameters(
+    parameter: OptionalString,
+    low: Option<f64>,
+    high: Option<f64>,
+    state: &State<HistogramState>,
+) -> Result<(u32, f64, f64), String> {
+    if parameter.is_none() {
+        return Err(String::from(
+            "The parameter query parameter is required for slice gates",
+        ));
+    }
+    if low.is_none() || high.is_none() {
+        return Err(String::from(
+            "Both the low and high query parameters are requried for slice gates",
+        ));
+    }
+    let low = low.unwrap();
+    let high = high.unwrap();
+    let parameter_name = parameter.unwrap();
+    let pid = find_parameter_by_name(&parameter_name, state);
+    if pid.is_none() {
+        return Err(format!("Parameter {} does not exist", parameter_name));
+    }
+
+    Ok((pid.unwrap(), low, high))
+}
+
 ///
 /// Create/edit a gate.  Note that creating a new gate and editing
 /// an existing gate.  If we 'edit' a new gate the gate is created
@@ -267,9 +301,7 @@ pub fn edit_gate(
     high: Option<f64>,
     state: &State<HistogramState>,
 ) -> Json<GenericResponse> {
-    let api = ConditionMessageClient::new(
-        &state.inner().state.lock().unwrap().1
-    );
+    let api = ConditionMessageClient::new(&state.inner().state.lock().unwrap().1);
 
     let raw_result = match r#type.as_str() {
         "T" => api.create_true_condition(&name),
@@ -279,13 +311,17 @@ pub fn edit_gate(
 
             if gate.is_some() {
                 let gate = gate.unwrap();
-                if gate.len()  == 1 {
+                if gate.len() == 1 {
                     api.create_not_condition(&name, &gate[0])
                 } else {
-                    ConditionReply::Error(String::from("Not gates can have at most one dependent gate"))
+                    ConditionReply::Error(String::from(
+                        "Not gates can have at most one dependent gate",
+                    ))
                 }
             } else {
-                ConditionReply::Error(String::from("gate is a required query parameter for not gatess"))
+                ConditionReply::Error(String::from(
+                    "gate is a required query parameter for not gatess",
+                ))
             }
         }
         "*" => {
@@ -296,12 +332,16 @@ pub fn edit_gate(
                 if gate.len() >= 1 {
                     api.create_and_condition(&name, &gate)
                 } else {
-                    ConditionReply::Error(String::from("And gates require at least one dependent gate"))
+                    ConditionReply::Error(String::from(
+                        "And gates require at least one dependent gate",
+                    ))
                 }
             } else {
-                ConditionReply::Error(String::from("And gates require the 'gate' query parameters"))
+                ConditionReply::Error(String::from(
+                    "And gates require the 'gate' query parameters",
+                ))
             }
-        },
+        }
         "+" => {
             // There must be at least one gate:
 
@@ -310,12 +350,22 @@ pub fn edit_gate(
                 if gate.len() >= 1 {
                     api.create_or_condition(&name, &gate)
                 } else {
-                    ConditionReply::Error(String::from("Or gates require at least one dependent gate"))
+                    ConditionReply::Error(String::from(
+                        "Or gates require at least one dependent gate",
+                    ))
                 }
             } else {
                 ConditionReply::Error(String::from("Or gates require the 'gate' query parameters"))
             }
-        },
+        }
+        "s" => {
+            // There must be a parameter, low and high.
+
+            match validate_slice_parameters(parameter, low, high, state) {
+                Ok((pid, low, high)) => api.create_cut_condition(&name, pid, low, high),
+                Err(s) => ConditionReply::Error(s),
+            }
+        }
         _ => ConditionReply::Error(format!("Unsupported gate type: {}", r#type)),
     };
 

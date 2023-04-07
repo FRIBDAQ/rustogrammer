@@ -74,3 +74,17 @@ fn find_parameter_by_id(id: u32, state: &State<HistogramState>) -> Option<String
         None // Error is non for now.
     }
 }
+// utility to find a parameter given it's name:
+
+fn find_parameter_by_name(name: &str, state: &State<HistogramState>) -> Option<u32> {
+    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    if let Ok(l) = api.list_parameters(name) {
+        if l.len() > 0 {
+            Some(l[0].get_id())
+        } else {
+            None
+        }
+    } else {
+        None
+    }
+}
