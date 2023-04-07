@@ -8,6 +8,7 @@ mod spectra;
 
 use rest::gates;
 use rest::rest_parameter;
+use rest::spectrum;
 use std::sync::Mutex;
 
 // Pull in Rocket features:
@@ -51,11 +52,7 @@ fn rocket() -> _ {
         )
         .mount(
             "/spectcl/gate",
-            routes![
-                gates::list_gates, 
-                gates::delete_gate,
-                gates::edit_gate
-            ],
+            routes![gates::list_gates, gates::delete_gate, gates::edit_gate],
         )
-
+        .mount("/spectcl/spectrum", routes![spectrum::list_spectrum])
 }

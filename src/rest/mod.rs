@@ -33,6 +33,7 @@
 
 pub mod gates;
 pub mod parameter;
+pub mod spectrum;
 
 pub use parameter as rest_parameter;
 
