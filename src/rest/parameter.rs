@@ -126,12 +126,6 @@ pub fn parameter_version() -> Json<TreeParameterVersion> {
 // We're going to allow low, high and bis all to be
 // optional..only requiring name.
 
-#[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
-pub struct GenericResponse {
-    status: String,
-    detail: String,
-}
 ///
 /// Implement the create operations for parameters.
 ///  The url in general is of the form:

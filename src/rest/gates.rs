@@ -135,7 +135,7 @@ fn marshall_points(p: &mut GateProperties, raw_pts: &Vec<(f64, f64)>) {
 /// *   low - The low limit of a _s_ gate - this is just the x coordinate of
 /// the first point in points.
 /// *   high - the high limit of a _s_ gate - this is just the x coordinate
-/// of the second poitn in points.
+/// of the second point in points.
 ///
 /// The simplistic manner in which each GateProperties struct is filled in
 /// provides for the presence of data in fields where the SpecTcl REST
@@ -184,6 +184,116 @@ pub fn list_gates(pattern: Option<String>, state: &State<HistogramState>) -> Jso
         _ => ListReply {
             status: format!("Unexpeced return type from list_conditions"),
             detail: Vec::<GateProperties>::new(),
+        },
+    };
+    Json(reply)
+}
+
+/// Delete a gate.
+///
+/// Requires the name of the gate as a query parameter.
+///
+/// * Successful response has status = "OK" and detail an empty string.
+/// * Failure respons has status something like "Failed to delete conditions {}"
+/// with the detail the actual messagse from the internal Histogram server.
+///
+#[get("/delete?<name>")]
+pub fn delete_gate(name: String, state: &State<HistogramState>) -> Json<GenericResponse> {
+    let api = ConditionMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let response = match api.delete_condition(&name) {
+        ConditionReply::Deleted => GenericResponse {
+            status: String::from("OK"),
+            detail: String::from(""),
+        },
+        ConditionReply::Error(s) => GenericResponse {
+            status: format!("Failed to delete condition {}", name),
+            detail: s,
+        },
+        _ => GenericResponse {
+            status: format!("Failed to delete condition {}", name),
+            detail: String::from("Invalid repsonse from server"),
+        },
+    };
+    Json(response)
+}
+///
+/// Create/edit a gate.  Note that creating a new gate and editing
+/// an existing gate.  If we 'edit' a new gate the gate is created
+/// and saved in the condition dictionary.  If we 'edit' an existing gate,
+/// the condition replaces the old one and the server side
+/// return value indicates this.
+/// The required query parameters are:
+///
+/// *   name - the name of the gate to create/edit.
+/// *   type - The SpecTcl type of the gate to create/edit.
+///
+/// The other parameters required depend on the gate type:
+///
+/// *  T, F gates require nothing else.
+/// *  + - * gates require gate - a list of gates the gate depends on.
+///These gates must already be defined.
+/// *  c, b require:
+///     -   xparameter, yparameter - the parameters the gate is set on.
+///     -   xcoord, ycoord - the x/y coordinates of the points that make up the gate.
+/// * s requires:
+///     - parameter for the parameter the condition is set on.
+///     - low - low limit of the slice.
+///     - high - high limit of the slice.
+/// Other gate types are not supported.
+///
+/// The response is a GenericResponse.  On success,
+///
+///  *  status - is _OK_
+///  *  detail is one of _Created_ for a new condition or _Replaced_
+/// if the condition previously existed.
+///
+/// In the event of a failure:
+///
+/// * status is a top level error e.g. _bad parameter_
+/// * detail provides more information about the error e.g
+///   _only one name allowed_ or _parameter {} does not exist_
+///
+#[get("/edit?<name>&<type>&<gate>&<xparameter>&<yparameter>&<parameter>&<xcoord>&<ycoord>&<low>&<high>")]
+pub fn edit_gate(
+    name: String,
+    r#type: String,
+    gate: OptionalStringVec,
+    xparameter: OptionalString,
+    yparameter: OptionalString,
+    parameter: OptionalString,
+    xcoord: OptionalF64Vec,
+    ycoord: OptionalF64Vec,
+    low: Option<f64>,
+    high: Option<f64>,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    let api = ConditionMessageClient::new(
+        &state.inner().state.lock().unwrap().1
+    );
+
+    let raw_result = match r#type.as_str() {
+        "T" => api.create_true_condition(&name),
+        "F" => api.create_false_condition(&name),
+
+        _ => ConditionReply::Error(format!("Unsupported gate type: {}", r#type)),
+    };
+
+    let reply = match raw_result {
+        ConditionReply::Created => GenericResponse {
+            status: String::from("OK"),
+            detail: String::from("Created"),
+        },
+        ConditionReply::Replaced => GenericResponse {
+            status: String::from("OK"),
+            detail: String::from("Replaced"),
+        },
+        ConditionReply::Error(s) => GenericResponse {
+            status: format!("Could not create/edit gate {}", name),
+            detail: s,
+        },
+        _ => GenericResponse {
+            status: format!("Could not create/edit gate {}", name),
+            detail: String::from("Unexpected respones type from server"),
         },
     };
     Json(reply)

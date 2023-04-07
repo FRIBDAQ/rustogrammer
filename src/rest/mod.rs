@@ -42,11 +42,15 @@ use rocket::State;
 use std::sync::{mpsc, Mutex};
 use std::thread;
 
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::Serialize;
 
 pub struct HistogramState {
     pub state: Mutex<(thread::JoinHandle<()>, mpsc::Sender<Request>)>,
 }
+
+pub type OptionalStringVec = Option<Vec<String>>;
+pub type OptionalString = Option<String>;
+pub type OptionalF64Vec = Option<Vec<f64>>;
 
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
