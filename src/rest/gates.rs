@@ -250,6 +250,72 @@ fn validate_slice_parameters(
     Ok((pid.unwrap(), low, high))
 }
 
+fn validate_2d_parameters(
+    xpname: OptionalString,
+    ypname: OptionalString,
+    xcoord: OptionalF64Vec,
+    ycoord: OptionalF64Vec,
+    state: &State<HistogramState>,
+) -> Result<(u32, u32, Vec<(f64, f64)>), String> {
+    if xpname.is_none() {
+        return Err(String::from(
+            "xparameter is a mandatory query parameter for this gate type",
+        ));
+    }
+    if ypname.is_none() {
+        return Err(String::from(
+            "yparameter is a mandatory query parameter for this gate type",
+        ));
+    }
+    if xcoord.is_none() {
+        return Err(String::from(
+            "xcoord is a mandatory query parameter for this gate type",
+        ));
+    }
+    if ycoord.is_none() {
+        return Err(String::from(
+            "ycoord is a mandatory query parameter for this gate type",
+        ));
+    }
+    // unwrap the parametesr from their options:
+
+    let xpname = xpname.unwrap();
+    let ypname = ypname.unwrap();
+    let xcoord = xcoord.unwrap();
+    let ycoord = ycoord.unwrap();
+
+    // The xcoord and y coords arrays must be the same length:
+
+    if xcoord.len() != ycoord.len() {
+        return Err(format!(
+            "xcoord array has {} entries but ycoord array has {} -they must be the same length",
+            xcoord.len(),
+            ycoord.len()
+        ));
+    }
+    // Translate xpname and ypname to parameter ids if possible:
+
+    let xpid = find_parameter_by_name(&xpname, state);
+    let ypid = find_parameter_by_name(&ypname, state);
+
+    if xpid.is_none() {
+        return Err(format!("Parameter {} does not exist", xpname));
+    }
+    if ypid.is_none() {
+        return Err(format!("Parameter {} does not exist", ypname));
+    }
+    let xpid = xpid.unwrap();
+    let ypid = ypid.unwrap();
+
+    // Marshall the coordinats:
+
+    let mut points = Vec::<(f64, f64)>::new();
+    for (i, x) in xcoord.iter().enumerate() {
+        points.push((*x, ycoord[i]));
+    }
+    Ok((xpid, ypid, points))
+}
+
 ///
 /// Create/edit a gate.  Note that creating a new gate and editing
 /// an existing gate.  If we 'edit' a new gate the gate is created
@@ -366,6 +432,14 @@ pub fn edit_gate(
                 Err(s) => ConditionReply::Error(s),
             }
         }
+        "b" => match validate_2d_parameters(xparameter, yparameter, xcoord, ycoord, state) {
+            Err(s) => ConditionReply::Error(s),
+            Ok((xid, yid, points)) => api.create_band_condition(&name, xid, yid, &points),
+        },
+        "c" => match validate_2d_parameters(xparameter, yparameter, xcoord, ycoord, state) {
+            Err(s) => ConditionReply::Error(s),
+            Ok((xid, yid, points)) => api.create_contour_condition(&name, xid, yid, &points),
+        },
         _ => ConditionReply::Error(format!("Unsupported gate type: {}", r#type)),
     };
 
