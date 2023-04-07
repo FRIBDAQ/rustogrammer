@@ -42,8 +42,17 @@ use rocket::State;
 use std::sync::{mpsc, Mutex};
 use std::thread;
 
+use rocket::serde::{json::Json, Serialize};
+
 pub struct HistogramState {
     pub state: Mutex<(thread::JoinHandle<()>, mpsc::Sender<Request>)>,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct GenericResponse {
+    status: String,
+    detail: String,
 }
 
 // Utility method to return the name of a parameter given its id
