@@ -288,6 +288,34 @@ pub fn edit_gate(
                 ConditionReply::Error(String::from("gate is a required query parameter for not gatess"))
             }
         }
+        "*" => {
+            // There must be at least one gate:
+
+            if gate.is_some() {
+                let gate = gate.unwrap();
+                if gate.len() >= 1 {
+                    api.create_and_condition(&name, &gate)
+                } else {
+                    ConditionReply::Error(String::from("And gates require at least one dependent gate"))
+                }
+            } else {
+                ConditionReply::Error(String::from("And gates require the 'gate' query parameters"))
+            }
+        },
+        "+" => {
+            // There must be at least one gate:
+
+            if gate.is_some() {
+                let gate = gate.unwrap();
+                if gate.len() >= 1 {
+                    api.create_or_condition(&name, &gate)
+                } else {
+                    ConditionReply::Error(String::from("Or gates require at least one dependent gate"))
+                }
+            } else {
+                ConditionReply::Error(String::from("Or gates require the 'gate' query parameters"))
+            }
+        },
         _ => ConditionReply::Error(format!("Unsupported gate type: {}", r#type)),
     };
 
