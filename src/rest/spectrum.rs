@@ -96,7 +96,36 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
     }
     result
 }
-
+///
+/// List the spectra.  The only query parameter is _filter_ which is an
+/// optional parameter that, if provided is a glob pattern that
+/// must match a spectrum name for it to be included in the 
+/// set of listed spectra.  The default value for _filter_ is "*" which 
+/// matches all names.
+///
+/// The reply consists of _status_ which, on success is _OK_ and
+/// on failure is an error message string.
+///
+/// On failure the _detail_ field of the resonse is an empty array.
+/// On success, _detail_ will be an array that describes all of the
+/// spectra that match _filter_ (so this may still be empty).  Each
+/// element is a JSON struct that contains:
+///
+/// *   name -- The name of the matching spectrum.
+/// *   type -- the SpecTcl type of the matching spectrum.
+//  *   parameters -- an array of paramter names.  For 2-d spectra,
+/// the first parameter is the x parameter, the second, the y.
+/// note that this can be ambiguous for gd and m2 which have multiple
+/// x and y parameters.
+/// *   axes -- an array of at least one axis definition.  Each element
+/// of the array is an object with the fields:
+///     - low  - low limit of the axis.
+///     - high - high limit of the axis.
+///     - bins - the number of bins between [low, high)
+/// *   chantype -- the data type of each channel in the spectrum.
+/// in rustogramer this is hardcoded to _f64_
+/// *    gate if not _null_ thisi s the name of the conditions that
+/// is applied as a gate to the spectrum.
 #[get("/list?<filter>")]
 pub fn list_spectrum(filter: OptionalString, state: &State<HistogramState>) -> Json<ListResponse> {
     let pattern = if let Some(p) = filter {
