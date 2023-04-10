@@ -70,25 +70,25 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
     for mut d in l {
         let mut def = SpectrumDescription {
             name: d.name,
-            spectrum_type : rg_sptype_to_spectcl(&d.type_name),
-            parameters :d.xparams,
-            axes : Vec::<Axis>::new(),
+            spectrum_type: rg_sptype_to_spectcl(&d.type_name),
+            parameters: d.xparams,
+            axes: Vec::<Axis>::new(),
             chantype: String::from("f64"),
-            gate : d.gate
+            gate: d.gate,
         };
         def.parameters.append(&mut d.yparams);
         if let Some(x) = d.xaxis {
             def.axes.push(Axis {
                 low: x.low,
-                high : x.high,
-                bins : x.bins
+                high: x.high,
+                bins: x.bins,
             });
         }
         if let Some(y) = d.yaxis {
             def.axes.push(Axis {
                 low: y.low,
-                high : y.high,
-                bins: y.bins
+                high: y.high,
+                bins: y.bins,
             });
         }
 
@@ -99,8 +99,8 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
 ///
 /// List the spectra.  The only query parameter is _filter_ which is an
 /// optional parameter that, if provided is a glob pattern that
-/// must match a spectrum name for it to be included in the 
-/// set of listed spectra.  The default value for _filter_ is "*" which 
+/// must match a spectrum name for it to be included in the
+/// set of listed spectra.  The default value for _filter_ is "*" which
 /// matches all names.
 ///
 /// The reply consists of _status_ which, on success is _OK_ and
@@ -149,3 +149,48 @@ pub fn list_spectrum(filter: OptionalString, state: &State<HistogramState>) -> J
 
     Json(response)
 }
+//----------------------------------------------------------------
+// What's needed to delete a spectrum:
+
+///
+/// Handle the delete request.  The only query parameter is _name_
+/// the name of the spectrum to delete.  The response on success
+/// has a status of *OK* and empty detail.   On failure, the
+/// status will be a top level error message like
+/// _Failed to delete spectrum xxx_ and the detail will contain a
+/// more specific message describing why the delete failed e.g.
+/// _Spectrum does not exist_
+///
+#[get("/delete?<name>")]
+pub fn delete_spectrum(name: String, state: &State<HistogramState>) -> Json<GenericResponse> {
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+
+    let response = match api.delete_spectrum(&name) {
+        Ok(()) => GenericResponse {
+            status: String::from("OK"),
+            detail: String::new(),
+        },
+        Err(msg) => GenericResponse {
+            status: format!("Failed to delete {}", name),
+            detail: msg,
+        },
+    };
+    Json(response)
+}
+//-------------------------------------------------------------------
+// What's needed to create a spectrum.
+
+/// For the spectra that Rustogramer supports, only some subset of the
+/// The query parameters are needed.  Specifically:
+///
+/// *  name  - name of the spectrum being created.
+/// *  type  - Type of the spectrum being created (in SpecTcl type names).
+/// *  parmaeters - Tcl list formatted version of the parameter names.
+/// Tcl list format is required since for 2DSum an PGamma 
+/// spectra we need to make a distinction between X and Y parameters.
+/// In that case, the list is a two elements sub-list where the first
+/// element is a list of the X parameters and the second a list of
+/// the y parameters. e.g.
+/// ?parameters={{a b c} {d e f g}}  for a PGamma spectrum
+/// provide the x parameters as a,b,c and the y parameters as d,e,f,g.
+///

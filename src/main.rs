@@ -54,5 +54,9 @@ fn rocket() -> _ {
             "/spectcl/gate",
             routes![gates::list_gates, gates::delete_gate, gates::edit_gate],
         )
-        .mount("/spectcl/spectrum", routes![spectrum::list_spectrum])
+        .mount("/spectcl/spectrum", routes![
+            spectrum::list_spectrum, 
+            spectrum::delete_spectrum
+            ],
+        )
 }
