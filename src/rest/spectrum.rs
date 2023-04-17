@@ -126,6 +126,14 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
 /// in rustogramer this is hardcoded to _f64_
 /// *    gate if not _null_ thisi s the name of the conditions that
 /// is applied as a gate to the spectrum.
+///
+/// Note:  SpecTcl and Rustogrammer don't support knowing
+/// which parameters are X paramters for PGamma spectra where
+/// there can be a different number of x, y parameters
+/// for 2dsum spectra, the first half are the X parameters, the
+/// second half the y parameters.
+///
+/// Future enhancement:
 #[get("/list?<filter>")]
 pub fn list_spectrum(filter: OptionalString, state: &State<HistogramState>) -> Json<ListResponse> {
     let pattern = if let Some(p) = filter {
@@ -180,17 +188,183 @@ pub fn delete_spectrum(name: String, state: &State<HistogramState>) -> Json<Gene
 //-------------------------------------------------------------------
 // What's needed to create a spectrum.
 
+// Tcl list unpacking:
+// We're pretty stupid about how this is done.
+// We only really support two types of lists:
+// - A list with no nested elements.
+// - A list with only two elements each a sublist.
+//  (for PGamma and 2DSum).
+//
+
+fn parse_simple_list(list: &str) -> Result<Vec<String>, String> {
+    let list = String::from(list);
+
+    // Simple strings must not have {} embedded:
+
+    if list.contains("{") || list.contains("}") {
+        Err(format!("'{}' is not a simple list", list))
+    } else {
+        let v: Vec<&str> = list.split(' ').collect();
+        let mut result = Vec::<String>::new();
+        for s in v {
+            result.push(String::from(s));
+        }
+        Ok(result)
+    }
+}
+// Parse a two element sublist each element is a simple list
+//
+
+fn parse_two_element_list(list: &str) -> Result<(Vec<String>, Vec<String>), String> {
+    let list = String::from(list);
+
+    // Find and parse the first sublist:
+
+    let first_open = list.find('{');
+    if first_open.is_none() {
+        return Err(format!(
+            "'{}' is not a properly formatted 2 element list",
+            list
+        ));
+    }
+    let first_open = first_open.unwrap();
+
+    let first_close = list.find('}');
+    if first_close.is_none() {
+        return Err(format!(
+            "'{}' first substring is not properly terminated",
+            list
+        ));
+    }
+    let first_close = first_close.unwrap();
+
+    let first_element = parse_simple_list(&list[first_open + 1..first_close - 1]);
+    if let Err(msg) = first_element {
+        return Err(format!("Parse of first element failed: {}", msg));
+    }
+    let first_element = first_element.unwrap();
+
+    // Now with the second element:
+
+    let remainder = list.split_at(first_close + 1).1;
+    let second_open = remainder.find('{');
+    if second_open.is_none() {
+        return Err(format!("'{}' cound not find opening of second list", list));
+    }
+    let second_close = remainder.find('}');
+    if second_close.is_none() {
+        return Err(format!("'{}' could not find closing of second list", list));
+    }
+    let second_element =
+        parse_simple_list(&remainder[second_open.unwrap() + 1..second_close.unwrap() - 1]);
+    if let Err(msg) = second_element {
+        return Err(format!("Parse of second element failed : {}", msg));
+    }
+
+    Ok((first_element, second_element.unwrap()))
+}
+
 /// For the spectra that Rustogramer supports, only some subset of the
 /// The query parameters are needed.  Specifically:
 ///
 /// *  name  - name of the spectrum being created.
 /// *  type  - Type of the spectrum being created (in SpecTcl type names).
-/// *  parmaeters - Tcl list formatted version of the parameter names.
-/// Tcl list format is required since for 2DSum an PGamma 
+/// *  parameters - Tcl list formatted version of the parameter names
+/// Tcl list format is required since for 2DSum an PGamma
 /// spectra we need to make a distinction between X and Y parameters.
 /// In that case, the list is a two elements sub-list where the first
 /// element is a list of the X parameters and the second a list of
 /// the y parameters. e.g.
 /// ?parameters={{a b c} {d e f g}}  for a PGamma spectrum
 /// provide the x parameters as a,b,c and the y parameters as d,e,f,g.
+/// *   axes one or two axis specifications in Tcl list format e.g.
+/// {low high bins}
 ///
+/// SpecTcl REST defines _chantype_ which we ignore because
+/// all our spectra are f64 (double).
+///
+/// The SpecTcl REST supports defining projection spectra which
+/// Rustogrammer does not have. These have _roi_ and _direction_
+/// which define a region of interest contour/band and a projection direction
+/// We ignore those parameters.
+///
+/// Return:   This is a GenericResponse where on success,
+/// _status_ = *OK* and _detail_ is empty.
+/// If there's an error _status_ is the top level error message and
+/// _detail_ provides more information about the error.
+///
+#[get("/create?<name>&<type>&<parameters>")]
+pub fn create_spectrum(name: String, r#type: String, parameters: String) -> Json<GenericResponse> {
+    let type_name = r#type; // Don't want raw names like that.
+    match type_name.as_str() {
+        "1" => {
+            // Make 1d
+        }
+        "2" => {
+            // Make 2d
+        }
+        "g1" => {
+            // Make multi1d
+        }
+        "g2" => {
+            // Make multid 2d
+        }
+        "gd" => {
+            // Make PGamma
+        }
+        "s" => {
+            // Make summary spectrum.
+        }
+        "m2" => {
+            // Make 2dsum
+        }
+        _ => {
+            // unsupported type.
+        }
+    }
+    Json(GenericResponse {
+        status: String::from("OK"),
+        detail: String::new(),
+    })
+}
+
+//------------------------------------------------------------------
+// Tcl List parsing is worthy of testing.
+
+#[cfg(test)]
+mod list_parse_tests {
+    use super::*;
+
+    #[test]
+    fn simple_1() {
+        let list = "this is a test";
+        let parsed = parse_simple_list(list);
+        assert!(parsed.is_ok());
+
+        assert_eq!(
+            vec![
+                String::from("this"),
+                String::from("is"),
+                String::from("a"),
+                String::from("test")
+            ],
+            parsed.unwrap()
+        );
+    }
+    #[test]
+    fn simple_2() {
+        // Something with a { in it is not a simple list:
+        
+            let list = "this is {not a simple list";
+            let parsed = parse_simple_list(list);
+            assert!(parsed.is_err());
+    }
+    #[test]
+    fn simple_3() {
+        // something with a } in it is not a simple list:
+
+        let list = "this is not a simple} list";
+        let parsed = parse_simple_list(list);
+        assert!(parsed.is_err());
+    }
+}
