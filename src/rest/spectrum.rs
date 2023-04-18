@@ -22,8 +22,8 @@ use crate::messaging::spectrum_messages::{
 fn rg_sptype_to_spectcl(rg_type: &str) -> String {
     match rg_type {
         "1D" => String::from("1"),
-        "Multi1D" => String::from("g1"),
-        "Multi2D" => String::from("g2"),
+        "Multi1d" => String::from("g1"),
+        "Multi2d" => String::from("g2"),
         "PGamma" => String::from("gd"),
         "Summary" => String::from("s"),
         "2D" => String::from("2"),
@@ -275,7 +275,7 @@ fn parse_two_element_list(list: &str) -> Result<(Vec<String>, Vec<String>), Stri
 }
 // process a broken down axis def:
 
-fn parse_single_axis_def(axes: &Vec<String>) -> Result<(f64, f64, u32),String> {
+fn parse_single_axis_def(axes: &Vec<String>) -> Result<(f64, f64, u32), String> {
     if axes.len() != 3 {
         return Err(String::from("Must have 3 elements"));
     };
@@ -304,9 +304,9 @@ fn parse_axis_def(axes: &str) -> Result<(f64, f64, u32), String> {
         return Err(parsed_axes.unwrap_err());
     }
     let axes = parsed_axes.unwrap();
-    let  axis_tuple = parse_single_axis_def(&axes);
+    let axis_tuple = parse_single_axis_def(&axes);
     if let Err(s) = axis_tuple {
-        return Err(s)
+        return Err(s);
     }
     let axis = axis_tuple.unwrap();
     let low = axis.0;
@@ -367,21 +367,26 @@ fn make_1d(
     Json(r)
 }
 // Make a 2d spectrum
-fn make_2d(name: &str, parameters: &str, axes: &str, state: &State<HistogramState>) -> Json<GenericResponse> {
+fn make_2d(
+    name: &str,
+    parameters: &str,
+    axes: &str,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
     // need exactly two parameters:
 
     let parsed_params = parse_simple_list(parameters);
     if parsed_params.is_err() {
         return Json(GenericResponse {
             status: String::from("Failed to parse 2d parameter list"),
-            detail: parsed_params.unwrap_err()
+            detail: parsed_params.unwrap_err(),
         });
     }
     let params = parsed_params.unwrap();
     if params.len() != 2 {
         return Json(GenericResponse {
-            status : String::from("Failed to process parameter list"),
-            detail: String::from("There must be exactly two parameters for a 2d spectrum")
+            status: String::from("Failed to process parameter list"),
+            detail: String::from("There must be exactly two parameters for a 2d spectrum"),
         });
     }
     let xp = params[0].clone();
@@ -391,16 +396,16 @@ fn make_2d(name: &str, parameters: &str, axes: &str, state: &State<HistogramStat
     if axis_list.is_err() {
         return Json(GenericResponse {
             status: String::from("Failed to break apart axis list"),
-            detail: axis_list.unwrap_err()
+            detail: axis_list.unwrap_err(),
         });
     }
     let (xaxis_def, yaxis_def) = axis_list.unwrap();
-    
+
     let xaxis = parse_single_axis_def(&xaxis_def);
     if xaxis.is_err() {
         return Json(GenericResponse {
-            status : String::from("Failed to parse x axis definition"),
-            detail: xaxis.unwrap_err()
+            status: String::from("Failed to parse x axis definition"),
+            detail: xaxis.unwrap_err(),
         });
     }
     let (xlow, xhigh, xbins) = xaxis.unwrap();
@@ -408,31 +413,72 @@ fn make_2d(name: &str, parameters: &str, axes: &str, state: &State<HistogramStat
     let yaxis = parse_single_axis_def(&yaxis_def);
     if yaxis.is_err() {
         return Json(GenericResponse {
-            status : String::from("Failed to parse y axis definition"),
-            detail: yaxis.unwrap_err()
+            status: String::from("Failed to parse y axis definition"),
+            detail: yaxis.unwrap_err(),
         });
     }
     let (ylow, yhigh, ybins) = yaxis.unwrap();
 
     // Now we can try to make the spectrum:
 
-
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
-    let result = if let Err(s) = api.create_spectrum_2d(name, &xp, &yp, xlow, xhigh, xbins, ylow, yhigh, ybins) {
+    let result = if let Err(s) =
+        api.create_spectrum_2d(name, &xp, &yp, xlow, xhigh, xbins, ylow, yhigh, ybins)
+    {
         GenericResponse {
             status: String::from("Failed to create 2d spectrum"),
-            detail: s
+            detail: s,
         }
     } else {
         GenericResponse {
             status: String::from("OK"),
-            detail : String::from("")
+            detail: String::from(""),
         }
     };
 
     Json(result)
 }
+// make a gamma 1 spectrum ( multi1d)
 
+fn make_gamma1(
+    name: &str,
+    parameters: &str,
+    axes: &str,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    let parameters = parse_simple_list(parameters);
+    if parameters.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Could not parse parameter list"),
+            detail: parameters.unwrap_err(),
+        });
+    }
+    let parameters = parameters.unwrap();
+
+    let axis = parse_axis_def(axes);
+    if axis.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to process axis definition"),
+            detail: axis.unwrap_err()
+        })
+    }
+    let (low, high, bins) = axis.unwrap();
+
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let response = if let Err(s) = api.create_spectrum_multi1d(name, &parameters, low, high, bins) {
+        GenericResponse {
+            status: String::from("Failed to make multi1d spectrum"),
+            detail: s
+        }
+    } else {
+        GenericResponse {
+            status: String::from("OK"),
+            detail: String::from("")
+        }
+    };
+    Json(response)
+
+}
 
 /// For the spectra that Rustogramer supports, only some subset of the
 /// The query parameters are needed.  Specifically:
@@ -481,7 +527,7 @@ pub fn create_spectrum(
             return make_2d(&name, &parameters, &axes, state);
         }
         "g1" => {
-            // Make multi1d
+            return make_gamma1(&name, &parameters, &axes, state);
         }
         "g2" => {
             // Make multid 2d
