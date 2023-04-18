@@ -394,9 +394,8 @@ fn make_2d(name: &str, parameters: &str, axes: &str, state: &State<HistogramStat
             detail: axis_list.unwrap_err()
         });
     }
-    let xaxis_def = axis_list.unwrap().0;
-    let yaxis_def = axis_list.unwrap().1;
-
+    let (xaxis_def, yaxis_def) = axis_list.unwrap();
+    
     let xaxis = parse_single_axis_def(&xaxis_def);
     if xaxis.is_err() {
         return Json(GenericResponse {
@@ -410,7 +409,7 @@ fn make_2d(name: &str, parameters: &str, axes: &str, state: &State<HistogramStat
     if yaxis.is_err() {
         return Json(GenericResponse {
             status : String::from("Failed to parse y axis definition"),
-            detail: xaxis.unwrap_err()
+            detail: yaxis.unwrap_err()
         });
     }
     let (ylow, yhigh, ybins) = yaxis.unwrap();
@@ -479,7 +478,7 @@ pub fn create_spectrum(
             return make_1d(&name, &parameters, &axes, state);
         }
         "2" => {
-            return make_2d(&name, &parameter, &axes, state);
+            return make_2d(&name, &parameters, &axes, state);
         }
         "g1" => {
             // Make multi1d
