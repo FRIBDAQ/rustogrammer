@@ -251,17 +251,20 @@ fn parse_two_element_list(list: &str) -> Result<(Vec<String>, Vec<String>), Stri
     if second_open.is_none() {
         return Err(format!("'{}' cound not find opening of second list", list));
     }
-    let second_close = remainder.find('}');
+    let second_close = remainder.find('}');  // Seach for the last }
     if second_close.is_none() {
         return Err(format!("'{}' could not find closing of second list", list));
     }
-    let second_close =second_close.unwrap();
+    let second_close = second_close.unwrap();
     let second_open = second_open.unwrap();
+    let last_close = remainder.rfind('}').unwrap();
+    if second_close != last_close {
+        return Err(String::from("The closing } of the second list is not the last }"));
+    }
     if second_close < second_open {
         return Err(String::from("Found second close before the second open!!"));
     }
-    let second_element =
-        parse_simple_list(&remainder[second_open + 1..second_close]);
+    let second_element = parse_simple_list(&remainder[second_open + 1..second_close]);
     if let Err(msg) = second_element {
         return Err(format!("Parse of second element failed : {}", msg));
     }
@@ -490,6 +493,13 @@ mod list_parse_tests {
     fn two_11() {
         // extra close in list 1?
         let list = "{1 2 } 3}  {a b c}";
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_err());
+    }
+    #[test]
+    fn two_12() {
+        // extra close in list2?!?
+        let list = "{1 2 3} {a b} c}";
         let parsed = parse_two_element_list(list);
         assert!(parsed.is_err());
     }
