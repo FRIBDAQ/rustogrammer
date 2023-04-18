@@ -273,6 +273,48 @@ fn parse_two_element_list(list: &str) -> Result<(Vec<String>, Vec<String>), Stri
 
     Ok((first_element, second_element.unwrap()))
 }
+// process a broken down axis def:
+
+fn parse_single_axis_def(axes: &Vec<String>) -> Result<(f64, f64, u32),String> {
+    if axes.len() != 3 {
+        return Err(String::from("Must have 3 elements"));
+    };
+
+    let low = axes[0].parse::<f64>();
+    let high = axes[1].parse::<f64>();
+    let bins = axes[2].parse::<u32>();
+
+    if low.is_err() || high.is_err() || bins.is_err() {
+        return Err(format!(
+            "Invalid values  in axis list of {} {} {}",
+            axes[0], axes[1], axes[2]
+        ));
+    }
+    let low = low.unwrap();
+    let high = high.unwrap();
+    let bins = bins.unwrap();
+
+    Ok((low, high, bins))
+}
+// Process an axis definition.
+
+fn parse_axis_def(axes: &str) -> Result<(f64, f64, u32), String> {
+    let parsed_axes = parse_simple_list(axes);
+    if parsed_axes.is_err() {
+        return Err(parsed_axes.unwrap_err());
+    }
+    let axes = parsed_axes.unwrap();
+    let  axis_tuple = parse_single_axis_def(&axes);
+    if let Err(s) = axis_tuple {
+        return Err(s)
+    }
+    let axis = axis_tuple.unwrap();
+    let low = axis.0;
+    let high = axis.1;
+    let bins = axis.2;
+
+    Ok((low, high, bins))
+}
 
 // Make a 1-d spectrum:
 // parameters must be a single parameter name.
@@ -301,37 +343,14 @@ fn make_1d(
     let parameter = params[0].clone();
     // Axis parsed as a simple list must be a 3 element list:
 
-    let parsed_axes = parse_simple_list(axes);
+    let parsed_axes = parse_axis_def(axes);
     if parsed_axes.is_err() {
         return Json(GenericResponse {
-            status: String::from("Error parsing axis list"),
+            status: String::from("Invalid axis specification"),
             detail: parsed_axes.unwrap_err(),
         });
     }
-    let axes = parsed_axes.unwrap();
-    if axes.len() != 3 {
-        return Json(GenericResponse {
-            status: String::from("Error processing axis list"),
-            detail: String::from("Must have 3 elements"),
-        });
-    };
-    let low = axes[0].parse::<f64>();
-    let high = axes[1].parse::<f64>();
-    let bins = axes[2].parse::<u32>();
-
-    if low.is_err() || high.is_err() || bins.is_err() {
-        return Json(GenericResponse {
-            status: String::from("Could not parse axis list elmenets"),
-            detail: format!(
-                "elements were low {}, high {}, bins{}",
-                axes[0], axes[1], axes[2]
-            ),
-        });
-    }
-    let low = low.unwrap();
-    let high = high.unwrap();
-    let bins = bins.unwrap();
-
+    let (low, high, bins) = parsed_axes.unwrap();
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
 
     let r = if let Err(s) = api.create_spectrum_1d(name, &parameter, low, high, bins) {
@@ -347,6 +366,74 @@ fn make_1d(
     };
     Json(r)
 }
+// Make a 2d spectrum
+fn make_2d(name: &str, parameters: &str, axes: &str, state: &State<HistogramState>) -> Json<GenericResponse> {
+    // need exactly two parameters:
+
+    let parsed_params = parse_simple_list(parameters);
+    if parsed_params.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to parse 2d parameter list"),
+            detail: parsed_params.unwrap_err()
+        });
+    }
+    let params = parsed_params.unwrap();
+    if params.len() != 2 {
+        return Json(GenericResponse {
+            status : String::from("Failed to process parameter list"),
+            detail: String::from("There must be exactly two parameters for a 2d spectrum")
+        });
+    }
+    let xp = params[0].clone();
+    let yp = params[1].clone();
+
+    let axis_list = parse_two_element_list(axes);
+    if axis_list.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to break apart axis list"),
+            detail: axis_list.unwrap_err()
+        });
+    }
+    let xaxis_def = axis_list.unwrap().0;
+    let yaxis_def = axis_list.unwrap().1;
+
+    let xaxis = parse_single_axis_def(&xaxis_def);
+    if xaxis.is_err() {
+        return Json(GenericResponse {
+            status : String::from("Failed to parse x axis definition"),
+            detail: xaxis.unwrap_err()
+        });
+    }
+    let (xlow, xhigh, xbins) = xaxis.unwrap();
+
+    let yaxis = parse_single_axis_def(&yaxis_def);
+    if yaxis.is_err() {
+        return Json(GenericResponse {
+            status : String::from("Failed to parse y axis definition"),
+            detail: xaxis.unwrap_err()
+        });
+    }
+    let (ylow, yhigh, ybins) = yaxis.unwrap();
+
+    // Now we can try to make the spectrum:
+
+
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let result = if let Err(s) = api.create_spectrum_2d(name, &xp, &yp, xlow, xhigh, xbins, ylow, yhigh, ybins) {
+        GenericResponse {
+            status: String::from("Failed to create 2d spectrum"),
+            detail: s
+        }
+    } else {
+        GenericResponse {
+            status: String::from("OK"),
+            detail : String::from("")
+        }
+    };
+
+    Json(result)
+}
+
 
 /// For the spectra that Rustogramer supports, only some subset of the
 /// The query parameters are needed.  Specifically:
@@ -392,7 +479,7 @@ pub fn create_spectrum(
             return make_1d(&name, &parameters, &axes, state);
         }
         "2" => {
-            // Make 2d
+            return make_2d(&name, &parameter, &axes, state);
         }
         "g1" => {
             // Make multi1d
