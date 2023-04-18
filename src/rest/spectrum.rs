@@ -238,7 +238,7 @@ fn parse_two_element_list(list: &str) -> Result<(Vec<String>, Vec<String>), Stri
     }
     let first_close = first_close.unwrap();
 
-    let first_element = parse_simple_list(&list[first_open + 1..first_close - 1]);
+    let first_element = parse_simple_list(&list[first_open + 1..first_close]);
     if let Err(msg) = first_element {
         return Err(format!("Parse of first element failed: {}", msg));
     }
@@ -255,8 +255,13 @@ fn parse_two_element_list(list: &str) -> Result<(Vec<String>, Vec<String>), Stri
     if second_close.is_none() {
         return Err(format!("'{}' could not find closing of second list", list));
     }
+    let second_close =second_close.unwrap();
+    let second_open = second_open.unwrap();
+    if second_close < second_open {
+        return Err(String::from("Found second close before the second open!!"));
+    }
     let second_element =
-        parse_simple_list(&remainder[second_open.unwrap() + 1..second_close.unwrap() - 1]);
+        parse_simple_list(&remainder[second_open + 1..second_close]);
     if let Err(msg) = second_element {
         return Err(format!("Parse of second element failed : {}", msg));
     }
@@ -354,10 +359,10 @@ mod list_parse_tests {
     #[test]
     fn simple_2() {
         // Something with a { in it is not a simple list:
-        
-            let list = "this is {not a simple list";
-            let parsed = parse_simple_list(list);
-            assert!(parsed.is_err());
+
+        let list = "this is {not a simple list";
+        let parsed = parse_simple_list(list);
+        assert!(parsed.is_err());
     }
     #[test]
     fn simple_3() {
@@ -365,6 +370,127 @@ mod list_parse_tests {
 
         let list = "this is not a simple} list";
         let parsed = parse_simple_list(list);
+        assert!(parsed.is_err());
+    }
+    // Test for two element list sof the form {simple-list}{simple list}
+    // or {Simple-list}<whitespace>{simple-list}
+    //
+    #[test]
+    fn two_1() {
+        // Two 1 element simple lists.
+
+        let list = "{element1}{element2}";
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_ok());
+        let parsed = parsed.unwrap();
+        let l1 = parsed.0;
+        let l2 = parsed.1;
+
+        assert_eq!(vec![String::from("element1")], l1);
+        assert_eq!(vec![String::from("element2")], l2);
+    }
+    #[test]
+    fn two_2() {
+        //  whitespace between the lists:
+
+        let list = "{element1} {element2}";
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_ok());
+        let parsed = parsed.unwrap();
+        let l1 = parsed.0;
+        let l2 = parsed.1;
+
+        assert_eq!(vec![String::from("element1")], l1);
+        assert_eq!(vec![String::from("element2")], l2);
+    }
+    #[test]
+    fn two_3() {
+        // First list is mulit-element
+
+        let list = "{e1 e2 e3} {e1}";
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_ok());
+        let parsed = parsed.unwrap();
+        let l1 = parsed.0;
+        let l2 = parsed.1;
+
+        assert_eq!(
+            vec![String::from("e1"), String::from("e2"), String::from("e3"),],
+            l1
+        );
+        assert_eq!(vec![String::from("e1")], l2);
+    }
+    #[test]
+    fn two_4() {
+        // second list has multiples:
+
+        let list = "{e1} {e2 e3 e4}";
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_ok());
+        let parsed = parsed.unwrap();
+        let l1 = parsed.0;
+        let l2 = parsed.1;
+
+        assert_eq!(vec![String::from("e1")], l1);
+        assert_eq!(
+            vec![String::from("e2"), String::from("e3"), String::from("e4")],
+            l2
+        );
+    }
+    // Errors detectable by twolist parsing
+    #[test]
+    fn two_5() {
+        // no open bracket:
+
+        let list = "e1 e2 e3"; // Really a simple list
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_err());
+    }
+    #[test]
+    fn two_6() {
+        // open but no close:
+
+        let list = "{e1 e2 e3";
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_err());
+    }
+    #[test]
+    fn two_7() {
+        //first list properly delimted but no second {
+
+        let list = "{e1 e2 e3} a b c";
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_err());
+    }
+    #[test]
+    fn two_8() {
+        // first list properly delimited but second list only opened:
+
+        let list = "{1 2 3} {a b c";
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_err());
+    }
+    #[test]
+    fn two_9() {
+        // extra open in list 1 - simple parse of the sublist
+        // will fail.
+
+        let list = "{1 2 { 3} {a b c}";
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_err());
+    }
+    #[test]
+    fn two_10() {
+        // extra open in list 2
+        let list = "{1 2 3} {a b { c}";
+        let parsed = parse_two_element_list(list);
+        assert!(parsed.is_err());
+    }
+    #[test]
+    fn two_11() {
+        // extra close in list 1?
+        let list = "{1 2 } 3}  {a b c}";
+        let parsed = parse_two_element_list(list);
         assert!(parsed.is_err());
     }
 }
