@@ -251,7 +251,7 @@ fn parse_two_element_list(list: &str) -> Result<(Vec<String>, Vec<String>), Stri
     if second_open.is_none() {
         return Err(format!("'{}' cound not find opening of second list", list));
     }
-    let second_close = remainder.find('}');  // Seach for the last }
+    let second_close = remainder.find('}'); // Seach for the last }
     if second_close.is_none() {
         return Err(format!("'{}' could not find closing of second list", list));
     }
@@ -259,7 +259,9 @@ fn parse_two_element_list(list: &str) -> Result<(Vec<String>, Vec<String>), Stri
     let second_open = second_open.unwrap();
     let last_close = remainder.rfind('}').unwrap();
     if second_close != last_close {
-        return Err(String::from("The closing } of the second list is not the last }"));
+        return Err(String::from(
+            "The closing } of the second list is not the last }",
+        ));
     }
     if second_close < second_open {
         return Err(String::from("Found second close before the second open!!"));
@@ -270,6 +272,80 @@ fn parse_two_element_list(list: &str) -> Result<(Vec<String>, Vec<String>), Stri
     }
 
     Ok((first_element, second_element.unwrap()))
+}
+
+// Make a 1-d spectrum:
+// parameters must be a single parameter name.
+// axes must be a single axis specification in the form low high bins
+//
+fn make_1d(
+    name: &str,
+    parameters: &str,
+    axes: &str,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    let parsed_params = parse_simple_list(parameters);
+    if parsed_params.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Error parsing 1d spectrum parameter"),
+            detail: parsed_params.unwrap_err(),
+        });
+    }
+    let params = parsed_params.unwrap();
+    if params.len() != 1 {
+        return Json(GenericResponse {
+            status: String::from("Eror processing 1d spectrum parameters"),
+            detail: String::from("Only allowed one parameter"),
+        });
+    }
+    let parameter = params[0].clone();
+    // Axis parsed as a simple list must be a 3 element list:
+
+    let parsed_axes = parse_simple_list(axes);
+    if parsed_axes.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Error parsing axis list"),
+            detail: parsed_axes.unwrap_err(),
+        });
+    }
+    let axes = parsed_axes.unwrap();
+    if axes.len() != 3 {
+        return Json(GenericResponse {
+            status: String::from("Error processing axis list"),
+            detail: String::from("Must have 3 elements"),
+        });
+    };
+    let low = axes[0].parse::<f64>();
+    let high = axes[1].parse::<f64>();
+    let bins = axes[2].parse::<u32>();
+
+    if low.is_err() || high.is_err() || bins.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Could not parse axis list elmenets"),
+            detail: format!(
+                "elements were low {}, high {}, bins{}",
+                axes[0], axes[1], axes[2]
+            ),
+        });
+    }
+    let low = low.unwrap();
+    let high = high.unwrap();
+    let bins = bins.unwrap();
+
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+
+    let r = if let Err(s) = api.create_spectrum_1d(name, &parameter, low, high, bins) {
+        GenericResponse {
+            status: String::from("Failed to create 1d spectrum"),
+            detail: s,
+        }
+    } else {
+        GenericResponse {
+            status: String::from("OK"),
+            detail: String::from(""),
+        }
+    };
+    Json(r)
 }
 
 /// For the spectra that Rustogramer supports, only some subset of the
@@ -301,12 +377,19 @@ fn parse_two_element_list(list: &str) -> Result<(Vec<String>, Vec<String>), Stri
 /// If there's an error _status_ is the top level error message and
 /// _detail_ provides more information about the error.
 ///
-#[get("/create?<name>&<type>&<parameters>")]
-pub fn create_spectrum(name: String, r#type: String, parameters: String) -> Json<GenericResponse> {
+#[get("/create?<name>&<type>&<parameters>&<axes>")]
+pub fn create_spectrum(
+    name: String,
+    r#type: String,
+    parameters: String,
+    axes: String,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
     let type_name = r#type; // Don't want raw names like that.
     match type_name.as_str() {
         "1" => {
-            // Make 1d
+            // Make 1d need:
+            return make_1d(&name, &parameters, &axes, state);
         }
         "2" => {
             // Make 2d
