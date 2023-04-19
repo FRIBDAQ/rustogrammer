@@ -81,7 +81,7 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
             def.axes.push(Axis {
                 low: x.low,
                 high: x.high,
-                bins: x.bins - 2,   // Omit over/underflow
+                bins: x.bins - 2, // Omit over/underflow
             });
         }
         if let Some(y) = d.yaxis {
@@ -590,6 +590,7 @@ pub fn create_spectrum(
             return make_gamma1(&name, &parameters, &axes, state);
         }
         "g2" => {
+            ///
             return make_gamma2(&name, &parameters, &axes, state);
         }
         "gd" => {
