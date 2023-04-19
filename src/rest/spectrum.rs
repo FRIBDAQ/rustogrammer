@@ -606,22 +606,27 @@ fn make_pgamma(
 // Create a summary spectrum from a single list of parameters
 // and a single axis specification.
 
-fn make_summary(name: &str, parameters: &str, axes : &str, state: &State<HistogramState>) -> Json<GenericResponse> {
+fn make_summary(
+    name: &str,
+    parameters: &str,
+    axes: &str,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
     let parameters = parse_simple_list(parameters);
     if parameters.is_err() {
         return Json(GenericResponse {
             status: String::from("Failed to parse the parameter list"),
-            detail: parameters.unwrap_err()
-        })
+            detail: parameters.unwrap_err(),
+        });
     }
-    let parameters = parameters.unwrap();  // Vec<String> now.
+    let parameters = parameters.unwrap(); // Vec<String> now.
 
     let axes = parse_axis_def(axes);
     if axes.is_err() {
         return Json(GenericResponse {
             status: String::from("Failed to process axis definition"),
-            detail: axes.unwrap_err()
-        })
+            detail: axes.unwrap_err(),
+        });
     }
     let (low, high, bins) = axes.unwrap();
 
@@ -629,19 +634,77 @@ fn make_summary(name: &str, parameters: &str, axes : &str, state: &State<Histogr
     let result = if let Err(s) = api.create_spectrum_summary(name, &parameters, low, high, bins) {
         GenericResponse {
             status: String::from("Failed to create spectrum"),
-            detail: s
+            detail: s,
         }
     } else {
         GenericResponse {
-            status : String::from("OK"),
-            detail : String::from("")
+            status: String::from("OK"),
+            detail: String::from(""),
         }
     };
 
     Json(result)
-    
 }
+// Create a 2d sum spectrum.  There must be two parameter lists
+// and two axes.  We let the server sort out that the two parameter
+// lists must also be the same length.
+fn make_2dsum(
+    name: &str,
+    parameters: &str,
+    axes: &str,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    let parameters = parse_two_element_list(parameters);
+    if parameters.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to parse the parameter list(s)"),
+            detail: parameters.unwrap_err(),
+        });
+    }
+    let (xpars, ypars) = parameters.unwrap(); // both Vec<String>
 
+    let axes = parse_two_element_list(axes);
+    if axes.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to parse axes list(s)"),
+            detail: axes.unwrap_err(),
+        });
+    }
+    let (xspec, yspec) = axes.unwrap();
+    let xaxis = parse_single_axis_def(&xspec);
+    if xaxis.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to process X axis"),
+            detail: xaxis.unwrap_err(),
+        });
+    }
+    let (xlow, xhigh, xbins) = xaxis.unwrap();
+    let yaxis = parse_single_axis_def(&yspec);
+    if yaxis.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to process Y axis"),
+            detail: yaxis.unwrap_err(),
+        });
+    }
+    let (ylow, yhigh, ybins) = yaxis.unwrap();
+
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let result = if let Err(s) =
+        api.create_spectrum_2dsum(name, &xpars, &ypars, xlow, xhigh, xbins, ylow, yhigh, ybins)
+    {
+        GenericResponse {
+            status: String::from("Failed to create 2d sum spectrum"),
+            detail: s,
+        }
+    } else {
+        GenericResponse {
+            status: String::from("OK"),
+            detail: String::from(""),
+        }
+    };
+
+    Json(result)
+}
 /// For the spectra that Rustogramer supports, only some subset of the
 /// The query parameters are needed.  Specifically:
 ///
@@ -702,16 +765,15 @@ pub fn create_spectrum(
             return make_summary(&name, &parameters, &axes, state);
         }
         "m2" => {
-            // Make 2dsum
+            return make_2dsum(&name, &parameters, &axes, state);
         }
         _ => {
-            // unsupported type.
+            return Json(GenericResponse {
+                status: String::from("Unsupported spectrum type"),
+                detail: format!("Bad type was '{}'", type_name),
+            });
         }
-    }
-    Json(GenericResponse {
-        status: String::from("OK"),
-        detail: String::new(),
-    })
+    };
 }
 
 //------------------------------------------------------------------
