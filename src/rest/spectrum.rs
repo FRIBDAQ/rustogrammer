@@ -539,6 +539,70 @@ fn make_gamma2(
 
     Json(result)
 }
+// Make a particle gamma spectrum.
+// This has two sets of parameters, x and y each an arbitrary
+// length list.  There are 2 axes as well:
+
+fn make_pgamma(
+    name: &str,
+    parameters: &str,
+    axes: &str,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    // Get the two parameter vectors:
+
+    let parsed_params = parse_two_element_list(parameters);
+    if parsed_params.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to parse parameter list"),
+            detail: parsed_params.unwrap_err(),
+        });
+    }
+    let (xparams, yparams) = parsed_params.unwrap();
+
+    // Now the axis specifications:
+
+    let axis_list = parse_two_element_list(axes);
+    if axis_list.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to break down axis list"),
+            detail: axis_list.unwrap_err(),
+        });
+    }
+    let (xspec, yspec) = axis_list.unwrap();
+    let xaxis = parse_single_axis_def(&xspec);
+    if xaxis.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to parse X axis list"),
+            detail: xaxis.unwrap_err(),
+        });
+    }
+    let yaxis = parse_single_axis_def(&yspec);
+    if yaxis.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to parse Y axis list"),
+            detail: yaxis.unwrap_err(),
+        });
+    }
+    let (xlow, xhigh, xbins) = xaxis.unwrap();
+    let (ylow, yhigh, ybins) = yaxis.unwrap();
+
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let response = if let Err(s) = api.create_spectrum_pgamma(
+        name, &xparams, &yparams, xlow, xhigh, xbins, ylow, yhigh, ybins,
+    ) {
+        GenericResponse {
+            status: String::from("Failed to create pgamma spectrum"),
+            detail: s,
+        }
+    } else {
+        GenericResponse {
+            status: String::from("OK"),
+            detail: String::from(""),
+        }
+    };
+    Json(response)
+}
 
 /// For the spectra that Rustogramer supports, only some subset of the
 /// The query parameters are needed.  Specifically:
@@ -594,7 +658,7 @@ pub fn create_spectrum(
             return make_gamma2(&name, &parameters, &axes, state);
         }
         "gd" => {
-            // Make PGamma
+            return make_pgamma(&name, &parameters, &axes, state);
         }
         "s" => {
             // Make summary spectrum.
