@@ -603,6 +603,44 @@ fn make_pgamma(
     };
     Json(response)
 }
+// Create a summary spectrum from a single list of parameters
+// and a single axis specification.
+
+fn make_summary(name: &str, parameters: &str, axes : &str, state: &State<HistogramState>) -> Json<GenericResponse> {
+    let parameters = parse_simple_list(parameters);
+    if parameters.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to parse the parameter list"),
+            detail: parameters.unwrap_err()
+        })
+    }
+    let parameters = parameters.unwrap();  // Vec<String> now.
+
+    let axes = parse_axis_def(axes);
+    if axes.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to process axis definition"),
+            detail: axes.unwrap_err()
+        })
+    }
+    let (low, high, bins) = axes.unwrap();
+
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let result = if let Err(s) = api.create_spectrum_summary(name, &parameters, low, high, bins) {
+        GenericResponse {
+            status: String::from("Failed to create spectrum"),
+            detail: s
+        }
+    } else {
+        GenericResponse {
+            status : String::from("OK"),
+            detail : String::from("")
+        }
+    };
+
+    Json(result)
+    
+}
 
 /// For the spectra that Rustogramer supports, only some subset of the
 /// The query parameters are needed.  Specifically:
@@ -661,7 +699,7 @@ pub fn create_spectrum(
             return make_pgamma(&name, &parameters, &axes, state);
         }
         "s" => {
-            // Make summary spectrum.
+            return make_summary(&name, &parameters, &axes, state);
         }
         "m2" => {
             // Make 2dsum
