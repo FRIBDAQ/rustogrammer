@@ -590,7 +590,7 @@ pub fn create_spectrum(
             return make_gamma1(&name, &parameters, &axes, state);
         }
         "g2" => {
-            ///
+            //
             return make_gamma2(&name, &parameters, &axes, state);
         }
         "gd" => {
