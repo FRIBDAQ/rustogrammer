@@ -729,8 +729,8 @@ pub struct ContentsResponse {
 
 fn has_y_axis(stype: &str) -> bool {
     match stype {
-        "1" | "g1" | "s" => false,
-        "2" | "g2" | "gd" | "m2" => true,
+        "1D" | "Multi1d" | "Summary" => false,
+        "2D" | "Multi2d" | "PGamma" | "2DSum" => true,
         _ => false,
     }
 }
@@ -749,23 +749,87 @@ fn has_y_axis(stype: &str) -> bool {
 /// appropriate axis limit.  This implies that we will fetch the
 /// spectrum definition before doing much else.
 ///
-/// Note - the ability to describe a region of interest 
+/// Note - the ability to describe a region of interest
 /// within which we want the contents is new with Rustogramer.
 ///
 ///
 #[get("/contents?<name>&<xlow>&<xhigh>&<ylow>&<yhigh>")]
 pub fn get_contents(
     name: String,
-    xlow: Option<String>,
-    xhigh: Option<String>,
-    ylow: Option<String>,
-    yhigh: Option<String>,
+    xlow: Option<f64>,
+    xhigh: Option<f64>,
+    ylow: Option<f64>,
+    yhigh: Option<f64>,
     state: &State<HistogramState>,
 ) -> Json<ContentsResponse> {
-    Json(ContentsResponse {
-        status: String::from("not supported"),
-        detail: Vec::<Channel>::new(),
-    })
+    // First get the description of the spectrum to set the
+    // default ROI to the entire spectrum:
+
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let list = api.list_spectra(&name);
+    if let Err(s) = list {
+        return Json(ContentsResponse {
+            status: format!("Failed to fetch info for {} : {}", name, s),
+            detail: vec![],
+        });
+    }
+    let list = list.unwrap();
+    if list.len() != 1 {
+        return Json(ContentsResponse {
+            status: format!(
+                "Failed to fetch info for {} no such spectrum or ambiguous name",
+                name,
+            ),
+            detail: vec![],
+        });
+    }
+    let description = list[0].clone();
+    let xaxis = description.xaxis.unwrap();
+    let (mut x_low, mut x_high) = (xaxis.low, xaxis.high);
+    let (mut y_low, mut y_high) = if has_y_axis(&description.type_name) {
+        let yaxis = description.yaxis.unwrap();
+        (yaxis.low, yaxis.high)
+    } else {
+        (0.0, 0.0)
+    };
+    if let Some(xl) = xlow {
+        x_low = xl;
+    }
+    if let Some(xh) = xhigh {
+        x_high = xh;
+    }
+    if let Some(yl) = ylow {
+        y_low = yl;
+    }
+    if let Some(yh) = yhigh {
+        y_high = yh;
+    }
+
+    // Fetch the region of interest:
+
+    let contents = api.get_contents(&name, x_low, x_high, y_low, y_high);
+    let result = if let Err(s) = contents {
+        ContentsResponse {
+            status: format!("Failed to get spectrum contents: {}", s),
+            detail: vec![],
+        }
+    } else {
+        let mut reply = ContentsResponse {
+            status: String::from("OK"),
+            detail: vec![],
+        };
+        let contents = contents.unwrap();
+        for c in contents {
+            reply.detail.push(Channel {
+                xchan: c.x,
+                ychan: c.y,
+                value: c.value,
+            });
+        }
+        reply
+    };
+
+    Json(result)
 }
 
 //------------------------------------------------------------------
