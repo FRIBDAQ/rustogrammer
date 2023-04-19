@@ -81,14 +81,14 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
             def.axes.push(Axis {
                 low: x.low,
                 high: x.high,
-                bins: x.bins,
+                bins: x.bins - 2,   // Omit over/underflow
             });
         }
         if let Some(y) = d.yaxis {
             def.axes.push(Axis {
                 low: y.low,
                 high: y.high,
-                bins: y.bins,
+                bins: y.bins - 2, // Omit over/underflow.
             });
         }
 
@@ -459,8 +459,8 @@ fn make_gamma1(
     if axis.is_err() {
         return Json(GenericResponse {
             status: String::from("Failed to process axis definition"),
-            detail: axis.unwrap_err()
-        })
+            detail: axis.unwrap_err(),
+        });
     }
     let (low, high, bins) = axis.unwrap();
 
@@ -468,16 +468,76 @@ fn make_gamma1(
     let response = if let Err(s) = api.create_spectrum_multi1d(name, &parameters, low, high, bins) {
         GenericResponse {
             status: String::from("Failed to make multi1d spectrum"),
-            detail: s
+            detail: s,
         }
     } else {
         GenericResponse {
             status: String::from("OK"),
-            detail: String::from("")
+            detail: String::from(""),
         }
     };
     Json(response)
+}
+// Create multi2d - one set of parameters, two axes, however.
 
+fn make_gamma2(
+    name: &str,
+    parameters: &str,
+    axes: &str,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    let parameters = parse_simple_list(parameters);
+    if parameters.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Could not parse parameter list"),
+            detail: parameters.unwrap_err(),
+        });
+    }
+    let parameters = parameters.unwrap(); // Vec of names.
+
+    let axis_list = parse_two_element_list(axes);
+    if axis_list.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to break apart axis list"),
+            detail: axis_list.unwrap_err(),
+        });
+    }
+    let (xaxis_def, yaxis_def) = axis_list.unwrap();
+
+    let xaxis = parse_single_axis_def(&xaxis_def);
+    if xaxis.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to parse x axis definition"),
+            detail: xaxis.unwrap_err(),
+        });
+    }
+    let (xlow, xhigh, xbins) = xaxis.unwrap();
+
+    let yaxis = parse_single_axis_def(&yaxis_def);
+    if yaxis.is_err() {
+        return Json(GenericResponse {
+            status: String::from("Failed to parse y axis definition"),
+            detail: yaxis.unwrap_err(),
+        });
+    }
+    let (ylow, yhigh, ybins) = yaxis.unwrap();
+
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let result = if let Err(s) =
+        api.create_spectrum_multi2d(name, &parameters, xlow, xhigh, xbins, ylow, yhigh, ybins)
+    {
+        GenericResponse {
+            status: String::from("Failed to create multi2d spectrum"),
+            detail: s,
+        }
+    } else {
+        GenericResponse {
+            status: String::from("OK"),
+            detail: String::from(""),
+        }
+    };
+
+    Json(result)
 }
 
 /// For the spectra that Rustogramer supports, only some subset of the
@@ -530,7 +590,7 @@ pub fn create_spectrum(
             return make_gamma1(&name, &parameters, &axes, state);
         }
         "g2" => {
-            // Make multid 2d
+            return make_gamma2(&name, &parameters, &axes, state);
         }
         "gd" => {
             // Make PGamma
