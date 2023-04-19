@@ -425,8 +425,8 @@ fn make_2d(
     if axes.is_err() {
         return GenericResponse {
             status: String::from("Failed to parse axes definitions"),
-            detail: axes.unwrap_err()
-        }
+            detail: axes.unwrap_err(),
+        };
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
@@ -505,8 +505,8 @@ fn make_gamma2(
     if axes.is_err() {
         return GenericResponse {
             status: String::from("Failed to parse axes definitions"),
-            detail: axes.unwrap_err()
-        }
+            detail: axes.unwrap_err(),
+        };
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
@@ -552,8 +552,8 @@ fn make_pgamma(
     if axes.is_err() {
         return GenericResponse {
             status: String::from("Failed to parse axes definitions"),
-            detail: axes.unwrap_err()
-        }
+            detail: axes.unwrap_err(),
+        };
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
@@ -634,8 +634,8 @@ fn make_2dsum(
     if axes.is_err() {
         return GenericResponse {
             status: String::from("Failed to parse axes definitions"),
-            detail: axes.unwrap_err()
-        }
+            detail: axes.unwrap_err(),
+        };
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
@@ -704,6 +704,67 @@ pub fn create_spectrum(
             status: String::from("Unsupported spectrum type"),
             detail: format!("Bad type was '{}'", type_name),
         },
+    })
+}
+//------------------------------------------------------------------
+// Stuff needed to get the contents of a spectrum.
+
+/// Each channel value looks like this:
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct Channel {
+    xchan: f64,
+    ychan: f64,
+    value: f64,
+}
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct ContentsResponse {
+    status: String,
+    detail: Vec<Channel>,
+}
+
+// Determine if a spectrum type has 2 axes:
+
+fn has_y_axis(stype: &str) -> bool {
+    match stype {
+        "1" | "g1" | "s" => false,
+        "2" | "g2" | "gd" | "m2" => true,
+        _ => false,
+    }
+}
+
+///
+/// Get the contents of a spectrum.  Note that
+/// The request parameters are:
+///
+/// *  name (required) - the name of the spectrum to fetch
+/// *  xlow (optional) - the low x limit of the chunk of the spectrum to get
+/// *  xhigh(optional) - the high x limit of the chunk of the spectrum to get.
+/// *  ylow (optional) - The low y limit of the chunk of the spectrum to get.
+/// *  yhigh (optional) - The high y limit of the chunk of the spectrum to get.
+///
+/// If a limit is not supplied it is defaulted to the
+/// appropriate axis limit.  This implies that we will fetch the
+/// spectrum definition before doing much else.
+///
+/// Note - the ability to describe a region of interest 
+/// within which we want the contents is new with Rustogramer.
+///
+///
+#[get("/contents?<name>&<xlow>&<xhigh>&<ylow>&<yhigh>")]
+pub fn get_contents(
+    name: String,
+    xlow: Option<String>,
+    xhigh: Option<String>,
+    ylow: Option<String>,
+    yhigh: Option<String>,
+    state: &State<HistogramState>,
+) -> Json<ContentsResponse> {
+    Json(ContentsResponse {
+        status: String::from("not supported"),
+        detail: Vec::<Channel>::new(),
     })
 }
 

@@ -59,7 +59,8 @@ fn rocket() -> _ {
             routes![
                 spectrum::list_spectrum,
                 spectrum::delete_spectrum,
-                spectrum::create_spectrum
+                spectrum::create_spectrum,
+                spectrum::get_contents
             ],
         )
 }
