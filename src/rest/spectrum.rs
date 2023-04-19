@@ -315,6 +315,36 @@ fn parse_axis_def(axes: &str) -> Result<(f64, f64, u32), String> {
 
     Ok((low, high, bins))
 }
+fn parse_2_axis_defs(axes: &str) -> Result<((f64, f64, u32), (f64, f64, u32)), String> {
+    let axis_list = parse_two_element_list(axes);
+    if axis_list.is_err() {
+        return Err(format!(
+            "Failed to break apart axis list: {}",
+            axis_list.unwrap_err()
+        ));
+    }
+    let (xaxis_def, yaxis_def) = axis_list.unwrap();
+
+    let xaxis = parse_single_axis_def(&xaxis_def);
+    if xaxis.is_err() {
+        return Err(format!(
+            "Failed to parse X axis definition: {}",
+            xaxis.unwrap_err()
+        ));
+    }
+    let (xlow, xhigh, xbins) = xaxis.unwrap();
+
+    let yaxis = parse_single_axis_def(&yaxis_def);
+    if yaxis.is_err() {
+        return Err(format!(
+            "Failed to parse Y axis definition {}",
+            yaxis.unwrap_err()
+        ));
+    }
+    let (ylow, yhigh, ybins) = yaxis.unwrap();
+
+    Ok(((xlow, xhigh, xbins), (ylow, yhigh, ybins)))
+}
 
 // Make a 1-d spectrum:
 // parameters must be a single parameter name.
@@ -364,7 +394,6 @@ fn make_1d(
             detail: String::from(""),
         }
     }
-
 }
 // Make a 2d spectrum
 fn make_2d(
@@ -392,39 +421,19 @@ fn make_2d(
     let xp = params[0].clone();
     let yp = params[1].clone();
 
-    let axis_list = parse_two_element_list(axes);
-    if axis_list.is_err() {
+    let axes = parse_2_axis_defs(axes);
+    if axes.is_err() {
         return GenericResponse {
-            status: String::from("Failed to break apart axis list"),
-            detail: axis_list.unwrap_err(),
-        };
-    }
-    let (xaxis_def, yaxis_def) = axis_list.unwrap();
-
-    let xaxis = parse_single_axis_def(&xaxis_def);
-    if xaxis.is_err() {
-        return GenericResponse {
-            status: String::from("Failed to parse x axis definition"),
-            detail: xaxis.unwrap_err(),
-        };
-    }
-    let (xlow, xhigh, xbins) = xaxis.unwrap();
-
-    let yaxis = parse_single_axis_def(&yaxis_def);
-    if yaxis.is_err() {
-        return GenericResponse {
-            status: String::from("Failed to parse y axis definition"),
-            detail: yaxis.unwrap_err(),
-        };
-    }
-    let (ylow, yhigh, ybins) = yaxis.unwrap();
+            status: String::from("Failed to parse axes definitions"),
+            detail: axes.unwrap_err()
+        }
+    };
+    let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
     // Now we can try to make the spectrum:
 
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
-    if let Err(s) =
-        api.create_spectrum_2d(name, &xp, &yp, xlow, xhigh, xbins, ylow, yhigh, ybins)
-    {
+    if let Err(s) = api.create_spectrum_2d(name, &xp, &yp, xlow, xhigh, xbins, ylow, yhigh, ybins) {
         GenericResponse {
             status: String::from("Failed to create 2d spectrum"),
             detail: s,
@@ -492,32 +501,14 @@ fn make_gamma2(
     }
     let parameters = parameters.unwrap(); // Vec of names.
 
-    let axis_list = parse_two_element_list(axes);
-    if axis_list.is_err() {
+    let axes = parse_2_axis_defs(axes);
+    if axes.is_err() {
         return GenericResponse {
-            status: String::from("Failed to break apart axis list"),
-            detail: axis_list.unwrap_err(),
-        };
-    }
-    let (xaxis_def, yaxis_def) = axis_list.unwrap();
-
-    let xaxis = parse_single_axis_def(&xaxis_def);
-    if xaxis.is_err() {
-        return GenericResponse {
-            status: String::from("Failed to parse x axis definition"),
-            detail: xaxis.unwrap_err(),
-        };
-    }
-    let (xlow, xhigh, xbins) = xaxis.unwrap();
-
-    let yaxis = parse_single_axis_def(&yaxis_def);
-    if yaxis.is_err() {
-        return GenericResponse {
-            status: String::from("Failed to parse y axis definition"),
-            detail: yaxis.unwrap_err(),
-        };
-    }
-    let (ylow, yhigh, ybins) = yaxis.unwrap();
+            status: String::from("Failed to parse axes definitions"),
+            detail: axes.unwrap_err()
+        }
+    };
+    let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
     if let Err(s) =
@@ -533,7 +524,6 @@ fn make_gamma2(
             detail: String::from(""),
         }
     }
-
 }
 // Make a particle gamma spectrum.
 // This has two sets of parameters, x and y each an arbitrary
@@ -558,30 +548,14 @@ fn make_pgamma(
 
     // Now the axis specifications:
 
-    let axis_list = parse_two_element_list(axes);
-    if axis_list.is_err() {
+    let axes = parse_2_axis_defs(axes);
+    if axes.is_err() {
         return GenericResponse {
-            status: String::from("Failed to break down axis list"),
-            detail: axis_list.unwrap_err(),
-        };
-    }
-    let (xspec, yspec) = axis_list.unwrap();
-    let xaxis = parse_single_axis_def(&xspec);
-    if xaxis.is_err() {
-        return GenericResponse {
-            status: String::from("Failed to parse X axis list"),
-            detail: xaxis.unwrap_err(),
-        };
-    }
-    let yaxis = parse_single_axis_def(&yspec);
-    if yaxis.is_err() {
-        return GenericResponse {
-            status: String::from("Failed to parse Y axis list"),
-            detail: yaxis.unwrap_err(),
-        };
-    }
-    let (xlow, xhigh, xbins) = xaxis.unwrap();
-    let (ylow, yhigh, ybins) = yaxis.unwrap();
+            status: String::from("Failed to parse axes definitions"),
+            detail: axes.unwrap_err()
+        }
+    };
+    let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
     if let Err(s) = api.create_spectrum_pgamma(
@@ -641,54 +615,44 @@ fn make_summary(
 // Create a 2d sum spectrum.  There must be two parameter lists
 // and two axes.  We let the server sort out that the two parameter
 // lists must also be the same length.
-fn make_2dsum(name: &str, parameters: &str, axes: &str, state: &State<HistogramState>) -> GenericResponse {
+fn make_2dsum(
+    name: &str,
+    parameters: &str,
+    axes: &str,
+    state: &State<HistogramState>,
+) -> GenericResponse {
     let parameters = parse_two_element_list(parameters);
     if parameters.is_err() {
-        return GenericResponse{
+        return GenericResponse {
             status: String::from("Failed to parse the parameter list(s)"),
-            detail: parameters.unwrap_err()
+            detail: parameters.unwrap_err(),
         };
     }
-    let (xpars, ypars) = parameters.unwrap();  // both Vec<String>
+    let (xpars, ypars) = parameters.unwrap(); // both Vec<String>
 
-    let axes = parse_two_element_list(axes);
+    let axes = parse_2_axis_defs(axes);
     if axes.is_err() {
         return GenericResponse {
-            status: String::from("Failed to parse axes list(s)"),
+            status: String::from("Failed to parse axes definitions"),
             detail: axes.unwrap_err()
-        };
-    }
-    let (xspec, yspec) = axes.unwrap();
-    let xaxis = parse_single_axis_def(&xspec);
-    if xaxis.is_err() {
-        return GenericResponse {
-            status: String::from("Failed to process X axis"),
-            detail: xaxis.unwrap_err()
-        };
-    }
-    let (xlow, xhigh, xbins) = xaxis.unwrap();
-    let yaxis = parse_single_axis_def(&yspec);
-    if yaxis.is_err() {
-        return GenericResponse {
-            status: String::from("Failed to process Y axis"),
-            detail: yaxis.unwrap_err()
-        };
-    }
-    let (ylow, yhigh, ybins) = yaxis.unwrap();
+        }
+    };
+    let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
-    if let Err(s) = api.create_spectrum_2dsum(name, &xpars, &ypars, xlow,xhigh,xbins, ylow,yhigh,ybins) {
+    if let Err(s) =
+        api.create_spectrum_2dsum(name, &xpars, &ypars, xlow, xhigh, xbins, ylow, yhigh, ybins)
+    {
         GenericResponse {
             status: String::from("Failed to create 2d sum spectrum"),
-            detail: s
+            detail: s,
         }
     } else {
         GenericResponse {
             status: String::from("OK"),
-            detail: String::from("")
+            detail: String::from(""),
         }
     }
-
 }
 /// For the spectra that Rustogramer supports, only some subset of the
 /// The query parameters are needed.  Specifically:
@@ -729,33 +693,17 @@ pub fn create_spectrum(
 ) -> Json<GenericResponse> {
     let type_name = r#type; // Don't want raw names like that.
     Json(match type_name.as_str() {
-        "1" => {
-            make_1d(&name, &parameters, &axes, state)
-        }
-        "2" => {
-            make_2d(&name, &parameters, &axes, state)
-        }
-        "g1" => {
-            make_gamma1(&name, &parameters, &axes, state)
-        }
-        "g2" => {
-            make_gamma2(&name, &parameters, &axes, state)
-        }
-        "gd" => {
-            make_pgamma(&name, &parameters, &axes, state)
-        }
-        "s" => {
-            make_summary(&name, &parameters, &axes, state)
-        }
-        "m2" => {
-            make_2dsum(&name, &parameters, &axes, state)
-        }
-        _ => {
-            GenericResponse {
-                status: String::from("Unsupported spectrum type"),
-                detail: format!("Bad type was '{}'", type_name),
-            }
-        }
+        "1" => make_1d(&name, &parameters, &axes, state),
+        "2" => make_2d(&name, &parameters, &axes, state),
+        "g1" => make_gamma1(&name, &parameters, &axes, state),
+        "g2" => make_gamma2(&name, &parameters, &axes, state),
+        "gd" => make_pgamma(&name, &parameters, &axes, state),
+        "s" => make_summary(&name, &parameters, &axes, state),
+        "m2" => make_2dsum(&name, &parameters, &axes, state),
+        _ => GenericResponse {
+            status: String::from("Unsupported spectrum type"),
+            detail: format!("Bad type was '{}'", type_name),
+        },
     })
 }
 
