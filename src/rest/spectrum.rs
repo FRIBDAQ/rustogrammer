@@ -325,35 +325,35 @@ fn make_1d(
     parameters: &str,
     axes: &str,
     state: &State<HistogramState>,
-) -> Json<GenericResponse> {
+) -> GenericResponse {
     let parsed_params = parse_simple_list(parameters);
     if parsed_params.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Error parsing 1d spectrum parameter"),
             detail: parsed_params.unwrap_err(),
-        });
+        };
     }
     let params = parsed_params.unwrap();
     if params.len() != 1 {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Eror processing 1d spectrum parameters"),
             detail: String::from("Only allowed one parameter"),
-        });
+        };
     }
     let parameter = params[0].clone();
     // Axis parsed as a simple list must be a 3 element list:
 
     let parsed_axes = parse_axis_def(axes);
     if parsed_axes.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Invalid axis specification"),
             detail: parsed_axes.unwrap_err(),
-        });
+        };
     }
     let (low, high, bins) = parsed_axes.unwrap();
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
 
-    let r = if let Err(s) = api.create_spectrum_1d(name, &parameter, low, high, bins) {
+    if let Err(s) = api.create_spectrum_1d(name, &parameter, low, high, bins) {
         GenericResponse {
             status: String::from("Failed to create 1d spectrum"),
             detail: s,
@@ -363,8 +363,8 @@ fn make_1d(
             status: String::from("OK"),
             detail: String::from(""),
         }
-    };
-    Json(r)
+    }
+
 }
 // Make a 2d spectrum
 fn make_2d(
@@ -372,57 +372,57 @@ fn make_2d(
     parameters: &str,
     axes: &str,
     state: &State<HistogramState>,
-) -> Json<GenericResponse> {
+) -> GenericResponse {
     // need exactly two parameters:
 
     let parsed_params = parse_simple_list(parameters);
     if parsed_params.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to parse 2d parameter list"),
             detail: parsed_params.unwrap_err(),
-        });
+        };
     }
     let params = parsed_params.unwrap();
     if params.len() != 2 {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to process parameter list"),
             detail: String::from("There must be exactly two parameters for a 2d spectrum"),
-        });
+        };
     }
     let xp = params[0].clone();
     let yp = params[1].clone();
 
     let axis_list = parse_two_element_list(axes);
     if axis_list.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to break apart axis list"),
             detail: axis_list.unwrap_err(),
-        });
+        };
     }
     let (xaxis_def, yaxis_def) = axis_list.unwrap();
 
     let xaxis = parse_single_axis_def(&xaxis_def);
     if xaxis.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to parse x axis definition"),
             detail: xaxis.unwrap_err(),
-        });
+        };
     }
     let (xlow, xhigh, xbins) = xaxis.unwrap();
 
     let yaxis = parse_single_axis_def(&yaxis_def);
     if yaxis.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to parse y axis definition"),
             detail: yaxis.unwrap_err(),
-        });
+        };
     }
     let (ylow, yhigh, ybins) = yaxis.unwrap();
 
     // Now we can try to make the spectrum:
 
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
-    let result = if let Err(s) =
+    if let Err(s) =
         api.create_spectrum_2d(name, &xp, &yp, xlow, xhigh, xbins, ylow, yhigh, ybins)
     {
         GenericResponse {
@@ -434,9 +434,7 @@ fn make_2d(
             status: String::from("OK"),
             detail: String::from(""),
         }
-    };
-
-    Json(result)
+    }
 }
 // make a gamma 1 spectrum ( multi1d)
 
@@ -445,27 +443,27 @@ fn make_gamma1(
     parameters: &str,
     axes: &str,
     state: &State<HistogramState>,
-) -> Json<GenericResponse> {
+) -> GenericResponse {
     let parameters = parse_simple_list(parameters);
     if parameters.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Could not parse parameter list"),
             detail: parameters.unwrap_err(),
-        });
+        };
     }
     let parameters = parameters.unwrap();
 
     let axis = parse_axis_def(axes);
     if axis.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to process axis definition"),
             detail: axis.unwrap_err(),
-        });
+        };
     }
     let (low, high, bins) = axis.unwrap();
 
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
-    let response = if let Err(s) = api.create_spectrum_multi1d(name, &parameters, low, high, bins) {
+    if let Err(s) = api.create_spectrum_multi1d(name, &parameters, low, high, bins) {
         GenericResponse {
             status: String::from("Failed to make multi1d spectrum"),
             detail: s,
@@ -475,8 +473,7 @@ fn make_gamma1(
             status: String::from("OK"),
             detail: String::from(""),
         }
-    };
-    Json(response)
+    }
 }
 // Create multi2d - one set of parameters, two axes, however.
 
@@ -485,45 +482,45 @@ fn make_gamma2(
     parameters: &str,
     axes: &str,
     state: &State<HistogramState>,
-) -> Json<GenericResponse> {
+) -> GenericResponse {
     let parameters = parse_simple_list(parameters);
     if parameters.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Could not parse parameter list"),
             detail: parameters.unwrap_err(),
-        });
+        };
     }
     let parameters = parameters.unwrap(); // Vec of names.
 
     let axis_list = parse_two_element_list(axes);
     if axis_list.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to break apart axis list"),
             detail: axis_list.unwrap_err(),
-        });
+        };
     }
     let (xaxis_def, yaxis_def) = axis_list.unwrap();
 
     let xaxis = parse_single_axis_def(&xaxis_def);
     if xaxis.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to parse x axis definition"),
             detail: xaxis.unwrap_err(),
-        });
+        };
     }
     let (xlow, xhigh, xbins) = xaxis.unwrap();
 
     let yaxis = parse_single_axis_def(&yaxis_def);
     if yaxis.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to parse y axis definition"),
             detail: yaxis.unwrap_err(),
-        });
+        };
     }
     let (ylow, yhigh, ybins) = yaxis.unwrap();
 
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
-    let result = if let Err(s) =
+    if let Err(s) =
         api.create_spectrum_multi2d(name, &parameters, xlow, xhigh, xbins, ylow, yhigh, ybins)
     {
         GenericResponse {
@@ -535,9 +532,8 @@ fn make_gamma2(
             status: String::from("OK"),
             detail: String::from(""),
         }
-    };
+    }
 
-    Json(result)
 }
 // Make a particle gamma spectrum.
 // This has two sets of parameters, x and y each an arbitrary
@@ -548,15 +544,15 @@ fn make_pgamma(
     parameters: &str,
     axes: &str,
     state: &State<HistogramState>,
-) -> Json<GenericResponse> {
+) -> GenericResponse {
     // Get the two parameter vectors:
 
     let parsed_params = parse_two_element_list(parameters);
     if parsed_params.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to parse parameter list"),
             detail: parsed_params.unwrap_err(),
-        });
+        };
     }
     let (xparams, yparams) = parsed_params.unwrap();
 
@@ -564,31 +560,31 @@ fn make_pgamma(
 
     let axis_list = parse_two_element_list(axes);
     if axis_list.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to break down axis list"),
             detail: axis_list.unwrap_err(),
-        });
+        };
     }
     let (xspec, yspec) = axis_list.unwrap();
     let xaxis = parse_single_axis_def(&xspec);
     if xaxis.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to parse X axis list"),
             detail: xaxis.unwrap_err(),
-        });
+        };
     }
     let yaxis = parse_single_axis_def(&yspec);
     if yaxis.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to parse Y axis list"),
             detail: yaxis.unwrap_err(),
-        });
+        };
     }
     let (xlow, xhigh, xbins) = xaxis.unwrap();
     let (ylow, yhigh, ybins) = yaxis.unwrap();
 
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
-    let response = if let Err(s) = api.create_spectrum_pgamma(
+    if let Err(s) = api.create_spectrum_pgamma(
         name, &xparams, &yparams, xlow, xhigh, xbins, ylow, yhigh, ybins,
     ) {
         GenericResponse {
@@ -600,8 +596,7 @@ fn make_pgamma(
             status: String::from("OK"),
             detail: String::from(""),
         }
-    };
-    Json(response)
+    }
 }
 // Create a summary spectrum from a single list of parameters
 // and a single axis specification.
@@ -611,27 +606,27 @@ fn make_summary(
     parameters: &str,
     axes: &str,
     state: &State<HistogramState>,
-) -> Json<GenericResponse> {
+) -> GenericResponse {
     let parameters = parse_simple_list(parameters);
     if parameters.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to parse the parameter list"),
             detail: parameters.unwrap_err(),
-        });
+        };
     }
     let parameters = parameters.unwrap(); // Vec<String> now.
 
     let axes = parse_axis_def(axes);
     if axes.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to process axis definition"),
             detail: axes.unwrap_err(),
-        });
+        };
     }
     let (low, high, bins) = axes.unwrap();
 
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
-    let result = if let Err(s) = api.create_spectrum_summary(name, &parameters, low, high, bins) {
+    if let Err(s) = api.create_spectrum_summary(name, &parameters, low, high, bins) {
         GenericResponse {
             status: String::from("Failed to create spectrum"),
             detail: s,
@@ -641,50 +636,48 @@ fn make_summary(
             status: String::from("OK"),
             detail: String::from(""),
         }
-    };
-
-    Json(result)
+    }
 }
 // Create a 2d sum spectrum.  There must be two parameter lists
 // and two axes.  We let the server sort out that the two parameter
 // lists must also be the same length.
-fn make_2dsum(name: &str, parameters: &str, axes: &str, state: &State<HistogramState>) -> Json<GenericResponse> {
+fn make_2dsum(name: &str, parameters: &str, axes: &str, state: &State<HistogramState>) -> GenericResponse {
     let parameters = parse_two_element_list(parameters);
     if parameters.is_err() {
-        return Json(GenericResponse{
+        return GenericResponse{
             status: String::from("Failed to parse the parameter list(s)"),
             detail: parameters.unwrap_err()
-        });
+        };
     }
     let (xpars, ypars) = parameters.unwrap();  // both Vec<String>
 
     let axes = parse_two_element_list(axes);
     if axes.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to parse axes list(s)"),
             detail: axes.unwrap_err()
-        });
+        };
     }
     let (xspec, yspec) = axes.unwrap();
     let xaxis = parse_single_axis_def(&xspec);
     if xaxis.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to process X axis"),
             detail: xaxis.unwrap_err()
-        });
+        };
     }
     let (xlow, xhigh, xbins) = xaxis.unwrap();
     let yaxis = parse_single_axis_def(&yspec);
     if yaxis.is_err() {
-        return Json(GenericResponse {
+        return GenericResponse {
             status: String::from("Failed to process Y axis"),
             detail: yaxis.unwrap_err()
-        });
+        };
     }
     let (ylow, yhigh, ybins) = yaxis.unwrap();
 
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
-    let result = if let Err(s) = api.create_spectrum_2dsum(name, &xpars, &ypars, xlow,xhigh,xbins, ylow,yhigh,ybins) {
+    if let Err(s) = api.create_spectrum_2dsum(name, &xpars, &ypars, xlow,xhigh,xbins, ylow,yhigh,ybins) {
         GenericResponse {
             status: String::from("Failed to create 2d sum spectrum"),
             detail: s
@@ -694,9 +687,7 @@ fn make_2dsum(name: &str, parameters: &str, axes: &str, state: &State<HistogramS
             status: String::from("OK"),
             detail: String::from("")
         }
-    };
-
-    Json(result)
+    }
 
 }
 /// For the spectra that Rustogramer supports, only some subset of the
@@ -737,35 +728,35 @@ pub fn create_spectrum(
     state: &State<HistogramState>,
 ) -> Json<GenericResponse> {
     let type_name = r#type; // Don't want raw names like that.
-    match type_name.as_str() {
+    Json(match type_name.as_str() {
         "1" => {
-            return make_1d(&name, &parameters, &axes, state);
+            make_1d(&name, &parameters, &axes, state)
         }
         "2" => {
-            return make_2d(&name, &parameters, &axes, state);
+            make_2d(&name, &parameters, &axes, state)
         }
         "g1" => {
-            return make_gamma1(&name, &parameters, &axes, state);
+            make_gamma1(&name, &parameters, &axes, state)
         }
         "g2" => {
-            return make_gamma2(&name, &parameters, &axes, state);
+            make_gamma2(&name, &parameters, &axes, state)
         }
         "gd" => {
-            return make_pgamma(&name, &parameters, &axes, state);
+            make_pgamma(&name, &parameters, &axes, state)
         }
         "s" => {
-            return make_summary(&name, &parameters, &axes, state);
+            make_summary(&name, &parameters, &axes, state)
         }
         "m2" => {
-            return make_2dsum(&name, &parameters, &axes, state);
+            make_2dsum(&name, &parameters, &axes, state)
         }
         _ => {
-            return Json(GenericResponse {
+            GenericResponse {
                 status: String::from("Unsupported spectrum type"),
                 detail: format!("Bad type was '{}'", type_name),
-            });
+            }
         }
-    };
+    })
 }
 
 //------------------------------------------------------------------
