@@ -260,8 +260,8 @@ impl ring_items::FromRaw<StateChange> for ring_items::RingItem {
 }
 #[cfg(test)]
 mod state_tests {
+    use super::*;
     use crate::ring_items::*;
-    use crate::state_change::*;
     use std::mem::size_of;
     use std::time::*;
 

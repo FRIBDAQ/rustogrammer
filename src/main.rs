@@ -1,94 +1,67 @@
-mod ring_items;
-use ring_items::abnormal_end;
-use ring_items::analysis_ring_items;
-use ring_items::event_item;
-use ring_items::format_item;
-use ring_items::glom_parameters;
-use ring_items::scaler_item;
-use ring_items::state_change;
-use ring_items::text_item;
-use ring_items::triggers_item;
-use ring_items::FromRaw;
-use std::fs::File;
-
 mod conditions;
 mod histogramer;
 mod messaging;
 mod parameters;
+mod rest;
+mod ring_items;
 mod spectra;
 
-fn main() {
+use rest::gates;
+use rest::rest_parameter;
+use rest::spectrum;
+use std::sync::Mutex;
+
+// Pull in Rocket features:
+
+#[macro_use]
+extern crate rocket;
+
+// This is now the entry point as Rocket has the main
+//
+#[launch]
+fn rocket() -> _ {
+    // For now to ensure the join handle and channel don't get
+    // dropped start the histogram server in a thread:
+    //
+
     let (jh, channel) = histogramer::start_server();
-    if let Ok(mut f) = File::open("run-0088-00.evt") {
-        dump_items(&mut f);
-    } else {
-        println!("Failed to open input file");
-    }
-    histogramer::stop_server(jh, channel);
-}
-// TODO:  In the code below, for to_specific, we should default
-// to a specific version (e.g. V11) but allow format item contents
-// to modify accordingly.
-fn dump_items(f: &mut File) {
-    println!("Dumping");
-    loop {
-        if let Ok(item) = ring_items::RingItem::read_item(f) {
-            println!("---------");
-            let f: Option<format_item::FormatItem> = item.to_specific(ring_items::RingVersion::V11);
-            if let Some(fmt) = f {
-                println!("{}", fmt);
-            }
-            let sc: Option<state_change::StateChange> =
-                item.to_specific(ring_items::RingVersion::V11);
-            if let Some(state) = sc {
-                println!("{}", state);
-            }
-            let s: Option<scaler_item::ScalerItem> = item.to_specific(ring_items::RingVersion::V11);
-            if let Some(sc) = s {
-                println!("{}", sc);
-            }
-            let ti: Option<text_item::TextItem> = item.to_specific(ring_items::RingVersion::V11);
-            if let Some(t) = ti {
-                println!("{}", t);
-            }
-            let ev: Option<event_item::PhysicsEvent> =
-                item.to_specific(ring_items::RingVersion::V11);
-            if let Some(e) = ev {
-                println!("{}", e);
-            }
-            let c: Option<triggers_item::PhysicsEventCountItem> =
-                item.to_specific(ring_items::RingVersion::V11);
-            if let Some(count) = c {
-                println!("{}", count);
-            }
-            let g: Option<glom_parameters::GlomParameters> =
-                item.to_specific(ring_items::RingVersion::V11);
-            if let Some(gp) = g {
-                println!("{}", gp);
-            }
-            let a: Option<abnormal_end::AbnormalEnd> =
-                item.to_specific(ring_items::RingVersion::V11);
-            if let Some(ae) = a {
-                println!("{}", ae);
-            }
-            let p: Option<analysis_ring_items::ParameterDefinitions> =
-                item.to_specific(ring_items::RingVersion::V11);
-            if let Some(pd) = p {
-                println!("{}", pd);
-            }
-            let v: Option<analysis_ring_items::VariableValues> =
-                item.to_specific(ring_items::RingVersion::V11);
-            if let Some(vd) = v {
-                println!("{}", vd);
-            }
-            let p: Option<analysis_ring_items::ParameterItem> =
-                item.to_specific(ring_items::RingVersion::V11);
-            if let Some(pv) = p {
-                println!("{}", pv);
-            }
-        } else {
-            println!("done");
-            break;
-        }
-    }
+    let state = rest::HistogramState {
+        state: Mutex::new((jh, channel)),
+    };
+    rocket::build()
+        .manage(state)
+        .mount(
+            "/spectcl/parameter",
+            routes![
+                rest_parameter::list_parameters,
+                rest_parameter::parameter_version,
+                rest_parameter::create_parameter,
+                rest_parameter::edit_parameter,
+                rest_parameter::promote_parameter,
+                rest_parameter::check_parameter,
+                rest_parameter::uncheck_parameter
+            ],
+        )
+        .mount(
+            "/spectcl/rawparameter",
+            routes![
+                rest_parameter::new_rawparameter,
+                rest_parameter::list_rawparameter,
+                rest_parameter::delete_rawparameter
+            ],
+        )
+        .mount(
+            "/spectcl/gate",
+            routes![gates::list_gates, gates::delete_gate, gates::edit_gate],
+        )
+        .mount(
+            "/spectcl/spectrum",
+            routes![
+                spectrum::list_spectrum,
+                spectrum::delete_spectrum,
+                spectrum::create_spectrum,
+                spectrum::get_contents,
+                spectrum::clear_spectra,
+            ],
+        )
 }

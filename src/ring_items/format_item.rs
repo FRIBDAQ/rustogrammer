@@ -62,7 +62,7 @@ impl ring_items::FromRaw<FormatItem> for ring_items::RingItem {
 
 #[cfg(test)]
 mod fmt_tests {
-    use crate::format_item::*;
+    use super::*;
     use crate::ring_items::*;
     use std::mem::size_of;
     #[test]

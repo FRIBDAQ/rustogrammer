@@ -374,7 +374,7 @@ impl ring_items::FromRaw<ParameterItem> for ring_items::RingItem {
 
 #[cfg(test)]
 mod test_paramdef {
-    use crate::analysis_ring_items::ParameterDefinition;
+    use super::*;
     #[test]
     fn new_1() {
         let def = ParameterDefinition::new(12, "Item");
@@ -394,7 +394,7 @@ mod test_paramdef {
 }
 #[cfg(test)]
 mod test_paramdefs {
-    use crate::analysis_ring_items::*;
+    use super::*;
     use crate::ring_items::*;
     use std::mem::size_of;
     #[test]
@@ -520,7 +520,7 @@ mod test_paramdefs {
 }
 #[cfg(test)]
 mod test_vars {
-    use crate::analysis_ring_items::*;
+    use super::*;
     use crate::ring_items::*;
     use std::mem::size_of;
 
@@ -651,7 +651,7 @@ mod test_vars {
 }
 #[cfg(test)]
 mod param_tests {
-    use crate::analysis_ring_items::*;
+    use super::*;
     use crate::ring_items::*;
     use std::mem::size_of;
     // Tests for ParameterValue type

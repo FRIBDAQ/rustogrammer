@@ -147,12 +147,12 @@ impl ParameterMessageClient {
 
         // Must  be a Listing else that's bad too:
 
-        if let ParameterReply::Listing(params) = result {
-            Ok(params)
-        } else {
-            Err(String::from(
-                "Bug: Invalid histogram Parameter response to Parmeter::SetMetadata request",
-            ))
+        match result {
+            ParameterReply::Listing(l) => Ok(l),
+            ParameterReply::Error(s) => Err(s),
+            _ => Err(String::from(
+                "Bug: Invalid histogram Parameter response to Parmeter::list request",
+            )),
         }
     }
     ///
@@ -182,12 +182,12 @@ impl ParameterMessageClient {
         let modify = Self::make_modify_request(name, bins, limits, units, description);
         let reply = self.transaction(modify);
 
-        if let ParameterReply::Modified = reply {
-            Ok(())
-        } else {
-            Err(String::from(
+        match reply {
+            ParameterReply::Modified => Ok(()),
+            ParameterReply::Error(s) => Err(s),
+            _ => Err(String::from(
                 "Bug: Invalid histogram Parameter response to Parmeter::Modify request",
-            ))
+            )),
         }
     }
 }

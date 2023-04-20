@@ -244,8 +244,8 @@ impl ring_items::FromRaw<TextItem> for ring_items::RingItem {
 
 #[cfg(test)]
 mod text_tests {
+    use super::*;
     use crate::ring_items::*;
-    use crate::text_item::*;
     use std::mem::size_of;
     use std::time::SystemTime;
 
