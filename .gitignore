@@ -2,4 +2,5 @@
 /spectcl-rest
 Cargo.lock
 *.evt
+*.par
 
