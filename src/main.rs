@@ -78,6 +78,10 @@ fn rocket() -> _ {
         )
         .mount(
             "/spectcl/analyze",
-            routes![data_processing::start_processing],
+            routes![
+                data_processing::start_processing,
+                data_processing::stop_processing,
+                data_processing::set_event_batch
+            ],
         )
 }
