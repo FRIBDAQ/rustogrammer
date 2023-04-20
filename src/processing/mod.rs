@@ -15,6 +15,7 @@
 //! - Attach the thread to a data source.
 //! - Start processing from the data source.
 //! - Stop processing data from the data source.
+//! - List the currently attached file.
 //!
 //!
 //!  When processing starts, if there are parameter description
@@ -79,6 +80,9 @@ impl ProcessingApi {
         Ok(())
     }
     pub fn stop_analysis(&self) -> Result<(), String> {
+        Ok(())
+    }
+    pub fn list(&self) -> Result<(), String> {
         Ok(())
     }
 }
