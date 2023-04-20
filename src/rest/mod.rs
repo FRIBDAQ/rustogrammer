@@ -31,6 +31,7 @@
 
 // Re exports:
 
+pub mod data_processing;
 pub mod gates;
 pub mod parameter;
 pub mod spectrum;

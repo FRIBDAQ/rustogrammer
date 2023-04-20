@@ -7,6 +7,7 @@ mod rest;
 mod ring_items;
 mod spectra;
 
+use rest::data_processing;
 use rest::gates;
 use rest::rest_parameter;
 use rest::spectrum;
@@ -71,6 +72,6 @@ fn rocket() -> _ {
                 spectrum::clear_spectra,
             ],
         )
-        .mount("/spectcl/attach", routes![])
+        .mount("/spectcl/attach", routes![data_processing::attach_source])
         .mount("/spectcl/analyze", routes![])
 }

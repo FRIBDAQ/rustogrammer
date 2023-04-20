@@ -36,8 +36,8 @@ use std::sync::mpsc;
 
 // The request/reply structs are private:
 
-enum Request {}
-enum Reply {}
+pub enum Request {}
+pub enum Reply {}
 
 // for now stubs:
 
@@ -82,7 +82,7 @@ impl ProcessingApi {
     pub fn stop_analysis(&self) -> Result<(), String> {
         Ok(())
     }
-    pub fn list(&self) -> Result<(), String> {
-        Ok(())
+    pub fn list(&self) -> Result<String, String> {
+        Ok(String::from("File: /some/file"))
     }
 }
