@@ -60,7 +60,8 @@ fn rocket() -> _ {
                 spectrum::list_spectrum,
                 spectrum::delete_spectrum,
                 spectrum::create_spectrum,
-                spectrum::get_contents
+                spectrum::get_contents,
+                spectrum::clear_spectra,
             ],
         )
 }

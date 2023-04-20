@@ -831,6 +831,44 @@ pub fn get_contents(
 
     Json(result)
 }
+//--------------------------------------------------------------
+// What's needed to clear a set of spectra.
+
+///
+/// Handle requests to clear one or more spectra.
+/// Query parameters:
+///
+/// * pattern - if supplied is a glob pattern that specifies the
+/// set of spectra to clear.  Only spectra with names matching the pattern
+/// will be cleared.  If not supplied this defaults to
+/// _*_ which matches all spectra.
+///
+/// Note, in general, a spectrum name is a valid glob pattern allowing
+/// the client to clear a single spectrum.
+///
+#[get("/clear?<pattern>")]
+pub fn clear_spectra(
+    pattern: Option<String>,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    let mut pat = String::from("*");
+    if let Some(p) = pattern {
+        pat = p;
+    }
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let reply = if let Err(s) = api.clear_spectra(&pat) {
+        GenericResponse {
+            status: format!("Failed to clear spectra matching '{}'", pat),
+            detail: s,
+        }
+    } else {
+        GenericResponse {
+            status: String::from("OK"),
+            detail: String::from(""),
+        }
+    };
+    Json(reply)
+}
 
 //------------------------------------------------------------------
 // Tcl List parsing is worthy of testing.
