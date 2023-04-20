@@ -76,5 +76,8 @@ fn rocket() -> _ {
             "/spectcl/attach",
             routes![data_processing::attach_source, data_processing::list_source],
         )
-        .mount("/spectcl/analyze", routes![])
+        .mount(
+            "/spectcl/analyze",
+            routes![data_processing::start_processing],
+        )
 }
