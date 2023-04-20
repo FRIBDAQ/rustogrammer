@@ -33,6 +33,7 @@
 use crate::messaging;
 use crate::messaging::spectrum_messages;
 use std::sync::mpsc;
+use std::thread;
 
 // The request/reply structs are private:
 
@@ -44,26 +45,25 @@ pub enum Reply {}
 /// We'll need an API object so that we can hold
 /// the channel we'll use to talk with it:
 ///
-
 pub struct ProcessingApi {
     spectrum_api: spectrum_messages::SpectrumMessageClient,
     req_chan: mpsc::Sender<Request>,
-    rcv_chan: Option<mpsc::Receiver<Request>>,
 }
-// For now a stub interface.
-//
+
 impl ProcessingApi {
+    /// Note that theoretically this allows more than one
+    /// event file to be processed at the same time,  however
+    /// rustogrammer only actually creates one of these.
+
     pub fn new(chan: &mpsc::Sender<messaging::Request>) -> ProcessingApi {
         let (send, recv) = mpsc::channel();
+        thread::spawn(move || processing_thread(recv));
         ProcessingApi {
             spectrum_api: spectrum_messages::SpectrumMessageClient::new(chan),
             req_chan: send,
-            rcv_chan: Some(recv),
         }
     }
-    pub fn start_thread(&self) -> Result<(), String> {
-        Ok(())
-    }
+
     pub fn stop_thread(&self) -> Result<(), String> {
         Ok(())
     }
@@ -84,5 +84,33 @@ impl ProcessingApi {
     }
     pub fn list(&self) -> Result<String, String> {
         Ok(String::from("File: /some/file"))
+    }
+}
+
+/// This private function is the file processing thread.
+/// It has two states of operation:
+///
+/// - Not processing in which case it hangs blocking reads
+/// its request channel responding to requests.
+/// - Processing in which case it creates blocks of events
+/// and tests the request channel (via try_recv) to see if there
+/// are requests that need processing.
+///
+/// Transitions between states NP (non processing) P (processing)
+///  are done by:
+///  *  NP -> P a source is attaached and the start request is received.
+///  *  P -> NP end of data, or a read error is encountered on a data source.
+///  *  P -> NP between event batches, a stop request was received.
+///  *  P -> NP between event batches an attach or detach request
+/// is received.
+///
+fn processing_thread(req: mpsc::Receiver<Request>) {
+    // we implement the not processing mode.
+
+    loop {
+        let request = req.recv();
+        if request.is_err() {
+            break;
+        }
     }
 }
