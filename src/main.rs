@@ -72,6 +72,9 @@ fn rocket() -> _ {
                 spectrum::clear_spectra,
             ],
         )
-        .mount("/spectcl/attach", routes![data_processing::attach_source])
+        .mount(
+            "/spectcl/attach",
+            routes![data_processing::attach_source, data_processing::list_source],
+        )
         .mount("/spectcl/analyze", routes![])
 }

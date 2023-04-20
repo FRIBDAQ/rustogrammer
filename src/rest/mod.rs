@@ -62,6 +62,20 @@ pub struct GenericResponse {
     status: String,
     detail: String,
 }
+impl GenericResponse {
+    pub fn Ok(detail: &str) -> GenericResponse {
+        GenericResponse {
+            status: String::from("OK"),
+            detail: String::from(detail),
+        }
+    }
+    pub fn Err(status: &str, detail: &str) -> GenericResponse {
+        GenericResponse {
+            status: String::from(status),
+            detail: String::from(detail),
+        }
+    }
+}
 
 // Utility method to return the name of a parameter given its id
 
