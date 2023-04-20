@@ -79,7 +79,11 @@ impl Histogramer {
     ///
     pub fn run(&mut self) {
         loop {
-            let req = self.chan.recv().expect("Failed to read a request");
+            let req = self.chan.recv();
+            if req.is_err() {
+                return;
+            }
+            let req = req.unwrap();
             let reply = self.processor.process_message(req.message);
 
             // The reply is sent to the client but if it's an exit we
