@@ -39,6 +39,7 @@ pub use parameter as rest_parameter;
 
 use crate::messaging::parameter_messages::ParameterMessageClient;
 use crate::messaging::Request;
+use crate::processing;
 use rocket::State;
 use std::sync::{mpsc, Mutex};
 use std::thread;
@@ -47,6 +48,7 @@ use rocket::serde::Serialize;
 
 pub struct HistogramState {
     pub state: Mutex<(thread::JoinHandle<()>, mpsc::Sender<Request>)>,
+    pub processing: Mutex<processing::ProcessingApi>,
 }
 
 pub type OptionalStringVec = Option<Vec<String>>;

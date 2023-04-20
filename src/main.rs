@@ -5,6 +5,7 @@ mod parameters;
 mod rest;
 mod ring_items;
 mod spectra;
+mod processing;
 
 use rest::gates;
 use rest::rest_parameter;
@@ -25,8 +26,12 @@ fn rocket() -> _ {
     //
 
     let (jh, channel) = histogramer::start_server();
+    let processor = processing::ProcessingApi::new(&channel);
+    processor.start_thread().expect("Unable to start processor thread");
+
     let state = rest::HistogramState {
         state: Mutex::new((jh, channel)),
+        processing: Mutex::new(processor)
     };
     rocket::build()
         .manage(state)
