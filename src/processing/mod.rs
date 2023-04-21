@@ -409,7 +409,7 @@ impl ProcessingThread {
             }
             let request = request.unwrap();
             self.process_request(request);
-            if self.keep_running {
+            if self.processing {
                 self.processing();
             }
         }
