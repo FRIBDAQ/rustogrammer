@@ -35,10 +35,21 @@ use crate::messaging::spectrum_messages;
 use std::sync::mpsc;
 use std::thread;
 
-// The request/reply structs are private:
+pub enum RequestType {
+    Attach(String), // Attach this file.
+    Detach,         // Stop analyzing and close source
+    Start,          // Start analyzing source
+    Stop,           // Stop analyzing, keep file open.
+    ChunkSize(usize), // Set # events per request to Histogramer
+    Exit,           // Exit thread (mostly for testing).
+    List,
+}
+pub struct Request {
+    reply_chan: mpsc::Sender<Reply>,
+    request: RequestType,
+}
 
-pub enum Request {}
-pub enum Reply {}
+pub type Reply = Result<String, String>;
 
 // for now stubs:
 
@@ -51,6 +62,20 @@ pub struct ProcessingApi {
 }
 
 impl ProcessingApi {
+    // Utility for communicating with the thread:
+
+    fn transaction(&self, req: RequestType) -> Result<String, String> {
+        let (rep_send, rep_recv) = mpsc::channel();
+        let request = Request {
+            reply_chan: rep_send,
+            request: req,
+        };
+        self.req_chan
+            .send(request)
+            .expect("Failed send to read thread");
+        rep_recv.recv().expect("Failed read from read thread")
+    }
+
     /// Note that theoretically this allows more than one
     /// event file to be processed at the same time,  however
     /// rustogrammer only actually creates one of these.
@@ -64,26 +89,26 @@ impl ProcessingApi {
         }
     }
 
-    pub fn stop_thread(&self) -> Result<(), String> {
-        Ok(())
+    pub fn stop_thread(&self) -> Result<String, String> {
+        self.transaction(RequestType::Exit)
     }
-    pub fn attach(&self, source: &str) -> Result<(), String> {
-        Ok(())
+    pub fn attach(&self, source: &str) -> Result<String, String> {
+        self.transaction(RequestType::Attach(String::from(source)))
     }
-    pub fn detach(&self) -> Result<(), String> {
-        Ok(())
+    pub fn detach(&self) -> Result<String, String> {
+        self.transaction(RequestType::Detach)
     }
-    pub fn set_batching(&self, events: usize) -> Result<(), String> {
-        Ok(())
+    pub fn set_batching(&self, events: usize) -> Result<String, String> {
+        self.transaction(RequestType::ChunkSize(events))
     }
-    pub fn start_analysis(&self) -> Result<(), String> {
-        Ok(())
+    pub fn start_analysis(&self) -> Result<String, String> {
+        self.transaction(RequestType::Start)
     }
-    pub fn stop_analysis(&self) -> Result<(), String> {
-        Ok(())
+    pub fn stop_analysis(&self) -> Result<String, String> {
+        self.transaction(RequestType::Stop)
     }
     pub fn list(&self) -> Result<String, String> {
-        Ok(String::from("File: /some/file"))
+        self.transaction(RequestType::List)
     }
 }
 
@@ -110,6 +135,14 @@ fn processing_thread(req: mpsc::Receiver<Request>) {
     loop {
         let request = req.recv();
         if request.is_err() {
+            break;
+        }
+        let request = request.unwrap();
+        request
+            .reply_chan
+            .send(Ok(String::from("")))
+            .expect("Read thread failed to send reply");
+        if let RequestType::Exit = request.request {
             break;
         }
     }
