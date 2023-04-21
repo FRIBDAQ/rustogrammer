@@ -246,6 +246,7 @@ impl ProcessingThread {
 
         // Stock the map with the parameters the histogramer has defined:
 
+        println!("Stocking existing params to the map");
         for p in known_parameters {
             self.parameter_mapping
                 .get_dict_mut()
@@ -260,10 +261,12 @@ impl ProcessingThread {
         for def in defs.iter() {
             let name = def.name();
             let id = def.id();
+            println!("Processing {} ({}) from the ring item", name, id);
             if let Err(reason) = self.parameter_mapping.map(id, &name) {
                 if reason == String::from("Duplicate Map") {
                     panic!("ProcessingThread failed to make a map due to duplication");
                 }
+                println!("Need t omake new parameter {}", name);
                 if let Err(s) = self.parameter_api.create_parameter(&name) {
                     panic!("Failed to create new parameter {} : {}", name, s);
                 }
@@ -284,6 +287,7 @@ impl ProcessingThread {
                     );
                 }
                 let param = &param[0];
+                println!("Native id is {}", param.get_id());
                 self.parameter_mapping
                     .get_dict_mut()
                     .insert(name.clone(), param.get_id());
@@ -292,11 +296,12 @@ impl ProcessingThread {
 
                 if let Err(reason) = self.parameter_mapping.map(id, &name) {
                     panic!(
-                        "After creatig parameter {}, failed to make map entry {}",
+                        "After creating parameter {}, failed to make map entry {}",
                         name, reason
                     );
                 }
             }
+            println!("Parameter map re-created");
         }
     }
 
@@ -308,6 +313,7 @@ impl ProcessingThread {
     // sent to the histogram thread (this version does not support
     // batching at this time).
     fn read_an_event(&mut self) {
+        println!("Reading an event");
         if let Some(fp) = self.attached_file.as_mut() {
             let try_item = RingItem::read_item(fp);
 
@@ -324,6 +330,7 @@ impl ProcessingThread {
             let item = try_item.unwrap();
             match item.type_id() {
                 ring_items::PARAMETER_DEFINITIONS => {
+                    println!("Parameter definition event");
                     let definitions: Option<analysis_ring_items::ParameterDefinitions> =
                         item.to_specific(RingVersion::V11);
                     if definitions.is_none() {
