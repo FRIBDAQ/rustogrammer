@@ -31,17 +31,22 @@
 //!  histogramer from processing.
 //!
 use crate::messaging;
+use crate::messaging::parameter_messages;
 use crate::messaging::spectrum_messages;
+use crate::parameters;
+use std::fs;
 use std::sync::mpsc;
 use std::thread;
 
+const DEFAULT_EVENT_CHUNKSIZE: usize = 100;
+
 pub enum RequestType {
-    Attach(String), // Attach this file.
-    Detach,         // Stop analyzing and close source
-    Start,          // Start analyzing source
-    Stop,           // Stop analyzing, keep file open.
+    Attach(String),   // Attach this file.
+    Detach,           // Stop analyzing and close source
+    Start,            // Start analyzing source
+    Stop,             // Stop analyzing, keep file open.
     ChunkSize(usize), // Set # events per request to Histogramer
-    Exit,           // Exit thread (mostly for testing).
+    Exit,             // Exit thread (mostly for testing).
     List,
 }
 pub struct Request {
@@ -82,7 +87,8 @@ impl ProcessingApi {
 
     pub fn new(chan: &mpsc::Sender<messaging::Request>) -> ProcessingApi {
         let (send, recv) = mpsc::channel();
-        thread::spawn(move || processing_thread(recv));
+        let api_chan = chan.clone();
+        thread::spawn(move || processing_thread(recv, api_chan));
         ProcessingApi {
             spectrum_api: spectrum_messages::SpectrumMessageClient::new(chan),
             req_chan: send,
@@ -111,6 +117,85 @@ impl ProcessingApi {
         self.transaction(RequestType::List)
     }
 }
+/// The processing thread requires state that's held across
+/// several functions.  That implies a struct and implementation.
+///
+/// * request_chan is the recevier on which we'll process requests.
+/// * spectrum_api is used to communicate with the histogram server's
+/// spectrum interface.
+/// * parameter_api is used to communicate with the histogram server's
+/// parameter api.
+/// * attach_name - contains the name of the data source. None indicates we're not attached.
+/// * attached_file - contains the file descriptor of the file we're attached
+/// None indicates we are not attached.
+/// * parameter_mapping is a mapping between the parameter ids in the
+/// histogram server's parameter dictionary and the ones in the event file.
+/// this will be regenerated on each attach since it's possible that
+/// these mappings change from file to file.
+/// * chunk_size is the number of events that are batched together
+/// in calls to spectrum_api.process_events.
+/// * keep_running - when an exit request is received, this is
+/// set to false indicating that when convenienct the thread should
+/// cleanly exit.
+///
+struct ProcessingThread {
+    request_chan: mpsc::Receiver<Request>,
+
+    spectrum_api: spectrum_messages::SpectrumMessageClient,
+    parameter_api: parameter_messages::ParameterMessageClient,
+
+    attach_name: Option<String>,
+    attached_file: Option<fs::File>,
+    parameter_mapping: parameters::ParameterIdMap,
+    chunk_size: usize,
+
+    keep_running: bool,
+}
+impl ProcessingThread {
+    /// Create a new processing thread.
+    ///
+    /// * req_chan is the channel on which we will accept new requests.
+    /// * api_chan is the channel on which we send request to the histogram
+    /// server it is used to create the API objects for the spectrum
+    /// and event interfaces that we need.
+    ///
+    pub fn new(
+        req_chan: mpsc::Receiver<Request>,
+        api_chan: mpsc::Sender<messaging::Request>,
+    ) -> ProcessingThread {
+        ProcessingThread {
+            request_chan: req_chan,
+            spectrum_api: spectrum_messages::SpectrumMessageClient::new(&api_chan),
+            parameter_api: parameter_messages::ParameterMessageClient::new(&api_chan),
+            attach_name: None,
+            attached_file: None,
+            parameter_mapping: parameters::ParameterIdMap::new(),
+            chunk_size: DEFAULT_EVENT_CHUNKSIZE,
+            keep_running: true,
+        }
+    }
+    /// run the thread.
+    /// So the idea is that there's a thread starting function
+    /// that does the new and then invokes this method on the
+    /// constructed object.
+
+    pub fn run(&mut self) {
+        while self.keep_running {
+            let request = self.request_chan.recv();
+            if request.is_err() {
+                break;
+            }
+            let request = request.unwrap();
+            request
+                .reply_chan
+                .send(Ok(String::from("")))
+                .expect("Read thread failed to send reply");
+            if let RequestType::Exit = request.request {
+                self.keep_running = false;
+            }
+        }
+    }
+}
 
 /// This private function is the file processing thread.
 /// It has two states of operation:
@@ -129,21 +214,7 @@ impl ProcessingApi {
 ///  *  P -> NP between event batches an attach or detach request
 /// is received.
 ///
-fn processing_thread(req: mpsc::Receiver<Request>) {
-    // we implement the not processing mode.
-
-    loop {
-        let request = req.recv();
-        if request.is_err() {
-            break;
-        }
-        let request = request.unwrap();
-        request
-            .reply_chan
-            .send(Ok(String::from("")))
-            .expect("Read thread failed to send reply");
-        if let RequestType::Exit = request.request {
-            break;
-        }
-    }
+fn processing_thread(req: mpsc::Receiver<Request>, api_chan: mpsc::Sender<messaging::Request>) {
+    let mut thread = ProcessingThread::new(req, api_chan);
+    thread.run();
 }
