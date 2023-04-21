@@ -134,6 +134,7 @@ impl ProcessingApi {
 /// these mappings change from file to file.
 /// * chunk_size is the number of events that are batched together
 /// in calls to spectrum_api.process_events.
+/// * processing means that we are analyzing data from a file.
 /// * keep_running - when an exit request is received, this is
 /// set to false indicating that when convenienct the thread should
 /// cleanly exit.
@@ -148,10 +149,34 @@ struct ProcessingThread {
     attached_file: Option<fs::File>,
     parameter_mapping: parameters::ParameterIdMap,
     chunk_size: usize,
-
+    processing: bool,
     keep_running: bool,
 }
 impl ProcessingThread {
+    // Process any request received from other threads:
+
+    fn process_request(&mut self, request: Request) {
+        let reply = match request.request {
+            RequestType::Attach(fname) => Ok(String::from("")),
+            RequestType::Detach => Ok(String::from("")),
+            RequestType::Start => Ok(String::from("")),
+            RequestType::Stop => Ok(String::from("")),
+            RequestType::ChunkSize(n) => {
+                self.chunk_size = n;
+                Ok(String::from(""))
+            }
+            RequestType::Exit => {
+                self.keep_running = false;
+                Ok(String::from(""))
+            }
+            RequestType::List => Ok(String::from("")),
+        };
+        request
+            .reply_chan
+            .send(reply)
+            .expect("ProcessingThread failed to send reply to request");
+    }
+
     /// Create a new processing thread.
     ///
     /// * req_chan is the channel on which we will accept new requests.
@@ -171,6 +196,7 @@ impl ProcessingThread {
             attached_file: None,
             parameter_mapping: parameters::ParameterIdMap::new(),
             chunk_size: DEFAULT_EVENT_CHUNKSIZE,
+            processing: false,
             keep_running: true,
         }
     }
@@ -186,13 +212,7 @@ impl ProcessingThread {
                 break;
             }
             let request = request.unwrap();
-            request
-                .reply_chan
-                .send(Ok(String::from("")))
-                .expect("Read thread failed to send reply");
-            if let RequestType::Exit = request.request {
-                self.keep_running = false;
-            }
+            self.process_request(request);
         }
     }
 }
