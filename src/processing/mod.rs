@@ -35,6 +35,7 @@ use crate::messaging::parameter_messages;
 use crate::messaging::spectrum_messages;
 use crate::parameters;
 use std::fs;
+use std::fs::File;
 use std::sync::mpsc;
 use std::thread;
 
@@ -153,11 +154,42 @@ struct ProcessingThread {
     keep_running: bool,
 }
 impl ProcessingThread {
+    // Handle the Attach request:
+    // Attempt to open the file.  If it exists,
+    // store the attached fil and attached name as some.
+    // additionaly, set processing -> false in order to
+    // halt processing of the old file...if it was in progress.
+    // On error, return that as the error string:
+    //
+    fn attach(&mut self, fname: &str) -> Reply {
+        match File::open(fname) {
+            Ok(fp) => {
+                self.attach_name = Some(String::from(fname));
+                self.attached_file = Some(fp);
+                self.processing = false;
+                Ok(String::from(""))
+            }
+            Err(e) => Err(e.to_string()),
+        }
+    }
+    // Implement the List request - this is always
+    // successful
+    // If attach_name is Some, return its contents
+    // If attach_name is None return "Not Attached"
+
+    fn list(&mut self) -> Reply {
+        if let Some(s) = &self.attach_name {
+            Ok(s.clone())
+        } else {
+            Ok(String::from("Not Attached"))
+        }
+    }
+
     // Process any request received from other threads:
 
     fn process_request(&mut self, request: Request) {
         let reply = match request.request {
-            RequestType::Attach(fname) => Ok(String::from("")),
+            RequestType::Attach(fname) => self.attach(&fname),
             RequestType::Detach => Ok(String::from("")),
             RequestType::Start => Ok(String::from("")),
             RequestType::Stop => Ok(String::from("")),
@@ -169,7 +201,7 @@ impl ProcessingThread {
                 self.keep_running = false;
                 Ok(String::from(""))
             }
-            RequestType::List => Ok(String::from("")),
+            RequestType::List => self.list(),
         };
         request
             .reply_chan
