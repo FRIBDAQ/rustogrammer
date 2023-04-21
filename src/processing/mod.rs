@@ -184,13 +184,30 @@ impl ProcessingThread {
             Ok(String::from("Not Attached"))
         }
     }
+    // Implement detach -
+    // If we are attached (attach name is Some),
+    // -  Set the attach name and file to none.
+    // -  set processing -> false.
+    // -  return an Ok
+    // else return an error (not attached).
+    //
+    fn detach(&mut self) -> Reply {
+        if self.attach_name.is_some() {
+            self.attach_name = None;
+            self.attached_file = None;
+            self.processing = false;
+            Ok(String::from(""))
+        } else {
+            Err(String::from("Not attached to a data source"))
+        }
+    }
 
     // Process any request received from other threads:
 
     fn process_request(&mut self, request: Request) {
         let reply = match request.request {
             RequestType::Attach(fname) => self.attach(&fname),
-            RequestType::Detach => Ok(String::from("")),
+            RequestType::Detach => self.detach(),
             RequestType::Start => Ok(String::from("")),
             RequestType::Stop => Ok(String::from("")),
             RequestType::ChunkSize(n) => {

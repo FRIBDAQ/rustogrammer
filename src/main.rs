@@ -28,7 +28,7 @@ fn rocket() -> _ {
 
     let (jh, channel) = histogramer::start_server();
     let processor = processing::ProcessingApi::new(&channel);
-   
+
     let state = rest::HistogramState {
         state: Mutex::new((jh, channel)),
         processing: Mutex::new(processor),
@@ -71,7 +71,11 @@ fn rocket() -> _ {
         )
         .mount(
             "/spectcl/attach",
-            routes![data_processing::attach_source, data_processing::list_source],
+            routes![
+                data_processing::attach_source,
+                data_processing::list_source,
+                data_processing::detach_source
+            ],
         )
         .mount(
             "/spectcl/analyze",
