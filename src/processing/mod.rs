@@ -246,7 +246,58 @@ impl ProcessingThread {
 
         // Stock the map with the parameters the histogramer has defined:
 
-        for p in known_parameters {}
+        for p in known_parameters {
+            self.parameter_mapping
+                .get_dict_mut()
+                .insert(p.get_name(), p.get_id());
+        }
+        // Iterate over the definitions in the parameter definition
+        // item.  If making a map for a parameter fails, then
+        // we need to add the parameter to the histogramer,
+        // fetch its id and make an new map.
+        // Duplicate mapping is cause for a panic.
+
+        for def in defs.iter() {
+            let name = def.name();
+            let id = def.id();
+            if let Err(reason) = self.parameter_mapping.map(id, &name) {
+                if reason == String::from("Duplicate Map") {
+                    panic!("ProcessingThread failed to make a map due to duplication");
+                }
+                if let Err(s) = self.parameter_api.create_parameter(&name) {
+                    panic!("Failed to create new parameter {} : {}", name, s);
+                }
+                // Get the id of the new parameter:
+
+                let param = self.parameter_api.list_parameters(&name);
+                if let Err(s) = param {
+                    panic!(
+                        "Just created parameter {} but failed to get its id: {}",
+                        name, s
+                    );
+                }
+                let param = param.unwrap();
+                if param.len() == 0 {
+                    panic!(
+                        "Just made parameter {} but got an empty list fetching it def",
+                        name
+                    );
+                }
+                let param = &param[0];
+                self.parameter_mapping
+                    .get_dict_mut()
+                    .insert(name.clone(), param.get_id());
+
+                // If it's still an error then it's panic time:
+
+                if let Err(reason) = self.parameter_mapping.map(id, &name) {
+                    panic!(
+                        "After creatig parameter {}, failed to make map entry {}",
+                        name, reason
+                    );
+                }
+            }
+        }
     }
 
     // Process a ring item from the file we only process
