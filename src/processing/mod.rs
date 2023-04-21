@@ -34,6 +34,8 @@ use crate::messaging;
 use crate::messaging::parameter_messages;
 use crate::messaging::spectrum_messages;
 use crate::parameters;
+use crate::ring_items;
+use crate::ring_items::*;
 use std::fs;
 use std::fs::File;
 use std::sync::mpsc;
@@ -225,6 +227,100 @@ impl ProcessingThread {
             .send(reply)
             .expect("ProcessingThread failed to send reply to request");
     }
+    //  given a new set of parameter definitions, rebuild the parameter
+    // map
+    // - ask the parameter api to list the parameter.
+    // - use those to stock the parameter dictionary of them ap.
+    // - Use the parameter definitions in the parameter definition item:
+    //   *  If the parameter does not exist in the dictionary,
+    // define it to the histograme  Make the 1:1 map in our dictionary.
+    //   * If the parameter does exist in the dictionary, make a map
+    // from its id in the record to the id in the histogramer.
+    //
+    fn rebuild_parameter_map(&mut self, defs: &analysis_ring_items::ParameterDefinitions) {
+        self.parameter_mapping = parameters::ParameterIdMap::new();
+        let known_parameters = self
+            .parameter_api
+            .list_parameters("*")
+            .expect("Could not get parameter defs from histogram thread");
+
+        // Stock the map with the parameters the histogramer has defined:
+
+        for p in known_parameters {}
+    }
+
+    // Process a ring item from the file we only process
+    // *  Parameter definition records - which cause us to
+    // rebuild the parameterm ap.
+    // *  Parameter value records which get processed into an event,
+    // mapped to an event in the server's parameter space and
+    // sent to the histogram thread (this version does not support
+    // batching at this time).
+    fn read_an_event(&mut self) {
+        if let Some(fp) = self.attached_file.as_mut() {
+            let try_item = RingItem::read_item(fp);
+
+            // Any error will be treated as an end
+
+            if let Err(reason) = try_item {
+                println!("Failed to read a ring item: {}", reason.to_string());
+
+                // stop processing - flushing any partial batch.
+
+                self.processing = false;
+                return;
+            }
+            let item = try_item.unwrap();
+            match item.type_id() {
+                ring_items::PARAMETER_DEFINITIONS => {
+                    let definitions: Option<analysis_ring_items::ParameterDefinitions> =
+                        item.to_specific(RingVersion::V11);
+                    if definitions.is_none() {
+                        panic!("Converting a parameter definitions ring item failed!");
+                    }
+                    let definitions = definitions.unwrap();
+                    self.rebuild_parameter_map(&definitions);
+                }
+                ring_items::PARAMETER_DATA => {}
+                _ => {}
+            };
+        }
+    }
+
+    // This is the method that's used when processing a data file:
+    // It gets entered from run when self.processing is true after
+    // a request is processed.  It returns when:
+    //   -  keep_running -> false.
+    //   -  processing -> false.
+    //   - and end file is encountered on the data source.
+    //
+    // We read items from the event file.
+    //
+    fn processing(&mut self) {
+        let mut eof = false;
+        while self.processing && self.keep_running && (!eof) {
+            // If there are requests process them:
+
+            match self.request_chan.try_recv() {
+                Ok(r) => self.process_request(r),
+                Err(why) => {
+                    // if disconnected we exit:
+                    if let mpsc::TryRecvError::Disconnected = why {
+                        self.processing = false;
+                        self.keep_running = false;
+                        self.attached_file = None; // Closes any file.
+                        self.attach_name = None;
+                    } // Otherwise just means there's no request.
+                }
+            };
+            // Request processing might have changed processing or keep_running so:
+            // Gaurd event processing:
+
+            if self.processing && self.keep_running {
+                self.read_an_event();
+            }
+        }
+    }
 
     /// Create a new processing thread.
     ///
@@ -262,6 +358,9 @@ impl ProcessingThread {
             }
             let request = request.unwrap();
             self.process_request(request);
+            if self.keep_running {
+                self.processing();
+            }
         }
     }
 }
