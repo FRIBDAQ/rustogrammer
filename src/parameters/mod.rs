@@ -800,12 +800,14 @@ mod paramap_test {
 
         assert_eq!(
             1,
-            *rmap.get(&String::from("Parameter1"))
+            *rmap
+                .get(&String::from("Parameter1"))
                 .expect("failed to find Parameter1")
         );
         assert_eq!(
             2,
-            *rmap.get(&String::from("parameter2"))
+            *rmap
+                .get(&String::from("parameter2"))
                 .expect("Failed to find parameter2")
         );
         assert_eq!(0, map.map.len());
