@@ -203,18 +203,9 @@ pub fn list_gates(pattern: Option<String>, state: &State<HistogramState>) -> Jso
 pub fn delete_gate(name: String, state: &State<HistogramState>) -> Json<GenericResponse> {
     let api = ConditionMessageClient::new(&state.inner().state.lock().unwrap().1);
     let response = match api.delete_condition(&name) {
-        ConditionReply::Deleted => GenericResponse {
-            status: String::from("OK"),
-            detail: String::from(""),
-        },
-        ConditionReply::Error(s) => GenericResponse {
-            status: format!("Failed to delete condition {}", name),
-            detail: s,
-        },
-        _ => GenericResponse {
-            status: format!("Failed to delete condition {}", name),
-            detail: String::from("Invalid repsonse from server"),
-        },
+        ConditionReply::Deleted => GenericResponse::ok(""),
+        ConditionReply::Error(s) => GenericResponse::err("Failed to delete condition", &s),
+        _ => GenericResponse::err(&format!("Failed to delete condition {}", name), "Invalid repsonse from server"),
     };
     Json(response)
 }
@@ -444,22 +435,10 @@ pub fn edit_gate(
     };
 
     let reply = match raw_result {
-        ConditionReply::Created => GenericResponse {
-            status: String::from("OK"),
-            detail: String::from("Created"),
-        },
-        ConditionReply::Replaced => GenericResponse {
-            status: String::from("OK"),
-            detail: String::from("Replaced"),
-        },
-        ConditionReply::Error(s) => GenericResponse {
-            status: format!("Could not create/edit gate {}", name),
-            detail: s,
-        },
-        _ => GenericResponse {
-            status: format!("Could not create/edit gate {}", name),
-            detail: String::from("Unexpected respones type from server"),
-        },
+        ConditionReply::Created => GenericResponse::ok("Created"),
+        ConditionReply::Replaced => GenericResponse::ok("Replaced"),
+        ConditionReply::Error(s) => GenericResponse::err(&format!("Could not create/edit gate {}", name), &s),
+        _ => GenericResponse::err(&format!("Could not create/edit gate {}", name),"Unexpected respones type from server" ),
     };
     Json(reply)
 }
