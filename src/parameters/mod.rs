@@ -307,7 +307,7 @@ impl ParameterIdMap {
         let input_id: usize = input_id as usize;
         if let Some(p) = self.dict.get(&String::from(name)) {
             let mapped_id = *p;
-            if self.map.len() < input_id {
+            if self.map.len() <= input_id {
                 self.map.resize(input_id + 1, None);
             }
             if let Some(outid) = self.map[input_id] {

@@ -203,6 +203,22 @@ impl ProcessingThread {
             Err(String::from("Not attached to a data source"))
         }
     }
+    // Start processing - if there's a data source just set
+    // procesing true otherwise it's an error:
+
+    fn start_processing(&mut self) -> Reply {
+        if self.attach_name.is_none() {
+            Err(String::from("No file is attached"))
+        } else if self.processing {
+            Err(format!(
+                "Already processing {}",
+                self.attach_name.as_ref().unwrap()
+            ))
+        } else {
+            self.processing = true;
+            Ok(String::from("Processing begins"))
+        }
+    }
 
     // Process any request received from other threads:
 
@@ -210,7 +226,7 @@ impl ProcessingThread {
         let reply = match request.request {
             RequestType::Attach(fname) => self.attach(&fname),
             RequestType::Detach => self.detach(),
-            RequestType::Start => Ok(String::from("")),
+            RequestType::Start => self.start_processing(),
             RequestType::Stop => Ok(String::from("")),
             RequestType::ChunkSize(n) => {
                 self.chunk_size = n;
@@ -246,7 +262,6 @@ impl ProcessingThread {
 
         // Stock the map with the parameters the histogramer has defined:
 
-        println!("Stocking existing params to the map");
         for p in known_parameters {
             self.parameter_mapping
                 .get_dict_mut()
@@ -261,12 +276,10 @@ impl ProcessingThread {
         for def in defs.iter() {
             let name = def.name();
             let id = def.id();
-            println!("Processing {} ({}) from the ring item", name, id);
             if let Err(reason) = self.parameter_mapping.map(id, &name) {
                 if reason == String::from("Duplicate Map") {
                     panic!("ProcessingThread failed to make a map due to duplication");
                 }
-                println!("Need t omake new parameter {}", name);
                 if let Err(s) = self.parameter_api.create_parameter(&name) {
                     panic!("Failed to create new parameter {} : {}", name, s);
                 }
@@ -287,7 +300,6 @@ impl ProcessingThread {
                     );
                 }
                 let param = &param[0];
-                println!("Native id is {}", param.get_id());
                 self.parameter_mapping
                     .get_dict_mut()
                     .insert(name.clone(), param.get_id());
@@ -301,7 +313,7 @@ impl ProcessingThread {
                     );
                 }
             }
-            println!("Parameter map re-created");
+            
         }
     }
 
@@ -312,8 +324,7 @@ impl ProcessingThread {
     // mapped to an event in the server's parameter space and
     // sent to the histogram thread (this version does not support
     // batching at this time).
-    fn read_an_event(&mut self) {
-        println!("Reading an event");
+    fn read_an_event(&mut self) -> bool {
         if let Some(fp) = self.attached_file.as_mut() {
             let try_item = RingItem::read_item(fp);
 
@@ -325,7 +336,7 @@ impl ProcessingThread {
                 // stop processing - flushing any partial batch.
 
                 self.processing = false;
-                return;
+                return true;
             }
             let item = try_item.unwrap();
             match item.type_id() {
@@ -343,6 +354,7 @@ impl ProcessingThread {
                 _ => {}
             };
         }
+        false
     }
 
     // This is the method that's used when processing a data file:
@@ -375,7 +387,7 @@ impl ProcessingThread {
             // Gaurd event processing:
 
             if self.processing && self.keep_running {
-                self.read_an_event();
+                eof = self.read_an_event();
             }
         }
     }
