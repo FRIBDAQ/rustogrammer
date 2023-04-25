@@ -72,7 +72,7 @@ pub struct ProcessingApi {
 impl ProcessingApi {
     // Utility for communicating with the thread:
 
-    fn transaction(&self, req: RequestType) -> Result<String, String> {
+    fn transaction(&self, req: RequestType) -> Reply {
         let (rep_send, rep_recv) = mpsc::channel();
         let request = Request {
             reply_chan: rep_send,
@@ -219,30 +219,18 @@ impl ProcessingThread {
             Ok(String::from("Processing begins"))
         }
     }
-
-    // Process any request received from other threads:
-
-    fn process_request(&mut self, request: Request) {
-        let reply = match request.request {
-            RequestType::Attach(fname) => self.attach(&fname),
-            RequestType::Detach => self.detach(),
-            RequestType::Start => self.start_processing(),
-            RequestType::Stop => Ok(String::from("")),
-            RequestType::ChunkSize(n) => {
-                self.chunk_size = n;
-                Ok(String::from(""))
-            }
-            RequestType::Exit => {
-                self.keep_running = false;
-                Ok(String::from(""))
-            }
-            RequestType::List => self.list(),
-        };
-        request
-            .reply_chan
-            .send(reply)
-            .expect("ProcessingThread failed to send reply to request");
+    // Stop processing - if we're not processing this is an error.
+    // Otherwise, set processing false and, when we return we'll stop.
+    //
+    fn stop_processing(&mut self) -> Reply {
+        if self.processing {
+            self.processing = false;
+            Ok(String::from(""))
+        } else {
+            Err(String::from("Not processing data"))
+        }
     }
+
     //  given a new set of parameter definitions, rebuild the parameter
     // map
     // - ask the parameter api to list the parameter.
@@ -313,7 +301,33 @@ impl ProcessingThread {
                     );
                 }
             }
-            
+        }
+    }
+    // Build an event from a ParameterItem ring item:
+
+    fn build_event(raw: &analysis_ring_items::ParameterItem) -> parameters::Event {
+        let mut result = parameters::Event::new();
+        for p in raw.iter() {
+            result.push(parameters::EventParameter::new(p.id(), p.value()));
+        }
+        result
+    }
+
+    // Process a ring item with event data.
+    // We create an event from our ring item.
+    // We ask the parameter map to create an event from it with the
+    // parameter ids that are native to the histogramer.
+    // For now we just send the event to the histogramer.
+    // in a future implementation we'll send batches of events.
+    //
+    fn process_event(&mut self, event: &analysis_ring_items::ParameterItem) {
+        let event = Self::build_event(event);
+        let event = self.parameter_mapping.map_event(&event);
+
+        let mut event_vec = Vec::new();
+        event_vec.push(event);
+        if let Err(s) = self.spectrum_api.process_events(&event_vec) {
+            panic!("Histogramer failed to process event(s)");
         }
     }
 
@@ -332,9 +346,6 @@ impl ProcessingThread {
 
             if let Err(reason) = try_item {
                 println!("Failed to read a ring item: {}", reason.to_string());
-
-                // stop processing - flushing any partial batch.
-
                 self.processing = false;
                 return true;
             }
@@ -350,8 +361,16 @@ impl ProcessingThread {
                     let definitions = definitions.unwrap();
                     self.rebuild_parameter_map(&definitions);
                 }
-                ring_items::PARAMETER_DATA => {}
-                _ => {}
+                ring_items::PARAMETER_DATA => {
+                    let data: Option<analysis_ring_items::ParameterItem> =
+                        item.to_specific(RingVersion::V11);
+                    if data.is_none() {
+                        panic!("Converting parameter encoded data from raw ring item failed!");
+                    }
+                    let event = data.unwrap();
+                    self.process_event(&event);
+                }
+                _ => {} // Ignore all other ring item types.
             };
         }
         false
@@ -390,8 +409,31 @@ impl ProcessingThread {
                 eof = self.read_an_event();
             }
         }
+        // Flush any internally queued events to the histogramer.
     }
+    // Process any request received from other threads:
 
+    fn process_request(&mut self, request: Request) {
+        let reply = match request.request {
+            RequestType::Attach(fname) => self.attach(&fname),
+            RequestType::Detach => self.detach(),
+            RequestType::Start => self.start_processing(),
+            RequestType::Stop => self.stop_processing(),
+            RequestType::ChunkSize(n) => {
+                self.chunk_size = n;
+                Ok(String::from(""))
+            }
+            RequestType::Exit => {
+                self.keep_running = false;
+                Ok(String::from(""))
+            }
+            RequestType::List => self.list(),
+        };
+        request
+            .reply_chan
+            .send(reply)
+            .expect("ProcessingThread failed to send reply to request");
+    }
     /// Create a new processing thread.
     ///
     /// * req_chan is the channel on which we will accept new requests.
