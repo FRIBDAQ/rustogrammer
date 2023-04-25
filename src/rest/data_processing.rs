@@ -41,12 +41,12 @@ pub fn attach_source(
     let reply = if r#type == "file" {
         let api = state.inner().processing.lock().unwrap();
         if let Err(s) = api.attach(&source) {
-            GenericResponse::Err("Attach failed", &s)
+            GenericResponse::err("Attach failed", &s)
         } else {
-            GenericResponse::Ok("")
+            GenericResponse::ok("")
         }
     } else {
-        GenericResponse::Err(
+        GenericResponse::err(
             &format!("Data source type '{}' is not supported", r#type),
             "This is Rustogramer not SpecTcl",
         )
@@ -62,8 +62,8 @@ pub fn attach_source(
 pub fn list_source(state: &State<HistogramState>) -> Json<GenericResponse> {
     let api = state.inner().processing.lock().unwrap();
     Json(match api.list() {
-        Ok(s) => GenericResponse::Ok(&s),
-        Err(s) => GenericResponse::Err("Failed to get data source", &s),
+        Ok(s) => GenericResponse::ok(&s),
+        Err(s) => GenericResponse::err("Failed to get data source", &s),
     })
 }
 /// Detach from the current data source.
@@ -73,8 +73,8 @@ pub fn list_source(state: &State<HistogramState>) -> Json<GenericResponse> {
 pub fn detach_source(state: &State<HistogramState>) -> Json<GenericResponse> {
     let api = state.inner().processing.lock().unwrap();
     Json(match api.detach() {
-        Ok(s) => GenericResponse::Ok(&s),
-        Err(s) => GenericResponse::Err("Failed to detach", &s),
+        Ok(s) => GenericResponse::ok(&s),
+        Err(s) => GenericResponse::err("Failed to detach", &s),
     })
 }
 
@@ -88,8 +88,8 @@ pub fn detach_source(state: &State<HistogramState>) -> Json<GenericResponse> {
 pub fn start_processing(state: &State<HistogramState>) -> Json<GenericResponse> {
     let api = state.inner().processing.lock().unwrap();
     Json(match api.start_analysis() {
-        Ok(_) => GenericResponse::Ok(""),
-        Err(s) => GenericResponse::Err("Failed to start analysis", &s),
+        Ok(_) => GenericResponse::ok(""),
+        Err(s) => GenericResponse::err("Failed to start analysis", &s),
     })
 }
 ///
@@ -100,8 +100,8 @@ pub fn start_processing(state: &State<HistogramState>) -> Json<GenericResponse> 
 pub fn stop_processing(state: &State<HistogramState>) -> Json<GenericResponse> {
     let api = state.inner().processing.lock().unwrap();
     Json(match api.stop_analysis() {
-        Ok(_) => GenericResponse::Ok(""),
-        Err(s) => GenericResponse::Err("Failed to stop analysis", &s),
+        Ok(_) => GenericResponse::ok(""),
+        Err(s) => GenericResponse::err("Failed to stop analysis", &s),
     })
 }
 /// Set the analysis block size.  This is the number of events that
@@ -113,7 +113,7 @@ pub fn stop_processing(state: &State<HistogramState>) -> Json<GenericResponse> {
 pub fn set_event_batch(events: usize, state: &State<HistogramState>) -> Json<GenericResponse> {
     let api = state.inner().processing.lock().unwrap();
     Json(match api.set_batching(events) {
-        Ok(_) => GenericResponse::Ok(""),
-        Err(s) => GenericResponse::Err("Failed to set event processing batch size", &s),
+        Ok(_) => GenericResponse::ok(""),
+        Err(s) => GenericResponse::err("Failed to set event processing batch size", &s),
     })
 }

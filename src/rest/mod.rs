@@ -63,13 +63,13 @@ pub struct GenericResponse {
     detail: String,
 }
 impl GenericResponse {
-    pub fn Ok(detail: &str) -> GenericResponse {
+    pub fn ok(detail: &str) -> GenericResponse {
         GenericResponse {
             status: String::from("OK"),
             detail: String::from(detail),
         }
     }
-    pub fn Err(status: &str, detail: &str) -> GenericResponse {
+    pub fn err(status: &str, detail: &str) -> GenericResponse {
         GenericResponse {
             status: String::from(status),
             detail: String::from(detail),
