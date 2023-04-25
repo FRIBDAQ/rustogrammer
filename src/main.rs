@@ -7,10 +7,12 @@ mod rest;
 mod ring_items;
 mod spectra;
 
+use rest::apply;
 use rest::data_processing;
 use rest::gates;
 use rest::rest_parameter;
 use rest::spectrum;
+
 use std::sync::Mutex;
 
 // Pull in Rocket features:
@@ -85,4 +87,5 @@ fn rocket() -> _ {
                 data_processing::set_event_batch
             ],
         )
+        .mount("/spectcl/apply", routes![apply::apply_gate])
 }

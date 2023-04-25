@@ -337,12 +337,10 @@ impl ProcessingThread {
         let event = Self::build_event(event);
         let event = self.parameter_mapping.map_event(&event);
 
-        
         self.event_chunk.push(event);
         if self.event_chunk.len() >= self.chunk_size {
             self.flush_events();
         }
-        
     }
 
     // Process a ring item from the file we only process
@@ -469,7 +467,7 @@ impl ProcessingThread {
             chunk_size: DEFAULT_EVENT_CHUNKSIZE,
             processing: false,
             keep_running: true,
-            event_chunk: Vec::new()
+            event_chunk: Vec::new(),
         }
     }
     /// run the thread.
