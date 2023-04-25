@@ -231,10 +231,7 @@ pub fn edit_parameter(
     description: Option<String>,
     state: &State<HistogramState>,
 ) -> Json<GenericResponse> {
-    let mut response = GenericResponse {
-        status: String::from("OK"),
-        detail: String::from(""),
-    };
+    let mut response = GenericResponse::ok("");
 
     if (low.is_none() && high.is_some()) || (low.is_some() && high.is_none()) {
         response.status = String::from("invalid request");
@@ -420,9 +417,6 @@ pub fn list_rawparameter(
 
 #[get("/delete")]
 pub fn delete_rawparameter() -> Json<GenericResponse> {
-    let result = GenericResponse {
-        status: String::from("Deletion of parameters is not supported"),
-        detail: String::from(""),
-    };
+    let result = GenericResponse::err("Deletion of parameters is not supported", "This is rustogrammer not SpecTcl");
     Json(result)
 }
