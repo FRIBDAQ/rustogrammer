@@ -205,7 +205,10 @@ pub fn delete_gate(name: String, state: &State<HistogramState>) -> Json<GenericR
     let response = match api.delete_condition(&name) {
         ConditionReply::Deleted => GenericResponse::ok(""),
         ConditionReply::Error(s) => GenericResponse::err("Failed to delete condition", &s),
-        _ => GenericResponse::err(&format!("Failed to delete condition {}", name), "Invalid repsonse from server"),
+        _ => GenericResponse::err(
+            &format!("Failed to delete condition {}", name),
+            "Invalid repsonse from server",
+        ),
     };
     Json(response)
 }
@@ -437,8 +440,13 @@ pub fn edit_gate(
     let reply = match raw_result {
         ConditionReply::Created => GenericResponse::ok("Created"),
         ConditionReply::Replaced => GenericResponse::ok("Replaced"),
-        ConditionReply::Error(s) => GenericResponse::err(&format!("Could not create/edit gate {}", name), &s),
-        _ => GenericResponse::err(&format!("Could not create/edit gate {}", name),"Unexpected respones type from server" ),
+        ConditionReply::Error(s) => {
+            GenericResponse::err(&format!("Could not create/edit gate {}", name), &s)
+        }
+        _ => GenericResponse::err(
+            &format!("Could not create/edit gate {}", name),
+            "Unexpected respones type from server",
+        ),
     };
     Json(reply)
 }

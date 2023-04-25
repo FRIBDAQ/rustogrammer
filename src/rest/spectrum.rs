@@ -391,11 +391,17 @@ fn make_2d(
 
     let parsed_params = parse_simple_list(parameters);
     if parsed_params.is_err() {
-        return GenericResponse::err("Failed to parse 2d parameter list",&parsed_params.unwrap_err());
+        return GenericResponse::err(
+            "Failed to parse 2d parameter list",
+            &parsed_params.unwrap_err(),
+        );
     }
     let params = parsed_params.unwrap();
     if params.len() != 2 {
-        return GenericResponse::err("Failed to process parameter list", "There must be exactly two parameters for a 2d spectrum");
+        return GenericResponse::err(
+            "Failed to process parameter list",
+            "There must be exactly two parameters for a 2d spectrum",
+        );
     }
     let xp = params[0].clone();
     let yp = params[1].clone();
@@ -467,7 +473,6 @@ fn make_gamma2(
         api.create_spectrum_multi2d(name, &parameters, xlow, xhigh, xbins, ylow, yhigh, ybins)
     {
         GenericResponse::err("Failed to create multi2d spectrum", &s)
-            
     } else {
         GenericResponse::ok("")
     }
@@ -486,7 +491,10 @@ fn make_pgamma(
 
     let parsed_params = parse_two_element_list(parameters);
     if parsed_params.is_err() {
-        return GenericResponse::err("Failed to parse parameter list", &parsed_params.unwrap_err());
+        return GenericResponse::err(
+            "Failed to parse parameter list",
+            &parsed_params.unwrap_err(),
+        );
     }
     let (xparams, yparams) = parsed_params.unwrap();
 
@@ -503,7 +511,6 @@ fn make_pgamma(
         name, &xparams, &yparams, xlow, xhigh, xbins, ylow, yhigh, ybins,
     ) {
         GenericResponse::err("Failed to create pgamma spectrum", &s)
-            
     } else {
         GenericResponse::ok("")
     }
@@ -519,7 +526,10 @@ fn make_summary(
 ) -> GenericResponse {
     let parameters = parse_simple_list(parameters);
     if parameters.is_err() {
-        return GenericResponse::err("Failed to parse the parameter list", &parameters.unwrap_err());
+        return GenericResponse::err(
+            "Failed to parse the parameter list",
+            &parameters.unwrap_err(),
+        );
     }
     let parameters = parameters.unwrap(); // Vec<String> now.
 
@@ -547,7 +557,10 @@ fn make_2dsum(
 ) -> GenericResponse {
     let parameters = parse_two_element_list(parameters);
     if parameters.is_err() {
-        return GenericResponse::err("Failed to parse the parameter list(s)", &parameters.unwrap_err());
+        return GenericResponse::err(
+            "Failed to parse the parameter list(s)",
+            &parameters.unwrap_err(),
+        );
     }
     let (xpars, ypars) = parameters.unwrap(); // both Vec<String>
 
@@ -612,7 +625,10 @@ pub fn create_spectrum(
         "gd" => make_pgamma(&name, &parameters, &axes, state),
         "s" => make_summary(&name, &parameters, &axes, state),
         "m2" => make_2dsum(&name, &parameters, &axes, state),
-        _ => GenericResponse::err("Unsupported spectrum type", &format!("Bad type was '{}'", type_name)),
+        _ => GenericResponse::err(
+            "Unsupported spectrum type",
+            &format!("Bad type was '{}'", type_name),
+        ),
     })
 }
 //------------------------------------------------------------------

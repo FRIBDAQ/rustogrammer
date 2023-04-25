@@ -417,6 +417,9 @@ pub fn list_rawparameter(
 
 #[get("/delete")]
 pub fn delete_rawparameter() -> Json<GenericResponse> {
-    let result = GenericResponse::err("Deletion of parameters is not supported", "This is rustogrammer not SpecTcl");
+    let result = GenericResponse::err(
+        "Deletion of parameters is not supported",
+        "This is rustogrammer not SpecTcl",
+    );
     Json(result)
 }
