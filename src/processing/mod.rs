@@ -154,6 +154,8 @@ struct ProcessingThread {
     chunk_size: usize,
     processing: bool,
     keep_running: bool,
+
+    event_chunk: Vec<parameters::Event>,
 }
 impl ProcessingThread {
     // Handle the Attach request:
@@ -313,6 +315,17 @@ impl ProcessingThread {
         result
     }
 
+    //
+    // Flush the event batch to the histogramer:
+    //
+    fn flush_events(&mut self) {
+        if self.event_chunk.len() > 0 {
+            if let Err(s) = self.spectrum_api.process_events(&self.event_chunk) {
+                panic!("Unable to get the histogram thread to process events {}", s);
+            }
+            self.event_chunk.clear();
+        }
+    }
     // Process a ring item with event data.
     // We create an event from our ring item.
     // We ask the parameter map to create an event from it with the
@@ -324,11 +337,12 @@ impl ProcessingThread {
         let event = Self::build_event(event);
         let event = self.parameter_mapping.map_event(&event);
 
-        let mut event_vec = Vec::new();
-        event_vec.push(event);
-        if let Err(s) = self.spectrum_api.process_events(&event_vec) {
-            panic!("Histogramer failed to process event(s)");
+        
+        self.event_chunk.push(event);
+        if self.event_chunk.len() >= self.chunk_size {
+            self.flush_events();
         }
+        
     }
 
     // Process a ring item from the file we only process
@@ -409,7 +423,7 @@ impl ProcessingThread {
                 eof = self.read_an_event();
             }
         }
-        // Flush any internally queued events to the histogramer.
+        self.flush_events();
     }
     // Process any request received from other threads:
 
@@ -455,6 +469,7 @@ impl ProcessingThread {
             chunk_size: DEFAULT_EVENT_CHUNKSIZE,
             processing: false,
             keep_running: true,
+            event_chunk: Vec::new()
         }
     }
     /// run the thread.
