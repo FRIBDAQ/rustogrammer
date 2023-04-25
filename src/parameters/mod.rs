@@ -261,7 +261,7 @@ pub type Event = Vec<EventParameter>;
 /// which is an array of output ids indexed by input ids.
 ///
 pub struct ParameterIdMap {
-    dict: ParameterDictionary,
+    dict: HashMap<String, u32>,
     map: Vec<Option<u32>>,
 }
 impl ParameterIdMap {
@@ -276,21 +276,21 @@ impl ParameterIdMap {
 
     pub fn new() -> ParameterIdMap {
         ParameterIdMap {
-            dict: ParameterDictionary::new(),
+            dict: HashMap::new(),
             map: Vec::<Option<u32>>::new(),
         }
     }
     /// Rather than wrapping all of the dicts
     /// methods, just expose the dict itself.
     ///
-    pub fn get_dict(&self) -> &ParameterDictionary {
+    pub fn get_dict(&self) -> &HashMap<String, u32> {
         &self.dict
     }
     ///
     /// Expose the dict as a mut reference so that e.g.
     /// parameters can be added.
     ///
-    pub fn get_dict_mut(&mut self) -> &mut ParameterDictionary {
+    pub fn get_dict_mut(&mut self) -> &mut HashMap<String, u32> {
         &mut self.dict
     }
     /// Define a mapping for an input id to a named parameter.
@@ -305,9 +305,9 @@ impl ParameterIdMap {
     ///   one -to many.
     pub fn map(&mut self, input_id: u32, name: &str) -> Result<u32, String> {
         let input_id: usize = input_id as usize;
-        if let Some(p) = self.dict.lookup(name) {
-            let mapped_id = p.get_id();
-            if self.map.len() < input_id {
+        if let Some(p) = self.dict.get(&String::from(name)) {
+            let mapped_id = *p;
+            if self.map.len() <= input_id {
                 self.map.resize(input_id + 1, None);
             }
             if let Some(outid) = self.map[input_id] {
@@ -764,9 +764,9 @@ mod paramap_test {
     // |  3     | Parameter3  |
     fn stock_map(map: &mut ParameterIdMap) {
         let dict = map.get_dict_mut();
-        dict.add("Parameter1").unwrap();
-        dict.add("Parameter2").unwrap();
-        dict.add("Parameter3").unwrap();
+        dict.insert(String::from("Parameter1"), 1);
+        dict.insert(String::from("Parameter2"), 2);
+        dict.insert(String::from("Parameter3"), 3);
     }
     // make some default mappings for the parameters created by
     /// stock_map:
@@ -785,7 +785,7 @@ mod paramap_test {
     #[test]
     fn new_1() {
         let map = ParameterIdMap::new();
-        assert_eq!(0, map.dict.dictionary.len());
+        assert_eq!(0, map.dict.len());
         assert_eq!(0, map.map.len());
     }
     #[test]
@@ -793,13 +793,23 @@ mod paramap_test {
         // Tests both get_dict and get_dict_mut
         let mut map = ParameterIdMap::new();
         let rmap = map.get_dict_mut();
-        rmap.add("Parameter1").unwrap();
-        rmap.add("parameter2").unwrap();
+        rmap.insert(String::from("Parameter1"), 1);
+        rmap.insert(String::from("parameter2"), 2);
         let rmap = map.get_dict();
-        assert_eq!(2, rmap.dictionary.len());
+        assert_eq!(2, rmap.len());
 
-        assert_eq!(1, rmap.lookup("Parameter1").unwrap().get_id());
-        assert_eq!(2, rmap.lookup("parameter2").unwrap().get_id());
+        assert_eq!(
+            1,
+            *rmap
+                .get(&String::from("Parameter1"))
+                .expect("failed to find Parameter1")
+        );
+        assert_eq!(
+            2,
+            *rmap
+                .get(&String::from("parameter2"))
+                .expect("Failed to find parameter2")
+        );
         assert_eq!(0, map.map.len());
     }
     #[test]

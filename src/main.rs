@@ -2,10 +2,12 @@ mod conditions;
 mod histogramer;
 mod messaging;
 mod parameters;
+mod processing;
 mod rest;
 mod ring_items;
 mod spectra;
 
+use rest::data_processing;
 use rest::gates;
 use rest::rest_parameter;
 use rest::spectrum;
@@ -25,8 +27,11 @@ fn rocket() -> _ {
     //
 
     let (jh, channel) = histogramer::start_server();
+    let processor = processing::ProcessingApi::new(&channel);
+
     let state = rest::HistogramState {
         state: Mutex::new((jh, channel)),
+        processing: Mutex::new(processor),
     };
     rocket::build()
         .manage(state)
@@ -62,6 +67,22 @@ fn rocket() -> _ {
                 spectrum::create_spectrum,
                 spectrum::get_contents,
                 spectrum::clear_spectra,
+            ],
+        )
+        .mount(
+            "/spectcl/attach",
+            routes![
+                data_processing::attach_source,
+                data_processing::list_source,
+                data_processing::detach_source
+            ],
+        )
+        .mount(
+            "/spectcl/analyze",
+            routes![
+                data_processing::start_processing,
+                data_processing::stop_processing,
+                data_processing::set_event_batch
             ],
         )
 }

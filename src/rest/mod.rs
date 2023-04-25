@@ -31,6 +31,7 @@
 
 // Re exports:
 
+pub mod data_processing;
 pub mod gates;
 pub mod parameter;
 pub mod spectrum;
@@ -39,6 +40,7 @@ pub use parameter as rest_parameter;
 
 use crate::messaging::parameter_messages::ParameterMessageClient;
 use crate::messaging::Request;
+use crate::processing;
 use rocket::State;
 use std::sync::{mpsc, Mutex};
 use std::thread;
@@ -47,6 +49,7 @@ use rocket::serde::Serialize;
 
 pub struct HistogramState {
     pub state: Mutex<(thread::JoinHandle<()>, mpsc::Sender<Request>)>,
+    pub processing: Mutex<processing::ProcessingApi>,
 }
 
 pub type OptionalStringVec = Option<Vec<String>>;
@@ -58,6 +61,20 @@ pub type OptionalF64Vec = Option<Vec<f64>>;
 pub struct GenericResponse {
     status: String,
     detail: String,
+}
+impl GenericResponse {
+    pub fn Ok(detail: &str) -> GenericResponse {
+        GenericResponse {
+            status: String::from("OK"),
+            detail: String::from(detail),
+        }
+    }
+    pub fn Err(status: &str, detail: &str) -> GenericResponse {
+        GenericResponse {
+            status: String::from(status),
+            detail: String::from(detail),
+        }
+    }
 }
 
 // Utility method to return the name of a parameter given its id

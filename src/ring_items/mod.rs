@@ -338,27 +338,27 @@ pub enum RingVersion {
 
 // Ring item types:
 
-const BEGIN_RUN: u32 = 1;
-const END_RUN: u32 = 2;
-const PAUSE_RUN: u32 = 3;
-const RESUME_RUN: u32 = 4;
-const PACKET_TYPES: u32 = 10;
-const MONITORED_VARIABLES: u32 = 11;
-const FORMAT_ITEM: u32 = 12;
-const PERIODIC_SCALERS: u32 = 20;
-const PHYSICS_EVENT: u32 = 30;
-const PHYSICS_EVENT_COUNT: u32 = 31;
-const GLOM_INFO: u32 = 42;
-const ABNORMAL_END: u32 = 5;
+pub const BEGIN_RUN: u32 = 1;
+pub const END_RUN: u32 = 2;
+pub const PAUSE_RUN: u32 = 3;
+pub const RESUME_RUN: u32 = 4;
+pub const PACKET_TYPES: u32 = 10;
+pub const MONITORED_VARIABLES: u32 = 11;
+pub const FORMAT_ITEM: u32 = 12;
+pub const PERIODIC_SCALERS: u32 = 20;
+pub const PHYSICS_EVENT: u32 = 30;
+pub const PHYSICS_EVENT_COUNT: u32 = 31;
+pub const GLOM_INFO: u32 = 42;
+pub const ABNORMAL_END: u32 = 5;
 
 // These ring item types are products of the FRIB analysis pipeline:
 
 /// Contains the correspondences between parameter names and ids.
-const PARAMETER_DEFINITIONS: u32 = 32768;
+pub const PARAMETER_DEFINITIONS: u32 = 32768;
 /// Contains the values of steering variables
-const VARIABLE_VALUES: u32 = 32769;
+pub const VARIABLE_VALUES: u32 = 32769;
 /// Contains the actual parameter_id:value pairs for an event.
-const PARAMETER_DATA: u32 = 32770;
+pub const PARAMETER_DATA: u32 = 32770;
 
 //---------------------------------------------------------------
 // unit tests
