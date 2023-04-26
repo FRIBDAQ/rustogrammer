@@ -16,6 +16,7 @@ use rest::fit;
 use rest::gates;
 use rest::rest_parameter;
 use rest::spectrum;
+use rest::fold;
 
 use std::sync::Mutex;
 
@@ -124,4 +125,5 @@ fn rocket() -> _ {
         routes![
             fit::create, fit::update, fit::delete, fit::list, fit::proc
         ])
+        .mount("/spectcl/fold", routes![fold::apply, fold::list, fold::remove])
 }

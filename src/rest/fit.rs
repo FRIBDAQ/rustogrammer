@@ -41,7 +41,7 @@ pub fn create() -> Json<GenericResponse> {
 /// update (not implemented) Give a set of fits that match a pattern,
 /// the fit paramaeters are re-computed using the current spectrum
 /// data.  The concept is that as the data are processed,fit parameters
-/// will shift both because 
+/// will shift both because
 ///
 /// * Additional statisitcs may shift slightly the fit parameters.
 /// * After clearing the spectra and attaching a different data file,
@@ -65,7 +65,7 @@ pub fn update() -> Json<GenericResponse> {
 /// Deletes an existing fit object.  The only query parameter is
 /// _name_ which specifies the the name of the fit to delete.
 ///
-/// A GenericResponse is perfectly ok for any future implementation 
+/// A GenericResponse is perfectly ok for any future implementation
 /// of this URI.
 ///
 #[get("/delete")]
@@ -79,24 +79,24 @@ pub fn delete() -> Json<GenericResponse> {
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FitParameter {
-    name : String,
-    value : f64    
+    name: String,
+    value: f64,
 }
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FitDescription {
-    name  : String,
-    spectrum : String,
-    r#type : String,
+    name: String,
+    spectrum: String,
+    r#type: String,
     low: f64,
-    high : f64,
-    parameters: Vec<FitParameter>
+    high: f64,
+    parameters: Vec<FitParameter>,
 }
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FitListReply {
-    status : String,
-    detail: Vec<FitDescription>
+    status: String,
+    detail: Vec<FitDescription>,
 }
 
 ///
@@ -104,19 +104,19 @@ pub struct FitListReply {
 ///
 /// Lists the set of fits that match the optional _pattern_ query
 /// parameter (defaults to "*").  The returned reply will be of the
-/// form described by FitListReply above.  Note that the 
+/// form described by FitListReply above.  Note that the
 /// FitParameter is different from what SpecTcl would produce which
 /// is just a set of name/value pairs... which I don't quite know how
 /// to produce (Maybe a tuple would be better?).
 ///
-/// Not important at this time since we're going to 
+/// Not important at this time since we're going to
 /// return an unimplemented reply.'
 ///
 #[get("/list")]
 pub fn list() -> Json<FitListReply> {
     Json(FitListReply {
         status: String::from("spectcl/fit/list is not implemented - this is not SpecTcl"),
-        detail: vec![]
+        detail: vec![],
     })
 }
 ///

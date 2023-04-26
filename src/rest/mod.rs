@@ -36,10 +36,11 @@ pub mod channel;
 pub mod data_processing;
 pub mod evbunpack;
 pub mod filter;
+pub mod fit;
+pub mod fold;
 pub mod gates;
 pub mod parameter;
 pub mod spectrum;
-pub mod fit;
 
 pub use parameter as rest_parameter;
 
