@@ -88,4 +88,5 @@ fn rocket() -> _ {
             ],
         )
         .mount("/spectcl/apply", routes![apply::apply_gate, apply::apply_list])
+        .mount("/spectcl/ungate", routes![apply::ungate_spectrum])
 }
