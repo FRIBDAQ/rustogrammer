@@ -87,5 +87,5 @@ fn rocket() -> _ {
                 data_processing::set_event_batch
             ],
         )
-        .mount("/spectcl/apply", routes![apply::apply_gate])
+        .mount("/spectcl/apply", routes![apply::apply_gate, apply::apply_list])
 }

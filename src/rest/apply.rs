@@ -58,3 +58,56 @@ pub fn apply_gate(
     }
     Json(response)
 }
+//---------------------------------------------------------------------
+// Stuff needed to provde the application list.
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct Application {
+    spectrum: String,
+    gate: String,
+}
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct ApplicationListing {
+    status: String,
+    detail: Vec<Application>,
+}
+
+#[get("/list?<pattern>")]
+pub fn apply_list(
+    pattern: OptionalString,
+    state: &State<HistogramState>,
+) -> Json<ApplicationListing> {
+    let mut pat = String::from("*"); // Default pattern
+    if let Some(s) = pattern {
+        pat = s; // User supplied pattern.
+    }
+
+    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let listing = api.list_spectra(&pat);
+    if listing.is_err() {
+        return Json(ApplicationListing {
+            status: format!("Failed to get spectrum listing: {}", listing.unwrap_err()),
+            detail: Vec::new(),
+        });
+    }
+    let listing = listing.unwrap();
+    let mut result = ApplicationListing {
+        status: String::from("OK"),
+        detail: Vec::new(),
+    };
+    for spectrum in listing {
+        let gate_name = if let Some(g) = spectrum.gate {
+            g
+        } else {
+            String::from("-none-")
+        };
+
+        result.detail.push(Application {
+            spectrum: spectrum.name,
+            gate: gate_name,
+        });
+    }
+    Json(result)
+}
