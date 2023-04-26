@@ -1,9 +1,9 @@
 //!  Folds are a concept specific to the analysis of sequential
-//!  decays by gamma emission.  The idea is that you can create a 
+//!  decays by gamma emission.  The idea is that you can create a
 //!  condition that involves the parameters of a multiply incremented
 //!  spetrum.  Normally, this codition is a specific decay peak in
 //!  the spectrum.  
-//! 
+//!
 //!  A fold then increments this spectrum for all parameters that
 //!  don't make this condition true (folds could be one or 2-d).
 //!  What remains in the spectrum are the peaks that correspond
@@ -21,8 +21,8 @@
 //! *   list  - lists the fold applications
 //! *   remove - Removes a fold from the spectrum.
 //!
-use rocket::serde::{json::Json, Serialize};
 use super::*;
+use rocket::serde::{json::Json, Serialize};
 
 /// apply - unimplemented
 ///  If implemented the following query parameters would be required:
@@ -36,7 +36,7 @@ use super::*;
 pub fn apply() -> Json<GenericResponse> {
     Json(GenericResponse::err(
         "/spectcl/fold/apply is not implemented",
-        "This is not SpecTcl"
+        "This is not SpecTcl",
     ))
 }
 
@@ -44,14 +44,14 @@ pub fn apply() -> Json<GenericResponse> {
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FoldInfo {
-    spectrum : String,
-    gate : String
+    spectrum: String,
+    gate: String,
 }
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FoldListResponse {
-    status : String,
-    detail : Vec<FoldInfo>
+    status: String,
+    detail: Vec<FoldInfo>,
 }
 /// list - unimplemented
 ///  If implemented the _pattern_ query  parameter will filter out
@@ -60,8 +60,8 @@ pub struct FoldListResponse {
 #[get("/list")]
 pub fn list() -> Json<FoldListResponse> {
     Json(FoldListResponse {
-        status : String::from("/spectcl/fold/list is not implemented - this is not SpecTcl"),
-        detail : vec![]
+        status: String::from("/spectcl/fold/list is not implemented - this is not SpecTcl"),
+        detail: vec![],
     })
 }
 /// remove - unimplemented
@@ -75,6 +75,6 @@ pub fn list() -> Json<FoldListResponse> {
 pub fn remove() -> Json<GenericResponse> {
     Json(GenericResponse::err(
         "/spectcl/fold/remove is not implemented",
-        "This is not SpecTcl"
+        "This is not SpecTcl",
     ))
 }

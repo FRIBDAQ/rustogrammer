@@ -39,6 +39,7 @@ pub mod filter;
 pub mod fit;
 pub mod fold;
 pub mod gates;
+pub mod integrate;
 pub mod parameter;
 pub mod spectrum;
 

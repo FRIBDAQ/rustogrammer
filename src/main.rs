@@ -7,16 +7,10 @@ mod rest;
 mod ring_items;
 mod spectra;
 
-use rest::apply;
-use rest::channel;
-use rest::data_processing;
-use rest::evbunpack;
-use rest::filter;
-use rest::fit;
-use rest::gates;
-use rest::rest_parameter;
-use rest::spectrum;
-use rest::fold;
+use rest::{
+    apply, channel, data_processing, evbunpack, filter, fit, fold, gates, integrate,
+    rest_parameter, spectrum,
+};
 
 use std::sync::Mutex;
 
@@ -121,9 +115,13 @@ fn rocket() -> _ {
                 filter::list
             ],
         )
-        .mount("/spectcl/fit", 
-        routes![
-            fit::create, fit::update, fit::delete, fit::list, fit::proc
-        ])
-        .mount("/spectcl/fold", routes![fold::apply, fold::list, fold::remove])
+        .mount(
+            "/spectcl/fit",
+            routes![fit::create, fit::update, fit::delete, fit::list, fit::proc],
+        )
+        .mount(
+            "/spectcl/fold",
+            routes![fold::apply, fold::list, fold::remove],
+        )
+        .mount("/spectcl/integrate", routes![integrate::integrate])
 }
