@@ -10,6 +10,7 @@ mod spectra;
 use rest::apply;
 use rest::channel;
 use rest::data_processing;
+use rest::evbunpack;
 use rest::gates;
 use rest::rest_parameter;
 use rest::spectrum;
@@ -96,5 +97,13 @@ fn rocket() -> _ {
         .mount(
             "/spectcl/channel",
             routes![channel::set_chan, channel::get_chan],
+        )
+        .mount(
+            "/spectcl/evbunpack",
+            routes![
+                evbunpack::create_evbunpack,
+                evbunpack::add_evbunpack,
+                evbunpack::list_evbunpack,
+            ],
         )
 }
