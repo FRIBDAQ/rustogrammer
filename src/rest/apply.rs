@@ -115,13 +115,13 @@ pub fn apply_list(
 // what we need for /spectcl/ungate.
 
 ///
-/// Remove gate from spectra.   The name parameter is the only 
+/// Remove gate from spectra.   The name parameter is the only
 /// allowed parameter.  Unlike SpecTcl it can be specified
 /// more than once and the handler attempts to remove gates
-/// from all named spectra.  The returned JSON Is a 
+/// from all named spectra.  The returned JSON Is a
 /// GateApplicationResponse.  On success, the detail is an empty
 /// vector.  If unable to remove the gate from any of the
-/// specified spectra, the status will be 
+/// specified spectra, the status will be
 /// _Unable to ungate at least one spectrum_
 /// and the detail will be a vector of 2 String element tuples with
 /// the first element the name of the spectrum that could not be
@@ -129,11 +129,14 @@ pub fn apply_list(
 /// messaging API.
 ///
 #[get("/?<name>")]
-pub fn ungate_spectrum(name : Vec<String>, state : &State<HistogramState>) -> Json<GateApplicationResponse> {
+pub fn ungate_spectrum(
+    name: Vec<String>,
+    state: &State<HistogramState>,
+) -> Json<GateApplicationResponse> {
     let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
     let mut result = GateApplicationResponse {
-        status : String::from("OK"),
-        detail : Vec::new()
+        status: String::from("OK"),
+        detail: Vec::new(),
     };
     for spectrum in name {
         if let Err(s) = api.ungate_spectrum(&spectrum) {

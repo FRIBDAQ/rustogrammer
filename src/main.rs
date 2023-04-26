@@ -8,6 +8,7 @@ mod ring_items;
 mod spectra;
 
 use rest::apply;
+use rest::channel;
 use rest::data_processing;
 use rest::gates;
 use rest::rest_parameter;
@@ -87,6 +88,13 @@ fn rocket() -> _ {
                 data_processing::set_event_batch
             ],
         )
-        .mount("/spectcl/apply", routes![apply::apply_gate, apply::apply_list])
+        .mount(
+            "/spectcl/apply",
+            routes![apply::apply_gate, apply::apply_list],
+        )
         .mount("/spectcl/ungate", routes![apply::ungate_spectrum])
+        .mount(
+            "/spectcl/channel",
+            routes![channel::set_chan, channel::get_chan],
+        )
 }

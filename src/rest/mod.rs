@@ -32,6 +32,7 @@
 // Re exports:
 
 pub mod apply;
+pub mod channel;
 pub mod data_processing;
 pub mod gates;
 pub mod parameter;
