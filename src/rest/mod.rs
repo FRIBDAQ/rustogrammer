@@ -39,6 +39,7 @@ pub mod filter;
 pub mod gates;
 pub mod parameter;
 pub mod spectrum;
+pub mod fit;
 
 pub use parameter as rest_parameter;
 

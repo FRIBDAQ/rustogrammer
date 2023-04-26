@@ -12,6 +12,7 @@ use rest::channel;
 use rest::data_processing;
 use rest::evbunpack;
 use rest::filter;
+use rest::fit;
 use rest::gates;
 use rest::rest_parameter;
 use rest::spectrum;
@@ -119,4 +120,8 @@ fn rocket() -> _ {
                 filter::list
             ],
         )
+        .mount("/spectcl/fit", 
+        routes![
+            fit::create, fit::update, fit::delete, fit::list, fit::proc
+        ])
 }
