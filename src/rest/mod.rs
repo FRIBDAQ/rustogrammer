@@ -35,6 +35,7 @@ pub mod apply;
 pub mod channel;
 pub mod data_processing;
 pub mod evbunpack;
+pub mod filter;
 pub mod gates;
 pub mod parameter;
 pub mod spectrum;

@@ -11,6 +11,7 @@ use rest::apply;
 use rest::channel;
 use rest::data_processing;
 use rest::evbunpack;
+use rest::filter;
 use rest::gates;
 use rest::rest_parameter;
 use rest::spectrum;
@@ -104,6 +105,18 @@ fn rocket() -> _ {
                 evbunpack::create_evbunpack,
                 evbunpack::add_evbunpack,
                 evbunpack::list_evbunpack,
+            ],
+        )
+        .mount(
+            "/spectcl/filter",
+            routes![
+                filter::new,
+                filter::delete,
+                filter::enable,
+                filter::disable,
+                filter::regate,
+                filter::file,
+                filter::list
             ],
         )
 }
