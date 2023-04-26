@@ -33,7 +33,7 @@ pub fn set_chan() -> Json<GenericResponse> {
         "This is not SpecTcl",
     ))
 }
-/// If this were implemented, 
+/// If this were implemented,
 /// the query paramters would be:
 ///
 /// *   spectrum (mandatory) - name of the spectrum being queried.
@@ -41,7 +41,7 @@ pub fn set_chan() -> Json<GenericResponse> {
 /// *   ychannel (optional) - required only for 2d spectra. The
 /// Y channel to get.
 ///
-/// The return value on success would then be 
+/// The return value on success would then be
 /// *   status : _OK_
 /// *   detail : the value in that channel.
 ///
