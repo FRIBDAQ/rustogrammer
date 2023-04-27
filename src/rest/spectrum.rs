@@ -91,10 +91,10 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
                 high: x.high,
                 bins: x.bins - 2, // Omit over/underflow
             });
-            def.xaxis= Some(Axis {
+            def.xaxis = Some(Axis {
                 low: x.low,
                 high: x.high,
-                bins: x.bins -2
+                bins: x.bins - 2,
             });
         }
         if let Some(y) = d.yaxis {
@@ -106,7 +106,7 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
             def.yaxis = Some(Axis {
                 low: y.low,
                 high: y.high,
-                bins: y.bins - 2
+                bins: y.bins - 2,
             })
         }
 
