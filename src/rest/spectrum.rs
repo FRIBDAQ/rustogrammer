@@ -135,11 +135,18 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
 /// the first parameter is the x parameter, the second, the y.
 /// note that this can be ambiguous for gd and m2 which have multiple
 /// x and y parameters.
+/// *   xparameters - the array of x parameter names.
+/// *   yparameters - the array of y parameter names.
 /// *   axes -- an array of at least one axis definition.  Each element
 /// of the array is an object with the fields:
 ///     - low  - low limit of the axis.
 ///     - high - high limit of the axis.
 ///     - bins - the number of bins between [low, high)
+/// *  xaxis - If there's an X axis specification (I don't think there is
+/// for a summary spectrum), This contains that specification (see axes
+/// above for the fields)  If there is no X axis specification this
+/// field contains null.
+/// *   yaxis - same as xaxis but for the Y axis specification, if any.
 /// *   chantype -- the data type of each channel in the spectrum.
 /// in rustogramer this is hardcoded to _f64_
 /// *    gate if not _null_ thisi s the name of the conditions that
