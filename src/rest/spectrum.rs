@@ -50,7 +50,11 @@ pub struct SpectrumDescription {
     #[serde(rename = "type")]
     spectrum_type: String,
     parameters: Vec<String>,
+    xparameters: Vec<String>,
+    yparameters: Vec<String>,
     axes: Vec<Axis>,
+    xaxis: Option<Axis>,
+    yaxis: Option<Axis>,
     chantype: String,
     gate: Option<String>,
 }
@@ -71,8 +75,12 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
         let mut def = SpectrumDescription {
             name: d.name,
             spectrum_type: rg_sptype_to_spectcl(&d.type_name),
-            parameters: d.xparams,
-            axes: Vec::<Axis>::new(),
+            parameters: d.xparams.clone(),
+            xparameters: d.xparams,
+            yparameters: d.yparams.clone(),
+            axes: Vec::new(),
+            xaxis: None,
+            yaxis: None,
             chantype: String::from("f64"),
             gate: d.gate,
         };
@@ -83,6 +91,11 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
                 high: x.high,
                 bins: x.bins - 2, // Omit over/underflow
             });
+            def.xaxis= Some(Axis {
+                low: x.low,
+                high: x.high,
+                bins: x.bins -2
+            });
         }
         if let Some(y) = d.yaxis {
             def.axes.push(Axis {
@@ -90,6 +103,11 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
                 high: y.high,
                 bins: y.bins - 2, // Omit over/underflow.
             });
+            def.yaxis = Some(Axis {
+                low: y.low,
+                high: y.high,
+                bins: y.bins - 2
+            })
         }
 
         result.push(def);
@@ -117,11 +135,18 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
 /// the first parameter is the x parameter, the second, the y.
 /// note that this can be ambiguous for gd and m2 which have multiple
 /// x and y parameters.
+/// *   xparameters - the array of x parameter names.
+/// *   yparameters - the array of y parameter names.
 /// *   axes -- an array of at least one axis definition.  Each element
 /// of the array is an object with the fields:
 ///     - low  - low limit of the axis.
 ///     - high - high limit of the axis.
 ///     - bins - the number of bins between [low, high)
+/// *  xaxis - If there's an X axis specification (I don't think there is
+/// for a summary spectrum), This contains that specification (see axes
+/// above for the fields)  If there is no X axis specification this
+/// field contains null.
+/// *   yaxis - same as xaxis but for the Y axis specification, if any.
 /// *   chantype -- the data type of each channel in the spectrum.
 /// in rustogramer this is hardcoded to _f64_
 /// *    gate if not _null_ thisi s the name of the conditions that
