@@ -50,7 +50,11 @@ pub struct SpectrumDescription {
     #[serde(rename = "type")]
     spectrum_type: String,
     parameters: Vec<String>,
+    xparameters: Vec<String>,
+    yparameters: Vec<String>,
     axes: Vec<Axis>,
+    xaxis: Option<Axis>,
+    yaxis: Option<Axis>,
     chantype: String,
     gate: Option<String>,
 }
@@ -71,8 +75,12 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
         let mut def = SpectrumDescription {
             name: d.name,
             spectrum_type: rg_sptype_to_spectcl(&d.type_name),
-            parameters: d.xparams,
-            axes: Vec::<Axis>::new(),
+            parameters: d.xparams.clone(),
+            xparameters: d.xparams,
+            yparameters: d.yparams.clone(),
+            axes: Vec::new(),
+            xaxis: None,
+            yaxis: None,
             chantype: String::from("f64"),
             gate: d.gate,
         };
@@ -83,6 +91,11 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
                 high: x.high,
                 bins: x.bins - 2, // Omit over/underflow
             });
+            def.xaxis= Some(Axis {
+                low: x.low,
+                high: x.high,
+                bins: x.bins -2
+            });
         }
         if let Some(y) = d.yaxis {
             def.axes.push(Axis {
@@ -90,6 +103,11 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
                 high: y.high,
                 bins: y.bins - 2, // Omit over/underflow.
             });
+            def.yaxis = Some(Axis {
+                low: y.low,
+                high: y.high,
+                bins: y.bins - 2
+            })
         }
 
         result.push(def);
