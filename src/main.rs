@@ -5,6 +5,7 @@ mod parameters;
 mod processing;
 mod rest;
 mod ring_items;
+mod sharedmem;
 mod spectra;
 
 use rest::{
