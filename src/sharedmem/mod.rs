@@ -92,6 +92,7 @@ pub struct SharedMemory {
     bindings : [String; XAMINE_MAXSPEC],
     backing_store : tempfile::NamedTempFile,
     map : memmap::MmapMut,
+    spec_size: usize
 }
 
 impl SharedMemory {
@@ -157,7 +158,8 @@ impl SharedMemory {
         Ok(SharedMemory {
             bindings: Self::init_bindings(),
             backing_store: file,
-            map : map
+            map : map,
+            spec_size : specsize
         })
     }
 }
