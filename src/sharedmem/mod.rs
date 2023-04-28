@@ -236,6 +236,16 @@ impl SharedMemory {
         let header = self.map.as_mut_ptr() as *mut XamineSharedMemory;
         unsafe { header.as_mut().unwrap() }
     }
+    fn slot_as_pointer(&mut self, slot: usize) -> *mut u32 {
+        let header = self.get_header();
+        // this is why for 1ds we initialized ychans to 1 not zero.
+        let size = header.dsp_xy[slot].xchans * header.dsp_xy[slot].ychans;
+        let offset = header.dsp_offsets[slot];
+
+        // Make a *mut u32 pointer to the spectrum data:
+
+        unsafe { (self.spectrum_pointer() as *mut u32).offset(offset as isize) }
+    }
     /// Create a new Xamine shared memory region and initialize
     /// it so that there are no spectra in it.
     /// We use tmpfile::NamedTempFile so we can get a name that
@@ -432,6 +442,41 @@ impl SharedMemory {
         self.allocator
             .free_trusted(offset)
             .expect("BUG: Failed to free spectrum storage");
+    }
+    /// Clear the contents of a spectrum.
+    ///
+    pub fn clear_contents(&mut self, slot: usize) {
+        // figure out where and how much:
+
+        let header = self.get_header();
+
+        // this is why for 1ds we initialized ychans to 1 not zero.
+
+        let size = header.dsp_xy[slot].xchans * header.dsp_xy[slot].ychans;
+
+        // Make a *mut u32 pointer to the spectrum data:
+
+        let mut pspectrum = self.slot_as_pointer(slot);
+        for _ in 0..size {
+            unsafe {
+                *pspectrum = 0;
+                pspectrum = pspectrum.offset(1);
+            };
+        }
+    }
+    /// Given a reference to SpectrumContents and a spectrum slot,
+    /// Copies the channel values into the target spectrum.
+    /// note that no clear is done prior to the copy.  
+    /// That's something the caller needs to do if necessary.
+
+    pub fn set_contents(&mut self, slot: usize, contents: &spectrum_messages::SpectrumContents) {
+        let pspectrum = self.slot_as_pointer(slot);
+        for c in contents.iter() {
+            unsafe {
+                let p = pspectrum.offset(c.bin as isize);
+                *p = c.value as u32;
+            }
+        }
     }
 }
 
