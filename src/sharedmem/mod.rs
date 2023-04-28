@@ -529,32 +529,50 @@ impl SharedMemory {
         result = result + filepath;
         result
     }
-    /// Get information about the spectra that have been bound
-    /// to the shared memory region.
-    /// This is returned as a vector of doublets containing
-    /// slots of bound spectra and their names.
-    ///
-    pub fn get_bindings(&mut self) -> Vec<(usize, String)> {
-        let mut result = vec![];
+    /// Return the binding indices that are in use:
+    pub fn bound_indices(&mut self) -> Vec<usize> {
         let mut indices = vec![];
-        // Need to make the borrow checker happy.
-        {  // self mutable borrow.
+
+        {
             let header = self.get_header();
             for i in 0..XAMINE_MAXSPEC {
                 if header.dsp_types[i] != SpectrumTypes::undefined {
                     indices.push(i);
                 }
             }
-        } // ends.
-        for index in indices { // self.immutable borrow.
+        }
+        indices
+    }
+
+    /// Get information about the spectra that have been bound
+    /// to the shared memory region.
+    /// This is returned as a vector of doublets containing
+    /// slots of bound spectra and their names.
+    /// The return value is a tuple of usizes containing:
+    /// 
+    
+    ///
+    pub fn get_bindings(&mut self) -> Vec<(usize, String)> {
+        let mut result = vec![];
+        let indices = self.bound_indices();
+        for index in indices {
+            // self.immutable borrow.
             result.push((index, self.bindings[index].clone()));
         }
         result
     }
     /// Provide memory allocation statistics:
+    /// *   Total free space.
+    /// *   Size of largest free chunk.
+    /// *   Total used space.
+    /// *   Size of largest used chunk.
+    /// *   total indices bound.
+    /// *   total indices 
+    pub fn statistics(&mut self) -> (usize, usize, usize, usize, usize, usize) {
+        let memstats = self.allocator.statistics();
+        let bindinginfo = self.bound_indices();
 
-    pub fn statistics(&self) -> (usize, usize, usize, usize) {
-        self.allocator.statistics()
+        (memstats.0, memstats.1, memstats.2, memstats.3, bindinginfo.len(), XAMINE_MAXSPEC)
     }
 }
 // Tests for the allocator:
