@@ -28,7 +28,7 @@ const TITLE_LENGTH: usize = 128;
 
 #[repr(C)]
 #[derive(PartialEq, Copy, Clone)]
-enum SpectrumTypes {
+pub enum SpectrumTypes {
     undefined = 0,
     twodlong = 5,
     onedlong = 4,
@@ -76,7 +76,7 @@ struct SpectrumMap {
 
 #[repr(C)]
 struct XamineSharedMemory {
-    dsp_xy: SpectrumDimension,
+    dsp_xy: [SpectrumDimension; XAMINE_MAXSPEC],
     dsp_titles: [SpectrumTitle; XAMINE_MAXSPEC],
     dsp_info: [SpectrumTitle; XAMINE_MAXSPEC],
     dsp_offsets: [u32; XAMINE_MAXSPEC],
@@ -104,7 +104,6 @@ impl StorageAllocator {
     // 2. build a new free extents vector combining adjacent allocations.
     //
     fn defragment(&mut self) {
-    
         // Sort the
         self.free_extents.sort_by_key(|e| e.0); // Sort by extent base:
         let mut result = vec![self.free_extents[0]];
@@ -178,6 +177,21 @@ impl StorageAllocator {
         }
         Err(String::from("Attempted free of unallocated extent"))
     }
+    /// Trusting free means that we trust the caller to understand
+    /// the size of the extent to be freed.
+    ///
+    fn free_trusted(&mut self, offset: usize) -> Result<(), String> {
+        for extent in self.allocated_extents.iter() {
+            if extent.0 == offset {
+                self.free(extent.0, extent.1);
+                return Ok(());
+            }
+        }
+        Err(format!(
+            "Failed to find an allocation at offset: {}",
+            offset
+        ))
+    }
 }
 
 ///  This struct, and its implementation, define an Xamine
@@ -188,7 +202,7 @@ pub struct SharedMemory {
     bindings: [String; XAMINE_MAXSPEC],
     backing_store: tempfile::NamedTempFile,
     map: memmap::MmapMut,
-    spec_size: usize,
+    allocator: StorageAllocator,
 }
 
 impl SharedMemory {
@@ -215,6 +229,10 @@ impl SharedMemory {
                 .as_mut_ptr()
                 .offset(mem::size_of::<XamineSharedMemory>() as isize)
         }
+    }
+    fn get_header(&mut self) -> &mut XamineSharedMemory {
+        let header = self.map.as_mut_ptr() as *mut XamineSharedMemory;
+        unsafe { header.as_mut().unwrap() }
     }
     /// Create a new Xamine shared memory region and initialize
     /// it so that there are no spectra in it.
@@ -273,7 +291,7 @@ impl SharedMemory {
             bindings: Self::init_bindings(),
             backing_store: file,
             map: map,
-            spec_size: specsize,
+            allocator: StorageAllocator::new(specsize),
         })
     }
     /// Get a free slot number.
@@ -287,6 +305,116 @@ impl SharedMemory {
         }
         return None; // No free slots.
     }
+    /// Allocate a free spectrum pointer that
+    /// points to sufficient storage for a spectrum _size_ bytes long.
+    ///
+    /// On success returns doublet containing the byte offset in the
+    /// spectrum storage area and the pointer to that stroage.
+    pub fn get_free_spectrum_pointer(&mut self, size: usize) -> Option<(usize, *mut u8)> {
+        // See if we have any that fit:
+        if let Some(offset) = self.allocator.allocate(size) {
+            Some((offset, unsafe {
+                self.spectrum_pointer().offset(offset as isize)
+            }))
+        } else {
+            None
+        }
+    }
+    /// Make a binding for a specific named spectrum.
+    ///
+    /// * name - name of the spectrum.
+    /// * xaxis - (low, high, bins)
+    /// * yaxis - (low, high, bins).
+    ///
+    /// Notes:
+    ///  1.   We only create onedlong and twodlong spectra and its the
+    /// presence of both axes that determine that a spectrum is 2d.
+    //// 2.   The axis specifications are used to fill in the mapping structs.
+    ///  3.    In addition to allocating spectrum storage we
+    /// add the spectrum to the bindings array.
+    /// The slot is automatically offset by one
+    ///
+    /// On success, we return a double of the slot number and a pointer
+    /// to where the spectrum data should be mirrored.
+    /// It's up to the caller to arrange
+    /// for the data to be transferred from the local histogram
+    /// to the spectrum.  The caller should not assume the
+    /// spectrum storage is initialized.
+    pub fn bind_spectrum(
+        &mut self,
+        name: &str,
+        xaxis: (f64, f64, u32),
+        yaxis: Option<(f64, f64, u32)>,
+    ) -> Result<(usize, *mut u8), String> {
+        // If the name is too long we need to truncate it to
+        // TITLE_LENGTH -1 so there's a null termination
+
+        let mut name = String::from(name);
+        name.truncate(TITLE_LENGTH - 1);
+        name.push('\0'); // Ensure it's all null terminated.
+
+        // Let's try to get a slot:
+
+        let slot = self.get_free_slot();
+        if slot.is_none() {
+            return Err(String::from("All spectrum slots are in use"));
+        }
+        let slot = slot.unwrap();
+
+        // See if we have sufficent spectrum storage:
+        // We allow for the hidden under/overflow channels here too:
+
+        let mut required = xaxis.2 + 2;
+        let mut spectrum_type = SpectrumTypes::onedlong;
+        if let Some(y) = yaxis {
+            required = required * (y.2 + 2);
+            spectrum_type = SpectrumTypes::twodlong;
+        }
+        let storage = self.get_free_spectrum_pointer(required as usize);
+        if storage.is_none() {
+            return Err(format!(
+                "Unable to allocate spectrum storage for {} bytes",
+                required
+            ));
+        }
+        let (offset, ptr) = storage.unwrap();
+
+        //  Fill in the appropriate header slot.
+
+        let mut header = self.get_header();
+        header.dsp_xy[slot].xchans = xaxis.2 + 2;
+        if let Some(y) = yaxis {
+            header.dsp_xy[slot].ychans = y.2 + 2;
+        }
+        for (i, c) in name.chars().enumerate() {
+            header.dsp_titles[slot][i] = c;
+            header.dsp_info[slot][i] = c;
+        }
+        header.dsp_offsets[slot] = (offset/mem::size_of::<u32>()) as u32;
+        header.dsp_types[slot] = spectrum_type;
+        header.dsp_map[slot].xmin = xaxis.0 as f32;
+        header.dsp_map[slot].xmax = xaxis.1 as f32;
+        if let Some(y) = yaxis {
+            header.dsp_map[slot].ymin = y.0 as f32;
+            header.dsp_map[slot].ymax = y.1 as f32;
+        } else {
+            header.dsp_map[slot].ymin = 0.0;
+            header.dsp_map[slot].ymax = 0.0;
+        }
+        //Empty  axis titles:
+
+        header.dsp_map[slot].xlabel[0] = '\0';
+        header.dsp_map[slot].ylabel[0] = '\0';
+        header.dsp_statistics[slot].overflows = [0,0];
+        header.dsp_statistics[slot].underflows = [0, 0];
+
+
+        // Make the binding
+
+        self.bindings[slot] = String::from(name);
+
+        Ok((slot, ptr))
+    }
 }
 
 //// Tests for the allocator:
@@ -297,7 +425,7 @@ mod allocator_tests {
     #[test]
     fn alloc_1() {
         let mut arena = StorageAllocator::new(100);
-        let result = arena.allocate(10).expect("Allocatio of 10 failed"); // should work.
+        let result = arena.allocate(10).expect("Allocation of 10 failed"); // should work.
         assert_eq!(0, result);
     }
     #[test]
@@ -321,6 +449,15 @@ mod allocator_tests {
                 .expect(&format!("Allocation {} failed", i));
         }
         assert_eq!(10, arena.allocated_extents.len());
+    }
+    #[test]
+    fn alloc_4() {
+        // initial over big allocation fails:
+        // but exactly 100 works:
+        let mut arena = StorageAllocator::new(100);
+        let result1 = arena.allocate(101);
+        assert!(result1.is_none());
+        arena.allocate(100).expect("Exact size allocation failed");
     }
     #[test]
     fn free_1() {
