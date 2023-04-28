@@ -16,6 +16,8 @@ use tempfile;
 
 use crate::messaging::spectrum_messages;
 
+pub mod binder;
+
 // These constants are used to size the fixed sized arrays in the
 // shared memory header:
 
@@ -193,6 +195,41 @@ impl StorageAllocator {
             "Failed to find an allocation at offset: {}",
             offset
         ))
+    }
+    /// Return the usage statistics.  These are four usize numbers
+    /// returned in a tuple in this order:
+    ///
+    /// *   Total free space.
+    /// *   Size of largest free chunk.
+    /// *   Total used space.
+    /// *   Size of largest used chunk.
+    ///
+    pub fn statistics(&self) -> (usize, usize, usize, usize) {
+        let mut total_free = 0;
+        let mut biggest_free = 0;
+        let mut total_alloc = 0;
+        let mut biggest_alloc = 0;
+
+        // get the free info:
+
+        for extent in self.free_extents.iter() {
+            let size = extent.1;
+            total_free += size;
+            if size > biggest_free {
+                biggest_free = size;
+            }
+        }
+        // Get used info:
+
+        for extent in self.allocated_extents.iter() {
+            let size = extent.1;
+            total_alloc += size;
+            if size > biggest_alloc {
+                biggest_alloc = size;
+            }
+        }
+
+        (total_free, biggest_free, total_alloc, biggest_alloc)
     }
 }
 
@@ -483,12 +520,43 @@ impl SharedMemory {
     ///
     pub fn get_shm_name(&self) -> String {
         let mut result = String::from("file:");
-        let filepath = self.backing_store.path().as_os_str().to_str().expect("Failed to get shared memory path");
+        let filepath = self
+            .backing_store
+            .path()
+            .as_os_str()
+            .to_str()
+            .expect("Failed to get shared memory path");
         result = result + filepath;
         result
     }
-}
+    /// Get information about the spectra that have been bound
+    /// to the shared memory region.
+    /// This is returned as a vector of doublets containing
+    /// slots of bound spectra and their names.
+    ///
+    pub fn get_bindings(&mut self) -> Vec<(usize, String)> {
+        let mut result = vec![];
+        let mut indices = vec![];
+        // Need to make the borrow checker happy.
+        {  // self mutable borrow.
+            let header = self.get_header();
+            for i in 0..XAMINE_MAXSPEC {
+                if header.dsp_types[i] != SpectrumTypes::undefined {
+                    indices.push(i);
+                }
+            }
+        } // ends.
+        for index in indices { // self.immutable borrow.
+            result.push((index, self.bindings[index].clone()));
+        }
+        result
+    }
+    /// Provide memory allocation statistics:
 
+    pub fn statistics(&self) -> (usize, usize, usize, usize) {
+        self.allocator.statistics()
+    }
+}
 // Tests for the allocator:
 
 #[cfg(test)]
