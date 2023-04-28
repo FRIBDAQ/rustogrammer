@@ -478,9 +478,18 @@ impl SharedMemory {
             }
         }
     }
+    /// return the name of the shared memory segment.
+    /// This will be "file:" + backing_store's filename.
+    ///
+    pub fn get_shm_name(&self) -> String {
+        let mut result = String::from("file:");
+        let filepath = self.backing_store.path().as_os_str().to_str().expect("Failed to get shared memory path");
+        result = result + filepath;
+        result
+    }
 }
 
-//// Tests for the allocator:
+// Tests for the allocator:
 
 #[cfg(test)]
 mod allocator_tests {
