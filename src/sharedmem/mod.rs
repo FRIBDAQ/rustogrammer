@@ -14,6 +14,8 @@ use std::fs::File;
 use std::mem;
 use tempfile;
 
+use crate::messaging::spectrum_messages;
+
 // These constants are used to size the fixed sized arrays in the
 // shared memory header:
 
@@ -385,6 +387,8 @@ impl SharedMemory {
         header.dsp_xy[slot].xchans = xaxis.2 + 2;
         if let Some(y) = yaxis {
             header.dsp_xy[slot].ychans = y.2 + 2;
+        } else {
+            header.dsp_xy[slot].ychans = 1;
         }
         for (i, c) in name.chars().enumerate() {
             header.dsp_titles[slot][i] = c;
