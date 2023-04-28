@@ -381,7 +381,7 @@ impl SharedMemory {
 
         //  Fill in the appropriate header slot.
 
-        let mut header = self.get_header();
+        let header = self.get_header();
         header.dsp_xy[slot].xchans = xaxis.2 + 2;
         if let Some(y) = yaxis {
             header.dsp_xy[slot].ychans = y.2 + 2;
@@ -390,7 +390,7 @@ impl SharedMemory {
             header.dsp_titles[slot][i] = c;
             header.dsp_info[slot][i] = c;
         }
-        header.dsp_offsets[slot] = (offset/mem::size_of::<u32>()) as u32;
+        header.dsp_offsets[slot] = (offset / mem::size_of::<u32>()) as u32;
         header.dsp_types[slot] = spectrum_type;
         header.dsp_map[slot].xmin = xaxis.0 as f32;
         header.dsp_map[slot].xmax = xaxis.1 as f32;
@@ -405,15 +405,29 @@ impl SharedMemory {
 
         header.dsp_map[slot].xlabel[0] = '\0';
         header.dsp_map[slot].ylabel[0] = '\0';
-        header.dsp_statistics[slot].overflows = [0,0];
+        header.dsp_statistics[slot].overflows = [0, 0];
         header.dsp_statistics[slot].underflows = [0, 0];
-
 
         // Make the binding
 
         self.bindings[slot] = String::from(name);
 
         Ok((slot, ptr))
+    }
+    /// unbind a spectrum from shared memory:
+    /// Set the binding string empty.
+    /// set the header spectrum type id to undefined.
+    /// Release the storage from our allocator.
+    ///
+    pub fn unbind(&mut self, slot: usize) {
+        self.bindings[slot] = String::new();
+        let header = self.get_header();
+        header.dsp_types[slot] = SpectrumTypes::undefined;
+
+        let offset = (header.dsp_offsets[slot] as usize) * mem::size_of::<u32>();
+        self.allocator
+            .free_trusted(offset)
+            .expect("BUG: Failed to free spectrum storage");
     }
 }
 
