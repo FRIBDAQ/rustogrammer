@@ -115,8 +115,8 @@ impl StorageAllocator {
             // item is contiguous with the last extent, just
             // modify the extent
 
-            if item.0 == (result[result.len() - 1].0 + result[result.len()].1) {
-                let index = result.len();
+            let index = result.len() - 1;
+            if item.0 == (result[index].0 + result[index].1) {
                 result[index].1 += item.1
             } else {
                 // make a new extent not contiguous with the last one.
@@ -299,5 +299,42 @@ mod allocator_tests {
         let mut arena = StorageAllocator::new(100);
         let result = arena.allocate(10).expect("Allocatio of 10 failed"); // should work.
         assert_eq!(0, result);
+    }
+    #[test]
+    fn alloc_2() {
+        let mut arena = StorageAllocator::new(100);
+        let result1 = arena.allocate(50).expect("First alloc failed");
+        let result2 = arena.allocate(50).expect("second alloc failed");
+        let result3 = arena.allocate(1);
+        assert!(result3.is_none());
+
+        assert_eq!(0, result1);
+        assert_eq!(50, result2);
+    }
+    #[test]
+    fn alloc_3() {
+        // Test that each allocation winds up in the free list:
+        let mut arena = StorageAllocator::new(100);
+        for i in 0..10 {
+            let result = arena
+                .allocate(2)
+                .expect(&format!("Allocation {} failed", i));
+        }
+        assert_eq!(10, arena.allocated_extents.len());
+    }
+    #[test]
+    fn free_1() {
+        let mut arena = StorageAllocator::new(100);
+        let extent = (arena.allocate(10).expect("failed allocation"), 10);
+
+        //If I free this there should be:
+        // 1. No allocated extents.
+        // 2. One free exent after garbage collection:
+
+        arena
+            .free(extent.0, extent.1)
+            .expect("Failed to free allocation");
+        assert_eq!(0, arena.allocated_extents.len());
+        assert_eq!(1, arena.free_extents.len());
     }
 }
