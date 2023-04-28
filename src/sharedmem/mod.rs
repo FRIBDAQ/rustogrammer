@@ -104,6 +104,7 @@ impl StorageAllocator {
     // 2. build a new free extents vector combining adjacent allocations.
     //
     fn defragment(&mut self) {
+    
         // Sort the
         self.free_extents.sort_by_key(|e| e.0); // Sort by extent base:
         let mut result = vec![self.free_extents[0]];
@@ -114,7 +115,6 @@ impl StorageAllocator {
         for item in self.free_extents.iter().skip(1) {
             // item is contiguous with the last extent, just
             // modify the extent
-
             let index = result.len() - 1;
             if item.0 == (result[index].0 + result[index].1) {
                 result[index].1 += item.1
@@ -336,5 +336,73 @@ mod allocator_tests {
             .expect("Failed to free allocation");
         assert_eq!(0, arena.allocated_extents.len());
         assert_eq!(1, arena.free_extents.len());
+        assert_eq!(100, arena.free_extents[0].1);
+        assert_eq!(0, arena.free_extents[0].0);
+    }
+    #[test]
+    fn free_2() {
+        // Defragmentation not possible:
+
+        let mut arena = StorageAllocator::new(100);
+        let mut extents = vec![];
+        for i in 0..10 {
+            extents.push((
+                arena
+                    .allocate(2)
+                    .expect(&format!("Allocation {} failed", i)),
+                2,
+            ));
+        }
+        // Free only every other one of these:
+
+        for (i, even) in extents
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| index % 2 == 0)
+        {
+            arena
+                .free(even.0, even.1)
+                .expect(&format!("failed to delete allocation {}", i));
+        }
+
+        // Last one is 8 which is not contiguous with the remaining
+        // free space so should be 5 allocations and 6 free areas (I think).
+
+        assert_eq!(6, arena.free_extents.len());
+        assert_eq!(5, arena.allocated_extents.len());
+    }
+    #[test]
+    fn free_3() {
+        let mut arena = StorageAllocator::new(100);
+        let mut extents = vec![];
+        for i in 0..10 {
+            extents.push((
+                arena
+                    .allocate(2)
+                    .expect(&format!("Allocation {} failed", i)),
+                2,
+            ));
+        }
+        // Free only every other one of these:
+
+        for (i, even) in extents
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| index % 2 == 0)
+        {
+            arena
+                .free(even.0, even.1)
+                .expect(&format!("failed to delete allocation {}", i));
+        }
+
+        // Last one is 8 which is not contiguous with the remaining
+        // free space so should be 5 allocations and 6 free areas (I think).
+        // But, if we free #5, that's contiguous with both #4,and #6
+        // so the allocated extents should number 5 after that.
+
+        arena
+            .free(extents[5].0, extents[5].1)
+            .expect("Final free failed");
+        assert_eq!(5, arena.free_extents.len());
     }
 }
