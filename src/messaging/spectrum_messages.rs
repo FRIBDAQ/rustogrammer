@@ -38,6 +38,7 @@ pub struct Channel {
     pub chan_type: ChannelType,
     pub x: f64,
     pub y: f64,
+    pub bin: usize,
     pub value: f64,
 }
 pub type SpectrumContents = Vec<Channel>;
@@ -504,6 +505,7 @@ impl SpectrumProcessor {
                                     value: v,
                                     x: 0.0,
                                     y: 0.0,
+                                    bin: c.index,
                                 });
                             }
                             BinInterval::Overflow { start: _start } => {
@@ -512,6 +514,7 @@ impl SpectrumProcessor {
                                     value: v,
                                     x: 0.0,
                                     y: 0.0,
+                                    bin: c.index,
                                 });
                             }
                             BinInterval::Bin { start, end: _end } => {
@@ -521,6 +524,7 @@ impl SpectrumProcessor {
                                         x: start,
                                         y: 0.0,
                                         value: v,
+                                        bin: c.index,
                                     });
                                 };
                             }
@@ -569,6 +573,7 @@ impl SpectrumProcessor {
                             x: x,
                             y: y,
                             value: v,
+                            bin: c.index
                         });
                     }
                 }
