@@ -573,7 +573,7 @@ impl SpectrumProcessor {
                             x: x,
                             y: y,
                             value: v,
-                            bin: c.index
+                            bin: c.index,
                         });
                     }
                 }

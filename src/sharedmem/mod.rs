@@ -10,7 +10,7 @@
 //!
 extern crate dirs;
 use memmap;
-use std::fs::File;
+//use std::fs::File;
 use std::mem;
 use tempfile;
 
@@ -549,8 +549,8 @@ impl SharedMemory {
     /// This is returned as a vector of doublets containing
     /// slots of bound spectra and their names.
     /// The return value is a tuple of usizes containing:
-    /// 
-    
+    ///
+
     ///
     pub fn get_bindings(&mut self) -> Vec<(usize, String)> {
         let mut result = vec![];
@@ -567,12 +567,19 @@ impl SharedMemory {
     /// *   Total used space.
     /// *   Size of largest used chunk.
     /// *   total indices bound.
-    /// *   total indices 
+    /// *   total indices
     pub fn statistics(&mut self) -> (usize, usize, usize, usize, usize, usize) {
         let memstats = self.allocator.statistics();
         let bindinginfo = self.bound_indices();
 
-        (memstats.0, memstats.1, memstats.2, memstats.3, bindinginfo.len(), XAMINE_MAXSPEC)
+        (
+            memstats.0,
+            memstats.1,
+            memstats.2,
+            memstats.3,
+            bindinginfo.len(),
+            XAMINE_MAXSPEC,
+        )
     }
 }
 // Tests for the allocator:
