@@ -10,10 +10,11 @@
 //!  See BindingThread for more information about how bound spectra
 //!  work.
 
-use crate::messaging::spectrum_messages;
 use crate::messaging;
+use crate::messaging::spectrum_messages;
 use glob::Pattern;
 use std::sync::mpsc;
+use std::time;
 
 // This enum represents the set of operations that can be
 // requested of this thread:
@@ -29,6 +30,7 @@ enum RequestTypes {
     List(String),
     Clear(String),
     SetUpdate(u64),
+    Exit,
 }
 struct Request {
     reply_chan: mpsc::Sender<Reply>,
@@ -98,6 +100,30 @@ impl BindingThread {
             request_chan: req,
             spectrum_api: spectrum_messages::SpectrumMessageClient::new(api_chan),
             timeout: DEFAULT_TIMEOUT,
+        }
+    }
+    /// Runs the thread.  See the struct comments for a reasonably
+    /// complete description of how the thread works.
+    ///
+    pub fn run(&mut self) {
+        loop {
+            match self
+                .request_chan
+                .recv_timeout(time::Duration::from_secs(self.timeout))
+            {
+                Ok(request) => {
+                    // Got a new request, process it.
+                }
+                Err(tmo) => {
+                    if let mpsc::RecvTimeoutError::Timeout = tmo {
+                        // Timeout so update contents.
+                    } else {
+                        // Sender disconnected the channel.
+                        println!("Binding thread sender disconnected -- exiting");
+                        break;
+                    }
+                }
+            }
         }
     }
 }
