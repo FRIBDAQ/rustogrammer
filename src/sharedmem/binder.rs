@@ -16,6 +16,16 @@ use glob::Pattern;
 use std::sync::mpsc;
 use std::time;
 
+/// Memory statistics have this format:
+///
+pub struct MemoryStatistics {
+    free_bytes: usize,
+    largest_free_bytes: usize,
+    used_bytes: usize,
+    largest_used_bytes: usize,
+    bound_indices: usize,
+    total_indices: usize,
+}
 // This enum represents the set of operations that can be
 // requested of this thread:
 
@@ -30,6 +40,7 @@ enum RequestType {
     List(String),
     Clear(String),
     SetUpdate(u64),
+    Statistics,
     Exit,
 }
 struct Request {
@@ -49,9 +60,13 @@ pub type GenericResult = Result<(), String>;
 ///
 pub type ListResult = Result<Vec<(String, u32)>, String>;
 
+/// What we get back from statisitcs requests:
+
+pub type StatisticsResult = Result<MemoryStatistics, String>;
 enum Reply {
     Generic(GenericResult),
     List(ListResult),
+    Statistics(StatisticsResult),
 }
 
 /// The default number of seconds to allow the receive on
@@ -90,6 +105,51 @@ struct BindingThread {
 }
 
 impl BindingThread {
+    //Return Some(n) if there's a matching binding slot:
+    // where n is the binding number:
+
+    fn find_binding(&mut self, name: &str) -> Option<usize> {
+        let bindings = self.shm.get_bindings();
+        let is_found = bindings
+            .iter()
+            .find(|x| x.1 == String::from(name));
+        if let Some(x) = is_found {
+            Some(x.0)
+        } else {
+            None
+        }
+    }
+    // Unbind a spectrum from shared memory:
+
+    fn unbind(&mut self, name: &str) -> Result<(), String> {
+        if let Some(slot) = self.find_binding(name) {
+            self.shm.unbind(slot);
+            Ok(())
+        } else {
+            Err(String::from("Spectrum is not bound"))
+        }
+    }
+
+    // Get spectrum information given its name.  This returns a result
+    // Ok means that the request worke and there was exactly one reponse
+    // else ther's an error string.
+    fn spectrum_info(
+        &mut self,
+        name: &str,
+    ) -> Result<spectrum_messages::SpectrumProperties, String> {
+        match self.spectrum_api.list_spectra(name) {
+            spectrum_messages::SpectrumServerListingResult::Ok(spectra) => {
+                if spectra.len() == 0 {
+                    Err(format!("No such spectrum {}", name))
+                } else if spectra.len() > 1 {
+                    Err(format!("Ambiguous spectrum name {}", name))
+                } else {
+                    Ok(spectra[0].clone())
+                }
+            }
+            spectrum_messages::SpectrumServerListingResult::Err(s) => Err(s),
+        }
+    }
     // Given a spectrum specification, return
     // (xlow,xhigh, ylow, yhigh).  If an axis does not exist, then 0,0
     // is placed instead.
@@ -120,22 +180,18 @@ impl BindingThread {
         // Get the contents.   If that fails, we assume the spectrum
         // was deleted and get rid of the binding:
 
-        if let Ok(info) = self.spectrum_api.list_spectra(&name) {
-            if info.len() != 1 {
-                self.shm.unbind(slot); // probably no such spectrum.
+        if let Ok(info) = self.spectrum_info(&name) {
+            let axis_spec = Self::get_axes(&info);
+            if let Ok(contents) = self.spectrum_api.get_contents(
+                &name,
+                axis_spec.0,
+                axis_spec.1,
+                axis_spec.2,
+                axis_spec.3,
+            ) {
+                self.shm.set_contents(slot, &contents);
             } else {
-                let axis_spec = Self::get_axes(&info[0]);
-                if let Ok(contents) = self.spectrum_api.get_contents(
-                    &name,
-                    axis_spec.0,
-                    axis_spec.1,
-                    axis_spec.2,
-                    axis_spec.3,
-                ) {
-                    self.shm.set_contents(slot, &contents);
-                } else {
-                    self.shm.unbind(slot);
-                }
+                self.shm.unbind(slot);
             }
         } else {
             self.shm.unbind(slot);
@@ -152,22 +208,66 @@ impl BindingThread {
     /// Process all requests and reply to them.
     /// If we have an Exit request, we're going to return false.
     fn process_request(&mut self, req: Request) -> bool {
-        let result = match req.request {
-            RequestType::Unbind(name) => true,
-            RequestType::UnbindAll => true,
-            RequestType::Bind(name) => true,
-            RequestType::List(pattern) => true,
-            RequestType::Clear(pattern) => true,
-            RequestType::SetUpdate(secs) => {
-                self.timeout = secs;
+        match req.request {
+            RequestType::Unbind(name) => {
+                if let Err(s) = self.unbind(&name) {
+                    req.reply_chan
+                        .send(Reply::Generic(GenericResult::Err(format!(
+                            "Spectrum {} could not be unbound: {}",
+                            name, s
+                        ))))
+                        .expect("Failed to send error response from binding thread to client");
+                } else {
+                    req.reply_chan
+                        .send(Reply::Generic(GenericResult::Ok(())))
+                        .expect("Failed to send reply to client from binding thread");
+                }
                 true
             }
-            RequestType::Exit => false,
-        };
-        req.reply_chan
-            .send(Reply::Generic(GenericResult::Ok(())))
-            .expect("Failed to send reply to client from binding thread");
-        result
+            RequestType::UnbindAll => {
+                req.reply_chan
+                    .send(Reply::Generic(GenericResult::Ok(())))
+                    .expect("Failed to send reply to client from binding thread");
+                true
+            }
+            RequestType::Bind(name) => {
+                req.reply_chan
+                    .send(Reply::Generic(GenericResult::Ok(())))
+                    .expect("Failed to send reply to client from binding thread");
+                true
+            }
+            RequestType::List(pattern) => {
+                req.reply_chan
+                    .send(Reply::Generic(GenericResult::Ok(())))
+                    .expect("Failed to send reply to client from binding thread");
+                true
+            }
+            RequestType::Clear(pattern) => {
+                req.reply_chan
+                    .send(Reply::Generic(GenericResult::Ok(())))
+                    .expect("Failed to send reply to client from binding thread");
+                true
+            }
+            RequestType::SetUpdate(secs) => {
+                self.timeout = secs;
+                req.reply_chan
+                    .send(Reply::Generic(GenericResult::Ok(())))
+                    .expect("Failed to send reply to client from binding thread");
+                true
+            }
+            RequestType::Statistics => {
+                req.reply_chan
+                    .send(Reply::Generic(GenericResult::Ok(())))
+                    .expect("Failed to send reply to client from binding thread");
+                true
+            }
+            RequestType::Exit => {
+                req.reply_chan
+                    .send(Reply::Generic(GenericResult::Ok(())))
+                    .expect("Failed to send reply to client from binding thread");
+                false
+            }
+        }
     }
     /// Create the binding state.  Note that in general,
     /// this is done within the binding thread which then
@@ -183,7 +283,8 @@ impl BindingThread {
             request_chan: req,
             spectrum_api: spectrum_messages::SpectrumMessageClient::new(api_chan),
             timeout: DEFAULT_TIMEOUT,
-            shm: super::SharedMemory::new(spec_size).expect("Failed to create shared memory region!!"),
+            shm: super::SharedMemory::new(spec_size)
+                .expect("Failed to create shared memory region!!"),
         }
     }
     /// Runs the thread.  See the struct comments for a reasonably
