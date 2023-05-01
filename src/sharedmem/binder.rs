@@ -110,9 +110,7 @@ impl BindingThread {
 
     fn find_binding(&mut self, name: &str) -> Option<usize> {
         let bindings = self.shm.get_bindings();
-        let is_found = bindings
-            .iter()
-            .find(|x| x.1 == String::from(name));
+        let is_found = bindings.iter().find(|x| x.1 == String::from(name));
         if let Some(x) = is_found {
             Some(x.0)
         } else {
@@ -129,7 +127,28 @@ impl BindingThread {
             Err(String::from("Spectrum is not bound"))
         }
     }
+    // Bind a spectrum to shared memory and fill it in:
 
+    fn bind(&mut self, name: &str) -> Result<(), String> {
+        if let Some(n) = self.find_binding(name) {
+            return Err(format!("{} is already bound", name));
+        }
+        if let Ok(info) = self.spectrum_info(name) {
+            match self
+                .shm
+                .bind_spectrum(name, Self::axis(info.xaxis), Some(Self::axis(info.yaxis)))
+            {
+                Ok((slot, _)) => {
+                    self.shm.clear_contents(slot);
+                    self.update_spectrum((slot, String::from(name)));
+                    Ok(())
+                }
+                Err(s) => Err(s),
+            }
+        } else {
+            Err(format!("Spectrum {} might not exist", name))
+        }
+    }
     // Get spectrum information given its name.  This returns a result
     // Ok means that the request worke and there was exactly one reponse
     // else ther's an error string.
@@ -148,6 +167,15 @@ impl BindingThread {
                 }
             }
             spectrum_messages::SpectrumServerListingResult::Err(s) => Err(s),
+        }
+    }
+    // Given a Option<AxisSpecification returns a triplet of low, high, size
+    // Note that None gives (0.0, 1.0, 1)
+    fn axis(a: Option<spectrum_messages::AxisSpecification>) -> (f64, f64, u32) {
+        if let Some(ax) = a {
+            (ax.low, ax.high, ax.bins)
+        } else {
+            (0.0, 1.0, 1)
         }
     }
     // Given a spectrum specification, return
@@ -225,15 +253,28 @@ impl BindingThread {
                 true
             }
             RequestType::UnbindAll => {
+                for b in self.shm.get_bindings() {
+                    // Too simple to need an fn.
+                    self.shm.unbind(b.0);
+                }
                 req.reply_chan
                     .send(Reply::Generic(GenericResult::Ok(())))
                     .expect("Failed to send reply to client from binding thread");
                 true
             }
             RequestType::Bind(name) => {
-                req.reply_chan
-                    .send(Reply::Generic(GenericResult::Ok(())))
-                    .expect("Failed to send reply to client from binding thread");
+                if let Err(s) = self.bind(&name) {
+                    req.reply_chan
+                        .send(Reply::Generic(GenericResult::Err(format!(
+                            "Could not bind spectrum {}; {}",
+                            name, s
+                        ))))
+                        .expect("Failed to send error result from binding thread to client");
+                } else {
+                    req.reply_chan
+                        .send(Reply::Generic(GenericResult::Ok(())))
+                        .expect("Failed to send reply to client from binding thread");
+                }
                 true
             }
             RequestType::List(pattern) => {
