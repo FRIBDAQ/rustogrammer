@@ -58,7 +58,7 @@ pub type GenericResult = Result<(), String>;
 ///  Ok Vector contains a doublet that has spectrum names
 /// and their corresponding binding numbers.
 ///
-pub type ListResult = Result<Vec<(String, u32)>, String>;
+pub type ListResult = Result<Vec<(usize, String)>, String>;
 
 /// What we get back from statisitcs requests:
 
@@ -225,6 +225,23 @@ impl BindingThread {
             self.shm.unbind(slot);
         }
     }
+    /// Get only the bindings that match a pattern.
+
+    fn get_bindings(&mut self, pattern: &str) -> ListResult {
+        let p = Pattern::new(pattern);
+        if let Err(reason) = p {
+            Err(format!("Bad glob pattern {} :{}", pattern, reason.msg))
+        } else {
+            let p = p.unwrap();
+            let mut listing = vec![];
+            for b in self.shm.get_bindings() {
+                if p.matches(&b.1) {
+                    listing.push((b.0, b.1.clone()));
+                }
+            }
+            Ok(listing)
+        }
+    }
 
     /// Update the contents of all spectra bound to shared memory:
 
@@ -279,8 +296,8 @@ impl BindingThread {
             }
             RequestType::List(pattern) => {
                 req.reply_chan
-                    .send(Reply::Generic(GenericResult::Ok(())))
-                    .expect("Failed to send reply to client from binding thread");
+                    .send(Reply::List(self.get_bindings(&pattern)))
+                    .expect("Failed to send bindings list to client");
                 true
             }
             RequestType::Clear(pattern) => {
