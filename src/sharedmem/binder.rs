@@ -23,7 +23,7 @@ use std::time;
 /// The enum is private because it is instantiated by the
 /// pub elements of the API.
 ///
-enum RequestTypes {
+enum RequestType {
     Unbind(String),
     UnbindAll,
     Bind(String),
@@ -34,7 +34,7 @@ enum RequestTypes {
 }
 struct Request {
     reply_chan: mpsc::Sender<Reply>,
-    request: RequestTypes,
+    request: RequestType,
 }
 
 // Thread repies are just Result objects that are
@@ -80,13 +80,95 @@ const DEFAULT_TIMEOUT: u64 = 2;
 /// REST interface).
 ///  * spectrum_api -  The Spectrum messaging API.
 ///  * request_chan - The channel on which requests will be sent.
+///  * shm - the Xamine compatible shared memory segment.
+///
 struct BindingThread {
     request_chan: mpsc::Receiver<Request>,
     spectrum_api: spectrum_messages::SpectrumMessageClient,
     timeout: u64,
+    shm: super::SharedMemory,
 }
 
 impl BindingThread {
+    // Given a spectrum specification, return
+    // (xlow,xhigh, ylow, yhigh).  If an axis does not exist, then 0,0
+    // is placed instead.
+
+    fn get_axes(info: &spectrum_messages::SpectrumProperties) -> (f64, f64, f64, f64) {
+        let mut result = (0.0, 0.0, 0.0, 0.0);
+        if let Some(xaxis) = info.xaxis {
+            result.0 = xaxis.low;
+            result.1 = xaxis.high;
+        }
+        if let Some(yaxis) = info.yaxis {
+            result.2 = yaxis.low;
+            result.3 = yaxis.high;
+        }
+        // Summary spectra have a y axis specification and the
+        // X axis is determined by the number of x parameters.
+        if info.type_name == String::from("Summary") {
+            result.0 = 0.0;
+            result.1 = info.xparams.len() as f64;
+        }
+        result
+    }
+
+    // Update a single spectrum's contents
+    fn update_spectrum(&mut self, binding: (usize, String)) {
+        let slot = binding.0;
+        let name = binding.1;
+        // Get the contents.   If that fails, we assume the spectrum
+        // was deleted and get rid of the binding:
+
+        if let Ok(info) = self.spectrum_api.list_spectra(&name) {
+            if info.len() != 1 {
+                self.shm.unbind(slot); // probably no such spectrum.
+            } else {
+                let axis_spec = Self::get_axes(&info[0]);
+                if let Ok(contents) = self.spectrum_api.get_contents(
+                    &name,
+                    axis_spec.0,
+                    axis_spec.1,
+                    axis_spec.2,
+                    axis_spec.3,
+                ) {
+                    self.shm.set_contents(slot, &contents);
+                } else {
+                    self.shm.unbind(slot);
+                }
+            }
+        } else {
+            self.shm.unbind(slot);
+        }
+    }
+
+    /// Update the contents of all spectra bound to shared memory:
+
+    fn update_contents(&mut self) {
+        for binding in self.shm.get_bindings() {
+            self.update_spectrum(binding);
+        }
+    }
+    /// Process all requests and reply to them.
+    /// If we have an Exit request, we're going to return false.
+    fn process_request(&mut self, req: Request) -> bool {
+        let result = match req.request {
+            RequestType::Unbind(name) => true,
+            RequestType::UnbindAll => true,
+            RequestType::Bind(name) => true,
+            RequestType::List(pattern) => true,
+            RequestType::Clear(pattern) => true,
+            RequestType::SetUpdate(secs) => {
+                self.timeout = secs;
+                true
+            }
+            RequestType::Exit => false,
+        };
+        req.reply_chan
+            .send(Reply::Generic(GenericResult::Ok(())))
+            .expect("Failed to send reply to client from binding thread");
+        result
+    }
     /// Create the binding state.  Note that in general,
     /// this is done within the binding thread which then
     /// invokes the run  method on the newly created object.
@@ -95,11 +177,13 @@ impl BindingThread {
     pub fn new(
         req: mpsc::Receiver<Request>,
         api_chan: &mpsc::Sender<messaging::Request>,
+        spec_size: usize,
     ) -> BindingThread {
         BindingThread {
             request_chan: req,
             spectrum_api: spectrum_messages::SpectrumMessageClient::new(api_chan),
             timeout: DEFAULT_TIMEOUT,
+            shm: super::SharedMemory::new(spec_size).expect("Failed to create shared memory region!!"),
         }
     }
     /// Runs the thread.  See the struct comments for a reasonably
@@ -112,11 +196,15 @@ impl BindingThread {
                 .recv_timeout(time::Duration::from_secs(self.timeout))
             {
                 Ok(request) => {
-                    // Got a new request, process it.
+                    if !self.process_request(request) {
+                        break;
+                    }
                 }
                 Err(tmo) => {
                     if let mpsc::RecvTimeoutError::Timeout = tmo {
                         // Timeout so update contents.
+
+                        self.update_contents();
                     } else {
                         // Sender disconnected the channel.
                         println!("Binding thread sender disconnected -- exiting");
