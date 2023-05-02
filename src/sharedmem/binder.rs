@@ -42,6 +42,7 @@ enum RequestType {
     Clear(String),
     SetUpdate(u64),
     Statistics,
+    ShmName,
     Exit,
 }
 pub struct Request {
@@ -62,12 +63,15 @@ pub type GenericResult = Result<(), String>;
 pub type ListResult = Result<Vec<(usize, String)>, String>;
 
 /// What we get back from statisitcs requests:
-
 pub type StatisticsResult = Result<MemoryStatistics, String>;
+/// When replies just need a string:'
+pub type StringResult = Result<String, String>;
+
 enum Reply {
     Generic(GenericResult),
     List(ListResult),
     Statistics(StatisticsResult),
+    String(StringResult),
 }
 
 /// The default number of seconds to allow the receive on
@@ -342,6 +346,12 @@ impl BindingThread {
                 req.reply_chan
                     .send(Reply::Statistics(Ok(self.get_statistics())))
                     .expect("Failed to send reply to client from binding thread");
+                true
+            }
+            RequestType::ShmName => {
+                req.reply_chan
+                    .send(Reply::String(Ok(self.shm.get_shm_name())))
+                    .expect("Failed to send reply to client from bindng thread");
                 true
             }
             RequestType::Exit => {
