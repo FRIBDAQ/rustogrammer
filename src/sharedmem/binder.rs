@@ -544,14 +544,14 @@ impl BindingApi {
     /// *  pattern  - This is a glob pattern.  Only the bindings for
     /// spectra that match _pattern_ are returned.  Note that
     /// to get all bindings use the pattern "*"
-    /// 
+    ///
     /// ### Returns
     /// *  ListResult instnace.
     ///
     pub fn list_bindings(&self, pattern: &str) -> ListResult {
         match self.transaction(RequestType::List(String::from(pattern))) {
             Reply::List(r) => r,
-            _ => Err(String::from("Unexpected return type from binding thread"))
+            _ => Err(String::from("Unexpected return type from binding thread")),
         }
     }
     /// Clear the contents of a collection of spectra in the shared memory.
@@ -562,10 +562,10 @@ impl BindingApi {
     /// manually when
     /// *  When first bound (done by bind).
     /// *  When the underlying spectrum is cleared in the histogrammer
-    /// 
+    ///
     /// This implies that whenever spectra are cleared inthe histogramer,
     /// this method must be invoked.
-    /// 
+    ///
     /// ### Parameters
     /// *  pattern - Glob pattern.  Only bound spectra whose names
     /// match the _pattern_ paramter willi be cleared.
@@ -576,7 +576,61 @@ impl BindingApi {
     pub fn clear_spectra(&self, pattern: &str) -> GenericResult {
         match self.transaction(RequestType::Clear(String::from(pattern))) {
             Reply::Generic(r) => r,
-            _ => Err(String::from("Unexpected reply type from BindingServer"))
+            _ => Err(String::from("Unexpected reply type from BindingServer")),
+        }
+    }
+    /// Sets the rate at which the BindingThread updates the contents
+    /// of the bound spectra in shared memory. Note that updates change
+    /// the non-zero channels only.  See clear_spectra above.
+    ///
+    /// ### Parameters
+    ///  * period_secs - number of seconds between updates.
+    /// Note that this is approximate.  The actual period depends on the
+    /// time required to perform the update as well as the latency between
+    /// updates and the frequency of requests.   The BindingThread processing
+    /// main loop reads requests with period_secs for a timeout. Updates
+    /// take place only after such a read times out.  Therefore, the actual
+    /// period can be slower because:
+    ///     -  The bindings thread is busy processing requests that come in
+    /// faster than period_secs and each processed request holds off the next
+    /// timeout.
+    ///     -  The actual update takes a significant amount of time
+    /// relative to the update period.  In that case, given no requests
+    /// to process, the actual period is period_secs + time required to do the update.
+    ///
+    /// ### Returns:
+    /// *   GenericResult instance.
+    ///
+    pub fn set_update_period(&self, period_secs: u64) -> GenericResult {
+        match self.transaction(RequestType::SetUpdate(period_secs)) {
+            Reply::Generic(r) => r,
+            _ => Err(String::from("Unexpected reply type from BindingServer")),
+        }
+    }
+    /// Obtains the usage statistics for the shared memory region.
+    ///
+    /// ### Returns:
+    ///    An instance of StatisticsResult
+    ///
+    pub fn get_usage(&self) -> StatisticsResult {
+        match self.transaction(RequestType::Statistics) {
+            Reply::Statistics(stats) => stats,
+            _ => Err(String::from("Unexpected reply type from BindingServer")),
+        }
+    }
+    /// Asks the binding thread to exit.  On successful return all
+    /// further requests of this and other API objects that talk to the
+    /// same BindingServer will fail attempting to do the send part
+    /// of any transaction, as the thread will not process any more
+    /// requests and will soon exit after sending its reply to us.
+    ///
+    /// ### Returns:
+    /// *   GenericResult instance.
+    ///
+    pub fn exit(&self) -> GenericResult {
+        match self.transaction(RequestType::Exit) {
+            Reply::Generic(r) => r,
+            _ => Err(String::from("Unexpected reply type from BindingServer")),
         }
     }
 }
