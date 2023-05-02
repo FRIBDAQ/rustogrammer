@@ -137,5 +137,5 @@ fn rocket() -> _ {
             routes![fold::apply, fold::list, fold::remove],
         )
         .mount("/spectcl/integrate", routes![integrate::integrate])
-        .mount("/spectcl/shmem", routes![shm::shmem_name])
+        .mount("/spectcl/shmem", routes![shm::shmem_name, shm::shmem_size])
 }

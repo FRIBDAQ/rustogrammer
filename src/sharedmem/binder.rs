@@ -20,13 +20,13 @@ use std::time;
 /// Memory statistics have this format:
 ///
 pub struct MemoryStatistics {
-    free_bytes: usize,
-    largest_free_bytes: usize,
-    used_bytes: usize,
-    largest_used_bytes: usize,
-    bound_indices: usize,
-    total_indices: usize,
-    total_size: usize,
+    pub free_bytes: usize,
+    pub largest_free_bytes: usize,
+    pub used_bytes: usize,
+    pub largest_used_bytes: usize,
+    pub bound_indices: usize,
+    pub total_indices: usize,
+    pub total_size: usize,
 }
 // This enum represents the set of operations that can be
 // requested of this thread:
