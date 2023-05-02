@@ -405,12 +405,178 @@ impl BindingThread {
 pub fn start_server(
     hreq_chan: &mpsc::Sender<messaging::Request>,
     spectrum_bytes: usize,
-) -> (mpsc::Sender<Request>, std::thread::JoinHandle<()>) {
+) -> (mpsc::Sender<Request>, thread::JoinHandle<()>) {
     let (sender, receiver) = mpsc::channel();
-    let hreq=hreq_chan.clone();
+    let hreq = hreq_chan.clone();
     let join_handle = thread::spawn(move || {
         let mut t = BindingThread::new(receiver, &hreq, spectrum_bytes);
         t.run();
     });
     (sender, join_handle)
+}
+/// This struct and its implementation provide an API to
+/// make requests of a running BindingThread.  Note that theoretically,
+/// more than one binding thread could be run, each managing a separate
+/// instance of an Xamine compatible shared memory.
+/// In the current version of Rustogramer we don't do that.
+/// In the future, however, if an allocated shared memory region fills
+/// (e.g. a bind fails), we could try to create a new shared memory
+/// memory region (binding thread) and retry the bind in it instead.
+/// that means a few changes to how the shared memory is reported
+/// to the REST client and we don't do that now because:
+///
+/// *  We need to figure out the REST implications.
+/// *  We need to figure out how to manage the state so that we know
+/// not just we have binding thread but which ones have which spectra.
+/// *  We need to figure out what to do to (un)bind a spectrum in the
+/// presence of more than one BindingThread especially how to bind
+/// a new spectrum once a 'full' memory region has had one or more
+/// spectra unbound.
+///
+pub struct BindingApi {
+    req_chan: mpsc::Sender<Request>,
+}
+impl BindingApi {
+    // Private method to make a request.
+    // - Creates the reply channel,
+    // - Sends the request on the req_chan.
+    // - Returns the reply without interpretation:
+    //
+    fn transaction(&self, req: RequestType) -> Reply {
+        let (rep_send, rep_rcv) = mpsc::channel();
+        if let Err(_) = self.req_chan.send(Request {
+            reply_chan: rep_send,
+            request: req,
+        }) {
+            return Reply::Generic(GenericResult::Err(String::from(
+                "Failed to send request to Binding Thread",
+            )));
+        }
+        let reply = rep_rcv.recv();
+        if let Err(_) = reply {
+            return Reply::Generic(GenericResult::Err(String::from(
+                "Failed to receive reply from Binding thread request",
+            )));
+        }
+        reply.unwrap()
+    }
+    /// Creates a binding API instance given a BindingThread's
+    /// request channel.  Note that this is cloned so multiple
+    /// API Instances talking to the same thread are fully supported.
+    ///
+    /// ### Parameters:
+    /// *   req - request channel to the binding thread.
+    ///
+    /// ### Returns:
+    /// *   BindingApi instance.
+    ///
+    pub fn new(req: &mpsc::Sender<Request>) -> BindingApi {
+        BindingApi {
+            req_chan: req.clone(),
+        }
+    }
+    /// Unbind a spectrum from the shared memory.
+    /// On success:
+    /// - The binding slot used by that spectrum will be freed.
+    /// - The memory used by the spectrum will be returned to the
+    /// shared memory free pool.
+    /// - the shared memory free pool will be defragmented.
+    ///
+    /// ### Paramters:
+    /// *   name -name of the spectrum to unbind.
+    ///
+    /// ### Returns:
+    /// * GenericResult instance.
+    pub fn unbind(&self, name: &str) -> GenericResult {
+        match self.transaction(RequestType::Unbind(String::from(name))) {
+            Reply::Generic(result) => result,
+            _ => Err(String::from("Unexpected return type from BindingThread")),
+        }
+    }
+    /// Unbind all spectra from the shared memory that are currently bound.
+    /// On success:
+    /// -  All binding slots will be free.
+    /// -  The spectrum storage pool will be one single extent that is the
+    /// size of the spectrum memory.
+    ///
+    /// ### Parameters
+    /// (none)
+    ///
+    /// ### Returns
+    /// *  GenericResult instance.
+    ///
+    pub fn unbind_all(&self) -> GenericResult {
+        match self.transaction(RequestType::UnbindAll) {
+            Reply::Generic(result) => result,
+            _ => Err(String::from("Unexpected return type from binding thread")),
+        }
+    }
+    /// Bind the named spectrum into the shared memory.
+    /// On success:
+    /// -  A binding slot is allocated to the spectrum.
+    /// -  Memory is allocated from the spectrum storage pool to hold
+    /// the spectrum.
+    /// - The current contents of the spectrum are copied into the
+    /// shared memory assigned to the spectrum.
+    /// - As long as the spectrum remains bound, the BindingThread will
+    /// periodically (see set_update_period) update the contents
+    /// of the spectrum storage from the spectrum contents.
+    /// - Note the clear_spectra request will clear the spectrum contents
+    /// until then ext refresh pass by BindingThread and should be
+    /// called with "*") whenver histogrammer spectra are aslo cleared.
+    ///
+    /// ### Parameters
+    /// *  name - name of the spectrum to bind.
+    ///
+    /// ### Returns
+    /// * GenericResult instance.
+    pub fn bind(&self, name: &str) -> GenericResult {
+        match self.transaction(RequestType::Bind(String::from(name))) {
+            Reply::Generic(result) => result,
+            _ => Err(String::from("Unexpected return type from binding thread")),
+        }
+    }
+    /// List the bindings that are currently in force in the
+    /// shared memory.  This makes no modifications to the share
+    // memory contents.
+    ///
+    /// ### Parameters
+    /// *  pattern  - This is a glob pattern.  Only the bindings for
+    /// spectra that match _pattern_ are returned.  Note that
+    /// to get all bindings use the pattern "*"
+    /// 
+    /// ### Returns
+    /// *  ListResult instnace.
+    ///
+    pub fn list_bindings(&self, pattern: &str) -> ListResult {
+        match self.transaction(RequestType::List(String::from(pattern))) {
+            Reply::List(r) => r,
+            _ => Err(String::from("Unexpected return type from binding thread"))
+        }
+    }
+    /// Clear the contents of a collection of spectra in the shared memory.
+    /// note that almost immediatetly the server will run a pass over
+    /// the set of bound spectra, updating their contents.  
+    /// This is required because the update only updates the non-zero
+    /// channels of a spectrum.  Therefore, spectra must be cleared
+    /// manually when
+    /// *  When first bound (done by bind).
+    /// *  When the underlying spectrum is cleared in the histogrammer
+    /// 
+    /// This implies that whenever spectra are cleared inthe histogramer,
+    /// this method must be invoked.
+    /// 
+    /// ### Parameters
+    /// *  pattern - Glob pattern.  Only bound spectra whose names
+    /// match the _pattern_ paramter willi be cleared.
+    ///
+    /// ### Returns
+    ///  *  GenericResult instance.
+    ///
+    pub fn clear_spectra(&self, pattern: &str) -> GenericResult {
+        match self.transaction(RequestType::Clear(String::from(pattern))) {
+            Reply::Generic(r) => r,
+            _ => Err(String::from("Unexpected reply type from BindingServer"))
+        }
+    }
 }
