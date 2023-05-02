@@ -14,6 +14,7 @@ use crate::messaging;
 use crate::messaging::spectrum_messages;
 use glob::Pattern;
 use std::sync::mpsc;
+use std::thread;
 use std::time;
 
 /// Memory statistics have this format:
@@ -43,7 +44,7 @@ enum RequestType {
     Statistics,
     Exit,
 }
-struct Request {
+pub struct Request {
     reply_chan: mpsc::Sender<Reply>,
     request: RequestType,
 }
@@ -397,4 +398,19 @@ impl BindingThread {
             }
         }
     }
+}
+/// This is the function to call to initiate a BindingThread.
+/// We return the request channel and the join handle.
+///
+pub fn start_server(
+    hreq_chan: &mpsc::Sender<messaging::Request>,
+    spectrum_bytes: usize,
+) -> (mpsc::Sender<Request>, std::thread::JoinHandle<()>) {
+    let (sender, receiver) = mpsc::channel();
+    let hreq=hreq_chan.clone();
+    let join_handle = thread::spawn(move || {
+        let mut t = BindingThread::new(receiver, &hreq, spectrum_bytes);
+        t.run();
+    });
+    (sender, join_handle)
 }
