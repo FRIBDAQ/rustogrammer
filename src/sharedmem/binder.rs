@@ -251,7 +251,20 @@ impl BindingThread {
             self.shm.clear_contents(slot);
         }
     }
+    /// Return a MemoryStatistics struct that describes the current
+    /// memory and slot usage.
+    fn get_statistics(&mut self) -> MemoryStatistics {
+        let memory_stats = self.shm.statistics();
 
+        MemoryStatistics {
+            free_bytes: memory_stats.0,
+            largest_free_bytes: memory_stats.1,
+            used_bytes: memory_stats.2,
+            largest_used_bytes: memory_stats.3,
+            bound_indices: memory_stats.4,
+            total_indices: memory_stats.5,
+        }
+    }
     /// Update the contents of all spectra bound to shared memory:
 
     fn update_contents(&mut self) {
@@ -326,7 +339,7 @@ impl BindingThread {
             }
             RequestType::Statistics => {
                 req.reply_chan
-                    .send(Reply::Generic(GenericResult::Ok(())))
+                    .send(Reply::Statistics(Ok(self.get_statistics())))
                     .expect("Failed to send reply to client from binding thread");
                 true
             }
