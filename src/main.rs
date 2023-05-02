@@ -1,3 +1,9 @@
+//! Todo:
+//!  *  Get the port number from the commandl ine
+//!  *  Allow that port number to be 'managed' which means get it
+//!from the port manager.
+//!  *  Get the shared memory size from the command line.
+//!
 mod conditions;
 mod histogramer;
 mod messaging;
