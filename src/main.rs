@@ -26,7 +26,7 @@ use std::sync::Mutex;
 #[macro_use]
 extern crate rocket;
 
-const DEFAULT_SHM_SPECTRUM_BYTES: usize = 8 * 1024 * 1024;
+const DEFAULT_SHM_SPECTRUM_BYTES: usize = 32 * 1024 * 1024;
 
 // This is now the entry point as Rocket has the main
 //
@@ -137,5 +137,8 @@ fn rocket() -> _ {
             routes![fold::apply, fold::list, fold::remove],
         )
         .mount("/spectcl/integrate", routes![integrate::integrate])
-        .mount("/spectcl/shmem", routes![shm::shmem_name, shm::shmem_size])
+        .mount(
+            "/spectcl/shmem",
+            routes![shm::shmem_name, shm::shmem_size, shm::get_variables],
+        )
 }
