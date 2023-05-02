@@ -628,6 +628,38 @@ impl BindingApi {
             _ => Err(String::from("Unexpected reply type from BindingServer")),
         }
     }
+    /// Asks the binding thread to tell us the name of the shared
+    /// memory region. The name includes  a prefix separated from
+    /// a name that makes sense given the prefix by a colon.
+    /// Valid prefixes are:
+    ///
+    /// *  file  - The shared memory is a mapped file.
+    /// *  posix - The shared memory is a Posix shared memory name.
+    /// *  sysv  - The shared memory is a SYSV shared memory segment.
+    ///
+    /// ### Examples:
+    ///
+    ///    file:/user/fox/some_name
+    ///
+    /// Is a mapped file named /user/fox/some_name.
+    ///
+    ///    posix:/junk
+    ///
+    /// Is a posix shared memory region named /junk.
+    ///
+    ///    sysv:Xa32
+    ///
+    /// Is a SYSV shared memory region with the token Xa32
+    ///
+    /// ### Returns:
+    /// *  StringResult instance.
+    ///
+    pub fn get_shname(&self) -> StringResult {
+        match self.transaction(RequestType::ShmName) {
+            Reply::String(result) => result,
+            _ => Err(String::from("Unexpected reply type from BindingServer"))
+        }
+    }
     /// Asks the binding thread to exit.  On successful return all
     /// further requests of this and other API objects that talk to the
     /// same BindingServer will fail attempting to do the send part
