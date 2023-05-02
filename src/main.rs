@@ -20,7 +20,7 @@ use std::sync::Mutex;
 #[macro_use]
 extern crate rocket;
 
-const DEFAULT_SHM_SPECTRUM_BYTES: usize = 8*1024*1024;
+const DEFAULT_SHM_SPECTRUM_BYTES: usize = 8 * 1024 * 1024;
 
 // This is now the entry point as Rocket has the main
 //
