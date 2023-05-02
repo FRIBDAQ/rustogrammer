@@ -12,7 +12,7 @@ use rest::{
     apply, channel, data_processing, evbunpack, filter, fit, fold, gates, integrate,
     rest_parameter, spectrum,
 };
-
+use sharedmem::binder;
 use std::sync::Mutex;
 
 // Pull in Rocket features:
@@ -20,19 +20,25 @@ use std::sync::Mutex;
 #[macro_use]
 extern crate rocket;
 
+const DEFAULT_SHM_SPECTRUM_BYTES: usize = 8*1024*1024;
+
 // This is now the entry point as Rocket has the main
 //
 #[launch]
 fn rocket() -> _ {
+    let spectrum_bytes = DEFAULT_SHM_SPECTRUM_BYTES;
+
     // For now to ensure the join handle and channel don't get
     // dropped start the histogram server in a thread:
     //
 
     let (jh, channel) = histogramer::start_server();
     let processor = processing::ProcessingApi::new(&channel);
+    let binder = binder::start_server(&channel, spectrum_bytes);
 
     let state = rest::HistogramState {
         state: Mutex::new((jh, channel)),
+        binder: Mutex::new(binder),
         processing: Mutex::new(processor),
     };
     rocket::build()

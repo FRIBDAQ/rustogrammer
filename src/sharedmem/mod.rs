@@ -96,6 +96,7 @@ struct XamineSharedMemory {
 /// Each extent is a tuple of base offset and size.
 ///
 type Extent = (usize, usize);
+
 struct StorageAllocator {
     free_extents: Vec<Extent>,
     allocated_extents: Vec<Extent>,
@@ -187,7 +188,8 @@ impl StorageAllocator {
     fn free_trusted(&mut self, offset: usize) -> Result<(), String> {
         for extent in self.allocated_extents.iter() {
             if extent.0 == offset {
-                self.free(extent.0, extent.1);
+                self.free(extent.0, extent.1)
+                    .expect("Failed to free an extent");
                 return Ok(());
             }
         }
@@ -237,8 +239,9 @@ impl StorageAllocator {
 /// compatible memory and map.
 /// The implementation supports the operations we need on
 /// the memory region.
+
 pub struct SharedMemory {
-    bindings: [String; XAMINE_MAXSPEC],
+    bindings: Vec<String>,
     backing_store: tempfile::NamedTempFile,
     map: memmap::MmapMut,
     allocator: StorageAllocator,
@@ -247,15 +250,14 @@ pub struct SharedMemory {
 impl SharedMemory {
     /// Make an initialized bindings array that can be
     /// used to initialize the bindings member.
-    fn init_bindings() -> [String; XAMINE_MAXSPEC] {
+    fn init_bindings(shm: &mut SharedMemory) -> &Self {
         // Maybe there's a better way to do this but I'm not sure
         // what it is:
 
-        let mut b = Vec::<String>::new();
         for i in 0..XAMINE_MAXSPEC {
-            b.push(String::new());
+            shm.bindings.push(String::new());
         }
-        b.try_into().expect("Failed to unwrap the bindings vector")
+        shm
     }
     /// Compute total memory size requirements.
     fn total_memory_size(spec_storage_size: usize) -> usize {
@@ -333,15 +335,24 @@ impl SharedMemory {
                 (*header).dsp_types[i] = SpectrumTypes::undefined;
             }
         }
-
+        println!(
+            "Created shared memory file: {} with size {}",
+            file.path()
+                .as_os_str()
+                .to_str()
+                .expect("Failed to get shared memory path"),
+            total_size
+        );
         // All is good.
 
-        Ok(SharedMemory {
-            bindings: Self::init_bindings(),
+        let mut result = SharedMemory {
+            bindings: vec![],
             backing_store: file,
             map: map,
             allocator: StorageAllocator::new(specsize),
-        })
+        };
+        Self::init_bindings(&mut result);
+        Ok(result)
     }
     /// Get a free slot number.
 
