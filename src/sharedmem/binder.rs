@@ -242,6 +242,15 @@ impl BindingThread {
             Ok(listing)
         }
     }
+    /// Clear the contents of bound spectra with names that match the
+    /// pattern
+    fn clear_spectra(&mut self, pattern: &str) {
+        let spectra = self.get_bindings(pattern).unwrap();
+        for info in spectra {
+            let slot = info.0;
+            self.shm.clear_contents(slot);
+        }
+    }
 
     /// Update the contents of all spectra bound to shared memory:
 
@@ -250,6 +259,7 @@ impl BindingThread {
             self.update_spectrum(binding);
         }
     }
+
     /// Process all requests and reply to them.
     /// If we have an Exit request, we're going to return false.
     fn process_request(&mut self, req: Request) -> bool {
@@ -301,6 +311,7 @@ impl BindingThread {
                 true
             }
             RequestType::Clear(pattern) => {
+                self.clear_spectra(&pattern);
                 req.reply_chan
                     .send(Reply::Generic(GenericResult::Ok(())))
                     .expect("Failed to send reply to client from binding thread");

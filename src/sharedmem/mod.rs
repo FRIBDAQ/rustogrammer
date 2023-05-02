@@ -22,7 +22,7 @@ pub mod binder;
 // shared memory header:
 
 /// Number of spectrum slots.
-const XAMINE_MAXSPEC: usize = 10000;
+pub const XAMINE_MAXSPEC: usize = 10000;
 
 /// Size of a spectrum title:
 
