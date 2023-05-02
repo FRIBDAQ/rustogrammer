@@ -245,6 +245,7 @@ pub struct SharedMemory {
     backing_store: tempfile::NamedTempFile,
     map: memmap::MmapMut,
     allocator: StorageAllocator,
+    total_size: usize,
 }
 
 impl SharedMemory {
@@ -350,6 +351,7 @@ impl SharedMemory {
             backing_store: file,
             map: map,
             allocator: StorageAllocator::new(specsize),
+            total_size: total_size,
         };
         Self::init_bindings(&mut result);
         Ok(result)
@@ -579,7 +581,8 @@ impl SharedMemory {
     /// *   Size of largest used chunk.
     /// *   total indices bound.
     /// *   total indices
-    pub fn statistics(&mut self) -> (usize, usize, usize, usize, usize, usize) {
+    /// *   Total memory size.
+    pub fn statistics(&mut self) -> (usize, usize, usize, usize, usize, usize, usize) {
         let memstats = self.allocator.statistics();
         let bindinginfo = self.bound_indices();
 
@@ -590,6 +593,7 @@ impl SharedMemory {
             memstats.3,
             bindinginfo.len(),
             XAMINE_MAXSPEC,
+            self.total_size,
         )
     }
 }

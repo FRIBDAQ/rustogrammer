@@ -26,6 +26,7 @@ pub struct MemoryStatistics {
     largest_used_bytes: usize,
     bound_indices: usize,
     total_indices: usize,
+    total_size: usize,
 }
 // This enum represents the set of operations that can be
 // requested of this thread:
@@ -268,6 +269,7 @@ impl BindingThread {
             largest_used_bytes: memory_stats.3,
             bound_indices: memory_stats.4,
             total_indices: memory_stats.5,
+            total_size: memory_stats.6,
         }
     }
     /// Update the contents of all spectra bound to shared memory:
@@ -657,7 +659,7 @@ impl BindingApi {
     pub fn get_shname(&self) -> StringResult {
         match self.transaction(RequestType::ShmName) {
             Reply::String(result) => result,
-            _ => Err(String::from("Unexpected reply type from BindingServer"))
+            _ => Err(String::from("Unexpected reply type from BindingServer")),
         }
     }
     /// Asks the binding thread to exit.  On successful return all

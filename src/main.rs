@@ -16,7 +16,7 @@ mod spectra;
 
 use rest::{
     apply, channel, data_processing, evbunpack, filter, fit, fold, gates, integrate,
-    rest_parameter, spectrum,
+    rest_parameter, shm, spectrum,
 };
 use sharedmem::binder;
 use std::sync::Mutex;
@@ -137,4 +137,5 @@ fn rocket() -> _ {
             routes![fold::apply, fold::list, fold::remove],
         )
         .mount("/spectcl/integrate", routes![integrate::integrate])
+        .mount("/spectcl/shmem", routes![shm::shmem_name])
 }

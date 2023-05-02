@@ -41,6 +41,7 @@ pub mod fold;
 pub mod gates;
 pub mod integrate;
 pub mod parameter;
+pub mod shm;
 pub mod spectrum;
 
 pub use parameter as rest_parameter;
