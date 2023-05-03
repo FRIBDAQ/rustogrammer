@@ -140,10 +140,11 @@ impl BindingThread {
             return Err(format!("{} is already bound", name));
         }
         if let Ok(info) = self.spectrum_info(name) {
-            match self
-                .shm
-                .bind_spectrum(name, Self::axis(info.xaxis), Some(Self::axis(info.yaxis)))
-            {
+            match self.shm.bind_spectrum(
+                name,
+                Self::get_xaxis(&info).expect("No x axis!!!"),
+                Self::get_yaxis(&info),
+            ) {
                 Ok((slot, _)) => {
                     self.shm.clear_contents(slot);
                     self.update_spectrum((slot, String::from(name)));
@@ -173,6 +174,30 @@ impl BindingThread {
                 }
             }
             spectrum_messages::SpectrumServerListingResult::Err(s) => Err(s),
+        }
+    }
+    fn get_yaxis(info: &spectrum_messages::SpectrumProperties) -> Option<(f64, f64, u32)> {
+        // This is just extracted fom th Y axis if it's there:
+
+        if let Some(y) = info.yaxis {
+            Some((y.low, y.high, y.bins))
+        } else {
+            None
+        }
+    }
+    fn get_xaxis(info: &spectrum_messages::SpectrumProperties) -> Option<(f64, f64, u32)> {
+        // Normally this will just be the X axis but for summary
+        // spectra we constuct this from the number of parameters.
+
+        if info.type_name != String::from("Summary") {
+            if let Some(x) = info.xaxis {
+                Some((x.low, x.high, x.bins))
+            } else {
+                None
+            }
+        } else {
+            let len = info.xparams.len();
+            Some((0.0, len as f64, len as u32))
         }
     }
     // Given a Option<AxisSpecification returns a triplet of low, high, size

@@ -344,13 +344,15 @@ impl SharedMemory {
                 .expect("Failed to get shared memory path"),
             total_size
         );
-        // All is good.
+        // All is good -- all our spectra are u32's so we
+        // make the allocator work on u32's as well
+        // that way we automatically get the right offsets too.
 
         let mut result = SharedMemory {
             bindings: vec![],
             backing_store: file,
             map: map,
-            allocator: StorageAllocator::new(specsize),
+            allocator: StorageAllocator::new(specsize / mem::size_of::<u32>()),
             total_size: total_size,
         };
         Self::init_bindings(&mut result);
@@ -404,14 +406,14 @@ impl SharedMemory {
     /// spectrum storage is initialized.
     pub fn bind_spectrum(
         &mut self,
-        name: &str,
+        sname: &str,
         xaxis: (f64, f64, u32),
         yaxis: Option<(f64, f64, u32)>,
     ) -> Result<(usize, *mut u8), String> {
         // If the name is too long we need to truncate it to
         // TITLE_LENGTH -1 so there's a null termination
 
-        let mut name = String::from(name);
+        let mut name = String::from(sname);
         name.truncate(TITLE_LENGTH - 1);
         name.push('\0'); // Ensure it's all null terminated.
 
@@ -426,10 +428,10 @@ impl SharedMemory {
         // See if we have sufficent spectrum storage:
         // We allow for the hidden under/overflow channels here too:
 
-        let mut required = xaxis.2 + 2;
+        let mut required = xaxis.2;
         let mut spectrum_type = SpectrumTypes::onedlong;
         if let Some(y) = yaxis {
-            required = required * (y.2 + 2);
+            required = required * (y.2);
             spectrum_type = SpectrumTypes::twodlong;
         }
         let storage = self.get_free_spectrum_pointer(required as usize);
@@ -454,7 +456,7 @@ impl SharedMemory {
             header.dsp_titles[slot][i] = c;
             header.dsp_info[slot][i] = c;
         }
-        header.dsp_offsets[slot] = (offset / mem::size_of::<u32>()) as u32;
+        header.dsp_offsets[slot] = offset as u32;
         header.dsp_types[slot] = spectrum_type;
         header.dsp_map[slot].xmin = xaxis.0 as f32;
         header.dsp_map[slot].xmax = xaxis.1 as f32;
@@ -474,7 +476,7 @@ impl SharedMemory {
 
         // Make the binding
 
-        self.bindings[slot] = String::from(name);
+        self.bindings[slot] = String::from(sname); // Use origial name.
 
         Ok((slot, ptr))
     }
