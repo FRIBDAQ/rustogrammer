@@ -16,6 +16,7 @@ use crate::messaging::spectrum_messages::{
     SpectrumMessageClient, SpectrumProperties, SpectrumServerContentsResult,
     SpectrumServerEmptyResult, SpectrumServerListingResult,
 };
+use crate::sharedmem::binder;
 // as with gates we need to map from Rustogramer spectrum
 // types to SpecTcl spectrum types.
 
@@ -809,8 +810,17 @@ pub fn clear_spectra(
     let reply = if let Err(s) = api.clear_spectra(&pat) {
         GenericResponse::err(&format!("Failed to clear spectra matching '{}'", pat), &s)
     } else {
-        GenericResponse::ok("")
+        // also need to clear the shared memory copies of the bound
+        // spectra:
+
+        let bind_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
+        if let Err(s) = bind_api.clear_spectra(&pat) {
+            GenericResponse::err("Failed to clear bound spectra: ", &s)
+        } else {
+            GenericResponse::ok("")
+        }
     };
+
     Json(reply)
 }
 

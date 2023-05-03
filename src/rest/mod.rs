@@ -44,6 +44,7 @@ pub mod parameter;
 pub mod sbind;
 pub mod shm;
 pub mod spectrum;
+pub mod unbind;
 
 pub use parameter as rest_parameter;
 
