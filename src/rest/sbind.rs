@@ -148,23 +148,23 @@ pub fn sbind_all(state: &State<HistogramState>) -> Json<GenericResponse> {
 //----------------------------------------------------------------
 // bind a list of spectra (note uses bind_spectrum_list)
 
-// Implements the /spectcl/sbind/sbind REST interface.
-//
-// ### Parameters
-// *  spectrum - Can be supplied as many times as needed to specify
-// the spectra to be bound.  Note that in SpecTcl, attempts to
-// bind an existing binding are just ignored.
-// * state - the state of the REST server, which allows us to get the
-// API we need.
-//
-// ### Returns
-// *  GenericResponse encoded as Json. On success, the detail is empty.
-// There are several failures to consider:
-//     - Unable to get the list of bindings: status is _Failed to get spectrum bindings_
-// and the detail is the reason given by the bindings API>
-//     - Unable to bind a spectrum: status is _Unable to bind {spectrum name} and
-// the detail is the reason given by the binding api.
-//
+/// Implements the /spectcl/sbind/sbind REST interface.
+///
+/// ### Parameters
+/// *  spectrum - Can be supplied as many times as needed to specify
+/// the spectra to be bound.  Note that in SpecTcl, attempts to
+/// bind an existing binding are just ignored.
+/// * state - the state of the REST server, which allows us to get the
+/// API we need.
+///
+/// ### Returns
+/// *  GenericResponse encoded as Json. On success, the detail is empty.
+/// There are several failures to consider:
+///     - Unable to get the list of bindings: status is _Failed to get spectrum bindings_
+/// and the detail is the reason given by the bindings API>
+///     - Unable to bind a spectrum: status is _Unable to bind {spectrum name} and
+/// the detail is the reason given by the binding api.
+///
 #[get("/sbind?<spectrum>")]
 pub fn sbind_list(spectrum: Vec<String>, state: &State<HistogramState>) -> Json<GenericResponse> {
     // We need the bindings api.
@@ -179,5 +179,74 @@ pub fn sbind_list(spectrum: Vec<String>, state: &State<HistogramState>) -> Json<
     let binding_hash = make_binding_hash(&binding_list);
     let to_bind = remove_bound_spectra(&spectrum, &binding_hash);
     let response = bind_spectrum_list(&to_bind, &api);
+    Json(response)
+}
+//------------------------------------------------------------------
+// /spectcl/sbind/lisT[?pattern=glob-pattern]
+//
+
+// The structure we will return in the detail:
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct Binding {
+    spectrumid: usize,
+    name: String,
+    binding: usize,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct BindingsResponse {
+    status: String,
+    detail: Vec<Binding>,
+}
+/// Handles the /spectcl/sbind/list REST request.
+///
+/// ### Parameters
+/// *  pattern - optional glob pattern.  Only bindings for spectra
+/// whose names match the pattern are provided.  By default, if not provided,
+/// the pattern used is _*_ which matches everything.
+/// *  state - the REST interface State which includes the channel
+/// that allows us to create a bindings API>
+///
+/// ### Returns
+///  * A Json encoded instance of a BindingsResponse.
+///
+/// #### Note
+/// Rustogramer does not assign ids to spectra.  THerefore
+/// all spectra will be given the id 0.
+///
+#[get("/list?<pattern>")]
+pub fn sbind_bindings(
+    pattern: OptionalString,
+    state: &State<HistogramState>,
+) -> Json<BindingsResponse> {
+    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
+    let p = if let Some(pat) = pattern {
+        pat
+    } else {
+        String::from("*")
+    };
+    let mut response = BindingsResponse {
+        status: String::from(""),
+        detail: vec![],
+    };
+    match api.list_bindings(&p) {
+        Ok(l) => {
+            response.status = String::from("OK");
+            for b in l {
+                response.detail.push(Binding {
+                    spectrumid: 0,
+                    name: b.1,
+                    binding: b.0,
+                });
+            }
+        }
+        Err(s) => {
+            response.status = format!("Could not get bindings list {}", s);
+        }
+    };
+
     Json(response)
 }

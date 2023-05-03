@@ -143,6 +143,6 @@ fn rocket() -> _ {
         )
         .mount(
             "/spectcl/sbind",
-            routes![sbind::sbind_all, sbind::sbind_list],
+            routes![sbind::sbind_all, sbind::sbind_list, sbind::sbind_bindings],
         )
 }
