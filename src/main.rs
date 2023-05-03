@@ -16,7 +16,7 @@ mod spectra;
 
 use rest::{
     apply, channel, data_processing, evbunpack, filter, fit, fold, gates, integrate,
-    rest_parameter, sbind, shm, spectrum, unbind
+    rest_parameter, sbind, shm, spectrum, unbind,
 };
 use sharedmem::binder;
 use std::sync::Mutex;
@@ -147,6 +147,10 @@ fn rocket() -> _ {
         )
         .mount(
             "/spectcl/unbind",
-            routes![unbind::unbind_byname]
+            routes![
+                unbind::unbind_byname,
+                unbind::unbind_byid,
+                unbind::unbind_all
+            ],
         )
 }
