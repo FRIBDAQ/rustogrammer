@@ -41,6 +41,7 @@ pub mod fold;
 pub mod gates;
 pub mod integrate;
 pub mod parameter;
+pub mod sbind;
 pub mod shm;
 pub mod spectrum;
 

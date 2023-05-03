@@ -149,7 +149,7 @@ pub fn get_variables(state: &State<HistogramState>) -> Json<SpectclVarResult> {
     // now fix up the fields we can fix up
 
     let result = if let Ok(stats) = shmapi.get_usage() {
-        vars.display_megabytes = (stats.free_bytes + stats.used_bytes)/(1024*1024);
+        vars.display_megabytes = (stats.free_bytes + stats.used_bytes) / (1024 * 1024);
         SpectclVarResult {
             status: String::from("OK"),
             detail: vars,
