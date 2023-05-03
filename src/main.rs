@@ -1,3 +1,9 @@
+//! Todo:
+//!  *  Get the port number from the commandl ine
+//!  *  Allow that port number to be 'managed' which means get it
+//!from the port manager.
+//!  *  Get the shared memory size from the command line.
+//!
 mod conditions;
 mod histogramer;
 mod messaging;
@@ -5,13 +11,14 @@ mod parameters;
 mod processing;
 mod rest;
 mod ring_items;
+mod sharedmem;
 mod spectra;
 
 use rest::{
     apply, channel, data_processing, evbunpack, filter, fit, fold, gates, integrate,
-    rest_parameter, spectrum,
+    rest_parameter, sbind, shm, spectrum, unbind,
 };
-
+use sharedmem::binder;
 use std::sync::Mutex;
 
 // Pull in Rocket features:
@@ -19,19 +26,25 @@ use std::sync::Mutex;
 #[macro_use]
 extern crate rocket;
 
+const DEFAULT_SHM_SPECTRUM_BYTES: usize = 32 * 1024 * 1024;
+
 // This is now the entry point as Rocket has the main
 //
 #[launch]
 fn rocket() -> _ {
+    let spectrum_bytes = DEFAULT_SHM_SPECTRUM_BYTES;
+
     // For now to ensure the join handle and channel don't get
     // dropped start the histogram server in a thread:
     //
 
     let (jh, channel) = histogramer::start_server();
     let processor = processing::ProcessingApi::new(&channel);
+    let binder = binder::start_server(&channel, spectrum_bytes);
 
     let state = rest::HistogramState {
         state: Mutex::new((jh, channel)),
+        binder: Mutex::new(binder),
         processing: Mutex::new(processor),
     };
     rocket::build()
@@ -124,4 +137,20 @@ fn rocket() -> _ {
             routes![fold::apply, fold::list, fold::remove],
         )
         .mount("/spectcl/integrate", routes![integrate::integrate])
+        .mount(
+            "/spectcl/shmem",
+            routes![shm::shmem_name, shm::shmem_size, shm::get_variables],
+        )
+        .mount(
+            "/spectcl/sbind",
+            routes![sbind::sbind_all, sbind::sbind_list, sbind::sbind_bindings],
+        )
+        .mount(
+            "/spectcl/unbind",
+            routes![
+                unbind::unbind_byname,
+                unbind::unbind_byid,
+                unbind::unbind_all
+            ],
+        )
 }

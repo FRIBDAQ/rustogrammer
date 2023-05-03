@@ -41,21 +41,25 @@ pub mod fold;
 pub mod gates;
 pub mod integrate;
 pub mod parameter;
+pub mod sbind;
+pub mod shm;
 pub mod spectrum;
+pub mod unbind;
 
 pub use parameter as rest_parameter;
 
 use crate::messaging::parameter_messages::ParameterMessageClient;
 use crate::messaging::Request;
 use crate::processing;
+use crate::sharedmem::binder;
+use rocket::serde::Serialize;
 use rocket::State;
 use std::sync::{mpsc, Mutex};
 use std::thread;
 
-use rocket::serde::Serialize;
-
 pub struct HistogramState {
     pub state: Mutex<(thread::JoinHandle<()>, mpsc::Sender<Request>)>,
+    pub binder: Mutex<(mpsc::Sender<binder::Request>, thread::JoinHandle<()>)>,
     pub processing: Mutex<processing::ProcessingApi>,
 }
 

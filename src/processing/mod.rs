@@ -63,10 +63,13 @@ pub type Reply = Result<String, String>;
 
 /// We'll need an API object so that we can hold
 /// the channel we'll use to talk with it:
-///
+/// For now only one instance of this should be held and that's
+/// in the REST state.
+///  This is because chunk_size is cached.
 pub struct ProcessingApi {
     spectrum_api: spectrum_messages::SpectrumMessageClient,
     req_chan: mpsc::Sender<Request>,
+    chunk_size: usize,
 }
 
 impl ProcessingApi {
@@ -95,6 +98,7 @@ impl ProcessingApi {
         ProcessingApi {
             spectrum_api: spectrum_messages::SpectrumMessageClient::new(chan),
             req_chan: send,
+            chunk_size: DEFAULT_EVENT_CHUNKSIZE,
         }
     }
 
@@ -107,8 +111,15 @@ impl ProcessingApi {
     pub fn detach(&self) -> Result<String, String> {
         self.transaction(RequestType::Detach)
     }
-    pub fn set_batching(&self, events: usize) -> Result<String, String> {
-        self.transaction(RequestType::ChunkSize(events))
+    pub fn set_batching(&mut self, events: usize) -> Result<String, String> {
+        let result = self.transaction(RequestType::ChunkSize(events));
+        if let Ok(_) = result {
+            self.chunk_size = events;
+        }
+        result
+    }
+    pub fn get_batching(&self) -> usize {
+        self.chunk_size
     }
     pub fn start_analysis(&self) -> Result<String, String> {
         self.transaction(RequestType::Start)
