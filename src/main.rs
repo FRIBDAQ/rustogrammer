@@ -154,4 +154,19 @@ fn rocket() -> _ {
             ],
         )
         .mount("/spectcl/mirror", routes![unimplemented::mirror_list])
+        .mount(
+            "/spectcl/pman",
+            routes![
+                unimplemented::pman_create,
+                unimplemented::pman_list,
+                unimplemented::pman_current,
+                unimplemented::pman_listall,
+                unimplemented::pman_list_event_processors,
+                unimplemented::pman_choose_pipeline,
+                unimplemented::pman_add_processor,
+                unimplemented::pman_rm_processor,
+                unimplemented::pman_clear,
+                unimplemented::pman_clone
+            ],
+        )
 }

@@ -53,3 +53,102 @@ pub fn mirror_list() -> Json<MirrorResponse> {
         detail: vec![],
     })
 }
+
+//---------------------------------------------------------------
+// Pipeline management:
+
+/// Create a pipeline give a name:
+#[get("/create?<name>")]
+pub fn pman_create(name: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Pipline management is not implemented",
+        "This is not SpecTcl",
+    ))
+}
+/// List pipelines:
+#[get("/list?<pattern>")]
+pub fn pman_list(pattern: OptionalString) -> Json<StringArrayResponse> {
+    Json(StringArrayResponse::new(
+        "Pipeline managment is not implemented - this is not SpecTcl",
+    ))
+}
+/// Name of current pipeline:
+#[get("/current")]
+pub fn pman_current() -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Pipeline management is not implemented",
+        "This is not SpecTcl",
+    ))
+}
+// listall
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct PipelineDescription {
+    name: String,
+    processors: Vec<String>,
+}
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct ListAllResponse {
+    status: String,
+    detail: Vec<PipelineDescription>,
+}
+/// list full pipeline information.
+
+#[get("/lsall?<pattern>")]
+pub fn pman_listall(pattern: OptionalString) -> Json<ListAllResponse> {
+    Json(ListAllResponse {
+        status: String::from("Pipeline management is not implemented - this is not SpecTcl"),
+        detail: vec![],
+    })
+}
+/// List event processors.
+#[get("/lsevp?<pattern>")]
+pub fn pman_list_event_processors(pattern: OptionalString) -> Json<StringArrayResponse> {
+    Json(StringArrayResponse::new(
+        "Pipeline management is not implemented - this is not SpecTcl",
+    ))
+}
+/// Select an event processing pipeline:
+#[get("/use?<name>")]
+pub fn pman_choose_pipeline(name: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Pipeline management is not implemented",
+        "This is not SpecTcl",
+    ))
+}
+
+/// Add event processor to a pipeline:
+
+#[get("/add?<pipeline>&<processor>")]
+pub fn pman_add_processor(pipeline: String, processor: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Pipeline management is not implemented",
+        "This is not SpecTcl",
+    ))
+}
+/// Remove an event processor from a pipeline.
+#[get("/rm?<pipeline>&<processor>")]
+pub fn pman_rm_processor(pipeline: String, processor: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Pipeline management is not implemented",
+        "This is not SpecTcl",
+    ))
+}
+/// Clear an event processing pipeline:
+
+#[get("/clear?<pipeline>")]
+pub fn pman_clear(pipeline: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Pipeline management is not implemented",
+        "This is not SpecTcl",
+    ))
+}
+/// Clone a pipeline:
+#[get("/clone?<source>&<new>")]
+pub fn pman_clone(source: String, new: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Pipeline management is not implemented",
+        "This is not SpecTcl",
+    ))
+}

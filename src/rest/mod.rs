@@ -88,6 +88,20 @@ impl GenericResponse {
         }
     }
 }
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct StringArrayResponse {
+    status: String,
+    pub detail: Vec<String>,
+}
+impl StringArrayResponse {
+    pub fn new(status: &str) -> StringArrayResponse {
+        StringArrayResponse {
+            status: String::from(status),
+            detail: vec![],
+        }
+    }
+}
 
 // Utility method to return the name of a parameter given its id
 
