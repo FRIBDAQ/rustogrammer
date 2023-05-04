@@ -186,4 +186,13 @@ fn rocket() -> _ {
                 unimplemented::roottree_list
             ],
         )
+        .mount("/spectcl/script", routes![unimplemented::script_execute])
+        .mount(
+            "/spectcl/trace",
+            routes![
+                unimplemented::trace_establish,
+                unimplemented::trace_done,
+                unimplemented::trace_fetch
+            ],
+        )
 }

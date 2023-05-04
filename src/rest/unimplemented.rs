@@ -269,3 +269,66 @@ pub fn roottree_list(pattern: OptionalString) -> Json<RootTreeListResponse> {
         detail: vec![],
     })
 }
+//----------------------------------------------------------------
+// Script.
+
+#[get("/?<command>")]
+pub fn script_execute(command: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Script execution is not supported",
+        "This is not SpecTcl",
+    ))
+}
+//---------------------------------------------------------------
+// Traces - these are scheduled for release 0.1
+//
+
+/// Establish a trace.
+#[get("/establish?<retention>")]
+pub fn trace_establish(retention: usize) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Traces are not supported",
+        "This is not SpecTcl",
+    ))
+}
+/// Kill a trace
+
+#[get("/done?<token>")]
+pub fn trace_done(token: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Traces are not supported",
+        "This is not SpecTcl",
+    ))
+}
+
+// Trace information:
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct TraceInfo {
+    parameter: Vec<String>,
+    spectrum: Vec<String>,
+    gate: Vec<String>,
+    binding: Vec<String>,
+}
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct TraceListResponse {
+    status: String,
+    detail: TraceInfo,
+}
+
+/// Get trace data
+
+#[get("/fetch?<token>")]
+pub fn trace_fetch(token: String) -> Json<TraceListResponse> {
+    Json(TraceListResponse {
+        status: String::from("Traces are not supported,  This is not SpecTcl"),
+        detail: TraceInfo {
+            parameter: vec![],
+            spectrum: vec![],
+            gate: vec![],
+            binding: vec![],
+        },
+    })
+}
