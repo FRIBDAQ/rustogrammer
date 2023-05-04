@@ -332,3 +332,65 @@ pub fn trace_fetch(token: String) -> Json<TraceListResponse> {
         },
     })
 }
+//---------------------------------------------------------------------
+// tree variables.
+
+// What we get per tree variable in a listing:
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct TreeVariable {
+    name: String,
+    value: f64,
+    units: String,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct TreeVariableListResponse {
+    status: String,
+    detail: Vec<TreeVariable>,
+}
+/// List tree variables.
+#[get("/list")]
+pub fn treevariable_list() -> Json<TreeVariableListResponse> {
+    Json(TreeVariableListResponse {
+        status: String::from("Tree variables are not implemented.  This is not SpecTcl"),
+        detail: vec![],
+    })
+}
+
+/// Set a new value for a tree variabls
+
+#[get("/set?<name>&<value>&<units>")]
+pub fn treevariable_set(name: String, value: f64, units: OptionalString) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Tree variables are not implemented",
+        "This is not SpecTcl",
+    ))
+}
+/// Get changed flag.
+#[get("/check?<name>")]
+pub fn treevariable_check(name: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Tree variables are not implemented",
+        "This is not SpecTcl",
+    ))
+}
+/// Set changed flag
+
+#[get("/setchanged?<name>")]
+pub fn treevariable_set_changed(name: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Tree variables are not implemented",
+        "This is not SpecTcl",
+    ))
+}
+/// Fire changed traces:
+#[get("/firetraces?<pattern>")]
+pub fn treevariable_fire_traces(pattern: OptionalString) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Tree variables are not implemented",
+        "This is not SpecTcl",
+    ))
+}

@@ -195,4 +195,14 @@ fn rocket() -> _ {
                 unimplemented::trace_fetch
             ],
         )
+        .mount(
+            "/spectcl/treevariable",
+            routes![
+                unimplemented::treevariable_list,
+                unimplemented::treevariable_set,
+                unimplemented::treevariable_check,
+                unimplemented::treevariable_set_changed,
+                unimplemented::treevariable_fire_traces
+            ],
+        )
 }
