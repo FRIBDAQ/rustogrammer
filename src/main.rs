@@ -16,7 +16,7 @@ mod spectra;
 
 use rest::{
     apply, channel, data_processing, evbunpack, filter, fit, fold, gates, integrate,
-    rest_parameter, sbind, shm, spectrum, unbind,
+    rest_parameter, sbind, shm, spectrum, unbind, unimplemented,
 };
 use sharedmem::binder;
 use std::sync::Mutex;
@@ -153,4 +153,5 @@ fn rocket() -> _ {
                 unbind::unbind_all
             ],
         )
+        .mount("/spectcl/mirror", routes![unimplemented::mirror_list])
 }
