@@ -45,6 +45,7 @@ pub mod sbind;
 pub mod shm;
 pub mod spectrum;
 pub mod unbind;
+pub mod unimplemented;
 
 pub use parameter as rest_parameter;
 
@@ -84,6 +85,20 @@ impl GenericResponse {
         GenericResponse {
             status: String::from(status),
             detail: String::from(detail),
+        }
+    }
+}
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct StringArrayResponse {
+    status: String,
+    pub detail: Vec<String>,
+}
+impl StringArrayResponse {
+    pub fn new(status: &str) -> StringArrayResponse {
+        StringArrayResponse {
+            status: String::from(status),
+            detail: vec![],
         }
     }
 }

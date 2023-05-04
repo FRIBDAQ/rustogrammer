@@ -16,7 +16,7 @@ mod spectra;
 
 use rest::{
     apply, channel, data_processing, evbunpack, filter, fit, fold, gates, integrate,
-    rest_parameter, sbind, shm, spectrum, unbind,
+    rest_parameter, sbind, shm, spectrum, unbind, unimplemented,
 };
 use sharedmem::binder;
 use std::sync::Mutex;
@@ -151,6 +151,58 @@ fn rocket() -> _ {
                 unbind::unbind_byname,
                 unbind::unbind_byid,
                 unbind::unbind_all
+            ],
+        )
+        .mount("/spectcl/mirror", routes![unimplemented::mirror_list])
+        .mount(
+            "/spectcl/pman",
+            routes![
+                unimplemented::pman_create,
+                unimplemented::pman_list,
+                unimplemented::pman_current,
+                unimplemented::pman_listall,
+                unimplemented::pman_list_event_processors,
+                unimplemented::pman_choose_pipeline,
+                unimplemented::pman_add_processor,
+                unimplemented::pman_rm_processor,
+                unimplemented::pman_clear,
+                unimplemented::pman_clone
+            ],
+        )
+        .mount("/spectcl/project", routes![unimplemented::project])
+        .mount(
+            "/spectcl/pseudo",
+            routes![
+                unimplemented::pseudo_create,
+                unimplemented::pseudo_list,
+                unimplemented::pseudo_delete
+            ],
+        )
+        .mount(
+            "/spectcl/roottree",
+            routes![
+                unimplemented::roottree_create,
+                unimplemented::roottree_delete,
+                unimplemented::roottree_list
+            ],
+        )
+        .mount("/spectcl/script", routes![unimplemented::script_execute])
+        .mount(
+            "/spectcl/trace",
+            routes![
+                unimplemented::trace_establish,
+                unimplemented::trace_done,
+                unimplemented::trace_fetch
+            ],
+        )
+        .mount(
+            "/spectcl/treevariable",
+            routes![
+                unimplemented::treevariable_list,
+                unimplemented::treevariable_set,
+                unimplemented::treevariable_check,
+                unimplemented::treevariable_set_changed,
+                unimplemented::treevariable_fire_traces
             ],
         )
 }
