@@ -178,4 +178,12 @@ fn rocket() -> _ {
                 unimplemented::pseudo_delete
             ],
         )
+        .mount(
+            "/spectcl/roottree",
+            routes![
+                unimplemented::roottree_create,
+                unimplemented::roottree_delete,
+                unimplemented::roottree_list
+            ],
+        )
 }

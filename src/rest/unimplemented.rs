@@ -217,3 +217,55 @@ pub fn pseudo_delete(name: String) -> Json<GenericResponse> {
         "This is not SpecTcl",
     ))
 }
+//-----------------------------------------------------------
+// Root tree:
+
+/// Create a root output tree.
+#[get("/create?<tree>&<parameter>&<gate>")]
+pub fn roottree_create(
+    tree: String,
+    parameter: Vec<String>,
+    gate: OptionalString,
+) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Root Tree output is not supported",
+        "This is not SpecTcl",
+    ))
+}
+
+/// Delete a root output tree.
+
+#[get("/delete?<tree>")]
+pub fn roottree_delete(tree: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Root Tree output is not supported",
+        "This is not SpecTcl",
+    ))
+}
+
+// Description of a root tree:
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct RootTreeDescription {
+    tree: String,
+    params: Vec<String>,
+    gate: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct RootTreeListResponse {
+    status: String,
+    detail: Vec<RootTreeDescription>,
+}
+
+/// List the root trees:
+
+#[get("/list?<pattern>")]
+pub fn roottree_list(pattern: OptionalString) -> Json<RootTreeListResponse> {
+    Json(RootTreeListResponse {
+        status: String::from("Root tree output is not implemented - this is not SpecTcl"),
+        detail: vec![],
+    })
+}
