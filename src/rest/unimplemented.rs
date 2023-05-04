@@ -152,3 +152,68 @@ pub fn pman_clone(source: String, new: String) -> Json<GenericResponse> {
         "This is not SpecTcl",
     ))
 }
+//------------------------------------------------------------------
+// project:
+
+#[get("/?<snapshot>&<source>&<newname>&<direction>&<contour>")]
+pub fn project(
+    snapshot: String,
+    source: String,
+    newname: String,
+    direction: String,
+    contour: OptionalString,
+) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Projections are not implemented",
+        "This is not SpecTcl",
+    ))
+}
+//-----------------------------------------------------------------
+// Pseudo parameters.
+
+/// Create a scripted pseudo parameter.
+#[get("/create?<pseudo>&<parameter>&<computation>")]
+pub fn pseudo_create(
+    pseudo: String,
+    parameter: Vec<String>,
+    computation: OptionalString,
+) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Pseudo parameters are not implemented",
+        "This is not SpecTcl",
+    ))
+}
+// Description of a pseudo parameter:
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct PseudoDescription {
+    name: String,
+    parameters: Vec<String>,
+    computation: String,
+}
+// Response to /pseudo/list:
+
+#[derive(Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct PseudoListResponse {
+    status: String,
+    detail: Vec<PseudoDescription>,
+}
+/// List pseudos.
+
+#[get("/list?<pattern>")]
+pub fn pseudo_list(pattern: OptionalString) -> Json<PseudoListResponse> {
+    Json(PseudoListResponse {
+        status: String::from("Psuedo parameters are not implemented - this is not SpecTcl"),
+        detail: vec![],
+    })
+}
+/// Delete pseudos
+#[get("/delete?<name>")]
+pub fn pseudo_delete(name: String) -> Json<GenericResponse> {
+    Json(GenericResponse::err(
+        "Psuedo parameters are not implemented",
+        "This is not SpecTcl",
+    ))
+}

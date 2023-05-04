@@ -169,4 +169,13 @@ fn rocket() -> _ {
                 unimplemented::pman_clone
             ],
         )
+        .mount("/spectcl/project", routes![unimplemented::project])
+        .mount(
+            "/spectcl/pseudo",
+            routes![
+                unimplemented::pseudo_create,
+                unimplemented::pseudo_list,
+                unimplemented::pseudo_delete
+            ],
+        )
 }
