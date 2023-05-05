@@ -18,6 +18,7 @@ use std::io::Write;
 use std::mem;
 use std::ops::Add;
 use std::time;
+use std::str;
 
 pub mod abnormal_end;
 pub mod analysis_ring_items;
@@ -28,6 +29,7 @@ pub mod scaler_item;
 pub mod state_change;
 pub mod text_item;
 pub mod triggers_item;
+
 
 /// This is an raw ring item.   Raw in the
 /// sense that the payload is just a soup of bytes.
@@ -341,6 +343,17 @@ impl fmt::Display for RingVersion {
             RingVersion::V11 => write!(f, "V11"),
             RingVersion::V12 => write!(f, "V12"),
          }
+    }
+}
+
+impl str::FromStr for RingVersion {
+    type Err = String;
+    fn from_str(s : &str) -> Result<Self, Self::Err> {
+        match s {
+            "11" => Ok(RingVersion::V11),
+            "12" => Ok(RingVersion::V12),
+            _ => Err(format!("{} is not a legal Ring format version", s))
+        }
     }
 }
 

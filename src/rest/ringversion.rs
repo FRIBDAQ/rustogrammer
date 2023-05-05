@@ -25,18 +25,23 @@ use crate::ring_items::RingVersion;
 /// detail is the reason for the failure.
 ///
 #[get("/?<major>")]
-pub fn ringversion_set(major: usize, state: &State<HistogramState>) -> Json<GenericResponse> {
+pub fn ringversion_set(major: String, state: &State<HistogramState>) -> Json<GenericResponse> {
     let api = state.inner().processing.lock().unwrap();
 
-    let result = match major {
-        11 => api.set_ring_version(RingVersion::V11),
-        12 => api.set_ring_version(RingVersion::V12),
-        _ => Err(String::from("Invalid ring item version number")),
-    };
-    Json(match result {
-        Ok(_) => GenericResponse::ok(""),
-        Err(reason) => GenericResponse::err("Unable to set ring format version", &reason),
-    })
+    let result = major.parse::<RingVersion>();
+    if let Err(r) = result {
+        return Json(GenericResponse::err(
+            "Unable to set ring format version",
+            &r,
+        ));
+    } else {
+        let v = result.unwrap();
+        let result = api.set_ring_version(v);
+        return Json(match result {
+            Ok(_) => GenericResponse::ok(""),
+            Err(reason) => GenericResponse::err("Unable to set ring format version", &reason),
+        });
+    }
 }
 
 //------------------------------------------------------------------------
