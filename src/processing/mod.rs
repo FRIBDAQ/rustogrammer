@@ -51,6 +51,8 @@ pub enum RequestType {
     ChunkSize(usize), // Set # events per request to Histogramer
     Exit,             // Exit thread (mostly for testing).
     List,
+    Version(RingVersion),
+    GetVersion,
 }
 pub struct Request {
     reply_chan: mpsc::Sender<Reply>,
@@ -130,6 +132,16 @@ impl ProcessingApi {
     pub fn list(&self) -> Result<String, String> {
         self.transaction(RequestType::List)
     }
+    pub fn set_ring_version(&self, version: RingVersion) -> Result<String, String> {
+        self.transaction(RequestType::Version(version))
+    }
+    pub fn get_ring_version(&self) -> Result<RingVersion, String> {
+        let raw_version = self.transaction(RequestType::GetVersion);
+        match raw_version {
+            Ok(str_version) => str_version.parse::<RingVersion>(),
+            Err(s) => Err(s),
+        }
+    }
 }
 /// The processing thread requires state that's held across
 /// several functions.  That implies a struct and implementation.
@@ -167,6 +179,7 @@ struct ProcessingThread {
     keep_running: bool,
 
     event_chunk: Vec<parameters::Event>,
+    ring_version: RingVersion,
 }
 impl ProcessingThread {
     // Handle the Attach request:
@@ -359,8 +372,7 @@ impl ProcessingThread {
     // rebuild the parameterm ap.
     // *  Parameter value records which get processed into an event,
     // mapped to an event in the server's parameter space and
-    // sent to the histogram thread (this version does not support
-    // batching at this time).
+    // sent to the histogram thread
     fn read_an_event(&mut self) -> bool {
         if let Some(fp) = self.attached_file.as_mut() {
             let try_item = RingItem::read_item(fp);
@@ -375,9 +387,8 @@ impl ProcessingThread {
             let item = try_item.unwrap();
             match item.type_id() {
                 ring_items::PARAMETER_DEFINITIONS => {
-                    println!("Parameter definition event");
                     let definitions: Option<analysis_ring_items::ParameterDefinitions> =
-                        item.to_specific(RingVersion::V11);
+                        item.to_specific(self.ring_version);
                     if definitions.is_none() {
                         panic!("Converting a parameter definitions ring item failed!");
                     }
@@ -386,7 +397,7 @@ impl ProcessingThread {
                 }
                 ring_items::PARAMETER_DATA => {
                     let data: Option<analysis_ring_items::ParameterItem> =
-                        item.to_specific(RingVersion::V11);
+                        item.to_specific(self.ring_version);
                     if data.is_none() {
                         panic!("Converting parameter encoded data from raw ring item failed!");
                     }
@@ -451,6 +462,11 @@ impl ProcessingThread {
                 Ok(String::from(""))
             }
             RequestType::List => self.list(),
+            RequestType::Version(v) => {
+                self.ring_version = v;
+                Ok(String::from(""))
+            }
+            RequestType::GetVersion => Ok(format!("{}", self.ring_version)),
         };
         request
             .reply_chan
@@ -479,6 +495,7 @@ impl ProcessingThread {
             processing: false,
             keep_running: true,
             event_chunk: Vec::new(),
+            ring_version: RingVersion::V11,
         }
     }
     /// run the thread.
