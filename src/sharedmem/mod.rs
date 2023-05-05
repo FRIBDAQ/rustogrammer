@@ -598,6 +598,12 @@ impl SharedMemory {
             self.total_size,
         )
     }
+    /// Attemt to cleanup.
+    /// __bad___ things will happen if any other operations are attempted
+    /// on this object after this.
+    pub fn cleanup(&mut self) {
+        drop(self);
+    }
 }
 // Tests for the allocator:
 

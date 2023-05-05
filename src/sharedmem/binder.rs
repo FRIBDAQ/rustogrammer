@@ -13,6 +13,7 @@
 use crate::messaging;
 use crate::messaging::spectrum_messages;
 use glob::Pattern;
+use std::ops;
 use std::sync::mpsc;
 use std::thread;
 use std::time;
@@ -434,6 +435,8 @@ impl BindingThread {
                 }
             }
         }
+        self.shm.cleanup();
+        drop(self);
     }
 }
 /// This is the function to call to initiate a BindingThread.
