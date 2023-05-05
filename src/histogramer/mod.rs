@@ -132,21 +132,21 @@ pub fn start_server() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
 /// * req_send - the channel on which requests get sent to the server.
 /// (second element of the tuple returned from the start_server function).
 ///
-pub fn stop_server(jh: thread::JoinHandle<()>, req_send: mpsc::Sender<Request>) {
+pub fn stop_server(req_send: &mpsc::Sender<Request>) {
     let (rep_send, rep_recv) = mpsc::channel();
     let req = Request {
         reply_channel: rep_send,
         message: MessageType::Exit,
     };
     assert!(
-        if let Reply::Exiting = req.transaction(req_send, rep_recv) {
+        if let Reply::Exiting = req.transaction(req_send.clone(), rep_recv) {
             true
         } else {
             false
         }
     );
 
-    jh.join().expect("Failed to join server thread");
+    //jh.join().expect("Failed to join server thread");
 }
 
 // Note we're just going to try some simple requests for each
@@ -221,15 +221,16 @@ mod hgrammer_tests {
     fn start_server() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
         super::start_server()
     }
-    fn stop_server(jh: thread::JoinHandle<()>, req_send: mpsc::Sender<Request>) {
-        super::stop_server(jh, req_send);
+    fn stop_server(req_send: mpsc::Sender<Request>) {
+        super::stop_server(&req_send);
     }
     #[test]
     fn exit_1() {
         // start and stop the thread...all test are in that
         // Tests server response to Request::Exit
         let (jh, ch) = start_server();
-        stop_server(jh, ch);
+        stop_server(ch);
+        jh.join().unwrap();
     }
     #[test]
     fn params_1() {
@@ -249,7 +250,8 @@ mod hgrammer_tests {
         assert_eq!(1, lr.len());
         assert_eq!(String::from("test"), lr[0].get_name());
 
-        stop_server(jh, ch);
+        stop_server(ch);
+        jh.join().unwrap();
     }
     #[test]
     fn conditions_1() {
@@ -278,7 +280,8 @@ mod hgrammer_tests {
             }
         );
 
-        stop_server(jh, ch);
+        stop_server(ch);
+        jh.join().unwrap();
     }
     #[test]
     fn spectra_() {
@@ -293,6 +296,7 @@ mod hgrammer_tests {
         let l = client.list_spectra("*").expect("Failed to list spectra");
         assert_eq!(0, l.len());
 
-        stop_server(jh, ch);
+        stop_server(ch);
+        jh.join().unwrap();
     }
 }
