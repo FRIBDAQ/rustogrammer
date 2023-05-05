@@ -350,8 +350,8 @@ impl str::FromStr for RingVersion {
     type Err = String;
     fn from_str(s : &str) -> Result<Self, Self::Err> {
         match s {
-            "11" => Ok(RingVersion::V11),
-            "12" => Ok(RingVersion::V12),
+            "11" | "V11" => Ok(RingVersion::V11),
+            "12" | "V12" => Ok(RingVersion::V12),
             _ => Err(format!("{} is not a legal Ring format version", s))
         }
     }

@@ -138,11 +138,7 @@ impl ProcessingApi {
     pub fn get_ring_version(&self) -> Result<RingVersion, String> {
         let raw_version = self.transaction(RequestType::GetVersion);
         match raw_version {
-            Ok(str_version) => match str_version.as_str() {
-                "V11" => Ok(RingVersion::V11),
-                "V12" => Ok(RingVersion::V12),
-                _ => Err(String::from("Urecognized version string")),
-            },
+            Ok(str_version) => str_version.parse::<RingVersion>(),
             Err(s) => Err(s),
         }
     }
@@ -470,10 +466,7 @@ impl ProcessingThread {
                 self.ring_version = v;
                 Ok(String::from(""))
             }
-            RequestType::GetVersion => Ok(format!(
-                "{}",
-                self.ring_version
-            )),
+            RequestType::GetVersion => Ok(format!("{}", self.ring_version)),
         };
         request
             .reply_chan
