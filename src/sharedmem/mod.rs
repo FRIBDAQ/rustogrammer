@@ -15,7 +15,6 @@ use std::mem;
 use tempfile;
 
 use crate::messaging::spectrum_messages;
-use std::ops;
 
 pub mod binder;
 
@@ -598,6 +597,12 @@ impl SharedMemory {
             XAMINE_MAXSPEC,
             self.total_size,
         )
+    }
+    /// Attemt to cleanup.
+    /// __bad___ things will happen if any other operations are attempted
+    /// on this object after this.
+    pub fn cleanup(&mut self) {
+        drop(self);
     }
 }
 // Tests for the allocator:

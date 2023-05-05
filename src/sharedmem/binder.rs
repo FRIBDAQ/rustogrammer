@@ -435,6 +435,7 @@ impl BindingThread {
                 }
             }
         }
+        self.shm.cleanup();
         drop(self);
     }
 }
