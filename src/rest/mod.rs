@@ -35,6 +35,7 @@ pub mod apply;
 pub mod channel;
 pub mod data_processing;
 pub mod evbunpack;
+pub mod exit;
 pub mod filter;
 pub mod fit;
 pub mod fold;

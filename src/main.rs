@@ -15,8 +15,8 @@ mod sharedmem;
 mod spectra;
 
 use rest::{
-    apply, channel, data_processing, evbunpack, filter, fit, fold, gates, integrate,
-    rest_parameter, sbind, shm, spectrum, unbind, unimplemented, version
+    apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, integrate,
+    rest_parameter, sbind, shm, spectrum, unbind, unimplemented, version,
 };
 use sharedmem::binder;
 use std::sync::Mutex;
@@ -205,8 +205,6 @@ fn rocket() -> _ {
                 unimplemented::treevariable_fire_traces
             ],
         )
-        .mount(
-            "/spectcl/version",
-            routes![version::get_version]
-        )
+        .mount("/spectcl/version", routes![version::get_version])
+        .mount("/spectcl/exit", routes![exit::shutdown])
 }
