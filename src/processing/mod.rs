@@ -472,9 +472,7 @@ impl ProcessingThread {
             }
             RequestType::GetVersion => Ok(format!(
                 "{}",
-                RingItemVersion {
-                    vsn: self.ring_version
-                }
+                self.ring_version
             )),
         };
         request

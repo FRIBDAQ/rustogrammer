@@ -335,17 +335,15 @@ pub enum RingVersion {
     V11,
     V12,
 }
-pub struct RingItemVersion {
-    pub vsn: RingVersion,
-}
-impl fmt::Display for RingItemVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.vsn {
+impl fmt::Display for RingVersion {
+    fn fmt(&self,  f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match self {
             RingVersion::V11 => write!(f, "V11"),
             RingVersion::V12 => write!(f, "V12"),
-        }
+         }
     }
 }
+
 // Ring item types:
 
 pub const BEGIN_RUN: u32 = 1;
