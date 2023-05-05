@@ -42,13 +42,13 @@ pub mod fold;
 pub mod gates;
 pub mod integrate;
 pub mod parameter;
+pub mod ringversion;
 pub mod sbind;
 pub mod shm;
 pub mod spectrum;
 pub mod unbind;
 pub mod unimplemented;
 pub mod version;
-pub mod ringversion;
 
 pub use parameter as rest_parameter;
 

@@ -140,7 +140,7 @@ impl ProcessingApi {
         match raw_version {
             Ok(str_version) => match str_version.as_str() {
                 "V11" => Ok(RingVersion::V11),
-                "V12" => Ok(RingVersion::V11),
+                "V12" => Ok(RingVersion::V12),
                 _ => Err(String::from("Urecognized version string")),
             },
             Err(s) => Err(s),
@@ -391,7 +391,6 @@ impl ProcessingThread {
             let item = try_item.unwrap();
             match item.type_id() {
                 ring_items::PARAMETER_DEFINITIONS => {
-                    println!("Parameter definition event");
                     let definitions: Option<analysis_ring_items::ParameterDefinitions> =
                         item.to_specific(self.ring_version);
                     if definitions.is_none() {
