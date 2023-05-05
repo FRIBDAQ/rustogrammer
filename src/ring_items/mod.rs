@@ -330,12 +330,22 @@ pub fn get_c_string(offset: &mut usize, bytes: &[u8]) -> String {
     String::from_utf8(bytes[o..o + slen].try_into().unwrap()).unwrap()
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Copy, Clone)]
 pub enum RingVersion {
     V11,
     V12,
 }
-
+pub struct RingItemVersion {
+    pub vsn: RingVersion,
+}
+impl fmt::Display for RingItemVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.vsn {
+            RingVersion::V11 => write!(f, "V11"),
+            RingVersion::V12 => write!(f, "V12"),
+        }
+    }
+}
 // Ring item types:
 
 pub const BEGIN_RUN: u32 = 1;
