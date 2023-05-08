@@ -14,6 +14,7 @@ mod ring_items;
 mod sharedmem;
 mod spectra;
 
+use clap::Parser;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, integrate,
     rest_parameter, ringversion, sbind, shm, spectrum, unbind, unimplemented, version,
@@ -26,13 +27,22 @@ use std::sync::Mutex;
 #[macro_use]
 extern crate rocket;
 
-const DEFAULT_SHM_SPECTRUM_BYTES: usize = 32 * 1024 * 1024;
+const DEFAULT_SHM_SPECTRUM_MBYTES: usize = 32;
+
+// Program parameters as parsed by Clap:
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about=None)]
+struct Args {
+    #[arg(short, long, default_value_t=DEFAULT_SHM_SPECTRUM_MBYTES)]
+    shm_mbytes: usize,
+}
 
 // This is now the entry point as Rocket has the main
 //
 #[launch]
 fn rocket() -> _ {
-    let spectrum_bytes = DEFAULT_SHM_SPECTRUM_BYTES;
+    let args = Args::parse();
 
     // For now to ensure the join handle and channel don't get
     // dropped start the histogram server in a thread:
@@ -40,7 +50,7 @@ fn rocket() -> _ {
 
     let (jh, channel) = histogramer::start_server();
     let processor = processing::ProcessingApi::new(&channel);
-    let binder = binder::start_server(&channel, spectrum_bytes);
+    let binder = binder::start_server(&channel, args.shm_mbytes*1024*1024);
 
     let state = rest::HistogramState {
         state: Mutex::new((jh, channel)),
