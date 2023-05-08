@@ -15,11 +15,13 @@ mod sharedmem;
 mod spectra;
 
 use clap::Parser;
+use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, integrate,
     rest_parameter, ringversion, sbind, shm, spectrum, unbind, unimplemented, version,
 };
 use sharedmem::binder;
+use std::env;
 use std::sync::Mutex;
 
 // Pull in Rocket features:
@@ -36,6 +38,10 @@ const DEFAULT_SHM_SPECTRUM_MBYTES: usize = 32;
 struct Args {
     #[arg(short, long, default_value_t=DEFAULT_SHM_SPECTRUM_MBYTES)]
     shm_mbytes: usize,
+    #[arg(short, long, default_value_t = 8000)]
+    port: u16,
+    #[arg(long)]
+    service: Option<String>,
 }
 
 // This is now the entry point as Rocket has the main
@@ -52,11 +58,19 @@ fn rocket() -> _ {
     let processor = processing::ProcessingApi::new(&channel);
     let binder = binder::start_server(&channel, args.shm_mbytes * 1024 * 1024);
 
+    let (port, client) = get_port(&args);
+
     let state = rest::HistogramState {
         state: Mutex::new((jh, channel)),
         binder: Mutex::new(binder),
         processing: Mutex::new(processor),
+        portman_client: client,
     };
+
+    // Set the rocket port then fire it off:
+
+    env::set_var("ROCKET_PORT", port.to_string());
+
     rocket::build()
         .manage(state)
         .mount(
@@ -221,4 +235,25 @@ fn rocket() -> _ {
             "/spectcl/ringformat",
             routes![ringversion::ringversion_get, ringversion::ringversion_set],
         )
+}
+///
+/// Gets the port to use for our REST service.
+/// This uses command line argument that have been Parsed into
+/// the Args struct.   Here's how we determine the port to advertise:
+///
+/// * If service is supplied, then port is assumed to be the port manager's
+/// service port and we advertise given the service specified.
+/// * if service is not supplied, then we advertise on the value of the port
+/// field.
+///
+/// The Client is part of what's returned as it must remain alive to
+/// keep the allocation.
+fn get_port(args: &Args) -> (u16, Option<portman_client::Client>) {
+    if args.service.is_some() {
+        let mut client = portman_client::Client::new(args.port);
+        let port = client.get(args.service.as_ref().unwrap());
+        (port.expect("Could not allocate service port"), Some(client))
+    } else {
+        (args.port, None)
+    }
 }

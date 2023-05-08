@@ -56,6 +56,7 @@ use crate::messaging::parameter_messages::ParameterMessageClient;
 use crate::messaging::Request;
 use crate::processing;
 use crate::sharedmem::binder;
+use portman_client;
 use rocket::serde::Serialize;
 use rocket::State;
 use std::sync::{mpsc, Mutex};
@@ -65,6 +66,7 @@ pub struct HistogramState {
     pub state: Mutex<(thread::JoinHandle<()>, mpsc::Sender<Request>)>,
     pub binder: Mutex<(mpsc::Sender<binder::Request>, thread::JoinHandle<()>)>,
     pub processing: Mutex<processing::ProcessingApi>,
+    pub portman_client: Option<portman_client::Client>,
 }
 
 pub type OptionalStringVec = Option<Vec<String>>;
