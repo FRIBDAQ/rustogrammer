@@ -13,6 +13,7 @@ libm = "0.2.6"
 glob = "0.3.1"
 memmap = "0.6.2"
 dirs = "5.0.0"
+clap = { version = "4.2.7", features = ["derive"] }
 
 [dependencies.rocket]
 version="0.5.0-rc.3"

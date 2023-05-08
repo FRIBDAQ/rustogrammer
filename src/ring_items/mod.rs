@@ -17,8 +17,8 @@ use std::io::Read;
 use std::io::Write;
 use std::mem;
 use std::ops::Add;
-use std::time;
 use std::str;
+use std::time;
 
 pub mod abnormal_end;
 pub mod analysis_ring_items;
@@ -29,7 +29,6 @@ pub mod scaler_item;
 pub mod state_change;
 pub mod text_item;
 pub mod triggers_item;
-
 
 /// This is an raw ring item.   Raw in the
 /// sense that the payload is just a soup of bytes.
@@ -338,21 +337,21 @@ pub enum RingVersion {
     V12,
 }
 impl fmt::Display for RingVersion {
-    fn fmt(&self,  f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            match self {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
             RingVersion::V11 => write!(f, "V11"),
             RingVersion::V12 => write!(f, "V12"),
-         }
+        }
     }
 }
 
 impl str::FromStr for RingVersion {
     type Err = String;
-    fn from_str(s : &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "11" | "V11" => Ok(RingVersion::V11),
             "12" | "V12" => Ok(RingVersion::V12),
-            _ => Err(format!("{} is not a legal Ring format version", s))
+            _ => Err(format!("{} is not a legal Ring format version", s)),
         }
     }
 }
