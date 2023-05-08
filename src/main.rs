@@ -50,7 +50,7 @@ fn rocket() -> _ {
 
     let (jh, channel) = histogramer::start_server();
     let processor = processing::ProcessingApi::new(&channel);
-    let binder = binder::start_server(&channel, args.shm_mbytes*1024*1024);
+    let binder = binder::start_server(&channel, args.shm_mbytes * 1024 * 1024);
 
     let state = rest::HistogramState {
         state: Mutex::new((jh, channel)),
