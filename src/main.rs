@@ -20,6 +20,7 @@ use rest::{
     rest_parameter, ringversion, sbind, shm, spectrum, unbind, unimplemented, version,
 };
 use sharedmem::binder;
+use std::env;
 use std::sync::Mutex;
 
 // Pull in Rocket features:
@@ -36,6 +37,8 @@ const DEFAULT_SHM_SPECTRUM_MBYTES: usize = 32;
 struct Args {
     #[arg(short, long, default_value_t=DEFAULT_SHM_SPECTRUM_MBYTES)]
     shm_mbytes: usize,
+    #[arg(short, long, default_value_t = 8000)]
+    port: u16,
 }
 
 // This is now the entry point as Rocket has the main
@@ -57,6 +60,11 @@ fn rocket() -> _ {
         binder: Mutex::new(binder),
         processing: Mutex::new(processor),
     };
+
+    // Set the rocket port then fire it off:
+
+    env::set_var("ROCKET_PORT", args.port.to_string());
+
     rocket::build()
         .manage(state)
         .mount(
