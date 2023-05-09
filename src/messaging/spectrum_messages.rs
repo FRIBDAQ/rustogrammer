@@ -3529,19 +3529,24 @@ mod spproc_tests {
         assert_eq!(SpectrumReply::Created, reply);
 
         let reply = to.processor.process_request(
-            SpectrumRequest::GetStats(String::from("test")), &to.parameters, &mut to.conditions
+            SpectrumRequest::GetStats(String::from("test")),
+            &to.parameters,
+            &mut to.conditions,
         );
         assert!(if let SpectrumReply::Statistics(s) = reply {
-                assert_eq!((0,0,0,0), s);
-                true
-            } else {
-                false
-            }
-        );
+            assert_eq!((0, 0, 0, 0), s);
+            true
+        } else {
+            false
+        });
         // IF we use the wrong name:
 
         assert!(
-            if let SpectrumReply::Error(_) = to.processor.process_request(SpectrumRequest::GetStats(String::from("none")),  &to.parameters, &mut to.conditions) {
+            if let SpectrumReply::Error(_) = to.processor.process_request(
+                SpectrumRequest::GetStats(String::from("none")),
+                &to.parameters,
+                &mut to.conditions
+            ) {
                 true
             } else {
                 false
@@ -4388,6 +4393,26 @@ mod spectrum_api_tests {
             .get_contents("test", 0.0, 1024.0, 0.0, 0.0)
             .expect("Unable to get spectrumcontents");
         assert_eq!(0, contents.len());
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn getstats_1() {
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to make spectrum");
+
+        let result = api.get_statistics("test");
+        
+        assert!(if let Ok(stats) = result {
+                assert_eq!((0,0,0,0), stats);
+                true
+            } else {
+                false
+            }
+        );
 
         stop_server(jh, send);
     }
