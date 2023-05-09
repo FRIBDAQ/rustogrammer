@@ -41,6 +41,7 @@
 
 use super::conditions::*;
 use super::parameters::*;
+use ndhistogram::axis::*;
 use ndhistogram::*;
 use std::cell::RefCell;
 use std::collections::{hash_map, HashMap};
@@ -206,6 +207,76 @@ pub trait Spectrum {
     /// Clear the histogram counts.:
 
     fn clear(&mut self);
+
+    // Added to get the spectrum statistics:
+
+    /// Gets the underflow and overflow statistics.
+    /// The resulting tuple is
+    /// (xunderflows, yunderflows, xoverflows, yoverflows)
+    ///
+    /// We can implement this on behalf of all spectrrum types
+    /// by getting and acting on the appropriate container
+    ///
+    fn get_out_of_range(&self) -> (u32, u32, u32, u32) {
+        let oned = self.get_histogram_1d();
+        if let Some(spec) = oned {
+            return self.get_out_of_range_1d(spec);
+        }
+        let twod = self.get_histogram_2d().unwrap();
+        return self.get_out_of_range_2d(twod);
+    }
+    // Get out of range statistics for 1d:
+
+    fn get_out_of_range_1d(&self, spec: H1DContainer) -> (u32, u32, u32, u32) {
+        let mut overs = 0;
+        let mut unders = 0;
+        for c in spec.borrow().iter() {
+            match c.bin {
+                BinInterval::Underflow { end: _ } => {
+                    unders += c.value.get() as u32;
+                }
+                BinInterval::Overflow { start: _ } => {
+                    overs += c.value.get() as u32;
+                }
+                _ => {}
+            }
+        }
+        (unders, 0, overs, 0)
+    }
+    // Get out of range statistics for 2ds:
+
+    fn get_out_of_range_2d(&self, spec: H2DContainer) -> (u32, u32, u32, u32) {
+        let mut xunder = 0;
+        let mut yunder = 0;
+        let mut xover = 0;
+        let mut yover = 0;
+
+        for c in spec.borrow().iter() {
+            let xbin = c.bin.0;
+            let ybin = c.bin.1;
+
+            match xbin {
+                BinInterval::Overflow { start: _ } => {
+                    xover += c.value.get() as u32;
+                }
+                BinInterval::Underflow { end: _ } => {
+                    xunder += c.value.get() as u32;
+                }
+                _ => {}
+            }
+            match ybin {
+                BinInterval::Overflow { start: _ } => {
+                    yover += c.value.get() as u32;
+                }
+                BinInterval::Underflow { end: _ } => {
+                    yunder += c.value.get() as u32;
+                }
+                _ => {}
+            }
+        }
+
+        (xunder, yunder, xover, yover)
+    }
 }
 
 // We also need some sort of repository in which spectra can be stored and looked up by name.
@@ -1299,4 +1370,16 @@ mod spec_storage_tests {
         assert_eq!(String::from("spec1"), s1.unwrap().borrow().get_name());
         assert!(store.remove("spec1").is_none());
     }
+}
+// tests for the trait function to get statistics.
+// Note that this can be tested here using simple 1-d and 2-d histograms
+// because the default implementation of the trait works by understanding
+// the underlying data is just an ndhistogram either 1d or 2d.
+
+#[cfg(test)]
+mod stats_tests {
+    use super::*;
+
+    #[test]
+    fn onedstats_1() {}
 }
