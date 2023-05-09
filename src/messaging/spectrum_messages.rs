@@ -4405,14 +4405,13 @@ mod spectrum_api_tests {
             .expect("Failed to make spectrum");
 
         let result = api.get_statistics("test");
-        
+
         assert!(if let Ok(stats) = result {
-                assert_eq!((0,0,0,0), stats);
-                true
-            } else {
-                false
-            }
-        );
+            assert_eq!((0, 0, 0, 0), stats);
+            true
+        } else {
+            false
+        });
 
         stop_server(jh, send);
     }
