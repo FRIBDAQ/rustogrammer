@@ -1379,7 +1379,209 @@ mod spec_storage_tests {
 #[cfg(test)]
 mod stats_tests {
     use super::*;
+    use crate::parameters::*;
+    #[test]
+    fn onedstats_1() {
+        let mut p = ParameterDictionary::new();
+        p.add("someparam").expect("Failed to add 'someparam'");
+        let spec = Oned::new("test", "someparam", &p, Some(0.0), Some(10.0), Some(100))
+            .expect("Unable to create 1d spectrum");
+
+        let hist = spec
+            .get_histogram_1d()
+            .expect("Failed to unwrap 1d histogram");
+        hist.borrow_mut().fill(&-1.0); // Underflow in x.
+
+        assert_eq!((1, 0, 0, 0), spec.get_out_of_range());
+    }
+    #[test]
+    fn onedstats_2() {
+        let mut p = ParameterDictionary::new();
+        p.add("someparam").expect("Failed to add 'someparam'");
+        let spec = Oned::new("test", "someparam", &p, Some(0.0), Some(10.0), Some(100))
+            .expect("Unable to create 1d spectrum");
+
+        let hist = spec
+            .get_histogram_1d()
+            .expect("Failed to unwrap 1d histogram");
+        hist.borrow_mut().fill(&10.5); // Underflow in x.
+
+        assert_eq!((0, 0, 1, 0), spec.get_out_of_range());
+    }
 
     #[test]
-    fn onedstats_1() {}
+    fn twodstats_1() {
+        // Underflow in x only:
+
+        let mut p = ParameterDictionary::new();
+        p.add("x").expect("Unable to add x parameter");
+        p.add("y").expect("Unable to add y parameter");
+
+        let spec = Twod::new(
+            "test",
+            "x",
+            "y",
+            &p,
+            Some(0.0),
+            Some(1.0),
+            Some(100),
+            Some(-1.0),
+            Some(1.0),
+            Some(100),
+        )
+        .expect("Unable to create 2d spectrum");
+
+        let hist = spec
+            .get_histogram_2d()
+            .expect("Failed to unwrap 2d histogram");
+
+        hist.borrow_mut().fill(&(-0.5, 0.0));
+        assert_eq!((1, 0, 0, 0), spec.get_out_of_range());
+    }
+    #[test]
+    fn twodstats_2() {
+        // Undeflow in y only:
+
+        let mut p = ParameterDictionary::new();
+        p.add("x").expect("Unable to add x parameter");
+        p.add("y").expect("Unable to add y parameter");
+
+        let spec = Twod::new(
+            "test",
+            "x",
+            "y",
+            &p,
+            Some(0.0),
+            Some(1.0),
+            Some(100),
+            Some(-1.0),
+            Some(1.0),
+            Some(100),
+        )
+        .expect("Unable to create 2d spectrum");
+
+        let hist = spec
+            .get_histogram_2d()
+            .expect("Failed to unwrap 2d histogram");
+
+        hist.borrow_mut().fill(&(0.0, -1.5));
+
+        assert_eq!((0, 1, 0, 0), spec.get_out_of_range());
+    }
+    #[test]
+    fn twodstats_3() {
+        // underflow in both x/y:
+
+        let mut p = ParameterDictionary::new();
+        p.add("x").expect("Unable to add x parameter");
+        p.add("y").expect("Unable to add y parameter");
+
+        let spec = Twod::new(
+            "test",
+            "x",
+            "y",
+            &p,
+            Some(0.0),
+            Some(1.0),
+            Some(100),
+            Some(-1.0),
+            Some(1.0),
+            Some(100),
+        )
+        .expect("Unable to create 2d spectrum");
+
+        let hist = spec
+            .get_histogram_2d()
+            .expect("Failed to unwrap 2d histogram");
+
+        hist.borrow_mut().fill(&(-0.5, -1.5));
+        assert_eq!((1, 1, 0, 0), spec.get_out_of_range());
+    }
+    #[test]
+    fn twodstats_4() {
+        // Overflow in x:
+
+        let mut p = ParameterDictionary::new();
+        p.add("x").expect("Unable to add x parameter");
+        p.add("y").expect("Unable to add y parameter");
+
+        let spec = Twod::new(
+            "test",
+            "x",
+            "y",
+            &p,
+            Some(0.0),
+            Some(1.0),
+            Some(100),
+            Some(-1.0),
+            Some(1.0),
+            Some(100),
+        )
+        .expect("Unable to create 2d spectrum");
+
+        let hist = spec
+            .get_histogram_2d()
+            .expect("Failed to unwrap 2d histogram");
+
+        hist.borrow_mut().fill(&(1.2, 0.0));
+        assert_eq!((0, 0, 1, 0), spec.get_out_of_range());
+    }
+    #[test]
+    fn twodstats_5() {
+        // Overflow in y only:
+
+        let mut p = ParameterDictionary::new();
+        p.add("x").expect("Unable to add x parameter");
+        p.add("y").expect("Unable to add y parameter");
+
+        let spec = Twod::new(
+            "test",
+            "x",
+            "y",
+            &p,
+            Some(0.0),
+            Some(1.0),
+            Some(100),
+            Some(-1.0),
+            Some(1.0),
+            Some(100),
+        )
+        .expect("Unable to create 2d spectrum");
+
+        let hist = spec
+            .get_histogram_2d()
+            .expect("Failed to unwrap 2d histogram");
+
+        hist.borrow_mut().fill(&(0.0, 1.1));
+        assert_eq!((0, 0, 0, 1), spec.get_out_of_range());
+    }
+    #[test]
+    fn twodstats_6() {
+        // overflows both x/y:
+
+        let mut p = ParameterDictionary::new();
+        p.add("x").expect("Unable to add x parameter");
+        p.add("y").expect("Unable to add y parameter");
+
+        let spec = Twod::new(
+            "test",
+            "x",
+            "y",
+            &p,
+            Some(0.0),
+            Some(1.0),
+            Some(100),
+            Some(-1.0),
+            Some(1.0),
+            Some(100),
+        )
+        .expect("Unable to create 2d spectrum");
+
+        let hist = spec
+            .get_histogram_2d()
+            .expect("Failed to unwrap 2d histogram");
+
+        hist.borrow_mut().fill(&(1.1, 1.1));
+        assert_eq!((0, 0, 1, 1), spec.get_out_of_range());
+    }
 }
