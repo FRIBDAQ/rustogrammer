@@ -3497,6 +3497,57 @@ mod spproc_tests {
             false
         });
     }
+    #[test]
+    fn specstats_1() {
+        // Get the statistics from a spectrum.
+        // Note the statistics functions themselves are tested in
+        // spectrum/mod.rs so we only check that the right
+        // things get returned
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.5"),
+                yparam: String::from("param.7"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetStats(String::from("test")), &to.parameters, &mut to.conditions
+        );
+        assert!(if let SpectrumReply::Statistics(s) = reply {
+                assert_eq!((0,0,0,0), s);
+                true
+            } else {
+                false
+            }
+        );
+        // IF we use the wrong name:
+
+        assert!(
+            if let SpectrumReply::Error(_) = to.processor.process_request(SpectrumRequest::GetStats(String::from("none")),  &to.parameters, &mut to.conditions) {
+                true
+            } else {
+                false
+            }
+        );
+    }
 }
 #[cfg(test)]
 mod reqstruct_tests {
