@@ -52,6 +52,9 @@ pub struct SpectrumProperties {
     pub yaxis: Option<AxisSpecification>,
     pub gate: Option<String>,
 }
+/// xunder, yunder, xover, yover from get stats.
+///
+pub type SpectrumStatistics = (u32, u32, u32, u32);
 ///  Defines the requests that can be made of the spectrum
 /// part of the histogram server
 ///
@@ -115,6 +118,7 @@ pub enum SpectrumRequest {
         yhigh: f64,
     },
     Events(Vec<parameters::Event>),
+    GetStats(String),
 }
 
 /// Defines the replies the spectrum par tof the histogram
@@ -130,6 +134,7 @@ pub enum SpectrumReply {
     Contents(SpectrumContents),       // Contents of a spectrum.
     Listing(Vec<SpectrumProperties>), // List of spectrum props.
     Processed,                        // Events processed.
+    Statistics(SpectrumStatistics),   // Spectrum statistics.
 }
 
 ///
@@ -594,6 +599,14 @@ impl SpectrumProcessor {
         }
         SpectrumReply::Processed
     }
+    // Get spectrumstatistics:
+    fn get_statistics(&self, name: &str) -> SpectrumReply {
+        if let Some(spec) = self.dict.get(name) {
+            SpectrumReply::Statistics(spec.borrow().get_out_of_range())
+        } else {
+            SpectrumReply::Error(format!("Spectrum {} does not exist", name))
+        }
+    }
 
     // Public methods
     /// Construction
@@ -667,6 +680,7 @@ impl SpectrumProcessor {
                 yhigh,
             } => self.get_contents(&name, xlow, xhigh, ylow, yhigh),
             SpectrumRequest::Events(events) => self.process_events(&events, cdict),
+            SpectrumRequest::GetStats(name) => self.get_statistics(&name),
         }
     }
 }
@@ -2968,7 +2982,7 @@ mod spproc_tests {
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
-        // Make some evnts and fill some (not all) of the spectra:
+        // Make some events and fill some (not all) of the spectra:
 
         let id1 = to.parameters.lookup("param.5").unwrap().get_id();
         let id2 = to.parameters.lookup("param.7").unwrap().get_id();
