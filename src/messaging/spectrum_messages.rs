@@ -701,6 +701,10 @@ pub type SpectrumServerListingResult = Result<Vec<SpectrumProperties>, String>;
 /// contents:
 pub type SpectrumServerContentsResult = Result<SpectrumContents, String>;
 
+/// Result for spectrum statistics request:
+
+pub type SpectrumServerStatisticsResult = Result<SpectrumStatistics, String>;
+
 ///
 /// This struct provides a container for the channel used to
 /// make server requests.  The implementation can then be simplified
@@ -1230,6 +1234,22 @@ impl SpectrumMessageClient {
             SpectrumReply::Processed => Ok(()),
             SpectrumReply::Error(s) => Err(s),
             _ => Err(String::from("processEvents -unexpected reply type")),
+        }
+    }
+    /// Return the over/underflow statistics for a spectrum.
+    ///
+    /// ### Parameters:
+    /// * name - the name of the spectrum to query.
+    /// ### Returns:
+    /// * SpectrumServerStatiscisResult
+    ///     - Err has a string containing the error.
+    ///     - Ok has a Statistics tuple.
+    ///
+    pub fn get_statistics(&self, name: &str) -> SpectrumServerStatisticsResult {
+        match self.transact(SpectrumRequest::GetStats(String::from(name))) {
+            SpectrumReply::Statistics(s) => Ok(s),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("get_statistics - unexpected reply type")),
         }
     }
 }
