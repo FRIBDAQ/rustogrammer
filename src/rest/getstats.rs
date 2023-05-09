@@ -48,7 +48,7 @@ pub fn get_statistics(
     pattern: OptionalString,
     state: &State<HistogramState>,
 ) -> Json<SpectrumStatisticsReply> {
-    let  pat =  if let Some(p) = pattern {
+    let pat = if let Some(p) = pattern {
         p
     } else {
         String::from("*")
@@ -59,24 +59,22 @@ pub fn get_statistics(
     if let Err(s) = spectra {
         return Json(SpectrumStatisticsReply {
             status: format!("Failed to get spectrum list for {} : {}", pat, s),
-            detail: vec![]
+            detail: vec![],
         });
     }
     let spectra = spectra.unwrap();
     let mut response = SpectrumStatisticsReply {
         status: String::from("OK"),
-        detail: vec![]
+        detail: vec![],
     };
     for s in spectra {
         let stats = api.get_statistics(&s.name);
         if let Ok(st) = stats {
-            response.detail.push(
-                SpectrumStatistics {
-                    name: s.name.clone(),
-                    underflows: [st.0, st.1],
-                    overflows: [st.2, st.3]
-                }
-            );
+            response.detail.push(SpectrumStatistics {
+                name: s.name.clone(),
+                underflows: [st.0, st.1],
+                overflows: [st.2, st.3],
+            });
         }
     }
 
