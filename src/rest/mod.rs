@@ -40,6 +40,7 @@ pub mod filter;
 pub mod fit;
 pub mod fold;
 pub mod gates;
+pub mod getstats;
 pub mod integrate;
 pub mod parameter;
 pub mod ringversion;

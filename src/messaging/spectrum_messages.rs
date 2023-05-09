@@ -52,6 +52,9 @@ pub struct SpectrumProperties {
     pub yaxis: Option<AxisSpecification>,
     pub gate: Option<String>,
 }
+/// xunder, yunder, xover, yover from get stats.
+///
+pub type SpectrumStatistics = (u32, u32, u32, u32);
 ///  Defines the requests that can be made of the spectrum
 /// part of the histogram server
 ///
@@ -115,6 +118,7 @@ pub enum SpectrumRequest {
         yhigh: f64,
     },
     Events(Vec<parameters::Event>),
+    GetStats(String),
 }
 
 /// Defines the replies the spectrum par tof the histogram
@@ -130,6 +134,7 @@ pub enum SpectrumReply {
     Contents(SpectrumContents),       // Contents of a spectrum.
     Listing(Vec<SpectrumProperties>), // List of spectrum props.
     Processed,                        // Events processed.
+    Statistics(SpectrumStatistics),   // Spectrum statistics.
 }
 
 ///
@@ -594,6 +599,14 @@ impl SpectrumProcessor {
         }
         SpectrumReply::Processed
     }
+    // Get spectrumstatistics:
+    fn get_statistics(&self, name: &str) -> SpectrumReply {
+        if let Some(spec) = self.dict.get(name) {
+            SpectrumReply::Statistics(spec.borrow().get_out_of_range())
+        } else {
+            SpectrumReply::Error(format!("Spectrum {} does not exist", name))
+        }
+    }
 
     // Public methods
     /// Construction
@@ -667,6 +680,7 @@ impl SpectrumProcessor {
                 yhigh,
             } => self.get_contents(&name, xlow, xhigh, ylow, yhigh),
             SpectrumRequest::Events(events) => self.process_events(&events, cdict),
+            SpectrumRequest::GetStats(name) => self.get_statistics(&name),
         }
     }
 }
@@ -686,6 +700,10 @@ pub type SpectrumServerListingResult = Result<Vec<SpectrumProperties>, String>;
 /// This type is a result the API will sue to return spectrum
 /// contents:
 pub type SpectrumServerContentsResult = Result<SpectrumContents, String>;
+
+/// Result for spectrum statistics request:
+
+pub type SpectrumServerStatisticsResult = Result<SpectrumStatistics, String>;
 
 ///
 /// This struct provides a container for the channel used to
@@ -1216,6 +1234,22 @@ impl SpectrumMessageClient {
             SpectrumReply::Processed => Ok(()),
             SpectrumReply::Error(s) => Err(s),
             _ => Err(String::from("processEvents -unexpected reply type")),
+        }
+    }
+    /// Return the over/underflow statistics for a spectrum.
+    ///
+    /// ### Parameters:
+    /// * name - the name of the spectrum to query.
+    /// ### Returns:
+    /// * SpectrumServerStatiscisResult
+    ///     - Err has a string containing the error.
+    ///     - Ok has a Statistics tuple.
+    ///
+    pub fn get_statistics(&self, name: &str) -> SpectrumServerStatisticsResult {
+        match self.transact(SpectrumRequest::GetStats(String::from(name))) {
+            SpectrumReply::Statistics(s) => Ok(s),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("get_statistics - unexpected reply type")),
         }
     }
 }
@@ -2968,7 +3002,7 @@ mod spproc_tests {
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
-        // Make some evnts and fill some (not all) of the spectra:
+        // Make some events and fill some (not all) of the spectra:
 
         let id1 = to.parameters.lookup("param.5").unwrap().get_id();
         let id2 = to.parameters.lookup("param.7").unwrap().get_id();
@@ -3462,6 +3496,62 @@ mod spproc_tests {
         } else {
             false
         });
+    }
+    #[test]
+    fn specstats_1() {
+        // Get the statistics from a spectrum.
+        // Note the statistics functions themselves are tested in
+        // spectrum/mod.rs so we only check that the right
+        // things get returned
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.5"),
+                yparam: String::from("param.7"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetStats(String::from("test")),
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Statistics(s) = reply {
+            assert_eq!((0, 0, 0, 0), s);
+            true
+        } else {
+            false
+        });
+        // IF we use the wrong name:
+
+        assert!(
+            if let SpectrumReply::Error(_) = to.processor.process_request(
+                SpectrumRequest::GetStats(String::from("none")),
+                &to.parameters,
+                &mut to.conditions
+            ) {
+                true
+            } else {
+                false
+            }
+        );
     }
 }
 #[cfg(test)]
@@ -4303,6 +4393,25 @@ mod spectrum_api_tests {
             .get_contents("test", 0.0, 1024.0, 0.0, 0.0)
             .expect("Unable to get spectrumcontents");
         assert_eq!(0, contents.len());
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn getstats_1() {
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to make spectrum");
+
+        let result = api.get_statistics("test");
+
+        assert!(if let Ok(stats) = result {
+            assert_eq!((0, 0, 0, 0), stats);
+            true
+        } else {
+            false
+        });
 
         stop_server(jh, send);
     }
