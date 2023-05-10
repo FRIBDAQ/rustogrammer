@@ -18,7 +18,7 @@ use clap::Parser;
 use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, getstats,
-    integrate, rest_parameter, ringversion, sbind, shm, spectrum, unbind, unimplemented, version,
+    integrate, rest_parameter, ringversion, sbind, shm, spectrum, unbind, unimplemented, version, spectrumio
 };
 use sharedmem::binder;
 use std::env;
@@ -236,6 +236,7 @@ fn rocket() -> _ {
             routes![ringversion::ringversion_get, ringversion::ringversion_set],
         )
         .mount("/spectcl/specstats", routes![getstats::get_statistics])
+        .mount("/spectcl/swrite", routes![spectrumio::swrite_handler])
 }
 ///
 /// Gets the port to use for our REST service.

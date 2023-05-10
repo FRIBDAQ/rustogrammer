@@ -50,6 +50,7 @@ pub mod spectrum;
 pub mod unbind;
 pub mod unimplemented;
 pub mod version;
+pub mod spectrumio;
 
 pub use parameter as rest_parameter;
 

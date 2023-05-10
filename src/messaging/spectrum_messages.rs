@@ -20,6 +20,7 @@ use std::sync::mpsc;
 use glob::Pattern;
 use std::cell::RefCell;
 use std::rc::Rc;
+use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AxisSpecification {
@@ -27,7 +28,7 @@ pub struct AxisSpecification {
     pub high: f64,
     pub bins: u32,
 }
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ChannelType {
     Underflow,
     Overflow,
