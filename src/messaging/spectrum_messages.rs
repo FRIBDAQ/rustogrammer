@@ -18,9 +18,9 @@ use ndhistogram::*;
 use std::sync::mpsc;
 
 use glob::Pattern;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::rc::Rc;
-use serde::{Serialize, Deserialize};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AxisSpecification {
@@ -505,20 +505,20 @@ impl SpectrumProcessor {
                     let v = c.value.get();
                     if v != 0.0 {
                         match c.bin {
-                            BinInterval::Underflow { end: _end } => {
+                            BinInterval::Underflow { end: end } => {
                                 result.push(Channel {
                                     chan_type: ChannelType::Underflow,
                                     value: v,
-                                    x: 0.0,
+                                    x: end,
                                     y: 0.0,
                                     bin: c.index,
                                 });
                             }
-                            BinInterval::Overflow { start: _start } => {
+                            BinInterval::Overflow { start: start } => {
                                 result.push(Channel {
                                     chan_type: ChannelType::Overflow,
                                     value: v,
-                                    x: 0.0,
+                                    x: start,
                                     y: 0.0,
                                     bin: c.index,
                                 });
@@ -548,26 +548,30 @@ impl SpectrumProcessor {
                     let mut ctype = ChannelType::Bin;
 
                     match xbin {
-                        BinInterval::Overflow { start: _start } => {
+                        BinInterval::Overflow { start: start } => {
                             ctype = ChannelType::Overflow;
+                            x = start;
                         }
-                        BinInterval::Underflow { end: _end } => {
+                        BinInterval::Underflow { end: end } => {
                             ctype = ChannelType::Underflow;
+                            x = end;
                         }
                         BinInterval::Bin { start, end: _end } => {
                             x = start;
                         }
                     };
                     match ybin {
-                        BinInterval::Overflow { start: _start } => {
+                        BinInterval::Overflow { start: start } => {
                             if ctype == ChannelType::Bin {
                                 ctype = ChannelType::Overflow;
                             }
+                            y  = start;
                         }
-                        BinInterval::Underflow { end: _end } => {
+                        BinInterval::Underflow { end: end } => {
                             if ctype == ChannelType::Bin {
                                 ctype = ChannelType::Underflow;
                             }
+                            y = end;
                         }
                         BinInterval::Bin { start, end: _end } => {
                             y = start;

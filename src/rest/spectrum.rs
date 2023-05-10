@@ -20,7 +20,7 @@ use crate::sharedmem::binder;
 // as with gates we need to map from Rustogramer spectrum
 // types to SpecTcl spectrum types.
 
-fn rg_sptype_to_spectcl(rg_type: &str) -> String {
+pub fn rg_sptype_to_spectcl(rg_type: &str) -> String {
     match rg_type {
         "1D" => String::from("1"),
         "Multi1d" => String::from("g1"),
