@@ -301,9 +301,14 @@ pub fn swrite_handler(
 
     let response = match fmt.as_str() {
         "json" => {
-            if let Err(e) = fd.write_all(json::to_string(&spectra).expect("Failed conversion to JSON").as_bytes()) {
+            if let Err(e) = fd.write_all(
+                json::to_string(&spectra)
+                    .expect("Failed conversion to JSON")
+                    .as_bytes(),
+            ) {
                 GenericResponse::err("Failed to write spectra to file", &e.to_string())
             } else {
+                // Add code for spectrum write. In SpecTcl format.
                 GenericResponse::ok("")
             }
         }
