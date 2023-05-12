@@ -13,12 +13,14 @@ mod rest;
 mod ring_items;
 mod sharedmem;
 mod spectra;
+mod spectclio;
 
 use clap::Parser;
 use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, getstats,
-    integrate, rest_parameter, ringversion, sbind, shm, spectrum, unbind, unimplemented, version, spectrumio
+    integrate, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, unbind,
+    unimplemented, version,
 };
 use sharedmem::binder;
 use std::env;

@@ -565,7 +565,7 @@ impl SpectrumProcessor {
                             if ctype == ChannelType::Bin {
                                 ctype = ChannelType::Overflow;
                             }
-                            y  = start;
+                            y = start;
                         }
                         BinInterval::Underflow { end: end } => {
                             if ctype == ChannelType::Bin {

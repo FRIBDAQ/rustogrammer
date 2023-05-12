@@ -11,6 +11,7 @@
 //!
 use super::*;
 use crate::messaging::spectrum_messages;
+use crate::spectclio;
 use rocket::serde::{json, json::Json};
 use rocket::State;
 use serde::{Deserialize, Serialize};
@@ -28,12 +29,12 @@ use std::io::Write;
 ///
 #[derive(Serialize, Deserialize, Copy, Clone)]
 pub struct SpectrumChannel {
-    chan_type: spectrum_messages::ChannelType,
-    x_coord: f64,
-    y_coord: f64,
-    x_bin: usize,
-    y_bin: usize,
-    value: u64,
+    pub chan_type: spectrum_messages::ChannelType,
+    pub x_coord: f64,
+    pub y_coord: f64,
+    pub x_bin: usize,
+    pub y_bin: usize,
+    pub value: u64,
 }
 
 /// This is, again, a bit different than the
@@ -46,20 +47,20 @@ pub struct SpectrumChannel {
 ///
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SpectrumProperties {
-    name: String,
-    type_string: String,
-    x_parameters: Vec<String>,
-    y_parameters: Vec<String>,
-    x_axis: Option<(f64, f64, u32)>,
-    y_axis: Option<(f64, f64, u32)>,
+    pub name: String,
+    pub type_string: String,
+    pub x_parameters: Vec<String>,
+    pub y_parameters: Vec<String>,
+    pub x_axis: Option<(f64, f64, u32)>,
+    pub y_axis: Option<(f64, f64, u32)>,
 }
 
 /// Spectra are their properties and a vector of their channels:
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct SpectrumFileData {
-    definition: SpectrumProperties,
-    channels: Vec<SpectrumChannel>,
+    pub definition: SpectrumProperties,
+    pub channels: Vec<SpectrumChannel>,
 }
 
 //--------------------------------------------------------------------------
@@ -312,7 +313,13 @@ pub fn swrite_handler(
                 GenericResponse::ok("")
             }
         }
-        "ascii" => GenericResponse::err("Unimplemented", "ASCII (SpecTcl format)"),
+        "ascii" => {
+            if let Err(s) = spectclio::write_spectrum(&mut fd, &spectra) {
+                GenericResponse::err("Unable to write ASCII spectra", &s)
+            } else {
+                GenericResponse::ok("")
+            }
+        }
         _ => GenericResponse::err("Invalid format type specification:", &format!("{}", format)),
     };
 
