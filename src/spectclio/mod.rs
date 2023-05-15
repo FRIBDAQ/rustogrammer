@@ -93,7 +93,7 @@ fn write_string_list(fd: &mut dyn Write, s: &Vec<String>) -> Result<(), String> 
     fdwrite(fd, "(")?;
 
     for px in s.iter() {
-        fdwrite(fd, &format!("{} ", px))?;
+        fdwrite(fd, &format!("\"{}\" ", px))?;
     }
     fdwrite(fd, ") ")
 }
@@ -104,7 +104,7 @@ fn write_string_list(fd: &mut dyn Write, s: &Vec<String>) -> Result<(), String> 
 pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Result<(), String> {
     for spectrum in spectra.iter() {
         // Header: Spectrum name/bins:
-        fdwrite(fd, &spectrum.definition.name)?;
+        fdwrite(fd, &format!("\"{}\"", spectrum.definition.name))?;
         fdwrite(fd, " (")?;
         if let Some((_, _, bins)) = spectrum.definition.x_axis {
             let bins = bins - 2;
