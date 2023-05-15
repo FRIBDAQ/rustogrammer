@@ -12,8 +12,8 @@ mod processing;
 mod rest;
 mod ring_items;
 mod sharedmem;
-mod spectra;
 mod spectclio;
+mod spectra;
 
 use clap::Parser;
 use portman_client;

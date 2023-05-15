@@ -38,12 +38,51 @@ use crate::rest::spectrumio::{SpectrumChannel, SpectrumFileData, SpectrumPropert
 use chrono::prelude::*;
 use std::io::Write;
 
-pub fn fdwrite(fd: &mut dyn Write, b: &[u8]) -> Result<(), String> {
-    if let Err(e) = fd.write(b) {
+fn fdwrite(fd: &mut dyn Write, b: &str) -> Result<(), String> {
+    if let Err(e) = fd.write(b.as_bytes()) {
         Err(format!("{}", e))
     } else {
         Ok(())
     }
+}
+
+// Is a spectrum type string for a 1d?
+
+fn is_1d(t: &str) -> bool {
+    match t {
+        "1" => true,
+        "g1" => true,
+        "g2" => false,
+        "gd" => false,
+        "s" => false,
+        "2" => false,
+        "m2" => false,
+        _ => {
+            panic!("Unrecognized spectrum type {}", t);
+        }
+    }
+}
+
+// Write a 1d channel:
+
+fn write_1(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
+    fdwrite(fd, &format!("({}) {}\n", c.x_bin, c.value))
+}
+// write a 2-d channel
+fn write_2(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
+    fdwrite(fd, &format!("({} {}) {}\n", c.x_bin, c.y_bin, c.value))
+}
+
+fn write_channels(
+    fd: &mut dyn Write,
+    chans: &Vec<SpectrumChannel>,
+    f: fn(&mut dyn Write, &SpectrumChannel) -> Result<(), String>,
+) -> Result<(), String> {
+    for c in chans.iter() {
+        f(fd, c)?;
+    }
+    fdwrite(fd, "(-1 -1)\n")?;     // End of data sentinel
+    Ok(())
 }
 
 /// This method writes a spectrum to any object that supports the Write
@@ -52,19 +91,81 @@ pub fn fdwrite(fd: &mut dyn Write, b: &[u8]) -> Result<(), String> {
 pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Result<(), String> {
     for spectrum in spectra.iter() {
         // Header: Spectrum name/bins:
-        fdwrite(fd, spectrum.definition.name.as_bytes())?;
-        fdwrite(fd, " (".as_bytes())?;
+        fdwrite(fd, &spectrum.definition.name)?;
+        fdwrite(fd, " (")?;
         if let Some((_, _, bins)) = spectrum.definition.x_axis {
-            fdwrite(fd, bins.to_string().as_bytes())?;
-            fdwrite(fd, " ".as_bytes())?;
+            fdwrite(fd, &bins.to_string())?;
+            fdwrite(fd, " ")?;
         }
         if let Some((_, _, bins)) = spectrum.definition.y_axis {
-            fdwrite(fd, bins.to_string().as_bytes())?;
+            fdwrite(fd, &bins.to_string())?;
         }
-        fdwrite(fd, ")\n".as_bytes())?;
+        fdwrite(fd, ")\n")?;
+        // Date/time stamp.
 
+        fdwrite(fd, &format!("{}\n", Local::now()))?;
 
-        fdwrite(fd, format!("{}\n", Local::now()).as_bytes())?
+        // Format version:
+
+        fdwrite(fd, "3\n")?;
+
+        // Spectrum type and data type:   data type is always 'long'
+
+        fdwrite(fd, &format!("{} long\n", spectrum.definition.type_string,))?;
+
+        // Parenthesized names of parameters (x) - if not pgamma this is one
+        // list otherwise two:
+
+        if spectrum.definition.type_string.as_str() != "gd" {
+            fdwrite(fd, "(")?;
+            for px in spectrum.definition.x_parameters.iter() {
+                fdwrite(fd, &format!("{} ", px))?;
+            }
+            for py in spectrum.definition.y_parameters.iter() {
+                fdwrite(fd, &format!("{} ", py))?;
+            }
+            fdwrite(fd, ")\n")?;
+        } else {
+            // X and y parameters are in separate lists:
+
+            fdwrite(fd, "(")?;
+            for px in spectrum.definition.x_parameters.iter() {
+                fdwrite(fd, &format!("{} ", px))?;
+            }
+            fdwrite(fd, ") (")?;
+            for py in spectrum.definition.y_parameters.iter() {
+                fdwrite(fd, &format!("{} ", py))?;
+            }
+
+            fdwrite(fd, ")\n")?;
+        }
+        // axis low and high for all defined axes:
+        // Note for summary we just write the y axis.
+
+        if spectrum.definition.type_string.as_str() != "s" {
+            if let Some((lo, hi, _)) = spectrum.definition.x_axis {
+                fdwrite(fd, &format!("({} {}) ", lo, hi))?;
+            }
+            if let Some((lo, hi, _)) = spectrum.definition.y_axis {
+                fdwrite(fd, &format!("({} {})", lo, hi))?;
+            }
+        } else {
+            let (lo, hi, _) = spectrum.definition.y_axis.unwrap();
+            fdwrite(fd, &format!("({} {})", lo, hi))?;
+        }
+        fdwrite(fd, "\n")?;
+
+        // Header terminator:
+
+        fdwrite(fd, "--------------------------------------------\n")?;
+
+        // Write the channels:
+
+        if is_1d(&spectrum.definition.type_string) {
+            write_channels(fd, &spectrum.channels, write_1)?;
+        } else {
+            write_channels(fd, &spectrum.channels, write_2)?;
+        }
     }
-    Err(String::from("unimplemented"))
+    Ok(())
 }
