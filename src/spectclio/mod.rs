@@ -66,11 +66,11 @@ fn is_1d(t: &str) -> bool {
 // Write a 1d channel:
 
 fn write_1(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
-    fdwrite(fd, &format!("({}) {}\n", c.x_bin, c.value))
+    fdwrite(fd, &format!("({}) {}\n", c.x_bin-1, c.value))
 }
 // write a 2-d channel
 fn write_2(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
-    fdwrite(fd, &format!("({} {}) {}\n", c.x_bin, c.y_bin, c.value))
+    fdwrite(fd, &format!("({} {}) {}\n", c.x_bin-1, c.y_bin-2, c.value))
 }
 
 fn write_channels(
@@ -81,8 +81,21 @@ fn write_channels(
     for c in chans.iter() {
         f(fd, c)?;
     }
-    fdwrite(fd, "(-1 -1)\n")?;     // End of data sentinel
+    fdwrite(fd, "(-1 -1)\n")?; // End of data sentinel
     Ok(())
+}
+
+fn write_axis_def(fd: &mut dyn Write, low: f64, high: f64) -> Result<(), String> {
+    fdwrite(fd, &format!("({} {}) ", low, high))
+}
+
+fn write_string_list(fd: &mut dyn Write, s: &Vec<String>) -> Result<(), String> {
+    fdwrite(fd, "(")?;
+
+    for px in s.iter() {
+        fdwrite(fd, &format!("{} ", px))?;
+    }
+    fdwrite(fd, ") ")
 }
 
 /// This method writes a spectrum to any object that supports the Write
@@ -94,10 +107,12 @@ pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Re
         fdwrite(fd, &spectrum.definition.name)?;
         fdwrite(fd, " (")?;
         if let Some((_, _, bins)) = spectrum.definition.x_axis {
+            let bins = bins - 2;
             fdwrite(fd, &bins.to_string())?;
             fdwrite(fd, " ")?;
         }
         if let Some((_, _, bins)) = spectrum.definition.y_axis {
+            let bins = bins - 2;
             fdwrite(fd, &bins.to_string())?;
         }
         fdwrite(fd, ")\n")?;
@@ -117,41 +132,30 @@ pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Re
         // list otherwise two:
 
         if spectrum.definition.type_string.as_str() != "gd" {
-            fdwrite(fd, "(")?;
-            for px in spectrum.definition.x_parameters.iter() {
-                fdwrite(fd, &format!("{} ", px))?;
-            }
-            for py in spectrum.definition.y_parameters.iter() {
-                fdwrite(fd, &format!("{} ", py))?;
-            }
-            fdwrite(fd, ")\n")?;
+            let mut params = spectrum.definition.x_parameters.clone();
+            params.extend(spectrum.definition.y_parameters.clone());
+            write_string_list(fd, &params)?;
         } else {
             // X and y parameters are in separate lists:
 
-            fdwrite(fd, "(")?;
-            for px in spectrum.definition.x_parameters.iter() {
-                fdwrite(fd, &format!("{} ", px))?;
-            }
-            fdwrite(fd, ") (")?;
-            for py in spectrum.definition.y_parameters.iter() {
-                fdwrite(fd, &format!("{} ", py))?;
-            }
-
-            fdwrite(fd, ")\n")?;
+            write_string_list(fd, &spectrum.definition.x_parameters)?;
+            write_string_list(fd, &spectrum.definition.y_parameters)?;
         }
+        fdwrite(fd, "\n")?;
+
         // axis low and high for all defined axes:
         // Note for summary we just write the y axis.
 
         if spectrum.definition.type_string.as_str() != "s" {
             if let Some((lo, hi, _)) = spectrum.definition.x_axis {
-                fdwrite(fd, &format!("({} {}) ", lo, hi))?;
+                write_axis_def(fd, lo, hi)?;
             }
             if let Some((lo, hi, _)) = spectrum.definition.y_axis {
-                fdwrite(fd, &format!("({} {})", lo, hi))?;
+                write_axis_def(fd, lo, hi)?;
             }
         } else {
             let (lo, hi, _) = spectrum.definition.y_axis.unwrap();
-            fdwrite(fd, &format!("({} {})", lo, hi))?;
+            write_axis_def(fd, lo, hi)?;
         }
         fdwrite(fd, "\n")?;
 
