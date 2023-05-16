@@ -43,6 +43,7 @@ pub struct Channel {
     pub value: f64,
 }
 pub type SpectrumContents = Vec<Channel>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpectrumProperties {
     pub name: String,
@@ -120,6 +121,10 @@ pub enum SpectrumRequest {
     },
     Events(Vec<parameters::Event>),
     GetStats(String),
+    SetContents {
+        name: String,
+        contents: SpectrumContents,
+    },
 }
 
 /// Defines the replies the spectrum par tof the histogram
@@ -612,6 +617,37 @@ impl SpectrumProcessor {
             SpectrumReply::Error(format!("Spectrum {} does not exist", name))
         }
     }
+    // Set the spectrum contents
+    // Notes:
+    //  * The spectrum is first cleared.
+    //  * Underflow and overflow are supposedly ignored by fill_with so we
+    // must increment the real cooordinate locations as many times as required.
+    //  * We use the real coordinates rather than the bin number
+    // to set each 'channel' value provided.
+    //  * The successful reply is _Processed_
+
+    fn set_contents(&mut self, name: &str, contents: &SpectrumContents) -> SpectrumReply {
+        // Find the spectrum:
+
+        if let Some(spec) = self.dict.get(name) {
+            let mut histogram = spec.borrow_mut();
+            histogram.clear();
+            if histogram.is_1d() {
+                let spec1d = histogram.get_histogram_1d().unwrap();
+                for chan in contents {
+                    spec1d.borrow_mut().value_mut(&chan.x).unwrap().fill_with(chan.value);
+                }
+            } else {
+                let spec2d = histogram.get_histogram_2d().unwrap();
+                for chan in contents {
+                    spec2d.borrow_mut().value_mut(&(chan.x, chan.y)).unwrap().fill_with(chan.value);
+                }
+            }
+            SpectrumReply::Processed
+        } else {
+            SpectrumReply::Error(format!("Spectrum {} does not exist", name))
+        }
+    }
 
     // Public methods
     /// Construction
@@ -686,6 +722,7 @@ impl SpectrumProcessor {
             } => self.get_contents(&name, xlow, xhigh, ylow, yhigh),
             SpectrumRequest::Events(events) => self.process_events(&events, cdict),
             SpectrumRequest::GetStats(name) => self.get_statistics(&name),
+            SpectrumRequest::SetContents { name, contents } => self.set_contents(&name, &contents),
         }
     }
 }
