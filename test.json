@@ -1,0 +1,6 @@
+[
+    {"definition":{"name":"p1","type_string":"1","x_parameters":["p1"],"y_parameters":[],"x_axis":[-1.0,1.0,102],"y_axis":null},
+    "channels":[]},
+    {"definition":{"name":"2","type_string":"2","x_parameters":["p1"],"y_parameters":["p2"],"x_axis":[-1.0,1.0,102],"y_axis":[1.0,100.0,102]},
+    "channels":[]}
+]

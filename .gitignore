@@ -4,7 +4,5 @@ Cargo.lock
 *.evt
 *.par
 *.h
-*.json
-*.asc
 
 
