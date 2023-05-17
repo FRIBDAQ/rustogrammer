@@ -66,11 +66,14 @@ fn is_1d(t: &str) -> bool {
 // Write a 1d channel:
 
 fn write_1(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
-    fdwrite(fd, &format!("({}) {}\n", c.x_bin-1, c.value))
+    fdwrite(fd, &format!("({}) {}\n", c.x_bin - 1, c.value))
 }
 // write a 2-d channel
 fn write_2(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
-    fdwrite(fd, &format!("({} {}) {}\n", c.x_bin-1, c.y_bin-2, c.value))
+    fdwrite(
+        fd,
+        &format!("({} {}) {}\n", c.x_bin - 1, c.y_bin - 2, c.value),
+    )
 }
 
 fn write_channels(
