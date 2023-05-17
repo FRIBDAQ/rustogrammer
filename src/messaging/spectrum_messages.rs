@@ -3595,6 +3595,82 @@ mod spproc_tests {
             }
         );
     }
+    #[test]
+    fn load_1() {
+        // Load 1d spectrum contents:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024
+                }
+            },
+            &to.parameters, &mut to.conditions
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // Load the spectrum up with some data:
+
+        let req = SpectrumRequest::SetContents {
+                name: String::from("test"),
+                contents: vec![
+            Channel {
+                chan_type: ChannelType::Bin,
+                x : 0.0,
+                y : 0.0,
+                bin : 1, 
+                value: 1.0
+            },
+            Channel {
+                chan_type: ChannelType::Bin,
+                x : 10.0,
+                y : 0.0,
+                bin : 10, 
+                value: 12.0
+            }
+            ]
+        };
+        
+        let reply = to.processor.process_request(
+            req, &to.parameters, &mut to.conditions
+        );
+        assert_eq!(SpectrumReply::Processed, reply);
+
+        // See if the contents match:
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetContents {
+                name: String::from("test"),
+                xlow:  0.0,
+                xhigh: 1024.0,
+                ylow: 0.0,
+                yhigh: 0.0
+            }, &to.parameters, &mut to.conditions
+        );
+
+        assert!(
+            if let SpectrumReply::Contents(c) = reply {
+                assert_eq!(2, c.len());
+                //There's an assumption stuff comes out in order:
+                assert_eq!(0.0, c[0].x);
+                assert_eq!(1.0, c[0].value);
+
+                assert_eq!(10.0, c[1].x);
+                assert_eq!(12.0, c[1].value);
+                true
+            } else {
+                false            
+            }
+        );
+
+    }
 }
 #[cfg(test)]
 mod reqstruct_tests {
