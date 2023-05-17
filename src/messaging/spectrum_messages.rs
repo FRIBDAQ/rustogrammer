@@ -635,12 +635,21 @@ impl SpectrumProcessor {
             if histogram.is_1d() {
                 let spec1d = histogram.get_histogram_1d().unwrap();
                 for chan in contents {
-                    spec1d.borrow_mut().value_mut(&chan.x).unwrap().fill_with(chan.value);
+                    spec1d
+                        .borrow_mut()
+                        .value_mut(&chan.x)
+                        .unwrap()
+                        .fill_with(chan.value);
                 }
             } else {
                 let spec2d = histogram.get_histogram_2d().unwrap();
                 for chan in contents {
-                    spec2d.borrow_mut().value_mut(&(chan.x, chan.y)).unwrap().fill_with(chan.value);
+                    println!("{} {}", chan.x, chan.y);
+                    spec2d
+                        .borrow_mut()
+                        .value_mut(&(chan.x, chan.y))
+                        .unwrap()
+                        .fill_with(chan.value);
                 }
             }
             SpectrumReply::Processed
@@ -3609,38 +3618,39 @@ mod spproc_tests {
                 axis: AxisSpecification {
                     low: 0.0,
                     high: 1024.0,
-                    bins: 1024
-                }
+                    bins: 1024,
+                },
             },
-            &to.parameters, &mut to.conditions
+            &to.parameters,
+            &mut to.conditions,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
         // Load the spectrum up with some data:
 
         let req = SpectrumRequest::SetContents {
-                name: String::from("test"),
-                contents: vec![
-            Channel {
-                chan_type: ChannelType::Bin,
-                x : 0.0,
-                y : 0.0,
-                bin : 1, 
-                value: 1.0
-            },
-            Channel {
-                chan_type: ChannelType::Bin,
-                x : 10.0,
-                y : 0.0,
-                bin : 10, 
-                value: 12.0
-            }
-            ]
+            name: String::from("test"),
+            contents: vec![
+                Channel {
+                    chan_type: ChannelType::Bin,
+                    x: 0.0,
+                    y: 0.0,
+                    bin: 1,
+                    value: 1.0,
+                },
+                Channel {
+                    chan_type: ChannelType::Bin,
+                    x: 10.0,
+                    y: 0.0,
+                    bin: 10,
+                    value: 12.0,
+                },
+            ],
         };
-        
-        let reply = to.processor.process_request(
-            req, &to.parameters, &mut to.conditions
-        );
+
+        let reply = to
+            .processor
+            .process_request(req, &to.parameters, &mut to.conditions);
         assert_eq!(SpectrumReply::Processed, reply);
 
         // See if the contents match:
@@ -3648,28 +3658,195 @@ mod spproc_tests {
         let reply = to.processor.process_request(
             SpectrumRequest::GetContents {
                 name: String::from("test"),
-                xlow:  0.0,
+                xlow: 0.0,
                 xhigh: 1024.0,
                 ylow: 0.0,
-                yhigh: 0.0
-            }, &to.parameters, &mut to.conditions
+                yhigh: 0.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
         );
 
-        assert!(
-            if let SpectrumReply::Contents(c) = reply {
-                assert_eq!(2, c.len());
-                //There's an assumption stuff comes out in order:
-                assert_eq!(0.0, c[0].x);
-                assert_eq!(1.0, c[0].value);
+        assert!(if let SpectrumReply::Contents(c) = reply {
+            assert_eq!(2, c.len());
+            //There's an assumption stuff comes out in order:
+            assert_eq!(0.0, c[0].x);
+            assert_eq!(1.0, c[0].value);
 
-                assert_eq!(10.0, c[1].x);
-                assert_eq!(12.0, c[1].value);
-                true
-            } else {
-                false            
-            }
+            assert_eq!(10.0, c[1].x);
+            assert_eq!(12.0, c[1].value);
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn load_2() {
+        // Load a 2d spectrum.
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // Load up some data:
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetContents {
+                name: String::from("test"),
+                contents: vec![
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 10.0,
+                        y: 10.0,
+                        bin: 102,
+                        value: 15.0,
+                    },
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 20.0,
+                        y: 26.0, // Note bin granularity means we only get even y.
+                        bin: 502,
+                        value: 172.0,
+                    },
+                ],
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Processed, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetContents {
+                name: String::from("test"),
+                xlow: 0.0,
+                xhigh: 1024.0,
+                ylow: 0.0,
+                yhigh: 1024.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
         );
 
+        assert!(if let SpectrumReply::Contents(c) = reply {
+            assert_eq!(2, c.len());
+
+            // assume some ordering to the iteration:
+
+            assert_eq!(10.0, c[0].x);
+            assert_eq!(10.0, c[0].y);
+            assert_eq!(15.0, c[0].value);
+
+            assert_eq!(20.0, c[1].x);
+            assert_eq!(26.0, c[1].y);
+            assert_eq!(172.0, c[1].value);
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn load_3() {
+        // Summary spectra are wonky enough they deserve their own test:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateSummary {
+                name: String::from("test"),
+                params: vec![
+                    String::from("param.1"), // x = 0.0,
+                    String::from("param.2"), // x = 1.0,
+                    String::from("param.3"), // x = 2.0,
+                    String::from("param.4"), // x = 3.0
+                ],
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetContents {
+                name: String::from("test"),
+                contents: vec![
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 0.0, // param.1
+                        y: 12.0,
+                        bin: 0, // ignored
+                        value: 1.0,
+                    },
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 1.0, // param.2
+                        y: 100.0,
+                        bin: 0,
+                        value: 2.0,
+                    },
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 2.0, // param.3
+                        y: 200.0,
+                        bin: 0,
+                        value: 128.0,
+                    },
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 3.0, // param.4
+                        y: 250.0,
+                        bin: 0,
+                        value: 100.0,
+                    },
+                ],
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Processed, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetContents {
+                name: String::from("test"),
+                xlow: 0.0,
+                xhigh: 4.0,
+                ylow: 0.0,
+                yhigh: 1024.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Contents(c) = reply {
+            assert_eq!(4, c.len());
+            true
+        } else {
+            false
+        });
     }
 }
 #[cfg(test)]
