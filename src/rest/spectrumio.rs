@@ -374,37 +374,36 @@ pub fn sread_handler(
 ) -> Json<GenericResponse> {
     // Figure out the flag states:
 
-    let snap = if let Some(s) = snapshot {
-        s
-    } else {
-        true
-    };
+    let snap = if let Some(s) = snapshot { s } else { true };
 
-    let repl = if let Some(r) = replace {
-        r
-    } else {
-        false
-    };
+    let repl = if let Some(r) = replace { r } else { false };
 
-    let toshm = if let Some(b) = bind {
-        b
-    } else {
-        true
-    };
+    let toshm = if let Some(b) = bind { b } else { true };
     //See if we can open the file:  If not that's an error:
 
     let fd = File::open(&filename);
     if let Err(why) = fd {
         return Json(GenericResponse::err(
-            &format!("Failed to open input file: {}", filename), &format!("{}", why)
+            &format!("Failed to open input file: {}", filename),
+            &format!("{}", why),
         ));
     }
     let fd = fd.unwrap();
 
+    // how we read the spectra depends on the format:
 
+    let mut fmt = format.clone();
+    fmt.make_ascii_lowercase();
 
-    Json(GenericResponse::err(
-        "Not supported",
-        "Can't read spectra yet",
-    ))
+    let spectra = match fmt.as_str() {
+        "json" => {
+            return Json(GenericResponse::err("Unsupported format", "Json is not yet supported"));
+        }
+        "ascii" => {
+            return Json(GenericResponse::err("Unsupporterd format", "ASCII is not yet supported"));
+        }
+        _ => {
+            return Json(GenericResponse::err("Unspported format", &format));
+        }
+    };
 }
