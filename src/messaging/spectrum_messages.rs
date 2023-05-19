@@ -1315,26 +1315,29 @@ impl SpectrumMessageClient {
     /// ### Returns:
     /// * SpectrumServerEmptyResult - on err, the string is the error message
     /// that describes the problem.
-    /// 
-    /// ### Notes: 
+    ///
+    /// ### Notes:
     ///  *   The target spectrum is cleared first.
     ///  *   **Important** If there's more than one x/y that maps to the same underlying bin,
     /// the last one determines the bin contents.  This is important if filling
     /// a spectrum with lower resolution than the one which created the
     /// initial set of x/y/value triplets.
     ///
-    pub fn fill_spectrum(&self, name: &str, contents: SpectrumContents) -> SpectrumServerEmptyResult {
+    pub fn fill_spectrum(
+        &self,
+        name: &str,
+        contents: SpectrumContents,
+    ) -> SpectrumServerEmptyResult {
         let request = SpectrumRequest::SetContents {
             name: String::from(name),
-            contents: contents
+            contents: contents,
         };
         let reply = self.transact(request);
         match reply {
             SpectrumReply::Processed => Ok(()),
             SpectrumReply::Error(s) => Err(s),
-            _ => Err(String::from("Unexpected reply type in fill_spectrum"))
+            _ => Err(String::from("Unexpected reply type in fill_spectrum")),
         }
-
     }
 }
 //--------------------------- Tests ------------------------------
@@ -4736,6 +4739,69 @@ mod spectrum_api_tests {
 
         assert!(if let Ok(stats) = result {
             assert_eq!((0, 0, 0, 0), stats);
+            true
+        } else {
+            false
+        });
+
+        stop_server(jh, send);
+    }
+    // test for load_spectrum method .. note that
+    // the server side is already tested, so we really just need to test
+    // that the messaging works rather than be exhaustive over all spectrum
+    // types.
+    #[test]
+    fn fill_1() {
+        // nonexistent spectrum gives error:
+
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+        let contents = SpectrumContents::new();
+        let reply = api.fill_spectrum("test", contents);
+        assert!(reply.is_err());
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn fill_2() {
+        // fill spec;trum and get data back to match:
+
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to make spectrum");
+
+        let contents = vec![
+            Channel {
+                chan_type: ChannelType::Bin,
+                x: 10.0,
+                y: 0.0,
+                bin: 0,
+                value: 12345.0,
+            },
+            Channel {
+                chan_type: ChannelType::Bin,
+                x: 20.0,
+                y: 0.0,
+                bin: 0,
+                value: 666.0,
+            },
+        ];
+        let reply = api.fill_spectrum("test", contents);
+        assert!(reply.is_ok());
+
+        // Get the contents:
+
+        let reply = api.get_contents("test", 0.0, 1024.0, 0.0, 0.0);
+        assert!(if let Ok(c) = reply {
+            assert_eq!(2, c.len());
+
+            assert_eq!(10.0, c[0].x);
+            assert_eq!(12345.0, c[0].value);
+
+            assert_eq!(20.0, c[1].x);
+            assert_eq!(666.0, c[1].value);
             true
         } else {
             false
