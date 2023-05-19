@@ -391,6 +391,16 @@ pub fn sread_handler(
     } else {
         true
     };
+    //See if we can open the file:  If not that's an error:
+
+    let fd = File::open(&filename);
+    if let Err(why) = fd {
+        return Json(GenericResponse::err(
+            &format!("Failed to open input file: {}", filename), &format!("{}", why)
+        ));
+    }
+    let fd = fd.unwrap();
+
 
 
     Json(GenericResponse::err(
