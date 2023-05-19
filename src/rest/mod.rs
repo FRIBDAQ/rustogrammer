@@ -74,6 +74,7 @@ pub struct HistogramState {
 pub type OptionalStringVec = Option<Vec<String>>;
 pub type OptionalString = Option<String>;
 pub type OptionalF64Vec = Option<Vec<f64>>;
+pub type OptionalFlag = Option<bool>;
 
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
