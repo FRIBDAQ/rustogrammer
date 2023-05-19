@@ -239,6 +239,7 @@ fn rocket() -> _ {
         )
         .mount("/spectcl/specstats", routes![getstats::get_statistics])
         .mount("/spectcl/swrite", routes![spectrumio::swrite_handler])
+        .mount("/spectcl/sread", routes![spectrumio::sread_handler])
 }
 ///
 /// Gets the port to use for our REST service.
