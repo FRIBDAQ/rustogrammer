@@ -325,3 +325,76 @@ pub fn swrite_handler(
 
     Json(response)
 }
+//--------------------------------------------------------------------
+// Stuff needed for sread.
+//
+
+///
+/// sread_handler
+///
+/// Handle REST requests to read a spectrum.
+/// This has a pair of mandatory and a bunch of
+/// optionals:
+///
+/// ### Parameters:
+/// *  filename - (mandatory) path to the file to read.
+/// *  format - (mandatory) spectrum format.  json and ascii are supported in
+/// a case blind way.
+/// *  snapshot - (optional) if true (default is yes), a _False_ gate is
+/// set on the spectrum that's read in.  If necessary a _False_ condition named
+/// _snapshot_condition_ is created.  If snapshot is false, then the spectrum
+/// will increment if new data is processed.
+/// *  replace - (optional) if true (default is no), it is deleted and
+/// a new spectrum created to hold the data with the same name and the
+/// characteristics of the spectrum in file.  The default is not, in which case a
+/// _similar_ spectrum name is constructedm created and used.
+/// *  bind - (optional) if true (defalt is yes),  the final spectrum is
+// bound to the Xamine shared memory.
+/// * state (mandatory) the state of the server (contains what's needed to
+/// access various APIs).
+///
+/// ### Returns:
+///
+/// ### Notes:
+///   *   It is possible that this will require the creation of new parameters.
+///   *   Several spectra can be in one file.
+///   *   If replace is true, it is possible that the replaced spectrum
+/// will have a completely different definition than the original.
+///   * The file is processed serially, that is if there is a failure (e.g.
+/// the file format has an error), any spectra correctly read in are fully
+/// processed.
+#[get("/?<filename>&<format>&<snapshot>&<replace>&<bind>")]
+pub fn sread_handler(
+    filename: String,
+    format: String,
+    snapshot: OptionalFlag,
+    replace: OptionalFlag,
+    bind: OptionalFlag,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
+    // Figure out the flag states:
+
+    let snap = if let Some(s) = snapshot {
+        s
+    } else {
+        true
+    };
+
+    let repl = if let Some(r) = replace {
+        r
+    } else {
+        false
+    };
+
+    let toshm = if let Some(b) = bind {
+        b
+    } else {
+        true
+    };
+
+
+    Json(GenericResponse::err(
+        "Not supported",
+        "Can't read spectra yet",
+    ))
+}
