@@ -1278,7 +1278,7 @@ impl SpectrumMessageClient {
     /// Process events.
     ///
     /// *  events - vector of flat event.
-
+    ///
     ///
     pub fn process_events(&self, e: &Vec<parameters::Event>) -> SpectrumServerEmptyResult {
         match self.transact(Self::events_request(e)) {
@@ -1292,7 +1292,7 @@ impl SpectrumMessageClient {
     /// ### Parameters:
     /// * name - the name of the spectrum to query.
     /// ### Returns:
-    /// * SpectrumServerStatiscisResult
+    /// * SpectrumServerStatisticsResult
     ///     - Err has a string containing the error.
     ///     - Ok has a Statistics tuple.
     ///
@@ -1302,6 +1302,39 @@ impl SpectrumMessageClient {
             SpectrumReply::Error(s) => Err(s),
             _ => Err(String::from("get_statistics - unexpected reply type")),
         }
+    }
+    /// Set the contents of a spectrum.
+    ///
+    /// ### Parameters:
+    /// *  name - name of the spectrum to fill.
+    /// *  contents - Contents to set the spectrum to.  Note that for each channel:
+    ///     - chan_type is actually unimportant.
+    ///     - x,y determine the fill coordinates.
+    ///     - bin is ignored.
+    ///     - value is the value to fill the channel selected by x/y.
+    /// ### Returns:
+    /// * SpectrumServerEmptyResult - on err, the string is the error message
+    /// that describes the problem.
+    /// 
+    /// ### Notes: 
+    ///  *   The target spectrum is cleared first.
+    ///  *   **Important** If there's more than one x/y that maps to the same underlying bin,
+    /// the last one determines the bin contents.  This is important if filling
+    /// a spectrum with lower resolution than the one which created the
+    /// initial set of x/y/value triplets.
+    ///
+    pub fn fill_spectrum(&self, name: &str, contents: SpectrumContents) -> SpectrumServerEmptyResult {
+        let request = SpectrumRequest::SetContents {
+            name: String::from(name),
+            contents: contents
+        };
+        let reply = self.transact(request);
+        match reply {
+            SpectrumReply::Processed => Ok(()),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("Unexpected reply type in fill_spectrum"))
+        }
+
     }
 }
 //--------------------------- Tests ------------------------------
