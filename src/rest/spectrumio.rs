@@ -10,12 +10,14 @@
 //!  the (json::from_str e.g.).
 //!
 use super::*;
+use crate::messaging::condition_messages;
+use crate::messaging::parameter_messages;
 use crate::messaging::spectrum_messages;
 use crate::spectclio;
 use rocket::serde::{json, json::Json};
 use rocket::State;
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::Read;
 use std::io::Write;
@@ -334,7 +336,7 @@ pub fn swrite_handler(
 // read Json - deserialize a vector of spectra from a stream given
 // something that supports the Read trait:
 
-fn readJson<T>(fd: &mut T) -> Result<Vec<SpectrumFileData>, String>
+fn read_json<T>(fd: &mut T) -> Result<Vec<SpectrumFileData>, String>
 where
     T: Read,
 {
@@ -351,13 +353,77 @@ where
     }
     Ok(result.unwrap())
 }
+// Create a hash set of the existing parameter names.
+
+fn make_parameter_set(
+    api: &parameter_messages::ParameterMessageClient,
+) -> Result<HashSet<String>, String> {
+    let params = api.list_parameters("*")?;
+
+    let mut result = HashSet::<String>::new();
+    for p in params {
+        result.insert(p.get_name());
+    }
+    Ok(result)
+}
+// Given a vector of parameter names, makes new parameters for all that are not
+// in the existing hash -- updating the hash.
+
+fn make_missing_params(
+    params: &Vec<String>,
+    existing: &mut HashSet<String>,
+    api: &parameter_messages::ParameterMessageClient,
+) -> Result<(), String> {
+    for p in params.iter() {
+        if !existing.contains(p) {
+            api.create_parameter(p)?;
+            existing.insert(p.clone());
+        }
+    }
+    Ok(())
+}
+// Given a spectrum definition make new parameters for all parameters
+// not known to the histogramer the local hash of existing parameters
+// is updated with the paramters made.
+
+fn make_parameters(
+    def: &SpectrumProperties,
+    existing: &mut HashSet<String>,
+    api: &parameter_messages::ParameterMessageClient,
+) -> Result<(), String> {
+    make_missing_params(&def.x_parameters, existing, api)?;
+    make_missing_params(&def.y_parameters, existing, api)
+}
+
 // Given deserialized spectra - enter them in the histogram thread:
 
 fn enter_spectra(
     spectra: &Vec<SpectrumFileData>,
+    as_snapshot: bool,
+    replace: bool,
+    to_shm: bool,
     state: &State<HistogramState>,
 ) -> Result<(), String> {
+    // We need the API:
+
+    let spectrum_api =
+        spectrum_messages::SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let parameter_api =
+        parameter_messages::ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let mut parameters = make_parameter_set(&parameter_api)?;
+    // snapshots require a _snapshot_condition_ gate.  No harm to
+    // make it again so just undonditionally make it:
+    if as_snapshot {
+        let condition_api =
+            condition_messages::ConditionMessageClient::new(&state.inner().state.lock().unwrap().1);
+        condition_api.create_false_condition("_snapshot_condition_");
+    }
     for s in spectra {
+        // We need to create parameters for each missing parameter each spectrum
+        // needs:
+
+        make_parameters(&s.definition, &mut parameters, &parameter_api)?;
+
         println!("Would enter {}", s.definition.name);
     }
     Ok(())
@@ -430,7 +496,7 @@ pub fn sread_handler(
     fmt.make_ascii_lowercase();
 
     let spectra = match fmt.as_str() {
-        "json" => readJson(&mut fd),
+        "json" => read_json(&mut fd),
         "ascii" => {
             return Json(GenericResponse::err(
                 "Unsupporterd format",
@@ -450,7 +516,7 @@ pub fn sread_handler(
         ));
     }
     let spectra = spectra.as_ref().unwrap();
-    let response = if let Err(e) = enter_spectra(spectra, state) {
+    let response = if let Err(e) = enter_spectra(spectra, snap, repl, toshm, state) {
         GenericResponse::err("Unable to enter spectra in histogram thread: ", &e)
     } else {
         GenericResponse::ok("")
