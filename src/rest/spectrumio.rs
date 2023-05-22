@@ -15,7 +15,9 @@ use crate::spectclio;
 use rocket::serde::{json, json::Json};
 use rocket::State;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::fs::File;
+use std::io::Read;
 use std::io::Write;
 
 /// This is the structure that will contain channel data:
@@ -329,6 +331,38 @@ pub fn swrite_handler(
 // Stuff needed for sread.
 //
 
+// read Json - deserialize a vector of spectra from a stream given
+// something that supports the Read trait:
+
+fn readJson<T>(fd: &mut T) -> Result<Vec<SpectrumFileData>, String>
+where
+    T: Read,
+{
+    let mut src = String::new();
+    let io = fd.read_to_string(&mut src);
+
+    if let Err(s) = io {
+        return Err(format!("{}", s));
+    }
+
+    let result = json::from_str::<Vec<SpectrumFileData>>(&src);
+    if let Err(e) = result {
+        return Err(format!("{}", e));
+    }
+    Ok(result.unwrap())
+}
+// Given deserialized spectra - enter them in the histogram thread:
+
+fn enter_spectra(
+    spectra: &Vec<SpectrumFileData>,
+    state: &State<HistogramState>,
+) -> Result<(), String> {
+    for s in spectra {
+        println!("Would enter {}", s.definition.name);
+    }
+    Ok(())
+}
+
 ///
 /// sread_handler
 ///
@@ -388,7 +422,7 @@ pub fn sread_handler(
             &format!("{}", why),
         ));
     }
-    let fd = fd.unwrap();
+    let mut fd = fd.unwrap();
 
     // how we read the spectra depends on the format:
 
@@ -396,14 +430,30 @@ pub fn sread_handler(
     fmt.make_ascii_lowercase();
 
     let spectra = match fmt.as_str() {
-        "json" => {
-            return Json(GenericResponse::err("Unsupported format", "Json is not yet supported"));
-        }
+        "json" => readJson(&mut fd),
         "ascii" => {
-            return Json(GenericResponse::err("Unsupporterd format", "ASCII is not yet supported"));
+            return Json(GenericResponse::err(
+                "Unsupporterd format",
+                "ASCII is not yet supported",
+            ));
         }
         _ => {
             return Json(GenericResponse::err("Unspported format", &format));
         }
     };
+
+    if spectra.is_err() {
+        let msg = spectra.as_ref().err().unwrap();
+        return Json(GenericResponse::err(
+            "Unable to deserialize from file",
+            &format!("{}", msg),
+        ));
+    }
+    let spectra = spectra.as_ref().unwrap();
+    let response = if let Err(e) = enter_spectra(spectra, state) {
+        GenericResponse::err("Unable to enter spectra in histogram thread: ", &e)
+    } else {
+        GenericResponse::ok("")
+    };
+    Json(response)
 }
