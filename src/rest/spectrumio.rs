@@ -13,6 +13,7 @@ use super::*;
 use crate::messaging::condition_messages;
 use crate::messaging::parameter_messages;
 use crate::messaging::spectrum_messages;
+use crate::sharedmem::binder;
 use crate::spectclio;
 use rocket::serde::{json, json::Json};
 use rocket::State;
@@ -395,6 +396,174 @@ fn make_parameters(
     make_missing_params(&def.y_parameters, existing, api)
 }
 
+// If a spectrum with 'name' exists it is deleted:
+
+fn delete_existing(
+    name: &str,
+    api: &spectrum_messages::SpectrumMessageClient,
+) -> Result<(), String> {
+    // See if name exists:
+
+    let listing = api.list_spectra(name)?;
+    if listing.len() > 0 {
+        api.delete_spectrum(name)?;
+    }
+    Ok(())
+}
+// Create a unique name:
+
+fn make_unique_name(
+    base: &str,
+    api: &spectrum_messages::SpectrumMessageClient,
+) -> Result<String, String> {
+    let mut candidate_name = String::from(base);
+    let mut counter = 0;
+    loop {
+        let list = api.list_spectra(&candidate_name)?;
+        if list.len() == 0 {
+            break;
+        }
+        // Make next candidate name:
+
+        candidate_name = format!("{}_{}", base, counter);
+        counter += 1;
+    }
+    Ok(candidate_name)
+}
+// Make a spectrum -- when we know that
+//  - all parameters have been defined.
+// - We won't be replacing an existing spectrum:
+//
+fn make_spectrum(
+    name: &str,
+    def: &SpectrumProperties,
+    api: &spectrum_messages::SpectrumMessageClient,
+) -> Result<String, String> {
+    match def.type_string.as_str() {
+        "1" => {
+            let axis = def.x_axis.unwrap();
+            api.create_spectrum_1d(name, &def.x_parameters[0], axis.0, axis.1, axis.2)?;
+        }
+        "g1" => {
+            let axis = def.x_axis.unwrap();
+            api.create_spectrum_multi1d(name, &def.x_parameters, axis.0, axis.1, axis.2)?;
+        }
+        "g2" => {
+            let xaxis = def.x_axis.unwrap();
+            let yaxis = def.y_axis.unwrap();
+            api.create_spectrum_multi2d(
+                name,
+                &def.x_parameters,
+                xaxis.0,
+                xaxis.1,
+                xaxis.2,
+                yaxis.0,
+                yaxis.1,
+                yaxis.2,
+            )?;
+        }
+        "gd" => {
+            let xaxis = def.x_axis.unwrap();
+            let yaxis = def.y_axis.unwrap();
+            api.create_spectrum_pgamma(
+                name,
+                &def.x_parameters,
+                &def.y_parameters,
+                xaxis.0,
+                xaxis.1,
+                xaxis.2,
+                yaxis.0,
+                yaxis.1,
+                yaxis.2,
+            )?;
+        }
+        "s" => {
+            let axis = def.y_axis.unwrap();
+            api.create_spectrum_summary(name, &def.x_parameters, axis.0, axis.1, axis.2)?;
+        }
+        "2" => {
+            let xaxis = def.x_axis.unwrap();
+            let yaxis = def.y_axis.unwrap();
+            api.create_spectrum_2d(
+                name,
+                &def.x_parameters[0],
+                &def.y_parameters[0],
+                xaxis.0,
+                xaxis.1,
+                xaxis.2,
+                yaxis.0,
+                yaxis.1,
+                yaxis.2,
+            )?;
+        }
+        "m2" => {
+            let xaxis = def.x_axis.unwrap();
+            let yaxis = def.y_axis.unwrap();
+            api.create_spectrum_2dsum(
+                name,
+                &def.x_parameters,
+                &def.y_parameters,
+                xaxis.0,
+                xaxis.1,
+                xaxis.2,
+                yaxis.0,
+                yaxis.1,
+                yaxis.2,
+            )?;
+        }
+        _ => {
+            return Err(format!("Unsupported spectrum type {}", def.type_string));
+        }
+    };
+
+    Ok(String::from(name))
+}
+
+// Called if replace is turned off..
+// in
+// Enter one spectrum in the histogramer.  If replace is on,
+// we delete the existing spectrum and enter the new one.
+// If not we create a new unique name for the spectrum.
+
+fn enter_spectrum(
+    def: &SpectrumProperties,
+    can_replace: bool,
+    api: &spectrum_messages::SpectrumMessageClient,
+) -> Result<String, String> {
+    let actual_name = if can_replace {
+        delete_existing(&def.name, api)?; // Delete any pev. spectrum.
+        def.name.clone()
+    } else {
+        make_unique_name(&def.name, api)? // Generate a unique name.
+    };
+    make_spectrum(&actual_name, &def, api)
+}
+// Given a spectrum we know now exists, fill it:
+
+fn fill_spectrum(
+    name: &str,
+    c: &Vec<SpectrumChannel>,
+    api: &spectrum_messages::SpectrumMessageClient,
+) -> Result<(), String> {
+    // Need to map our channels -> contents:
+
+    let mut contents = spectrum_messages::SpectrumContents::new();
+    for chan in c.iter() {
+        contents.push(spectrum_messages::Channel {
+            chan_type: spectrum_messages::ChannelType::Bin,
+            x: chan.x_coord,
+            y: chan.y_coord,
+            bin: 0,
+            value: chan.value as f64,
+        });
+    }
+    if let Err(s) = api.fill_spectrum(name, contents) {
+        Err(s)
+    } else {
+        Ok(())
+    }
+}
+
 // Given deserialized spectra - enter them in the histogram thread:
 
 fn enter_spectra(
@@ -424,7 +593,28 @@ fn enter_spectra(
 
         make_parameters(&s.definition, &mut parameters, &parameter_api)?;
 
-        println!("Would enter {}", s.definition.name);
+        // Create the spectrum and, if necessary gate it on our False gate.
+
+        let actual_name = enter_spectrum(&s.definition, replace, &spectrum_api)?;
+        if as_snapshot {
+            if let Err(e) = spectrum_api.gate_spectrum(&actual_name, "_snapshot_condition_") {
+                return Err(e);
+            }
+        }
+
+        // Now fill the spectrum from the data we got from the file
+        // Note that doing it in this order ensures that snapshots don't have
+        // stray counts that can accumulate between spectrum creation and
+        // gating the spectrum .
+
+        fill_spectrum(&actual_name, &s.channels, &spectrum_api)?;
+
+        // Bind the spectrum if it's supposed to be in shared memory.
+
+        if to_shm {
+            let bind_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
+            bind_api.bind(&actual_name)?;
+        }
     }
     Ok(())
 }
