@@ -36,7 +36,10 @@
 
 use crate::rest::spectrumio::{SpectrumChannel, SpectrumFileData, SpectrumProperties};
 use chrono::prelude::*;
-use std::io::Write;
+use std::io::{prelude::*, BufReader, Bytes, Lines, Read, Write};
+
+//---------------------------------------------------------------------
+// This section of code handles writing spectra to a writable object.
 
 fn fdwrite(fd: &mut dyn Write, b: &str) -> Result<(), String> {
     if let Err(e) = fd.write(b.as_bytes()) {
@@ -175,4 +178,76 @@ pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Re
         }
     }
     Ok(())
+}
+//---------------------------------------------------------------------
+// This section of code handles reading spectra from a Readable
+// object
+
+// Read one spectrum from a bytes iterator:
+
+fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileData, String> {
+    let hdr1 = l.next();
+    if let None = hdr1 {
+        return Err(String::from("end of file"));
+    }
+    let hdr1 = hdr1.unwrap();
+    if let Err(s) = hdr1 {
+        return Err(format!("I/O error of some sort: {}", s));
+    }
+    let hdr1 = hdr1.unwrap();
+
+    // Try 2d first:
+
+    let hdr1_result = scan_fmt!(&hdr1, "\"{}\" ({} {})", String, u32, u32);
+    let mut xbins = 0;
+    let mut ybins = 0;
+    let mut name = String::new();
+    if hdr1_result.is_err() {
+        // try as 1d:
+
+        let result = scan_fmt!(&hdr1, "\"{}\" ({}", String, u32);
+        if let Err(s) = result {
+            return Err(format!("Unable to decode header1: {}", s));
+        }
+        (name, xbins) = result.unwrap();
+    } else {
+        (name, xbins, ybins) = hdr1_result.unwrap();
+    }
+    println!("Got '{}' {} by {}", name, xbins, ybins);
+    Err(String::from("Read spectrum unimplemented"))
+}
+
+///
+/// Read a spectrum.
+///
+/// ### Parameters:
+/// *   f - anything that implements the readable trait.
+///
+/// ### Returns:
+/// * Vec<SpectrumFileData>  the spectra read from the file (could be more than
+/// one).  
+///
+///  ### Note
+///  An empty vector indicates an error of some sort that prevented even
+///  one spectrum from being read. Errors of this sort include an empty file.
+///  A non-empty vector may still indicate an error parsing the file where
+///  the vector will contain as many spectra as were properly read.
+///
+pub fn read_spectra<T>(f: &mut T) -> Vec<SpectrumFileData>
+where
+    T: Read,
+{
+    let reader = BufReader::new(f);
+    let mut lines = reader.lines(); // Iterates over lines.
+    let mut result: Vec<SpectrumFileData> = vec![];
+    loop {
+        let try_spec = read_spectrum(&mut lines);
+        if try_spec.is_err() {
+            break;
+        } else {
+            result.push(try_spec.unwrap());
+        }
+    }
+
+    result
 }

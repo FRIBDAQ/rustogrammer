@@ -31,6 +31,11 @@ use std::sync::Mutex;
 #[macro_use]
 extern crate rocket;
 
+// Pull in scan_fmt:
+
+#[macro_use]
+extern crate scan_fmt;
+
 const DEFAULT_SHM_SPECTRUM_MBYTES: usize = 32;
 
 // Program parameters as parsed by Clap:

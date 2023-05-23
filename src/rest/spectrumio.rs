@@ -687,12 +687,7 @@ pub fn sread_handler(
 
     let spectra = match fmt.as_str() {
         "json" => read_json(&mut fd),
-        "ascii" => {
-            return Json(GenericResponse::err(
-                "Unsupporterd format",
-                "ASCII is not yet supported",
-            ));
-        }
+        "ascii" => Ok(spectclio::read_spectra(&mut fd)),
         _ => {
             return Json(GenericResponse::err("Unspported format", &format));
         }
