@@ -21,7 +21,7 @@ clap = { version = "4.2.7", features = ["derive"] }
 portman_client="0.2.0"
 serde = {version = "1.0.162", features = ["derive"]}
 chrono="0.4.24"
-text_io = "0.1.12"
+scan_fmt="0.2.6"
 
 [dependencies.rocket]
 version="0.5.0-rc.3"
