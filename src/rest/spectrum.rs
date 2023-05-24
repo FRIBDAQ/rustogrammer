@@ -17,8 +17,8 @@ use crate::messaging::spectrum_messages::{
     SpectrumServerEmptyResult, SpectrumServerListingResult,
 };
 use crate::sharedmem::binder;
-// as with gates we need to map from Rustogramer spectrum
-// types to SpecTcl spectrum types.
+/// as with gates we need to map from Rustogramer spectrum
+/// types to SpecTcl spectrum types.
 
 pub fn rg_sptype_to_spectcl(rg_type: &str) -> String {
     match rg_type {
@@ -30,6 +30,21 @@ pub fn rg_sptype_to_spectcl(rg_type: &str) -> String {
         "2D" => String::from("2"),
         "2DSum" => String::from("m2"),
         _ => String::from("-unsupported-"),
+    }
+   
+}
+/// Convert SpecTcl data type to Rustogramer:
+pub fn spectcl_sptype_to_rustogramer(sptype: &str) -> Result<String, String> {
+    match sptype {
+        "1" => Ok(String::from("1D")),
+        "g1" => Ok(String::from("Mutlti1d")),
+        "g2" => Ok(String::from("Multi2d")),
+        "gd" => Ok(String::from("PGamma")),
+        "s" => Ok(String::from("Summary")),
+        "2" => Ok(String::from("")),
+        "m2" => Ok(String::from("2DSum")),
+        _ => Err(format!("Unsupported SpecTcl spectrum type {}", sptype))
+    
     }
 }
 //------------------------------------------------------------

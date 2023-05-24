@@ -34,6 +34,7 @@
 //! lines for 2-d spectra.
 //!
 
+use crate::rest::spectrum;
 use crate::rest::spectrumio::{SpectrumChannel, SpectrumFileData, SpectrumProperties};
 use chrono::prelude::*;
 use std::io::{prelude::*, BufReader, Bytes, Lines, Read, Write};
@@ -183,6 +184,54 @@ pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Re
 // This section of code handles reading spectra from a Readable
 // object
 
+// Parse the parameter line of the header.  This is of the form:
+//
+// (xparam1 [xparam2 ...]) [(yparam1 [yparam2...])]
+//
+fn parse_parameters(line: &str) -> Result<(Vec<String>, Vec<String>), String> {
+    let mut xparams: Vec<String> = vec![];
+    let mut yparams: Vec<String> = vec![];
+
+    // There must be a "(" and a ")"  If not that's an error:
+
+    let open = line.find('(');
+    let close = line.find(')');
+    if open.is_none() || close.is_none() {
+        return Err(format!("Can't find the X parameter list in '{}'", line));
+    }
+    let open = open.unwrap();
+    let close = close.unwrap();
+
+    let x: Vec<&str> = line[open + 1..close].split_whitespace().collect();
+    for xp in x {
+        xparams.push(String::from(xp));
+    }
+
+    // Remainder is the string after the first )
+
+    let remainder: String = String::from(line).drain(close + 1..).collect();
+
+    // Now look for the Y ()  it's ok to not find a ( but having found it
+    // It's an error not to find the ).  Note that we're a bit tolerant in that
+    // if there are characters after the last list we don't care.  If there are
+    // characters but no ( after the x list we don't care.
+    //
+
+    let open = remainder.find('(');
+    if let Some(open) = open {
+        if let Some(close) = remainder.find(')') {
+            let y: Vec<&str> = remainder[open + 1..close].split(" ").collect();
+            for yp in y {
+                yparams.push(String::from(yp));
+            }
+        } else {
+            return Err(String::from("Found a '('  for the y parameters but no ')'"));
+        }
+    }
+
+    Ok((xparams, yparams))
+}
+
 // Read one spectrum from a bytes iterator:
 
 fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileData, String> {
@@ -213,7 +262,96 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
     } else {
         (name, xbins, ybins) = hdr1_result.unwrap();
     }
-    println!("Got '{}' {} by {}", name, xbins, ybins);
+    // Next is the date/time which we just skip:
+
+    let date_time = l.next();
+    if let None = date_time {
+        return Err(String::from("Premature end of file"));
+    }
+    let date_time = date_time.unwrap();
+    if let Err(s) = date_time {
+        return Err(format!("I/O error trying to read dat/time: {}", s));
+    }
+    // Next is the format version which we also skip:
+
+    let version_line = l.next();
+    if let None = version_line {
+        return Err(String::from("Premature end of file"));
+    }
+    let version_line = version_line.unwrap();
+    if let Err(s) = date_time {
+        return Err(format!("I/O error trying to read dat/time: {}", s));
+    }
+    // Next there's the spectrum type and data type...
+
+    let types = l.next();
+    if let None = types {
+        return Err(format!("Premature end file reading spectrum type/data type"));
+    }
+    let types = types.unwrap();
+    if let Err(s) = types {
+        return Err(format!("Error reading the spectrum and data type: {}", s));
+    }
+    let types = types.unwrap();
+    let types_result = scan_fmt!(&types, "{} {}", String, String);
+    if types_result.is_err() {
+        println!(
+            "Failed to decode types from {}: {}",
+            types,
+            types_result.unwrap_err()
+        );
+        return Err(format!(
+            "Unable to decode spectrum and channel type from '{}'",
+            types
+        ));
+    }
+    let spectrum_type: String;
+    let (spectrum_type, _) = types_result.unwrap();
+    // the spectrum type needs to be converted to our spectrum type:
+
+    let native_type = spectrum::spectcl_sptype_to_rustogramer(&spectrum_type);
+    if let Err(s) = native_type {
+        println!("Failed to convert {} to native type: {}", spectrum_type, s);
+        return Err(format!(
+            "Failed to convert spectrum type '{}' to native type: {}",
+            spectrum_type, s
+        ));
+    }
+    let native_type = native_type.unwrap();
+
+    // Next is one or two lists of parameters.   This is tricky enough to unravel
+    // it's worth a function all it's own:
+    let param_line = l.next();
+    if let None = param_line {
+        return Err(String::from(
+            "Premature end file while trying to read the parameter names from the header",
+        ));
+    }
+    let param_line = param_line.unwrap();
+    if let Err(s) = param_line {
+        return Err(format!("Error reading parameters line: {}", s));
+    }
+    let param_line = param_line.unwrap();
+    let parameters = parse_parameters(&param_line);
+    if let Err(s) = parameters {
+        println!("Unable to parse parameters from '{}': {}", param_line, s);
+        return Err(format!(
+            "Unable to parse parameters from '{}': {}",
+            param_line, s
+        ));
+    }
+    let (xparams, yparams) = parameters.unwrap();
+
+    println!("Got spectrum type: {}", native_type);
+    println!("Xparameters:");
+    for p in xparams.iter() {
+        println!("{}", *p);
+    }
+    println!("Yparameters:");
+    for p in yparams.iter() {
+        println!("{}", *p);
+    }
+
     Err(String::from("Read spectrum unimplemented"))
 }
 
