@@ -32,7 +32,7 @@ use std::io::Write;
 /// field names are chosen a bit more carefully as they will
 /// appear verbatim in the JSON
 ///
-#[derive(Serialize, Deserialize, Copy, Clone)]
+#[derive(Serialize, Deserialize, Copy, Clone, Debug)]
 pub struct SpectrumChannel {
     pub chan_type: spectrum_messages::ChannelType,
     pub x_coord: f64,
@@ -50,7 +50,7 @@ pub struct SpectrumChannel {
 /// in this case field names are chosen a bit more carefully as they
 /// will appear verbatim in the JSON.
 ///
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SpectrumProperties {
     pub name: String,
     pub type_string: String,
@@ -62,7 +62,7 @@ pub struct SpectrumProperties {
 
 /// Spectra are their properties and a vector of their channels:
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SpectrumFileData {
     pub definition: SpectrumProperties,
     pub channels: Vec<SpectrumChannel>,

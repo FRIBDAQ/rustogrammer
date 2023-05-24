@@ -180,15 +180,62 @@ pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Re
     }
     Ok(())
 }
-//---------------------------------------------------------------------
 // This section of code handles reading spectra from a Readable
+//---------------------------------------------------------------------
 // object
 
-// Parse the parameter line of the header.  This is of the form:
+// Get a line from a line iterator -- simplifying error handling:
+
+fn read_line<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<String, String> {
+    let line = l.next();
+    if let None = line {
+        return Err(String::from("End of file"));
+    }
+    let line = line.unwrap();
+    if let Err(s) = line {
+        return Err(format!("Error trying to get a line : {}", s));
+    }
+    Ok(line.unwrap())
+}
+
+// Axis definitions are 2 element vectors that parse to  f64:
+fn parse_axis(straxis: &Vec<String>) -> Result<(f64, f64), String> {
+    if straxis.len() != 2 {
+        return Err(format!(
+            "The axis definitions must have 2 elements {:?}",
+            straxis
+        ));
+    }
+    let lo = straxis[0].parse::<f64>();
+    if let Err(s) = lo {
+        return Err(format!(
+            "Low value cold not be parsed: {} : {}",
+            straxis[0], s
+        ));
+    }
+    let lo = lo.unwrap();
+    let hi = straxis[1].parse::<f64>();
+    if let Err(s) = hi {
+        return Err(format!(
+            "High value cold not be parsed: {} : {}",
+            straxis[1], s
+        ));
+    }
+    Ok((lo, hi.unwrap()))
+}
+
+// A couple of places in the header, we have one or two parenthesized lists
+// for example parameters are:
 //
 // (xparam1 [xparam2 ...]) [(yparam1 [yparam2...])]
 //
-fn parse_parameters(line: &str) -> Result<(Vec<String>, Vec<String>), String> {
+// and axis defs are:
+//
+//  (low high) [(low high)]
+//
+// Depending on the underlying spectrum dimensionality.
+//
+fn parse_paren_list(line: &str) -> Result<(Vec<String>, Vec<String>), String> {
     let mut xparams: Vec<String> = vec![];
     let mut yparams: Vec<String> = vec![];
 
@@ -232,16 +279,25 @@ fn parse_parameters(line: &str) -> Result<(Vec<String>, Vec<String>), String> {
     Ok((xparams, yparams))
 }
 
-// Read one spectrum from a bytes iterator:
+// Remove quotes from vector of string the quotes are leading and trailing chars:
+//
 
-fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileData, String> {
-    let hdr1 = l.next();
-    if let None = hdr1 {
-        return Err(String::from("end of file"));
+fn unquote(strings: &mut Vec<String>) -> Vec<String> {
+    let mut result = vec![];
+    for s in strings {
+        let mut st : String = s.drain(1..).collect(); // chop off leading quote.
+        st.truncate(st.len() - 1); // chop off trailing quote.
+        result.push(st);
     }
-    let hdr1 = hdr1.unwrap();
+    result
+}
+
+// Read the header from the data:
+
+fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumProperties, String> {
+    let hdr1 = read_line(l);
     if let Err(s) = hdr1 {
-        return Err(format!("I/O error of some sort: {}", s));
+        return Err(format!("Failed to read first header line: {}", s));
     }
     let hdr1 = hdr1.unwrap();
 
@@ -264,42 +320,28 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
     }
     // Next is the date/time which we just skip:
 
-    let date_time = l.next();
-    if let None = date_time {
-        return Err(String::from("Premature end of file"));
-    }
-    let date_time = date_time.unwrap();
+    let date_time = read_line(l);
     if let Err(s) = date_time {
-        return Err(format!("I/O error trying to read dat/time: {}", s));
+        return Err(format!(
+            "Failed to read to read date/time header line: {}",
+            s
+        ));
     }
     // Next is the format version which we also skip:
 
-    let version_line = l.next();
-    if let None = version_line {
-        return Err(String::from("Premature end of file"));
-    }
-    let version_line = version_line.unwrap();
+    let version_line = read_line(l);
     if let Err(s) = date_time {
-        return Err(format!("I/O error trying to read dat/time: {}", s));
+        return Err(format!("Failed to read version header line: {}", s));
     }
     // Next there's the spectrum type and data type...
 
-    let types = l.next();
-    if let None = types {
-        return Err(format!("Premature end file reading spectrum type/data type"));
-    }
-    let types = types.unwrap();
+    let types = read_line(l);
     if let Err(s) = types {
         return Err(format!("Error reading the spectrum and data type: {}", s));
     }
     let types = types.unwrap();
     let types_result = scan_fmt!(&types, "{} {}", String, String);
     if types_result.is_err() {
-        println!(
-            "Failed to decode types from {}: {}",
-            types,
-            types_result.unwrap_err()
-        );
         return Err(format!(
             "Unable to decode spectrum and channel type from '{}'",
             types
@@ -311,46 +353,102 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
 
     let native_type = spectrum::spectcl_sptype_to_rustogramer(&spectrum_type);
     if let Err(s) = native_type {
-        println!("Failed to convert {} to native type: {}", spectrum_type, s);
         return Err(format!(
             "Failed to convert spectrum type '{}' to native type: {}",
             spectrum_type, s
         ));
     }
-    let native_type = native_type.unwrap();
 
     // Next is one or two lists of parameters.   This is tricky enough to unravel
     // it's worth a function all it's own:
-    let param_line = l.next();
-    if let None = param_line {
-        return Err(String::from(
-            "Premature end file while trying to read the parameter names from the header",
-        ));
-    }
-    let param_line = param_line.unwrap();
+    let param_line = read_line(l);
+
     if let Err(s) = param_line {
         return Err(format!("Error reading parameters line: {}", s));
     }
     let param_line = param_line.unwrap();
-    let parameters = parse_parameters(&param_line);
+    let parameters = parse_paren_list(&param_line);
     if let Err(s) = parameters {
-        println!("Unable to parse parameters from '{}': {}", param_line, s);
         return Err(format!(
             "Unable to parse parameters from '{}': {}",
             param_line, s
         ));
     }
-    let (xparams, yparams) = parameters.unwrap();
+    let (mut xparams, mut yparams) = parameters.unwrap();
 
-    println!("Got spectrum type: {}", native_type);
-    println!("Xparameters:");
-    for p in xparams.iter() {
-        println!("{}", *p);
+    // Each parameter leads and ends with which must be stripped off
+
+    let xparams = unquote(&mut xparams);
+    let yparams = unquote(&mut yparams);
+
+    // Now axis definitions:
+
+    let axis = read_line(l);
+    if let Err(s) = axis {
+        return Err(format!("Failed to read axis definition line: {}", s));
     }
-    println!("Yparameters:");
-    for p in yparams.iter() {
-        println!("{}", *p);
+    let axis = axis.unwrap();
+    let axes = parse_paren_list(&axis);
+    if let Err(s) = axes {
+        return Err(format!(
+            "Failed to parse axis definition line {} : {}",
+            axis, s
+        ));
     }
+    let (xaxis_str, yaxis_str) = axes.unwrap();
+    // Convert axis strings to low, high -- if possible:
+
+    let xaxis = parse_axis(&xaxis_str);
+    if let Err(s) = xaxis {
+        println!("Xaxis failed {}", s);
+        return Err(format!("Failed to parse x axis: {}", s));
+    }
+    let xaxis = xaxis.unwrap();
+
+    let mut yaxis: Result<(f64, f64), String> = Ok((0.0, 0.0));
+    if yaxis_str.len() > 0 {
+        yaxis = parse_axis(&yaxis_str);
+    }
+    if let Err(s) = yaxis {
+        println!("y axis failed {}", s);
+        return Err(format!("Failed to parse y axis: {}", s));
+    }
+    let yaxis = yaxis.unwrap();
+
+    // Skip the ---- line:
+
+    let ignore = read_line(l);
+    if let Err(s) = ignore {
+        return Err(format!("Failed to read/skip marker line: {}", s));
+    }
+    // Marshall the stuff we got into a SpectrumProperties that can be
+    // returned:
+
+    let result = SpectrumProperties {
+        name: name,
+        type_string: spectrum_type,
+        x_parameters: xparams.clone(),
+        y_parameters: yparams.clone(),
+        x_axis: Some((xaxis.0, xaxis.1, xbins)),
+        y_axis: if ybins == 0 {
+            None
+        } else {
+            Some((yaxis.0, yaxis.1, ybins))
+        },
+    };
+    Ok(result)
+}
+
+// Read one spectrum from a bytes iterator:
+
+fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileData, String> {
+    let definition = read_header(l);
+    if let Err(s) = definition {
+        return Err(format!("Failed to read header: {}", s));
+    }
+    let definition = definition.unwrap();
+
+    println!("Header: {:?}", definition);
 
     Err(String::from("Read spectrum unimplemented"))
 }
