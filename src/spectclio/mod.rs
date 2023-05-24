@@ -34,6 +34,7 @@
 //! lines for 2-d spectra.
 //!
 
+use crate::messaging::spectrum_messages::ChannelType;
 use crate::rest::spectrum;
 use crate::rest::spectrumio::{SpectrumChannel, SpectrumFileData, SpectrumProperties};
 use chrono::prelude::*;
@@ -278,6 +279,72 @@ fn parse_paren_list(line: &str) -> Result<(Vec<String>, Vec<String>), String> {
 
     Ok((xparams, yparams))
 }
+// Read a channel line:
+
+fn read_channel<T: Read>(l: &mut Lines<BufReader<T>>) -> Option<SpectrumChannel> {
+    let line = read_line(l);
+    if let Err(_) = line {
+        return None;
+    }
+    let mut line = line.unwrap();
+
+    // The coordinates can be gotten from the parse_paren_list
+
+    let bins = parse_paren_list(&line);
+    if let Err(_) = bins {
+        return None;
+    }
+    let bins = bins.unwrap();
+    let bins = bins.0;
+
+    // There must be at least 1 bin:
+
+    if bins.len() == 0 {
+        return None;
+    }
+
+    let xbin = bins[0].parse::<i32>();
+    if let Err(_) = xbin {
+        return None;
+    }
+    let xbin = xbin.unwrap();
+    if xbin == -1 {
+        return None; // end sentinel.
+    }
+    let mut ybin = 0; // a default value since - bins are not options.
+    if bins.len() > 1 {
+        let ybinstr = bins[1].parse::<i32>();
+        if let Err(_) = ybinstr {
+            return None;
+        }
+        ybin = ybinstr.unwrap();
+    }
+
+    // The string following the ) will be the value of the channel:
+    // external forces will need to compute the x/y real coords.
+    // We also know there is a close because otherwise parse_paren_list would fail.
+
+    let close = line.find(')').unwrap();
+    let remainder: String = line.drain(close + 1..).collect();
+    let remainder = remainder.trim();
+    if remainder.len() == 0 {
+        return None;
+    }
+    let height = remainder.parse::<u64>();
+    if let Err(_) = height {
+        return None;
+    }
+    let height = height.unwrap();
+
+    Some(SpectrumChannel {
+        chan_type: ChannelType::Bin,
+        x_coord: 0.0,
+        y_coord: 0.0,
+        x_bin: xbin as usize,
+        y_bin: ybin as usize,
+        value: height,
+    })
+}
 
 // Remove quotes from vector of string the quotes are leading and trailing chars:
 //
@@ -285,7 +352,7 @@ fn parse_paren_list(line: &str) -> Result<(Vec<String>, Vec<String>), String> {
 fn unquote(strings: &mut Vec<String>) -> Vec<String> {
     let mut result = vec![];
     for s in strings {
-        let mut st : String = s.drain(1..).collect(); // chop off leading quote.
+        let mut st: String = s.drain(1..).collect(); // chop off leading quote.
         st.truncate(st.len() - 1); // chop off trailing quote.
         result.push(st);
     }
@@ -439,6 +506,28 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
     Ok(result)
 }
 
+fn transform(bins: u32, low: f64, high: f64, chan: usize) -> f64 {
+    if bins == 0 {
+        return 0.0;
+    }
+    (chan as f64) * (high - low) / (bins as f64)
+}
+// Compute the coordinates of a channel given its
+// definition:
+
+fn compute_coords(c: &mut SpectrumChannel, def: &SpectrumProperties) {
+    let xaxis = def.x_axis.unwrap(); // there's always an x:
+    let x = transform(xaxis.2, xaxis.0, xaxis.1, c.x_bin);
+
+    let y = if let Some(yaxis) = def.y_axis {
+        transform(yaxis.2, yaxis.0, yaxis.1, c.y_bin)
+    } else {
+        0.0
+    };
+    c.x_coord = x;
+    c.y_coord = y;
+}
+
 // Read one spectrum from a bytes iterator:
 
 fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileData, String> {
@@ -448,9 +537,24 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
     }
     let definition = definition.unwrap();
 
-    println!("Header: {:?}", definition);
+    let mut contents = Vec::<SpectrumChannel>::new();
+    loop {
+        let channel = read_channel(l);
+        if channel.is_none() {
+            break;
+        }
+        let mut channel = channel.unwrap();
+        compute_coords(&mut channel, &definition);
 
-    Err(String::from("Read spectrum unimplemented"))
+        contents.push(channel);
+    }
+    println!("{:?}", definition);
+    println!("{:?}", contents);
+
+    Ok(SpectrumFileData {
+        definition: definition,
+        channels: contents,
+    })
 }
 
 ///
