@@ -207,7 +207,7 @@ impl ProcessingThread {
 
     fn list(&mut self) -> Reply {
         if let Some(s) = &self.attach_name {
-            Ok(s.clone())
+            Ok(String::from("file:") + s)
         } else {
             Ok(String::from("Not Attached"))
         }

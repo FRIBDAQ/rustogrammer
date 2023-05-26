@@ -41,7 +41,7 @@ class rustogramer:
             raise NameError(name=name)
         return matches[0]["port"]
 
-    def _transaction(self, request, queryparams):
+    def _transaction(self, request, queryparams = {}):
         # perform a transaction returning the JSON on success.
         # On failures an exception is raised.
         
@@ -119,5 +119,35 @@ class rustogramer:
         return self._transaction(
             "/channel/set", 
             {"spectrum": name, "xchannel": x, "ychannel": y, "value": value}
-            
+
         )
+    
+    #-------------- Data processing: /attach and /analyze:
+
+    def attach_source(self, type, source, size=8192):
+        """ Attach a data source"""
+    
+        return self._transaction(
+            "attach/attach", {"type": type, "source": source, "size":size}
+        )
+
+    def attach_show(self) :
+        """ Show what's attached"""
+        return self._transaction("attach/list")
+
+    def detach_source(self) :
+        """ Detach the data source"""
+        return self._transaction("attach/detach")
+    
+    def start_analysis(self):
+        """Start processing data from the attached source"""
+        return self._transaction("analyze/start")
+
+    def stop_analysis(self):
+        """ Stop processing from the attached source"""
+        return self._transaction("analyze/stop")
+    
+    def set_batch_size(self,num_events):
+        """ set the analysis event batch size"""
+        return self._transaction("analyze/size", {"events": num_events})
+
