@@ -279,6 +279,22 @@ fn parse_paren_list(line: &str) -> Result<(Vec<String>, Vec<String>), String> {
 
     Ok((xparams, yparams))
 }
+
+// Reorganize the parameter lists according to spectrum type:
+// At present, the only reorganization is that a "2" spectrum requires
+// Xparams be the first element of the x params array and yaparms the second:
+//
+fn reorganize_params(
+    xparams: Vec<String>,
+    yparams: Vec<String>,
+    sptype: &str,
+) -> (Vec<String>, Vec<String>) {
+    if sptype != "2" {
+        (xparams, yparams)
+    } else {
+        (vec![xparams[0].clone()], vec![xparams[1].clone()])
+    }
+}
 // Read a channel line:
 
 fn read_channel<T: Read>(l: &mut Lines<BufReader<T>>) -> Option<SpectrumChannel> {
@@ -448,6 +464,11 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
     let xparams = unquote(&mut xparams);
     let yparams = unquote(&mut yparams);
 
+    // Have to process x/y parameters according to spectrum type:
+    // Note that by now the spectrum type is supported.
+
+    let (xparams, yparams) = reorganize_params(xparams, yparams, &spectrum_type);
+
     // Now axis definitions:
 
     let axis = read_line(l);
@@ -467,7 +488,6 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
 
     let xaxis = parse_axis(&xaxis_str);
     if let Err(s) = xaxis {
-        println!("Xaxis failed {}", s);
         return Err(format!("Failed to parse x axis: {}", s));
     }
     let xaxis = xaxis.unwrap();
@@ -477,7 +497,6 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
         yaxis = parse_axis(&yaxis_str);
     }
     if let Err(s) = yaxis {
-        println!("y axis failed {}", s);
         return Err(format!("Failed to parse y axis: {}", s));
     }
     let yaxis = yaxis.unwrap();
@@ -548,9 +567,6 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
 
         contents.push(channel);
     }
-    println!("{:?}", definition);
-    println!("{:?}", contents);
-
     Ok(SpectrumFileData {
         definition: definition,
         channels: contents,
