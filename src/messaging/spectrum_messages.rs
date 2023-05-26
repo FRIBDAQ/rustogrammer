@@ -18,6 +18,7 @@ use ndhistogram::*;
 use std::sync::mpsc;
 
 use glob::Pattern;
+use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -27,7 +28,7 @@ pub struct AxisSpecification {
     pub high: f64,
     pub bins: u32,
 }
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum ChannelType {
     Underflow,
     Overflow,
@@ -42,6 +43,7 @@ pub struct Channel {
     pub value: f64,
 }
 pub type SpectrumContents = Vec<Channel>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpectrumProperties {
     pub name: String,
@@ -119,6 +121,10 @@ pub enum SpectrumRequest {
     },
     Events(Vec<parameters::Event>),
     GetStats(String),
+    SetContents {
+        name: String,
+        contents: SpectrumContents,
+    },
 }
 
 /// Defines the replies the spectrum par tof the histogram
@@ -504,20 +510,20 @@ impl SpectrumProcessor {
                     let v = c.value.get();
                     if v != 0.0 {
                         match c.bin {
-                            BinInterval::Underflow { end: _end } => {
+                            BinInterval::Underflow { end: end } => {
                                 result.push(Channel {
                                     chan_type: ChannelType::Underflow,
                                     value: v,
-                                    x: 0.0,
+                                    x: end,
                                     y: 0.0,
                                     bin: c.index,
                                 });
                             }
-                            BinInterval::Overflow { start: _start } => {
+                            BinInterval::Overflow { start: start } => {
                                 result.push(Channel {
                                     chan_type: ChannelType::Overflow,
                                     value: v,
-                                    x: 0.0,
+                                    x: start,
                                     y: 0.0,
                                     bin: c.index,
                                 });
@@ -547,26 +553,30 @@ impl SpectrumProcessor {
                     let mut ctype = ChannelType::Bin;
 
                     match xbin {
-                        BinInterval::Overflow { start: _start } => {
+                        BinInterval::Overflow { start: start } => {
                             ctype = ChannelType::Overflow;
+                            x = start;
                         }
-                        BinInterval::Underflow { end: _end } => {
+                        BinInterval::Underflow { end: end } => {
                             ctype = ChannelType::Underflow;
+                            x = end;
                         }
                         BinInterval::Bin { start, end: _end } => {
                             x = start;
                         }
                     };
                     match ybin {
-                        BinInterval::Overflow { start: _start } => {
+                        BinInterval::Overflow { start: start } => {
                             if ctype == ChannelType::Bin {
                                 ctype = ChannelType::Overflow;
                             }
+                            y = start;
                         }
-                        BinInterval::Underflow { end: _end } => {
+                        BinInterval::Underflow { end: end } => {
                             if ctype == ChannelType::Bin {
                                 ctype = ChannelType::Underflow;
                             }
+                            y = end;
                         }
                         BinInterval::Bin { start, end: _end } => {
                             y = start;
@@ -603,6 +613,46 @@ impl SpectrumProcessor {
     fn get_statistics(&self, name: &str) -> SpectrumReply {
         if let Some(spec) = self.dict.get(name) {
             SpectrumReply::Statistics(spec.borrow().get_out_of_range())
+        } else {
+            SpectrumReply::Error(format!("Spectrum {} does not exist", name))
+        }
+    }
+    // Set the spectrum contents
+    // Notes:
+    //  * The spectrum is first cleared.
+    //  * Underflow and overflow are supposedly ignored by fill_with so we
+    // must increment the real cooordinate locations as many times as required.
+    //  * We use the real coordinates rather than the bin number
+    // to set each 'channel' value provided.
+    //  * The successful reply is _Processed_
+
+    fn set_contents(&mut self, name: &str, contents: &SpectrumContents) -> SpectrumReply {
+        // Find the spectrum:
+
+        if let Some(spec) = self.dict.get(name) {
+            let mut histogram = spec.borrow_mut();
+            histogram.clear();
+            if histogram.is_1d() {
+                let spec1d = histogram.get_histogram_1d().unwrap();
+                for chan in contents {
+                    spec1d
+                        .borrow_mut()
+                        .value_mut(&chan.x)
+                        .unwrap()
+                        .fill_with(chan.value);
+                }
+            } else {
+                let spec2d = histogram.get_histogram_2d().unwrap();
+                for chan in contents {
+                    println!("{} {}", chan.x, chan.y);
+                    spec2d
+                        .borrow_mut()
+                        .value_mut(&(chan.x, chan.y))
+                        .unwrap()
+                        .fill_with(chan.value);
+                }
+            }
+            SpectrumReply::Processed
         } else {
             SpectrumReply::Error(format!("Spectrum {} does not exist", name))
         }
@@ -681,6 +731,7 @@ impl SpectrumProcessor {
             } => self.get_contents(&name, xlow, xhigh, ylow, yhigh),
             SpectrumRequest::Events(events) => self.process_events(&events, cdict),
             SpectrumRequest::GetStats(name) => self.get_statistics(&name),
+            SpectrumRequest::SetContents { name, contents } => self.set_contents(&name, &contents),
         }
     }
 }
@@ -1227,7 +1278,7 @@ impl SpectrumMessageClient {
     /// Process events.
     ///
     /// *  events - vector of flat event.
-
+    ///
     ///
     pub fn process_events(&self, e: &Vec<parameters::Event>) -> SpectrumServerEmptyResult {
         match self.transact(Self::events_request(e)) {
@@ -1241,7 +1292,7 @@ impl SpectrumMessageClient {
     /// ### Parameters:
     /// * name - the name of the spectrum to query.
     /// ### Returns:
-    /// * SpectrumServerStatiscisResult
+    /// * SpectrumServerStatisticsResult
     ///     - Err has a string containing the error.
     ///     - Ok has a Statistics tuple.
     ///
@@ -1250,6 +1301,42 @@ impl SpectrumMessageClient {
             SpectrumReply::Statistics(s) => Ok(s),
             SpectrumReply::Error(s) => Err(s),
             _ => Err(String::from("get_statistics - unexpected reply type")),
+        }
+    }
+    /// Set the contents of a spectrum.
+    ///
+    /// ### Parameters:
+    /// *  name - name of the spectrum to fill.
+    /// *  contents - Contents to set the spectrum to.  Note that for each channel:
+    ///     - chan_type is actually unimportant.
+    ///     - x,y determine the fill coordinates.
+    ///     - bin is ignored.
+    ///     - value is the value to fill the channel selected by x/y.
+    /// ### Returns:
+    /// * SpectrumServerEmptyResult - on err, the string is the error message
+    /// that describes the problem.
+    ///
+    /// ### Notes:
+    ///  *   The target spectrum is cleared first.
+    ///  *   **Important** If there's more than one x/y that maps to the same underlying bin,
+    /// the last one determines the bin contents.  This is important if filling
+    /// a spectrum with lower resolution than the one which created the
+    /// initial set of x/y/value triplets.
+    ///
+    pub fn fill_spectrum(
+        &self,
+        name: &str,
+        contents: SpectrumContents,
+    ) -> SpectrumServerEmptyResult {
+        let request = SpectrumRequest::SetContents {
+            name: String::from(name),
+            contents: contents,
+        };
+        let reply = self.transact(request);
+        match reply {
+            SpectrumReply::Processed => Ok(()),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("Unexpected reply type in fill_spectrum")),
         }
     }
 }
@@ -3553,6 +3640,250 @@ mod spproc_tests {
             }
         );
     }
+    #[test]
+    fn load_1() {
+        // Load 1d spectrum contents:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // Load the spectrum up with some data:
+
+        let req = SpectrumRequest::SetContents {
+            name: String::from("test"),
+            contents: vec![
+                Channel {
+                    chan_type: ChannelType::Bin,
+                    x: 0.0,
+                    y: 0.0,
+                    bin: 1,
+                    value: 1.0,
+                },
+                Channel {
+                    chan_type: ChannelType::Bin,
+                    x: 10.0,
+                    y: 0.0,
+                    bin: 10,
+                    value: 12.0,
+                },
+            ],
+        };
+
+        let reply = to
+            .processor
+            .process_request(req, &to.parameters, &mut to.conditions);
+        assert_eq!(SpectrumReply::Processed, reply);
+
+        // See if the contents match:
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetContents {
+                name: String::from("test"),
+                xlow: 0.0,
+                xhigh: 1024.0,
+                ylow: 0.0,
+                yhigh: 0.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+
+        assert!(if let SpectrumReply::Contents(c) = reply {
+            assert_eq!(2, c.len());
+            //There's an assumption stuff comes out in order:
+            assert_eq!(0.0, c[0].x);
+            assert_eq!(1.0, c[0].value);
+
+            assert_eq!(10.0, c[1].x);
+            assert_eq!(12.0, c[1].value);
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn load_2() {
+        // Load a 2d spectrum.
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // Load up some data:
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetContents {
+                name: String::from("test"),
+                contents: vec![
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 10.0,
+                        y: 10.0,
+                        bin: 102,
+                        value: 15.0,
+                    },
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 20.0,
+                        y: 26.0, // Note bin granularity means we only get even y.
+                        bin: 502,
+                        value: 172.0,
+                    },
+                ],
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Processed, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetContents {
+                name: String::from("test"),
+                xlow: 0.0,
+                xhigh: 1024.0,
+                ylow: 0.0,
+                yhigh: 1024.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+
+        assert!(if let SpectrumReply::Contents(c) = reply {
+            assert_eq!(2, c.len());
+
+            // assume some ordering to the iteration:
+
+            assert_eq!(10.0, c[0].x);
+            assert_eq!(10.0, c[0].y);
+            assert_eq!(15.0, c[0].value);
+
+            assert_eq!(20.0, c[1].x);
+            assert_eq!(26.0, c[1].y);
+            assert_eq!(172.0, c[1].value);
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn load_3() {
+        // Summary spectra are wonky enough they deserve their own test:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateSummary {
+                name: String::from("test"),
+                params: vec![
+                    String::from("param.1"), // x = 0.0,
+                    String::from("param.2"), // x = 1.0,
+                    String::from("param.3"), // x = 2.0,
+                    String::from("param.4"), // x = 3.0
+                ],
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetContents {
+                name: String::from("test"),
+                contents: vec![
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 0.0, // param.1
+                        y: 12.0,
+                        bin: 0, // ignored
+                        value: 1.0,
+                    },
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 1.0, // param.2
+                        y: 100.0,
+                        bin: 0,
+                        value: 2.0,
+                    },
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 2.0, // param.3
+                        y: 200.0,
+                        bin: 0,
+                        value: 128.0,
+                    },
+                    Channel {
+                        chan_type: ChannelType::Bin,
+                        x: 3.0, // param.4
+                        y: 250.0,
+                        bin: 0,
+                        value: 100.0,
+                    },
+                ],
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert_eq!(SpectrumReply::Processed, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetContents {
+                name: String::from("test"),
+                xlow: 0.0,
+                xhigh: 4.0,
+                ylow: 0.0,
+                yhigh: 1024.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+        );
+        assert!(if let SpectrumReply::Contents(c) = reply {
+            assert_eq!(4, c.len());
+            true
+        } else {
+            false
+        });
+    }
 }
 #[cfg(test)]
 mod reqstruct_tests {
@@ -4408,6 +4739,69 @@ mod spectrum_api_tests {
 
         assert!(if let Ok(stats) = result {
             assert_eq!((0, 0, 0, 0), stats);
+            true
+        } else {
+            false
+        });
+
+        stop_server(jh, send);
+    }
+    // test for load_spectrum method .. note that
+    // the server side is already tested, so we really just need to test
+    // that the messaging works rather than be exhaustive over all spectrum
+    // types.
+    #[test]
+    fn fill_1() {
+        // nonexistent spectrum gives error:
+
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+        let contents = SpectrumContents::new();
+        let reply = api.fill_spectrum("test", contents);
+        assert!(reply.is_err());
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn fill_2() {
+        // fill spec;trum and get data back to match:
+
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to make spectrum");
+
+        let contents = vec![
+            Channel {
+                chan_type: ChannelType::Bin,
+                x: 10.0,
+                y: 0.0,
+                bin: 0,
+                value: 12345.0,
+            },
+            Channel {
+                chan_type: ChannelType::Bin,
+                x: 20.0,
+                y: 0.0,
+                bin: 0,
+                value: 666.0,
+            },
+        ];
+        let reply = api.fill_spectrum("test", contents);
+        assert!(reply.is_ok());
+
+        // Get the contents:
+
+        let reply = api.get_contents("test", 0.0, 1024.0, 0.0, 0.0);
+        assert!(if let Ok(c) = reply {
+            assert_eq!(2, c.len());
+
+            assert_eq!(10.0, c[0].x);
+            assert_eq!(12345.0, c[0].value);
+
+            assert_eq!(20.0, c[1].x);
+            assert_eq!(666.0, c[1].value);
             true
         } else {
             false

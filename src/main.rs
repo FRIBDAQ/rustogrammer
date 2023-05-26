@@ -12,13 +12,15 @@ mod processing;
 mod rest;
 mod ring_items;
 mod sharedmem;
+mod spectclio;
 mod spectra;
 
 use clap::Parser;
 use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, getstats,
-    integrate, rest_parameter, ringversion, sbind, shm, spectrum, unbind, unimplemented, version,
+    integrate, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, unbind,
+    unimplemented, version,
 };
 use sharedmem::binder;
 use std::env;
@@ -28,6 +30,11 @@ use std::sync::Mutex;
 
 #[macro_use]
 extern crate rocket;
+
+// Pull in scan_fmt:
+
+#[macro_use]
+extern crate scan_fmt;
 
 const DEFAULT_SHM_SPECTRUM_MBYTES: usize = 32;
 
@@ -236,6 +243,8 @@ fn rocket() -> _ {
             routes![ringversion::ringversion_get, ringversion::ringversion_set],
         )
         .mount("/spectcl/specstats", routes![getstats::get_statistics])
+        .mount("/spectcl/swrite", routes![spectrumio::swrite_handler])
+        .mount("/spectcl/sread", routes![spectrumio::sread_handler])
 }
 ///
 /// Gets the port to use for our REST service.
