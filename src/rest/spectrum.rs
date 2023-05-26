@@ -31,7 +31,6 @@ pub fn rg_sptype_to_spectcl(rg_type: &str) -> String {
         "2DSum" => String::from("m2"),
         _ => String::from("-unsupported-"),
     }
-   
 }
 /// Convert SpecTcl data type to Rustogramer:
 pub fn spectcl_sptype_to_rustogramer(sptype: &str) -> Result<String, String> {
@@ -43,8 +42,7 @@ pub fn spectcl_sptype_to_rustogramer(sptype: &str) -> Result<String, String> {
         "s" => Ok(String::from("Summary")),
         "2" => Ok(String::from("")),
         "m2" => Ok(String::from("2DSum")),
-        _ => Err(format!("Unsupported SpecTcl spectrum type {}", sptype))
-    
+        _ => Err(format!("Unsupported SpecTcl spectrum type {}", sptype)),
     }
 }
 //------------------------------------------------------------
