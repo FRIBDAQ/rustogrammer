@@ -50,7 +50,10 @@ class rustogramer:
         uri = "http://" + self.host + ":" + str(self.port) + "/spectcl/" + request
         response = requests.get(uri, params=queryparams)
         response.raise_for_status()     # Report response errors.and
-        return response.json()
+        result = response.json()
+        if result["status"] != "OK":
+            raise RustogramerException(result)
+        return result
 
     def __init__(self, connection):
         """ 
@@ -82,6 +85,19 @@ class rustogramer:
         """ Apply the condition gate_name to spectrum_name """
 
         response = self._transaction('apply/apply', {"gate":gate_name, "spectrum": spectrum_name})
-        if response["status"] != "OK":
-            raise RustogramerException(response)
+        return response
+
+    def apply_list(self, pattern="*"):
+        """ List gate applications fro spectra that match the optional pattern
+
+        The optional pattern, is a glob pattern defaults to *.  Only applications
+        of gates to spectra that match the pattern are shown.
+        """
+        response = self._transaction('apply/list', {"pattern" : pattern})
+        return response
+    
+    def ungate_spectrum(self, names):
+        """ Ungate the named spectrum"""
+
+        response =self._transaction("ungate", {"name": names})
         return response
