@@ -416,9 +416,9 @@ proc SpecTclRestCommand::_startTraceMonitoring { } {
 # @param host - host the SpecTcl we control lives in
 # @param port - Port the REST server is listening on.
 #
-proc SpecTclRestCommand::initialize {host port} {
+proc SpecTclRestCommand::initialize {host port {debug 0}} {
     set SpecTclRestCommand::client [SpecTclRestClient\
-        %AUTO% -host $host -port $port          \
+        %AUTO% -host $host -port $port -debug $debug         \
     ]
 }
 ##
@@ -1235,7 +1235,7 @@ namespace eval gate {
 #
 proc SpecTclRestCommand::_gateCreate {ns name args} {
     
-    return [list -new $name]
+    return [list ${ns}::-new $name]
 }
 namespace ensemble configure gate -unknown SpecTclRestCommand::_gateCreate
 #-------------------------------------------------------------------------------
@@ -1379,8 +1379,8 @@ namespace eval parameter {
 # @param args - The remaining command words.
 #
 proc SpecTclRestCommand::_parameterCreate {ns name args} {
-    
-    return [list -new $name]
+    puts "Will use '[list ${ns}::-new $name {*}$args]'"
+    return [list ${ns}::-new $name {*}$args]
 }
 namespace ensemble configure parameter -unknown SpecTclRestCommand::_parameterCreate
 
@@ -1437,7 +1437,7 @@ namespace eval pseudo {
     }
 }
 proc SpecTclRestCommand::_createPseudo {ns name args} {
-    return [list -new $name]
+    return [list ${ns}::-new $name]
 }
 namespace ensemble configure pseudo -unknown SpecTclRestCommand::_createPseudo
 
@@ -1690,7 +1690,7 @@ namespace eval spectrum {
 # @param args  - remaining arguments.
 #
 proc SpecTclRestCommand::_createSpectrum {ns name args} {
-    return [list -new $name]
+    return [list ${ns}::-new $name]
 }
 namespace ensemble configure spectrum -unknown SpecTclRestCommand::_createSpectrum
 #----------------------------------------------------------------------------
@@ -1757,7 +1757,7 @@ namespace eval unbind {
 # @param args  - remaining parameters (optionally more names).
 #
 proc SpecTclRestCommand::_unbindByName {ns name1 args} {
-    return [list unbind $name1]
+    return [list ${ns}::unbind $name1]
 }
 namespace ensemble configure unbind -unknown SpecTclRestCommand::_unbindByName
 

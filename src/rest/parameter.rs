@@ -381,25 +381,25 @@ pub fn new_rawparameter(
 /// us its name as a pattern to call list_parameters otherwise
 /// toss an error back
 ///
-#[get("/list?<name>&<id>")]
+#[get("/list?<pattern>&<id>")]
 pub fn list_rawparameter(
-    name: Option<String>,
+    pattern: Option<String>,
     id: Option<u32>,
     state: &State<HistogramState>,
 ) -> Json<Parameters> {
-    if name.is_some() && id.is_some() {
+    if pattern.is_some() && id.is_some() {
         Json(Parameters {
             status: String::from("Only id or pattern can be supplied, not both"),
             detail: Vec::<ParameterDefinition>::new(),
         })
-    } else if name.is_none() && id.is_none() {
+    } else if pattern.is_none() && id.is_none() {
         Json(Parameters {
             status: String::from("One of name or id must be supplied neither were"),
             detail: Vec::<ParameterDefinition>::new(),
         })
     } else {
-        if let Some(_) = name {
-            list_parameters(name, state)
+        if let Some(_) = pattern {
+            list_parameters(pattern, state)
         } else {
             let name = find_parameter_by_id(id.unwrap(), state);
             if name.is_some() {

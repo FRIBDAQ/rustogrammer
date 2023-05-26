@@ -164,6 +164,7 @@ package require json
 snit::type SpecTclRestClient {
     option -host -default localhost
     option -port -default 8080
+    option -debug -default 0
     
     variable domain spectcl
     
@@ -201,6 +202,9 @@ snit::type SpecTclRestClient {
     # @return dict - the full JSON response
     #
     method _request {url} {
+        if {$options(-debug)} {
+            puts "Request: '$url'"
+        }
         set token [http::geturl $url]
         http::wait $token
         set status [http::ncode $token]
@@ -222,7 +226,9 @@ snit::type SpecTclRestClient {
             set rawData [zlib inflate $rawData]
         }
         
-        # puts $rawData;      # Uncomment to debug reply errors.
+        if {$options(-debug)} {
+            puts $rawData;     
+        }
         set parseOk [catch {
             set json [json::json2dict $rawData]
         } msg]
