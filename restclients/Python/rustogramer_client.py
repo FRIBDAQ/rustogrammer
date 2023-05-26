@@ -81,6 +81,8 @@ class rustogramer:
         if "service" in connection:
             self.port = self._service_port(connection['host'], self.port, connection["service"])
 
+    #--------------- Gate application domains: /apply, /ungate
+
     def apply_gate(self, gate_name, spectrum_name):
         """ Apply the condition gate_name to spectrum_name """
 
@@ -101,3 +103,21 @@ class rustogramer:
 
         response =self._transaction("ungate", {"name": names})
         return response
+
+    #----------------- channel domain - get/fetch channels
+
+    def get_chan(self, name, x, y = 0):
+        """ Get the value of the channel at bins x/y 
+        
+        typical Y is only needed if the spectrum has two dimensions
+        """
+        return self._transaction(
+            "channel/get", {"spectrum": name, "xchannel": x, "ychannel": y}
+        )
+
+    def set_chan(self, name, x, value, y=0):
+        return self._transaction(
+            "/channel/set", 
+            {"spectrum": name, "xchannel": x, "ychannel": y, "value": value}
+            
+        )
