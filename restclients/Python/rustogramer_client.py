@@ -314,7 +314,6 @@ class rustogramer:
         """
         return self._transaction("fit/list", {"pattern": pattern})
 
-    
     def fit_proc(self, name):
         """SpecTcl only
 
@@ -324,4 +323,28 @@ class rustogramer:
         an aribtrary Tcl ommand only applies to SpecTcl
         """
         return self._transaction("fit/proc", {"name":name})
+
+    #----------------------- Fold API.
+
+    def fold_apply(self, fold, spectrum):
+        """ Apply a fold to a gamma spectrum (SpecTcl only).
+
+        *   fold - name of the fold to apply.
+        *   spectrum - name of a gamma spectrum to apply the fold to.
+
+        """
+        return self._transaction("fold/apply", {"gate": fold, "spectrum": spectrum})
+
+    def fold_list(self,pattern="*"):
+        """ SpecTcl only : Lists the folds whose names match the optional
+        pattern parameter.  pattern is a glob parameter that, if omitted,
+        defaults to "*"
+        """
+
+        return self._transaction("fold/list", {"pattern": pattern})
+    
+    def fold_remove(self, spectrum):
+        """ SpecTcl only - removes any fold applied to the named spectrum.
+        """
+        self._transaction("fold/remove", {"spectrum": spectrum})
         
