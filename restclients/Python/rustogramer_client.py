@@ -204,5 +204,73 @@ class rustogramer:
 
     def request_exit(self):
         """ Asks the application to exit.
+        Rustogramer implements this but not  SpecTcl.
         """
         return self._transaction("exit")
+    
+    #--------------------   Filters:
+
+    def filter_new(self, name, gate, parameters):
+        """ Create a new filter:
+        *   name - the name of the new filter.
+        *   gate - the gate that determines which events get into the
+        filter output file (this can be a True gate).
+        *   parameters - the parameters that are included in filtered events
+        note that this can be a single string or a list of strings.
+
+        Rustogramer does not implement filters, but SpecTcl does.
+        """
+        return self._transaction(
+            "filter/new",
+            {"name": name, "gate": gate, "parameter":parameters}
+        )
+    def filter_delete(self, name):
+        """ Delete an existing filter:
+
+        *  name - the name of the filter to delete.
+
+        Rustogramer does not implement filters but SpecTcl does.
+        """
+        return self._transaction(
+            "filter/delete", {"name": name}
+        )
+    def filter_enable(self, name):
+        """ Enable an existing filter:
+
+        *  name - the name of a filter that must have an associated file.
+
+        rustogramer does not implement filters but SpecTcl does.
+        """
+        return self._transaction("/filter/enable", {"name":name})
+
+    def filter_disable(self, name):
+        """ Disables an enabled filter.
+
+        *  name - the name of a filter that must be enabled.
+
+        rustogramer does not implement filters but SpecTcl does.
+        """
+        return self._transaction("filter/disable", {"name": name})
+
+    def filter_regate(self, name, gate):
+        """ Apply a different gate to an existing filter.   The filter
+        must not be enabled as that could dynamically change the meaning
+        of its output.
+
+        *   name - name of the filter.
+        *   gate - Name of the new gate applied to the filter.
+
+        Rustogramer does not implement filters but SpecTcl does.
+        """
+        return self._transaction("filter/regate", {"name": name, "gate": gate})
+    
+    def filter_setfile(self, name, path):
+        """ Set the output file for a specific filter.
+
+        *   name - filtername.
+        *   path - path to the output file. path is interpreted in the
+        context of the server not the client.
+
+        Rustogramer does not implement filters but SpecTcl does.
+        """
+        self._transaction("filter/file", {"name": name, "file": path})
