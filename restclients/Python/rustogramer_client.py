@@ -273,4 +273,55 @@ class rustogramer:
 
         Rustogramer does not implement filters but SpecTcl does.
         """
-        self._transaction("filter/file", {"name": name, "file": path})
+        return self._transaction("filter/file", {"name": name, "file": path})
+    
+    #--------------------------- fit API.
+
+    def fit_create(self, name, spectrum, low, high, type) :
+        """ Create a new fit object (SpecTcl only):
+        * name - name to assign to the fit (must be unique).
+        * spectrum - Spectrum on whose channels the fit will be performed.
+        * low - low limit of the fitted region.
+        * high - high limit of the fitted region.
+        * type - type of fit to be performed.
+
+        Note that SpecTcl only supports fits on 1-d spectra.
+        """
+        return self._transaction(
+            "fit/create", 
+            {"name": name, "spectrum" : spectrum, "low": low, "high": high, "type": type}
+        )
+    
+    def fit_update(self, pattern = "*"):
+        """ (SpecTcl only)
+        Update the fits that match the optional pattern parameter.
+        pattern is a glob pattern that, if not supplied, defaults to "*"
+        which matches all fits.
+        """
+
+        return self._transaction("fit/update",{"pattern": pattern})
+    
+    def fit_delete(self, name):
+        """ Deletes the named fit (SpecTcl only)
+        """
+        return self._transaction("fit/delete", {"name":name})
+    
+    def fit_list(self, pattern = "*"):
+        """SpecTcl only
+        lists the fits and their parameterization.
+        Only the fits with names matching the optional pattern parameter
+        are returned.  If pattern is omitted it defaults to "*"
+        """
+        return self._transaction("fit/list", {"pattern": pattern})
+
+    
+    def fit_proc(self, name):
+        """SpecTcl only
+
+        This  returns the proc used to
+        evaluate the fit named.  This requires SpecTcl both because
+        only SpecTcl implements fits and because the URI to performa
+        an aribtrary Tcl ommand only applies to SpecTcl
+        """
+        return self._transaction("fit/proc", {"name":name})
+        
