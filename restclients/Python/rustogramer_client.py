@@ -125,7 +125,12 @@ class rustogramer:
     #-------------- Data processing: /attach and /analyze:
 
     def attach_source(self, type, source, size=8192):
-        """ Attach a data source"""
+        """ Attach a data source
+           *   type - is the type of data source 'pipe' or 'file' Note that
+           rustogramer only supports 'file' but SpecTcl supports both.
+           *   source  - the type deependent sourc identification.
+           *   size    - (relevant only to SpecTcl - read block sizes). 
+        """
     
         return self._transaction(
             "attach/attach", {"type": type, "source": source, "size":size}
@@ -148,25 +153,56 @@ class rustogramer:
         return self._transaction("analyze/stop")
     
     def set_batch_size(self,num_events):
-        """ set the analysis event batch size"""
+        """ set the analysis event batch size to num_events"""
         return self._transaction("analyze/size", {"events": num_events})
 
     # ------------------------------  Event builder unpacker:
 
     def evbunpack_create(self, name, frequency, basename):
+        """ Create an unpacker for event built data:
+          *   name - name of the new unpacker.
+          *   frequency - common clock frequency of the timestamps.
+          *   basename - base name of diagnostic parameters produced.
+
+          Note that rustogramer does not implement this but SpecTcl does.
+        """
         return self._transaction(
             "evbunpack/create", 
             {"name": name, "frequency" : frequency, "basename": basename}
         )
     
     def evbunpack_add(self, name, source_id, pipeline_name):
+        """ Set the pipeline that processes fragments from a source id:
+          *   name of the event builder unpacker being manipulated.
+          *   source_id - source id of the fragments that will be processed
+          by this pipeline.
+          *   pipeline_name - name of an event builder pipeline that will
+          be used to process fragments from source_id.  This pipeline
+          must have been registered with the pipeline manager (see the
+          pman_* methods)
+
+          Note that rustogramer does not implement this however SpecTcl does.
+        """
         return self._transaction(
             "evbunpack/add",
             {"name": name, "source": source_id, "pipe": pipeline_name}
         )
     
     def evbunpack_list(self, pattern="*"):
+        """ List the eventbuilder unpackers that have been defined.
+
+            * pattern is an optional glob pattern.  Only event builder unpackers
+            that match the pattern will be listed.  The pattern, if not supplied,
+            defaults to "*" which matches evertying.
+
+            Note rustogramer does not implement this, however SpecTcl does.
+        """
         return self._transaction(
             "evbunpack/list", {"pattern": pattern}
         )
-    
+    #---------------------  exit:
+
+    def request_exit(self):
+        """ Asks the application to exit.
+        """
+        return self._transaction("exit")
