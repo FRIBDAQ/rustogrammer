@@ -73,7 +73,7 @@ class rustogramer:
         to a port once.
 
         The constructor makes no actual connection to the rustogramer
-        REST interface.  THis connection by each service request to that
+        REST interface.  This connection by each service request to that
         port.
         """
         self.port = connection["port"]
@@ -151,3 +151,22 @@ class rustogramer:
         """ set the analysis event batch size"""
         return self._transaction("analyze/size", {"events": num_events})
 
+    # ------------------------------  Event builder unpacker:
+
+    def evbunpack_create(self, name, frequency, basename):
+        return self._transaction(
+            "evbunpack/create", 
+            {"name": name, "frequency" : frequency, "basename": basename}
+        )
+    
+    def evbunpack_add(self, name, source_id, pipeline_name):
+        return self._transaction(
+            "evbunpack/add",
+            {"name": name, "source": source_id, "pipe": pipeline_name}
+        )
+    
+    def evbunpack_list(self, pattern="*"):
+        return self._transaction(
+            "evbunpack/list", {"pattern": pattern}
+        )
+    
