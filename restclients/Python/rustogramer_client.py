@@ -422,7 +422,7 @@ class rustogramer:
         """
         return self._transaction(
             "gate/edit", 
-            {"name":name, "parameter":parameter, "low":low, "high":high}
+            {"name":name, "type":"s", "parameter":parameter, "low":low, "high":high}
         )
     def condition_make_contour(self, name, xparameter, yparameter, coords):
         """ Create a contour condition.  Contour conditions are two dimnensional
