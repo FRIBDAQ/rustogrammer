@@ -585,3 +585,15 @@ class rustogramer:
         return self._transaction("rawparameter/list", {"pattern": pattern})
     def rawparameter_list_byid(self, id):
         return self._transaction("rawparameter/list", {"id":id})
+
+    #----------------- Ring format:
+
+    def ringformat_set(self, major):
+        """ Set the major verison of the ring format. """
+
+        return self._transaction("ringformat", {"major": major, "minor":0})
+    
+    def ringformat_get(self):
+        """ Get the ring format information:
+        """
+            return self._transaction("ringformat/get", {})
