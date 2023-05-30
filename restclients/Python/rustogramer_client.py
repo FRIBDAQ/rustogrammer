@@ -466,4 +466,12 @@ class rustogramer:
             "xparameter":xparameter, "yparameter": yparameter, 
             "xcoord": xcoords, "ycoord": ycoords}
         )
+    #----------------------- Statistics API.
+
+    def get_statistics(self, pattern="*"):
+        """ returns the under/overflow statistics of the spectra
+        whose name matches the otpional 'pattern' parameter.  If
+        omitted, 'pattern' defaults to '*'
+        """
+        return self._transaction("specstats", {"pattern":pattern})
 
