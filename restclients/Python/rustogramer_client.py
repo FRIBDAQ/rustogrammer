@@ -597,3 +597,21 @@ class rustogramer:
         """ Get the ring format information:
         """
         return self._transaction("ringformat/get", {})
+
+    #-----------------  sbind interface:
+
+    def sbind_all(self):
+        """ Attempt to bind all spectra to shared memory:"""
+
+        return self._transaction("sbind/all")
+    
+    def sbind_spectra(self, spectra):
+        """ sbind an iterable collection of spectra:
+        """
+        return self._transaction("sbind/sbind", {"spectrum":spectra})
+
+    def sbind_list(self, pattern="*"):
+        """ list bindings"""
+
+        return self._transaction("sbind/list", {"pattern":pattern})
+        
