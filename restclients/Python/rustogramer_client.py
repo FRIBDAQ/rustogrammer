@@ -475,3 +475,29 @@ class rustogramer:
         """
         return self._transaction("specstats", {"pattern":pattern})
 
+    #--------------------- Integrate
+
+    def integrate_1d(self, spectrum, low, high):
+        """ Integrate a region of interesti n a 1d spectrum.
+
+        *  spectrum - name of the spectrum.
+        *  low, high - Define the limits of integration.
+
+        """
+        return self._transaction("integrate", {"spectrum":spectrum, "low":low, "high":high})
+    
+    def integrate_2d(self, spectrum, coords):
+        """ Integrate a 2d spectrum within a contour.
+
+        * spectrum name of the spectrum.
+        * coords -iterable object containing maps with keys "x" and "y"
+        defining the coordinates of the contour within which the integration
+        is perfromed.
+        """
+        xcoords = self._marshall(coords, "x"),
+        ycoords = self._marshall(coords, "y")
+        return self._transaction(
+            "integrate", 
+            {"spectrum":spectrum, "xcoords":xcoords, "ycoords": ycoords}
+        )
+
