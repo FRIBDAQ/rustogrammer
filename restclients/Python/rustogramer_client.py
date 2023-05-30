@@ -596,4 +596,4 @@ class rustogramer:
     def ringformat_get(self):
         """ Get the ring format information:
         """
-            return self._transaction("ringformat/get", {})
+        return self._transaction("ringformat/get", {})
