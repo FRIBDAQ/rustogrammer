@@ -500,4 +500,11 @@ class rustogramer:
             "integrate", 
             {"spectrum":spectrum, "xcoords":xcoords, "ycoords": ycoords}
         )
+    #--------------- parameter/treeparamter API.
 
+    def parameter_list(self, pattern="*"):
+        """ List information about the parameters with names that
+        match the glob pattern "pattern" if the pattern parameter is omitted
+        it defaults to "*", which matches all names.
+        """
+        return self._transaction("parameter/list", {"filter":pattern})
