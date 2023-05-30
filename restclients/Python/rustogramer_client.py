@@ -566,3 +566,22 @@ class rustogramer:
         return self._transaction("parameter/uncheck", {"name":name})
 
     #--------- rawparameter interface.
+
+    def rawparameter_create(self, name, properties):
+        """ Create a new raw parameter (this is only different from
+        the parameter_create in SpecTcl).
+
+        *  name the name of the new parameter.
+        *  properties - dict with optional properties for the paramerter:
+            - 'low', 'high', 'bins' - suggested binning and limits.
+            - 'units'  units of measure for the parameter.
+            - 'description' (rustogramer only) - textual description of the parameter.
+        """
+        props = properties
+        props['name'] = name
+        return self._transaction("rawparameter/new", props)
+
+    def rawparameter_list_byname(self, pattern="*"):
+        return self._transaction("rawparameter/list", {"pattern": pattern})
+    def rawparameter_list_byid(self, id):
+        return self._transaction("rawparameter/list", {"id":id})
