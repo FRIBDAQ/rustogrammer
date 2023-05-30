@@ -22,7 +22,6 @@ class RustogramerException(Exception):
         self.status = response["status"]
         self.detail = response["detail"]
 
-
 class rustogramer:
     """
        The rustogramer class is the client side object for Rustogramer
@@ -54,6 +53,9 @@ class rustogramer:
         if result["status"] != "OK":
             raise RustogramerException(result)
         return result
+
+    def _marshall(self, iterable, key):
+        return [x[key] for x in iterable]
 
     def __init__(self, connection):
         """ 
@@ -347,4 +349,121 @@ class rustogramer:
         """ SpecTcl only - removes any fold applied to the named spectrum.
         """
         self._transaction("fold/remove", {"spectrum": spectrum})
-        
+    
+    #------------------------- Gate API
+
+    def condition_list(self, pattern="*"):
+        """ Returns a list of defined conitions.  Conditions returned must
+        have names that match the optional pattern parameter which is a glob pattern.
+        If the pattern is omitted, it defaults to "*" which matches all gates.
+        """
+        return self._transaction("gate/list", {"pattern": pattern})
+    
+    def condition_delete(self, name) :
+        """ Delete the named condition. Note that the semantics of deleting
+        a gate in SpecTcl differ from those of rustogramer.  In rustogramer,
+        the gate can actually be deleted rather than turning into a false gate.
+        The deleted gate is treated as a false condition in compound gates.
+        Applied to a spectrum, however, deleting a gate essentially ungates
+        the spectrum while in SpecTcl, deleted applied gates prevent a spectrum
+        from being incremented.
+        """
+        return self._transaction("gate/delete", {"name": name})
+
+    # The remainder of the gate API are helpers that invoke
+    # the edit REST method but for specific gate types.
+
+    def condition_make_true(self, name):
+        """   Create a True gate - that is one that is true for all
+        events.  The 'name' parameter is the name of the gate.
+        Note that for this method and all other gate makers, if the
+        named condition already exists, it is replaced by the new condition definition
+        dynamically (that is all spectra gated by the condition are now gated
+        by the modified condition.
+        """
+        return self._transaction("gate/edit", {"name":name, "type":"T"})
+    
+    def condition_make_false(self, name):
+        return self._transaction("gate/edit", {"name": name, "type": "F"})
+
+    def condition_make_not(self, name, negated):
+        """ Create a not condition.  This condition is the logical opposite
+        of its dependent condition.  That is if an event makes its dependent
+        condition true, the not condition will be false.
+
+        *   name - name of the new or modified condition.
+        *   negated -name of the gate that will be negated to form the 
+        'name' gate.
+        """
+        return self._transaction("gate/edit", {"name": name, "type":"-", "gate":negated})
+
+    def condition_make_and(self, name, components):
+        """ Creates a condition that is true if all of the  component
+        conditions are also true:
+
+        *  name - name of the condition.
+        *  components - name of the component conditions.
+        """
+        return self._transaction("gate/edit", {"name":name, "type":"*", "gate": components})
+
+    def condition_make_or(self, name, components):
+        """ Same as condition_make_and but the condition is true if _any_ of the
+        components is True
+        """
+        return self._transaction("gate/edit", {"name":name, "type":"+", "gate":components})
+
+    def condition_make_slice(self, name, parameter, low, high):
+        """ Create a slice condition.  Slices are a 1-d region of interest
+        in a single parameter.  They are evaluated in raw parameter space.
+
+        *   name -name of the condition.
+        *   parameter - name of the parameter on which the slice is evaluated.
+        *   low, high - the slice is true for events that lie between these limits.
+        """
+        return self._transaction(
+            "gate/edit", 
+            {"name":name, "parameter":parameter, "low":low, "high":high}
+        )
+    def condition_make_contour(self, name, xparameter, yparameter, coords):
+        """ Create a contour condition.  Contour conditions are two dimnensional
+        closed regions in the space defined by two parameters.  They are true for
+        events that have both parameters and for which the point defined by
+        the two parameters is 'inside' the contour.  Inside is defined by the
+        'odd crossing rule'  That is if you extend a line in any direction from the
+        point, it is inside the object if an odd number of object lines are
+        crossed.  This supports a consistent definition for extremely pathalogical
+        figures.   It is also commonly used to define 'insidedness' for flood fill
+        algorithms in graphics so therefore is reasonably intuitive.
+
+        *   name -name of the condition.
+        *   xparameter - name of the parameter that is on the x axis of the figure.
+        *   yparameter - name of the parameter that is on the y axsis of the figure.
+        *   coords - an iterable object  whose members are dicts with the keys
+            "x", and "y" which define the x and y coordinates of each  point
+            in the condition's contour.
+    
+        NOTE:  A final segment is 'drawn' between the last and first point to
+        close the contour.
+        """
+        xcoords = self._marshall(coords, "x")
+        ycoords = self._marshall(coords, "y")
+        return self._transaction(
+            "gate/edit", 
+            {"name":name, "type":"c",
+            "xparameter":xparameter, "yparameter": yparameter, 
+            "xcoord": xcoords, "ycoord": ycoords}
+        )
+    def condition_make_band(self, name, xparameter, yparameter, coords):
+        """ Same as for condition_make_contour but the resulting condition
+        is a band.   Bands are true of points that are below the open figure.
+        Note that sawtooth bands are true for points below the highest 'tooth'.
+        """
+        xcoords = self._marshall(coords, "x")
+        ycoords = self._marshall(coords, "y")
+        return self._transaction(
+            "gate/edit", 
+            {"name":name, "type":"b",
+            "xparameter":xparameter, "yparameter": yparameter, 
+            "xcoord": xcoords, "ycoord": ycoords}
+        )
+
