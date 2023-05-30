@@ -508,3 +508,61 @@ class rustogramer:
         it defaults to "*", which matches all names.
         """
         return self._transaction("parameter/list", {"filter":pattern})
+
+    def parameter_version(self):
+        """ Requests version information about the tree parameter version
+        implemented by the application
+        """
+        return self._transaction("parameter/version", {})
+    
+    def parameter_create(self, name, properties):
+        """ Creates a new parameter Since so many of the parameter properties
+        are optional and can be null, the paramter properties are dict:
+
+        *  name - name of the parameter being created. It is an error to 
+        provide the name of an existing parameter.
+        *  properties - a dict containing optional properties of the parameters.
+        Allowed keys are:
+            -  low - suggested low limit of histogram axes on this parameter.
+            - high - suggested high limit of histogram eaxes on this parameter.
+            - bins - suggested number of bins for an axis on this parameter.
+            - units - units of measure for the parameter.
+            - description - (ignored by spectcl) - a long form descriptin of the parameter.
+        """
+        props = properties
+        props["name"] = name
+        return self._transaction("/parameter/create", props)
+
+    def parameter_modify(self, name, properties):
+        """ Modify the metadata associated with a parameter:
+        *  name - name of an existing parameter.
+        *  properties - dict with the same keys as parameter_create for each
+        present key, that property is mdified.
+        NOTE:  There is no way to remove metadata.
+        """
+        props = properties
+        props["name"] = name
+        return self._transaction("parameter/edit", props)
+
+    def parameter_promote(self, name, properties):
+        """ promotes a raw parameter to a tree parameter.
+        *  name - name of the parameter.
+        *  properties - dict of parameter metadata properties.
+
+        Note: in rustogramer all parameters have metadata.
+        """
+        props = properties
+        props["name"] = name
+        return self._transaction("parameter/promote", props)
+
+    def parameter_check(self, name):
+        """ Sets the check flag on the named parameter.
+        """
+        return self._transaction("parameter/check", {"name":name})
+
+    def parameter_uncheck(self, name):
+        """Clears the check flag on a the named parameter
+        """
+        return self._transaction("parameter/uncheck", {"name":name})
+
+    #--------- rawparameter interface.
