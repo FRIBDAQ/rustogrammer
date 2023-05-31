@@ -57,6 +57,20 @@ class rustogramer:
     def _marshall(self, iterable, key):
         return [x[key] for x in iterable]
 
+    def _format_axis(self, low, high, bins):
+        return "{low:f} {high:f} {bins:d}".format(low=low, high=high, bins=bins)
+    
+    def _format_xyaxes(self, xlow, xhigh, xbins, ylow, yhigh, ybins):
+        x = self._format_axis(xlow, xhigh, xbins)
+        y = self._format_axis(ylow, yhigh, ybins)
+        return "{" + x + "} {" + y + "}"
+
+    def _format_stringlist(self, strings):
+        result=""
+        for s in strings:
+            result = result + s + ' '
+        return result.rstrip(' ')
+
     def __init__(self, connection):
         """ 
         Create a new rustogramer client object.
@@ -660,6 +674,148 @@ class rustogramer:
         *  RunTitle - Title string of the most recent run (being) analyzed.
         """
         return self._transaction("shmem/variables", {})
+    
+    #--------------------------Spectrum API.
+
+    def spectrum_list(self, pattern="*"):
+        """ Return a list of spectra that match 'patttern' and their
+        properties.  Note that 'pattern' is an optional parameter that is
+        supports glob wild-cards.  If not provided, it defaults to '*' which
+        matches all names.
+        """
+        return self._transaction("spectrum/list", {"filter": pattern})
+    
+    def spectrum_delete(self, name):
+        """ Delete the named spectrum"""
+        return self._transaction("spectrum/delete", {"name":name})
+    
+    def spectrum_create1d(self, name, parameter, low, high, bins):
+        """ Create a simple 1d spectrum:
+        *   name - The name of the new spectrum (must be unique)
+        *   parameter - the parameter that will be histogramed
+        *   low, high, bins - definition of the histogram X axis.
+        """
+        axis = self._format_axis(low, high, bins)
+        return self._transaction(
+            "spectrum/create", 
+            {"name":name, "type":"1", "parameters": parameter, "axes":axis}
+        )
+
+    def spectrum_create2d(self, name, xparam, yparam, xlow, xhigh, xbins, ylow, yhigh, ybins):
+        """ Create a simple 2d spectrum:
+        *  name - the name of the new spectrum.
+        *  xparam,yparam - the x and y parameters to be histogramed.
+        *  xlow, xhigh,xbins - the X axis defintion.
+        *  ylow, yhigh, ybins -the y axis definition.
+        """
+
+        axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
+        return self._transaction(
+            "spectrum/create",
+            {"type":2, "name":name, "parameters":xparam + " " + yparam, "axes":axes}
+        )
+
+    def spectrum_createg1(self, name, parameters, low, high, bins):
+        """ Create a gamma 1 spectrum (multiply incremented 1d).
+        *  name - name of the spectrum.
+        *  parameters - iterable collection of parameter names
+        *  low, high, bins - definition of spectrum x axis.
+        """
+        axes = self._format_axis(low, high, bins)
+        params = self._format_stringlist(parameters)
+        return self._transaction(
+            "spectrum/create",
+            {"type":"g1", "name":name, "parameters":params, "axes":axes}
+        )
+
+    def spectrum_createg2(self, name, parameters, xlow, xhigh, xbins, ylow, yhigh, ybins):
+        """ Create a gamma 2 spectrum (multiply incremented 2d).
+        *  name - name of the spectrum
+        *  parameters - parameters - incremented for each ordered pair present in the spectum.
+        *  xlow, xhigh, xbiins - x axis definition.
+        *  ylow, yhigh, ybins  - y axis definition.
+        """
+        axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
+        params = self._format_stringlist(parameters)
+        return self._transaction(
+            "spectrum/create",
+            {"type":"g2", "name":name, "parameters":params, "axes":axes}
+        )
+    def spectrum_creategd(self, name, xparameters, yparameters, xlow, xhigh, xbins, ylow, yhigh, ybins):
+        """ Create a 'gamma deluxe' spectrum This is normally used for particle-gamma
+        coincidence spectra.  Increments are done for every x/y pair that's defined.
+        Consider e.g. that xparameters are  gamma detectors and y parameters are particle ids.
+        *  name - name of the spectrum.
+        *  xparameters - Parameters on the x axis.
+        *  yparameters - Parametrs on the y axis.
+        *  xlow, xhigh,xbins - xaxis definition.
+        *  ylow, yhigh, ybins - yaxis defintion.
+        """
+        axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
+        xpars = self._format_stringlist(xparameters)
+        ypars = self._format_stringlist(yparameters)
+        param_list = "{" + xpars + "}{" + ypars + "}"
+        return self._transaction(
+            "spectrum/create",
+            {"type":"gd", "name":name, "parameters":param_list, "axes":axes}
+        )
+    def spectrum_createsummary(self, name, parameters, low, high,  bins):
+        """ Make a summary spectrum.  This is a 2d spectrum where every vertical
+        channel strip is actually the one dimensional spectrum of one of the
+        parameters in the spectum.
+
+        *   name - the spectrum name
+        *   parameters - an iterable list of parameters to histogram.
+        *   low, high, bins - the Y axis defintion of the spectrum.  
+        Note the X axis is defined as 0 - len(parameters) with len(parameters) bins.
+        """
+        pars = self._format_stringlist(parameters)
+        axis = self._format_axis(low, high, bins)
+        return self._transaction(
+            "/spectrum/create",
+            {"type":"s", "name":name, "parameters":pars, "axes":axis}
+        )
+    def spectrum_create2dsum(self, name, xpars, ypars, xlow, xhigh, xbins, ylow,yhigh,ybins):
+        """Create a 2d spectrum that is the sum of the 2d spectra defined
+        by corresopnding xpars/ypars parameters. Note that the server enforces
+        that len(xpars) must be the same as len(ypars)
+        *   name - spectrum name.
+        *   xpars - X axis parameters
+        *   ypars - Y axis parameters
+        *   xlow, xhigh, xbins - x axis defintion.
+        *   ylow, yhigh, ybins - y axis definition
+        
+        Increments are done for corresponding x/y pars e.g. for 
+        xpars[0], ypars[0]  if those parameters are present in the event.
+        """
+        xp = self._format_stringlist(xpars)
+        yp = self._format_stringlist(ypars)
+        pars = '{' + xp + '}{' + yp + '}'
+        axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
+        return self._transaction(
+            "spectrum/create",
+            {"type":"m2", "name":name, "parameters":pars, "axes":axes}
+        )
+    def spectrum_getcontents(self, name, xl, xh, yl=0,yh=0):
+        """ Get the contents of a spectrum within a region of interest.
+        *   name - name of the spectrum.
+        *   xl,xh - x range we're interested in.
+        *   yl,yh - y range we're interested in.  These default to 0
+        so you only need to provide the xl,xh for 1d spectra.
+        """
+        return self._transaction(
+            "spectrum/contents",
+            {"name":name, "xlow": xl, "xhigh": xh, "ylow":yl, "yhigh":yh}
+        )
+    def spectrum_clear(self, pattern="*"):
+        """ Clear the contents of spectra that have names matching the
+        'pattern' parameter.  Where 'pattern' is a glob match pattern.
+        If omitted, 'pattern' defaults to "*" which matches all spectra.
+        """
+        return self._transaction("spectrum/clear", {"pattern": pattern})
+
+
+
 
 
     
