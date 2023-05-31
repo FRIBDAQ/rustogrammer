@@ -182,7 +182,7 @@ pub fn sbind_list(spectrum: Vec<String>, state: &State<HistogramState>) -> Json<
     Json(response)
 }
 //------------------------------------------------------------------
-// /spectcl/sbind/lisT[?pattern=glob-pattern]
+// /spectcl/sbind/list[?pattern=glob-pattern]
 //
 
 // The structure we will return in the detail:

@@ -615,3 +615,51 @@ class rustogramer:
 
         return self._transaction("sbind/list", {"pattern":pattern})
         
+    #---------- Shared memory information:
+
+    def shmem_getkey(self):
+        """ Get the shared memory key.  This can be in one of several
+        forms (it's in the detail of the returned Dict):
+
+        *  a four letter string - this is a SYSV shared memory key.
+        *  "file:" followed by a path - this is an memory mapped file
+        where the path is the path to the backing file.
+        *  "posix:/" followed by a name - this is a POSIX shared memory 
+        region.
+        *  "sysv:" followed by the four letter SYSV shared memory key.
+        """
+        return self._transaction("shmem/key", {})
+
+    def shmem_getsize(self):
+        """ return the number of bytes in the shared memory region. 
+        This value includes the header (not just the spectrum pool).
+        """
+        return self._transaction("shmem/size", {})
+    def shmem_getvariables(self):
+        """ Returns the values of several SpecTcl variables.  Note
+        that some of these have no rustogramer equivalents and will
+        have values of '-undefined-'
+
+        *  DisplayMegabytes  - The number of 1024*1024 bytes in the shared memory
+        spectrum pool.
+        *  OnlineState - True if connected to an online data source.
+        *  EventListSize - Number of events in each processing batch.
+        *  ParameterCount - Number of parameters in the initial flattened
+        event.
+        *  SpecTclHome - the home directory of the installation tree.
+        *  LastSequence - Sequence number of the most recently processed
+        data
+        *  RunNumber - run number of the run being processed.
+        *  RunState - "Active" if processing is underway, "Inactive" if not.
+        *  DisplayType - Type of integrated displayer started by the program
+        for Rustogramer this is always "None"
+        *  BuffersAnalyzed - Number of items that have been analyzed.  For
+        SpecTcl (not Rustogramer), this taken with LastSequence allows a rough
+        computation of the fraction of data analyzed online.  Note that
+        Rustogramer always analyzes offline (well there are ways but....).
+        *  RunTitle - Title string of the most recent run (being) analyzed.
+        """
+        return self._transaction("shmem/variables", {})
+
+
+    
