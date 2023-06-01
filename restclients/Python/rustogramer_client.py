@@ -902,9 +902,82 @@ class rustogramer:
         """
         return self._transaction("unbind/all", {})
 
+    #----------------- Mirror interface:
+
+    def list_mirrors(self, pattern="*"):
+        """  List the mirrors that are currently active. Note that
+        this is _currently_ SpecTcl only though there are plans to 
+        implement mirroring later.  Only the mirrors that match the
+        'pattern' parameter are returned.  'pattern' defaults to "*"
+        """
+        return self._transaction("mirror", {"pattern":pattern})
+
+    #-----------------event processing pipeline management (SpecTcl only)
+
+    def pipeline_create(self, name):
+        """ Create a new event processing pipeline and assigne the name
+        'name' to it.  This is only implemented in SpecTcl and likely 
+        will never be implemented in rustogramer as it has no meaning
+        """
+        return self._transaction("pman/create", {"name":name})
+    
+    def pipeline_current(self):
+        """ Provide information about the currently selected event
+        processing pipeline.  This is only implemented in SpecTcl.
+        """
+        return self._transaction("pman/current", {})
+    
+    def pipeline_list_details(self, pattern="*"):
+        """ For each pipeline whose name matches the pattern (defaults
+        to '*'),  returns the name of the pipeline and the array
+        of processing elements in the pipeline.
+        This is only implemented in SpecTcl.
+        """
+        return self._transaction("pman/lsall", {"pattern":pattern})
+    def pipeline_list_processors(self, pattern="*"):
+        """ List the names of all event processors that have been
+        registered
+        """
+        self._transaction("pman/lsevp", {"pattern":pattern})
+
+    def pipeline_use(self, name):
+        """ Selects the pipeline 'name' as the current event processing
+        pipeline. This is only implemented in SpecTcl.
+        """
+        return self._transaction("pman/use", {"name": name})
+    
+    def pipeline_add_processor(self, pipe, processor):
+        """ Appends an event processor to an event processing pipeline:
+        *   pipe -name of the pipeline.
+        *   processor - name of the processor to append.
+
+        This is only implemented in SpecTcl.
+        """
+        return self._transaction("pman/add", {"pipeline": pipe, "processor": processor})
+
+    def pipeline_remove_processor(self, pipe, processor):
+        """ Removes  a processor from an event processing pipeline:
+        *  pipe - name of the pipeline.
+        *  processor - name of the event processor.
+        """
+        return self._transaction("pman/rm", {"pipeline":pipe, "processor":processor})
+
+    def pipeline_clear(self, pipe):
+        """ Remove all event processing elements from 'pipe'
+        """
+        return self._transaction("pman/clear", {"pipeline":pipe})
+
+    def pipeline_clone(self, existing, newpipe):
+        """ Make a functional clone of an existing event processing pipeline
+        *   existing - name of an existing pipeline.
+        *   newpipe - name to assig to the clone of 'existing'
+        """
+        return self._transaction("pman/clone", {"source":existing, "new":newpipe})
 
 
 
+
+    
 
 
     
