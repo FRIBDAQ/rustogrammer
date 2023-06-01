@@ -1017,6 +1017,37 @@ class rustogramer:
         """
         return self._transaction("pseudo/delete",{"name":name})
 
+    #------------ projection
+
+    def project(self, oldname, newname, direction, snapshot, contour=None, ):
+        """ Create a spectrum that is a projection of an existing 2-d spectrum:
+        *  oldname - name of the spectrum being projected:
+        *  newname - name assigned to the new spectrum.
+        *  direction - the direction in which to project ("x" or "y").
+        *  contour - If not None, only counts within the contour will be projected.
+        *  snapshot - If true, the result in the spectrum is a snapshot If not true,
+        and contour is None, the new spectrum has no gate.  If true and contour
+        is defined, the spectrum is initially gated by the contour so that the
+        projection, unless the gate is changed is a faithful representation of
+        the projection as new events arrive.  The spectrum must be separately
+        bound to display memory if desired.
+
+        This is only implemented in SpecTcl.
+        """
+        params = {
+            "source":oldname, 
+            "newname":newname, 
+            "direction":direction, 
+            "snapshot":snapshot
+        }
+        if contour is not None:
+            params["contour"] = contour
+        
+        return self._transaction("project", params)
+
+
+
+
     
 
 
