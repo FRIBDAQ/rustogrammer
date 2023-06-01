@@ -937,6 +937,7 @@ class rustogramer:
     def pipeline_list_processors(self, pattern="*"):
         """ List the names of all event processors that have been
         registered
+        This is only implemented in SpecTcl.
         """
         self._transaction("pman/lsevp", {"pattern":pattern})
 
@@ -959,11 +960,14 @@ class rustogramer:
         """ Removes  a processor from an event processing pipeline:
         *  pipe - name of the pipeline.
         *  processor - name of the event processor.
+
+        This is only implemented in SpecTcl.
         """
         return self._transaction("pman/rm", {"pipeline":pipe, "processor":processor})
 
     def pipeline_clear(self, pipe):
         """ Remove all event processing elements from 'pipe'
+        This is only implemented in SpecTcl.
         """
         return self._transaction("pman/clear", {"pipeline":pipe})
 
@@ -971,11 +975,47 @@ class rustogramer:
         """ Make a functional clone of an existing event processing pipeline
         *   existing - name of an existing pipeline.
         *   newpipe - name to assig to the clone of 'existing'
+
+        This is only implemented in SpecTcl.
         """
         return self._transaction("pman/clone", {"source":existing, "new":newpipe})
 
+    #------------- Pseduo paramemter API
 
+    def pseudo_create(self, name, dependent, computation):
+        """ Adds a new pseudo parameter.  
+        *  name -  name of the new parameter.
+        *  dependent - iterable container of names of paramters needed 
+        compute the pseudo.
+        *  computation - The computation to perform as Tcl.  See the
+        SpecTcl pseudo command for more information about this.
 
+        Note This is only implemented in SpecTcl.
+        Likely this will never be implemented in rustogramer as
+        the best way to get pseudo parameters is to comute them in the
+        event processing that creates the parameter file.
+        """
+        return self._transaction(
+            "pseudo/create", 
+            {"pseudo": name, "parameter": dependent, "computation":computation}
+        )
+    
+    def pseudo_list(self, pattern="*"):
+        """ Returns information about pseudo parameters with names
+        that match 'pattern', which defaults to "*" if not provided
+
+        This is only implemented in SpecTcl.
+        Likely this will never be implemented in rustogramer
+        """
+        return self._transaction("pseudo/list", {"pattern":pattern})
+
+    def pseudo_delete(self, name):
+        """ Delete the named pseudo parameter.
+
+        This is only implemented in SpecTcl.
+        Likely this will never be implemented in rustogramer
+        """
+        return self._transaction("pseudo/delete",{"name":name})
 
     
 
