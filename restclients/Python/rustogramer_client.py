@@ -814,6 +814,75 @@ class rustogramer:
         """
         return self._transaction("spectrum/clear", {"pattern": pattern})
 
+    #--------------- Spectrum I/O
+
+    def spectrum_read(self, filename, format, options={}):
+        """ Read one or more spectra from file.
+
+        *   filename - is the path to the file - in the context of
+        rustogramers cwd (safest to use full paths then.
+        *   format - Is the file format.  Three possible values are allowed:
+            -  'ascii' (both Spectcl and Rustogramer) - file is in SpecTcl
+            ASCII format
+            -  'json' (Rustogramer only) file is in rustogramr JSON format.
+            -  'binary' (SpecTcl only) file is in Smaug binary format (this is
+            a pretty obsolete format; SMAUG was a pre NSCL offline analysis program
+            used by the 'Lynch' written by an undergraduate in their employ whose
+            name now escapes me so I can't credit him).
+        *  options a dict (defaults to empty) that can override the options
+        that determine how the spectrum is read.  It is optional and the
+        following keys matter:
+            - snapshot - boolean - if true, the default, the spectrum will not
+            be connected to analysis.  If false, the spectrum will be connected to
+            the analysis if possible.  This is done differently between SpecTcl and
+            Rustogramer:
+                .   SpecTcl has a special wrapper for spectra called a snapshot wrapper.
+                snapshot spectra are wrapped in that and can never be incremented.  They are
+                transparent to the histogramer code.  If a spectrum is not to be
+                a snapshot, then if all of its parameters are defined, it will increment.
+                .   Rustogramer, simply handles snapshot spectra by gating them on a 
+                special False condition it creates if necessary called
+                '_snapshot_condition'.   If parameters associated with a read spectrum
+                don't exist, they will be created.  This means that if any future
+                parameter data file is analyzed with that spetrum's parameter name
+                and the gate on the spectrum allows it events from that file will
+                increment that spectrum.
+            - replace - boolean - if true (the defaut is false), and a spectrum with the
+            same name as a spectrum in the file already exists, that spectrum is
+            deleted and replaced by the spectrum from file (the type of the existing
+            and new spectrum can be different).   If false, and a spectrum has the name
+            of an existing spectrum, a new name is generated that is unique and assigned
+            to the spectrum that is read in.
+            -  bind - boolean - if true (the default) the spectra read in are also put in 
+            shared spectrum memory where displayers can access them.
+        
+        Note the format is checked by the server not the API so that new formats
+        can be transparently added.
+        """
+        parameters = {}
+        for key in ["snapshot", "replace", "bind"]:
+            option_value = options.get(key)
+            if option_value is not None:
+                parameters[key] = option_value
+        parameters["filename"] = filename
+        parameters["format"] = format
+
+        return self._transaction("sread", parameters)
+    
+    def spectrum_write(self, filename, format, spectra):
+        """ Write one or more spectra to file.
+
+        *  filename - is the path to the file to write.  This is interpreted
+        within rustogramer hence it may be safest to use full paths.
+        *  format - Is a legal format type (see spectrum_read).
+        *  spectra is a single spectrum name or an iterable collection of
+        spectrum names for spectra that should be written to the file.
+        """
+
+        return self._transaction("swrite", {"file": filename, "format": format, "spectrum":spectra})
+    
+
+
 
 
 
