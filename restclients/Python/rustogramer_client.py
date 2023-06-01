@@ -881,6 +881,26 @@ class rustogramer:
 
         return self._transaction("swrite", {"file": filename, "format": format, "spectrum":spectra})
     
+    #------------------- unbind api:
+
+    def unbind_byname(self, spectrum):
+        """ Unbind the spectrum 'spectrum' from the shared memory.
+        Note only one unbinding can be performed per call with the exception
+        unbind_all which removes all bindings.
+        """
+        return self._transaction("unbind/byname", {"name":spectrum})
+
+    def unbind_byid(self, id):
+        """ This is not supported by rustogramer as spectra don't have
+        ids.  It is supported by SpecTcl so the API element is implemented.
+        In SpecTcl, the spectrum numbered 'id' will be unbound from shared memory.
+        """
+        return self._transaction("unbind/byid",{"id":id})
+
+    def unbind_all(self):
+        """ Unbinds all spectra from display shared memory.
+        """
+        return self._transaction("unbind/all", {})
 
 
 
