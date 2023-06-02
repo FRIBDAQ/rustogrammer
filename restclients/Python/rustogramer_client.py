@@ -1092,6 +1092,63 @@ class rustogramer:
 
         """
         return self._transaction("roottree/list", {"pattern":pattern})
+    
+    #--------------------- Scripting interface.
+
+    def execute_tcl(self, script):
+        """ (unsupported in Rustogramer):
+        Execute an arbitrary script in the server.  Note this is a bit
+        dangerous.  
+        *  script - the script to execute. This must be in the language
+        of the server's script interpreter.  In SpecTcl this is Tcl
+        although with the proper package requires and wrapping it can also
+        be Python.
+        """
+        return self._transaction("script", {"command": script})
+
+    #------------------- Dictionary trace support.
+    
+    def trace_establish(self, retention_secs):
+        """ Establishes a trace.  Since HTTPD does not directly support
+        the server sending clients messages, traces will be accumulated in 
+        a queue where they will remain for at least 'retention_secs' seconds
+        before being discarded.  It is up to the client to fetch any queued
+        traces within that time (normal practice is to poll for traces at
+        something like 1/2 the retention_sec period e.g.).
+        The method returns a token which must be used to fetch the traces or 
+        turn othem off.
+
+        One major purpose of the retention_period parameter is to ensure that
+        if a client does _not_ turn off its traces before it exits (e.g. abnormally),
+        queued trace data won't grow without bound.
+
+        This is not supported by rustogramer -- at this time.  It may be
+        added at some later point in time.
+        """
+
+        return self._transaction("trace/establish", {"retention":retention_secs})
+
+    def trace_done(self, token):
+        """ Not supported in Rustogramer - stops accumulating the
+        trace data associated with 'token'.  The 'token' parameter was
+        gotten from the dict returned by trace_establish above.
+
+        Once this is successfully executed, the 'token' is no longer 
+        valid.
+        """
+        return self._transaction("trace/done", {"token":token})
+    
+    def trace_fetch(self, token):
+        """ Not siupported in rustogramer - fetches the accumulated
+        trace information for the 'token'.  The 'token' parameter is a 
+        token value that was returned in the dict returned by trace_establish.
+
+        Data retrieved by trace_fetch are also cleared from the accumulated
+        trace data for 'token'
+        """
+
+        return self._transaction("trace/fetch", {"token":token})
+
 
 
 
