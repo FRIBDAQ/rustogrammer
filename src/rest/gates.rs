@@ -136,6 +136,7 @@ fn marshall_points(p: &mut GateProperties, raw_pts: &Vec<(f64, f64)>) {
 /// the first point in points.
 /// *   high - the high limit of a _s_ gate - this is just the x coordinate
 /// of the second point in points.
+/// *   points for 2-d gates an array of {x,y} objects.
 ///
 /// The simplistic manner in which each GateProperties struct is filled in
 /// provides for the presence of data in fields where the SpecTcl REST

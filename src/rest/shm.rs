@@ -2,14 +2,14 @@
 //! Xamine compatible shared memory mapping.
 //! These include domains:
 //!
-//! * /spectcl/shm - Gets the shared memory information.
+//! * /spectcl/shmem - Gets the shared memory information.
 use super::*;
 use crate::sharedmem::binder::BindingApi;
 use rocket::{serde::json::Json, serde::Serialize, State};
 use std::env;
 
 //----------------------------------------------------------------
-// /spectcl/shm domain implementation:
+// /spectcl/shmem domain implementation:
 //
 
 //--------------------------------------------------------
@@ -36,7 +36,7 @@ pub fn shmem_name(state: &State<HistogramState>) -> Json<GenericResponse> {
     })
 }
 //------------------------------------------------------------
-// status
+// size
 
 /// Returns the size of the shared memory region in the
 /// status as a string.  This is the total size of the shared
