@@ -1044,7 +1044,54 @@ class rustogramer:
             params["contour"] = contour
         
         return self._transaction("project", params)
+    
+    #------------------------------- Root tree API.
 
+    def roottree_create(self, tree, parameters, gate=None):
+        """ Creates a root output tree.   This is not available on
+        Rustogramer.  Root output trees are a lot like filters, however
+        the otput are root trees and they are output in a file per run
+        analyzed.
+
+        *  tree - name of the tree.
+        *  parameters - parameters that will be output to the tree.
+        this can be a single parameter name, but more usually is an
+        iterable collection of parameter names.
+        *  gate - optional gate that, if provided will filter the events
+        written to the tree.
+
+        Note:  Root's output mechanisms are quite slow compared with 
+        data acqusition rates.  Unless you have a very restrictive gate,
+        it is not recomended to create root trees in online analysis.
+
+        """
+        params = {"tree": tree, "parameter":parameters}
+        if gate is not None:
+            params["gate"] = gate
+        
+        return self._transaction("roottree/create", params)
+
+    def roottree_delete(self, tree):
+        """ Deletes a previously created root tree.  This, of course,
+        is not available in Rustogramer.
+
+        * tree -name of the tree to delete.
+
+        Note:  This takes effect immediately.  If data analysis is ongoing,
+        the file is closed and the section of data anlalyzed to date remains
+        in the output fle.
+
+        """
+
+        return self._transaction("roottree/delete", {"tree":tree})
+
+    def roottree_list(self, pattern="*"):
+        """ Lists the properties of root trees that match the optional
+        pattern glob pattern.  If 'pattern' is not provided it defaults to
+        '*' which matches all trees.
+
+        """
+        return self._transaction("roottree/list", {"pattern":pattern})
 
 
 
