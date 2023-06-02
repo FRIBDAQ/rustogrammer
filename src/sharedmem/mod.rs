@@ -446,9 +446,9 @@ impl SharedMemory {
         //  Fill in the appropriate header slot.
 
         let header = self.get_header();
-        header.dsp_xy[slot].xchans = xaxis.2 + 2;
+        header.dsp_xy[slot].xchans = xaxis.2;
         if let Some(y) = yaxis {
-            header.dsp_xy[slot].ychans = y.2 + 2;
+            header.dsp_xy[slot].ychans = y.2;
         } else {
             header.dsp_xy[slot].ychans = 1;
         }
@@ -456,7 +456,7 @@ impl SharedMemory {
             header.dsp_titles[slot][i] = c;
             header.dsp_info[slot][i] = c;
         }
-        header.dsp_offsets[slot] = offset as u32;
+        header.dsp_offsets[slot] = (offset/mem::size_of::<u32>()) as u32;
         header.dsp_types[slot] = spectrum_type;
         header.dsp_map[slot].xmin = xaxis.0 as f32;
         header.dsp_map[slot].xmax = xaxis.1 as f32;
@@ -729,5 +729,19 @@ mod allocator_tests {
             .free(extents[5].0, extents[5].1)
             .expect("Final free failed");
         assert_eq!(5, arena.free_extents.len());
+    }
+    #[test]
+    fn free_4() {
+        // Is issue 69 due to first freeing allocations in order:
+
+        let mut arena = StorageAllocator::new(1000);
+        let extent1 = arena.allocate(100).expect("Allocation1 failed");
+        let extent2 = arena.allocate(200).expect("allocation 2 failed");
+
+        // Kill off extent 1:
+
+        arena.free_trusted(extent1).expect("Failed to free extent1");
+        arena.free_trusted(extent2).expect("Failed to free extent2");
+
     }
 }
