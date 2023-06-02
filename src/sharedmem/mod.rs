@@ -446,9 +446,9 @@ impl SharedMemory {
         //  Fill in the appropriate header slot.
 
         let header = self.get_header();
-        header.dsp_xy[slot].xchans = xaxis.2 + 2;
+        header.dsp_xy[slot].xchans = xaxis.2;
         if let Some(y) = yaxis {
-            header.dsp_xy[slot].ychans = y.2 + 2;
+            header.dsp_xy[slot].ychans = y.2;
         } else {
             header.dsp_xy[slot].ychans = 1;
         }
@@ -456,7 +456,7 @@ impl SharedMemory {
             header.dsp_titles[slot][i] = c;
             header.dsp_info[slot][i] = c;
         }
-        header.dsp_offsets[slot] = offset as u32;
+        header.dsp_offsets[slot] = (offset/mem::size_of::<u32>()) as u32;
         header.dsp_types[slot] = spectrum_type;
         header.dsp_map[slot].xmin = xaxis.0 as f32;
         header.dsp_map[slot].xmax = xaxis.1 as f32;
