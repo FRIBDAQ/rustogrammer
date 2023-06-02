@@ -1149,9 +1149,59 @@ class rustogramer:
 
         return self._transaction("trace/fetch", {"token":token})
 
+    #------------------- Tree variable API (not tree parameters).
 
+    def treevariable_list(self):
+        """ Not supported in rustogramer
+        Returns information about all of the defined tree variables.
+        Name, value, and units are returned for each variable.
+        """
+        return self._transaction("treevariable/list", {})
 
+    def treevariable_set(self, name, value, units=None):
+        """ Not suported in rustogramer.  Set the value and units
+        of a tree variable.
 
+        *   name -name of the variable.
+        *   value - new value to give to the variavble.
+        *   [units] - defaults to None  for unit-less.  Sets the units of
+        measure associated with the variable.
+        """
+        params = {"name": name, "value": value}
+        if units is not None:
+            params['units'] = units
+        return self._transaction("treevariable/set", params)
+
+    def treevariable_check(self, name):
+        """ not supported by rustogamer - check the changed flag for
+        treevariable 'name'.
+        """
+        return self._transaction("treevariable/check", {"name":name})
+    
+    def treevariable_setchanged(self, name):
+        """ Not supported by rustogramer
+         Set the changed flag for tree variable 'name'.
+        """
+        return self._transaction("treevariable/setchanged", {"name":name})
+    
+    def treevariable_firetraces(self, pattern="*"):
+        """ not suported by rustogramer:
+        Fires any pending variable traces for the tree variables whose
+        names match the glob 'pattern'  If 'pattern' is omitted it defaults
+        to '*' which matches al lnames.
+
+        firing traces may be needed to update user interface elements that
+        monitor a tree variable value that is set programmatically.
+        """
+        return self._transaction("treevariable/firetraces", {"pattern": pattern})
+    #----------------------------- Version:
+
+    def get_version(self):
+        """ Returns information about the version of the server.
+        """
+        return self._transaction("/version", {})
+
+    
     
 
 
