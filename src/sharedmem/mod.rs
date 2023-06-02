@@ -730,4 +730,18 @@ mod allocator_tests {
             .expect("Final free failed");
         assert_eq!(5, arena.free_extents.len());
     }
+    #[test]
+    fn free_4() {
+        // Is issue 69 due to first freeing allocations in order:
+
+        let mut arena = StorageAllocator::new(1000);
+        let extent1 = arena.allocate(100).expect("Allocation1 failed");
+        let extent2 = arena.allocate(200).expect("allocation 2 failed");
+
+        // Kill off extent 1:
+
+        arena.free_trusted(extent1).expect("Failed to free extent1");
+        arena.free_trusted(extent2).expect("Failed to free extent2");
+
+    }
 }
