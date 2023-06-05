@@ -12,7 +12,6 @@
 //!  
 //!  
 use super::*;
-use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 
 ///
