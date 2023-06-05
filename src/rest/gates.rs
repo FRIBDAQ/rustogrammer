@@ -21,7 +21,6 @@ use rocket::State;
 use super::*;
 
 use crate::messaging::condition_messages::{ConditionMessageClient, ConditionReply};
-use crate::messaging::parameter_messages::ParameterMessageClient;
 
 // Private mappings between SpecTcl <-> Rustogramer gate types:
 // Note making a static hashmap is possible but requires unsafe to access.
@@ -39,19 +38,6 @@ fn rg_condition_to_spctl(rg_type: &str) -> String {
         "Contour" => String::from("c"),
         "Cut" => String::from("s"),
         _ => String::from("-unsupported-"),
-    }
-}
-fn spc_gate_to_rg(spc_type: &str) -> String {
-    match spc_type {
-        "T" => String::from("True"),
-        "F" => String::from("False"),
-        "*" => String::from("And"),
-        "+" => String::from("Or"),
-        "-" => String::from("Not"),
-        "b" => String::from("Band"),
-        "c" => String::from("Contour"),
-        "s" => String::from("Slice"),
-        _ => String::from("Unsupported"),
     }
 }
 //----------------------------------------------------------------
