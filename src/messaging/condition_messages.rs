@@ -559,12 +559,7 @@ impl ConditionProcessor {
             dict: ConditionDictionary::new(),
         }
     }
-    /// Invalidates all the cached condition evaulations
-    /// in our dict.
-    ///
-    pub fn invalidate_cache(&mut self) {
-        invalidate_cache(&mut self.dict);
-    }
+
     /// Process a request returning a reply:
     ///
     pub fn process_request(&mut self, req: ConditionRequest) -> ConditionReply {
@@ -1234,7 +1229,7 @@ mod cnd_api_tests {
             String::from("condition.3"), // Dependent conditions.
             String::from("condition.4"),
         ];
-        let (rep_send, rep_read) = channel::<Reply>();
+        
         if let ConditionReply::Created = api.create_or_condition("or", &names) {
             if let ConditionReply::Listing(l) = api.list_conditions("or") {
                 assert_eq!(1, l.len());
