@@ -1,7 +1,7 @@
 # rustogrammer
 Histogram data from FRIB analysis pipeline.
 
-Under development.  This will, eventually, hopefully, become an interactive histogrammer sort of like NSCLSPecTcl but:
+Initial usable version.
 
 *  Written in RUST
 *  Using parameter items from the output of the FRIB analysis pipeline.
