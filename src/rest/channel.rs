@@ -11,8 +11,8 @@
 //!  Both of these just return a GenericResponse::err.
 //!
 
-use rocket::serde::{json::Json, Serialize};
-use rocket::State;
+use rocket::serde::{json::Json};
+
 
 use super::*;
 
