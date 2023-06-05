@@ -1,5 +1,4 @@
 use super::*;
-use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 ///
 /// Summary spectra are useful in visualizing the status of
