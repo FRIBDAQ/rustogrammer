@@ -456,7 +456,7 @@ impl SharedMemory {
             header.dsp_titles[slot][i] = c;
             header.dsp_info[slot][i] = c;
         }
-        header.dsp_offsets[slot] = (offset/mem::size_of::<u32>()) as u32;
+        header.dsp_offsets[slot] = (offset / mem::size_of::<u32>()) as u32;
         header.dsp_types[slot] = spectrum_type;
         header.dsp_map[slot].xmin = xaxis.0 as f32;
         header.dsp_map[slot].xmax = xaxis.1 as f32;
@@ -742,6 +742,5 @@ mod allocator_tests {
 
         arena.free_trusted(extent1).expect("Failed to free extent1");
         arena.free_trusted(extent2).expect("Failed to free extent2");
-
     }
 }
