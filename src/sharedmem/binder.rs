@@ -13,7 +13,6 @@
 use crate::messaging;
 use crate::messaging::spectrum_messages;
 use glob::Pattern;
-use std::ops;
 use std::sync::mpsc;
 use std::thread;
 use std::time;
@@ -138,7 +137,7 @@ impl BindingThread {
 
     fn bind(&mut self, name: &str) -> Result<(), String> {
         if let Some(n) = self.find_binding(name) {
-            return Err(format!("{} is already bound", name));
+            return Err(format!("{} is already bound", n));
         }
         if let Ok(info) = self.spectrum_info(name) {
             match self.shm.bind_spectrum(
@@ -201,15 +200,7 @@ impl BindingThread {
             Some((0.0, len as f64, len as u32))
         }
     }
-    // Given a Option<AxisSpecification returns a triplet of low, high, size
-    // Note that None gives (0.0, 1.0, 1)
-    fn axis(a: Option<spectrum_messages::AxisSpecification>) -> (f64, f64, u32) {
-        if let Some(ax) = a {
-            (ax.low, ax.high, ax.bins)
-        } else {
-            (0.0, 1.0, 1)
-        }
-    }
+
     // Given a spectrum specification, return
     // (xlow,xhigh, ylow, yhigh).  If an axis does not exist, then 0,0
     // is placed instead.
@@ -641,6 +632,7 @@ impl BindingApi {
     /// ### Returns:
     /// *   GenericResult instance.
     ///
+    #[allow(dead_code)]
     pub fn set_update_period(&self, period_secs: u64) -> GenericResult {
         match self.transaction(RequestType::SetUpdate(period_secs)) {
             Reply::Generic(r) => r,
