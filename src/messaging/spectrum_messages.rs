@@ -153,8 +153,7 @@ pub struct SpectrumProcessor {
     dict: spectra::SpectrumStorage,
 }
 
-type ParamLookupResult = Result<u32, String>;
-type ParamsLookupResult = Result<Vec<u32>, String>;
+
 impl SpectrumProcessor {
     // private methods:
 
@@ -510,7 +509,7 @@ impl SpectrumProcessor {
                     let v = c.value.get();
                     if v != 0.0 {
                         match c.bin {
-                            BinInterval::Underflow { end: end } => {
+                            BinInterval::Underflow { end } => {
                                 result.push(Channel {
                                     chan_type: ChannelType::Underflow,
                                     value: v,
@@ -519,7 +518,7 @@ impl SpectrumProcessor {
                                     bin: c.index,
                                 });
                             }
-                            BinInterval::Overflow { start: start } => {
+                            BinInterval::Overflow { start } => {
                                 result.push(Channel {
                                     chan_type: ChannelType::Overflow,
                                     value: v,
@@ -548,16 +547,16 @@ impl SpectrumProcessor {
                     let v = c.value.get();
                     let xbin = c.bin.0;
                     let ybin = c.bin.1;
-                    let mut x = 0.0;
-                    let mut y = 0.0;
+                    let x;
+                    let y;
                     let mut ctype = ChannelType::Bin;
 
                     match xbin {
-                        BinInterval::Overflow { start: start } => {
+                        BinInterval::Overflow { start } => {
                             ctype = ChannelType::Overflow;
                             x = start;
                         }
-                        BinInterval::Underflow { end: end } => {
+                        BinInterval::Underflow {end } => {
                             ctype = ChannelType::Underflow;
                             x = end;
                         }
@@ -566,13 +565,13 @@ impl SpectrumProcessor {
                         }
                     };
                     match ybin {
-                        BinInterval::Overflow { start: start } => {
+                        BinInterval::Overflow { start } => {
                             if ctype == ChannelType::Bin {
                                 ctype = ChannelType::Overflow;
                             }
                             y = start;
                         }
-                        BinInterval::Underflow { end: end } => {
+                        BinInterval::Underflow {end } => {
                             if ctype == ChannelType::Bin {
                                 ctype = ChannelType::Underflow;
                             }
@@ -4706,7 +4705,6 @@ mod spectrum_api_tests {
         // Now get the contents should be one entry with 6 counts
         // at 100.0:
 
-        let (rep_send, rep_recv) = mpsc::channel::<Reply>();
         let contents = api
             .get_contents("test", 0.0, 1024.0, 0.0, 0.0)
             .expect("Unable to get spectrumcontents");

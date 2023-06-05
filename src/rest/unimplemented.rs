@@ -58,6 +58,7 @@ pub fn mirror_list() -> Json<MirrorResponse> {
 // Pipeline management:
 
 /// Create a pipeline give a name:
+#[allow(unused_variables)]
 #[get("/create?<name>")]
 pub fn pman_create(name: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -66,6 +67,7 @@ pub fn pman_create(name: String) -> Json<GenericResponse> {
     ))
 }
 /// List pipelines:
+#[allow(unused_variables)]
 #[get("/list?<pattern>")]
 pub fn pman_list(pattern: OptionalString) -> Json<StringArrayResponse> {
     Json(StringArrayResponse::new(
@@ -81,6 +83,7 @@ pub fn pman_current() -> Json<GenericResponse> {
     ))
 }
 // listall
+#[allow(unused_variables)]
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct PipelineDescription {
@@ -95,6 +98,7 @@ pub struct ListAllResponse {
 }
 /// list full pipeline information.
 
+#[allow(unused_variables)]
 #[get("/lsall?<pattern>")]
 pub fn pman_listall(pattern: OptionalString) -> Json<ListAllResponse> {
     Json(ListAllResponse {
@@ -103,6 +107,7 @@ pub fn pman_listall(pattern: OptionalString) -> Json<ListAllResponse> {
     })
 }
 /// List event processors.
+#[allow(unused_variables)]
 #[get("/lsevp?<pattern>")]
 pub fn pman_list_event_processors(pattern: OptionalString) -> Json<StringArrayResponse> {
     Json(StringArrayResponse::new(
@@ -110,6 +115,7 @@ pub fn pman_list_event_processors(pattern: OptionalString) -> Json<StringArrayRe
     ))
 }
 /// Select an event processing pipeline:
+#[allow(unused_variables)]
 #[get("/use?<name>")]
 pub fn pman_choose_pipeline(name: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -120,6 +126,7 @@ pub fn pman_choose_pipeline(name: String) -> Json<GenericResponse> {
 
 /// Add event processor to a pipeline:
 
+#[allow(unused_variables)]
 #[get("/add?<pipeline>&<processor>")]
 pub fn pman_add_processor(pipeline: String, processor: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -128,6 +135,7 @@ pub fn pman_add_processor(pipeline: String, processor: String) -> Json<GenericRe
     ))
 }
 /// Remove an event processor from a pipeline.
+#[allow(unused_variables)]
 #[get("/rm?<pipeline>&<processor>")]
 pub fn pman_rm_processor(pipeline: String, processor: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -136,7 +144,7 @@ pub fn pman_rm_processor(pipeline: String, processor: String) -> Json<GenericRes
     ))
 }
 /// Clear an event processing pipeline:
-
+#[allow(unused_variables)]
 #[get("/clear?<pipeline>")]
 pub fn pman_clear(pipeline: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -145,6 +153,7 @@ pub fn pman_clear(pipeline: String) -> Json<GenericResponse> {
     ))
 }
 /// Clone a pipeline:
+#[allow(unused_variables)]
 #[get("/clone?<source>&<new>")]
 pub fn pman_clone(source: String, new: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -154,7 +163,7 @@ pub fn pman_clone(source: String, new: String) -> Json<GenericResponse> {
 }
 //------------------------------------------------------------------
 // project:
-
+#[allow(unused_variables)]
 #[get("/?<snapshot>&<source>&<newname>&<direction>&<contour>")]
 pub fn project(
     snapshot: String,
@@ -172,6 +181,7 @@ pub fn project(
 // Pseudo parameters.
 
 /// Create a scripted pseudo parameter.
+#[allow(unused_variables)]
 #[get("/create?<pseudo>&<parameter>&<computation>")]
 pub fn pseudo_create(
     pseudo: String,
@@ -201,7 +211,7 @@ pub struct PseudoListResponse {
     detail: Vec<PseudoDescription>,
 }
 /// List pseudos.
-
+#[allow(unused_variables)]
 #[get("/list?<pattern>")]
 pub fn pseudo_list(pattern: OptionalString) -> Json<PseudoListResponse> {
     Json(PseudoListResponse {
@@ -210,6 +220,7 @@ pub fn pseudo_list(pattern: OptionalString) -> Json<PseudoListResponse> {
     })
 }
 /// Delete pseudos
+#[allow(unused_variables)]
 #[get("/delete?<name>")]
 pub fn pseudo_delete(name: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -221,6 +232,7 @@ pub fn pseudo_delete(name: String) -> Json<GenericResponse> {
 // Root tree:
 
 /// Create a root output tree.
+#[allow(unused_variables)]
 #[get("/create?<tree>&<parameter>&<gate>")]
 pub fn roottree_create(
     tree: String,
@@ -236,6 +248,7 @@ pub fn roottree_create(
 /// Delete a root output tree.
 
 #[get("/delete?<tree>")]
+#[allow(unused_variables)]
 pub fn roottree_delete(tree: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
         "Root Tree output is not supported",
@@ -261,7 +274,7 @@ pub struct RootTreeListResponse {
 }
 
 /// List the root trees:
-
+#[allow(unused_variables)]
 #[get("/list?<pattern>")]
 pub fn roottree_list(pattern: OptionalString) -> Json<RootTreeListResponse> {
     Json(RootTreeListResponse {
@@ -271,7 +284,7 @@ pub fn roottree_list(pattern: OptionalString) -> Json<RootTreeListResponse> {
 }
 //----------------------------------------------------------------
 // Script.
-
+#[allow(unused_variables)]
 #[get("/?<command>")]
 pub fn script_execute(command: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -284,6 +297,7 @@ pub fn script_execute(command: String) -> Json<GenericResponse> {
 //
 
 /// Establish a trace.
+#[allow(unused_variables)]
 #[get("/establish?<retention>")]
 pub fn trace_establish(retention: usize) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -292,7 +306,7 @@ pub fn trace_establish(retention: usize) -> Json<GenericResponse> {
     ))
 }
 /// Kill a trace
-
+#[allow(unused_variables)]
 #[get("/done?<token>")]
 pub fn trace_done(token: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -319,7 +333,7 @@ pub struct TraceListResponse {
 }
 
 /// Get trace data
-
+#[allow(unused_variables)]
 #[get("/fetch?<token>")]
 pub fn trace_fetch(token: String) -> Json<TraceListResponse> {
     Json(TraceListResponse {
@@ -361,7 +375,7 @@ pub fn treevariable_list() -> Json<TreeVariableListResponse> {
 }
 
 /// Set a new value for a tree variabls
-
+#[allow(unused_variables)]
 #[get("/set?<name>&<value>&<units>")]
 pub fn treevariable_set(name: String, value: f64, units: OptionalString) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -370,6 +384,7 @@ pub fn treevariable_set(name: String, value: f64, units: OptionalString) -> Json
     ))
 }
 /// Get changed flag.
+#[allow(unused_variables)]
 #[get("/check?<name>")]
 pub fn treevariable_check(name: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -378,7 +393,7 @@ pub fn treevariable_check(name: String) -> Json<GenericResponse> {
     ))
 }
 /// Set changed flag
-
+#[allow(unused_variables)]
 #[get("/setchanged?<name>")]
 pub fn treevariable_set_changed(name: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
@@ -387,6 +402,7 @@ pub fn treevariable_set_changed(name: String) -> Json<GenericResponse> {
     ))
 }
 /// Fire changed traces:
+#[allow(unused_variables)]
 #[get("/firetraces?<pattern>")]
 pub fn treevariable_fire_traces(pattern: OptionalString) -> Json<GenericResponse> {
     Json(GenericResponse::err(

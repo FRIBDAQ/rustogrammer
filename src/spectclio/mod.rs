@@ -38,7 +38,7 @@ use crate::messaging::spectrum_messages::ChannelType;
 use crate::rest::spectrum;
 use crate::rest::spectrumio::{SpectrumChannel, SpectrumFileData, SpectrumProperties};
 use chrono::prelude::*;
-use std::io::{prelude::*, BufReader, Bytes, Lines, Read, Write};
+use std::io::{prelude::*, BufReader, Lines, Read, Write};
 
 //---------------------------------------------------------------------
 // This section of code handles writing spectra to a writable object.
@@ -387,9 +387,9 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
     // Try 2d first:
 
     let hdr1_result = scan_fmt!(&hdr1, "\"{}\" ({} {})", String, u32, u32);
-    let mut xbins = 0;
+    let xbins;
     let mut ybins = 0;
-    let mut name = String::new();
+    let name;
     if hdr1_result.is_err() {
         // try as 1d:
 
@@ -412,7 +412,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
     }
     // Next is the format version which we also skip:
 
-    let version_line = read_line(l);
+    let _version_line = read_line(l);
     if let Err(s) = date_time {
         return Err(format!("Failed to read version header line: {}", s));
     }
@@ -430,7 +430,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
             types
         ));
     }
-    let spectrum_type: String;
+    
     let (spectrum_type, _) = types_result.unwrap();
     // the spectrum type needs to be converted to our spectrum type:
 

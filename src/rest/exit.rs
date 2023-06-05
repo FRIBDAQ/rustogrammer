@@ -7,7 +7,7 @@
 //! shutdown which, in turn exits th main program.
 //!
 
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json};
 use rocket::Shutdown;
 
 use super::*; // For generic response.

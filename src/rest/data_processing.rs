@@ -12,11 +12,11 @@
 
 // Imports:
 
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json};
 use rocket::State;
 
 use super::*;
-use crate::processing;
+
 //---------------------------------------------------------------
 // The /attach mount point:
 
@@ -31,6 +31,7 @@ use crate::processing;
 /// The response is a generic resposne with the detail empty on
 /// success and containing more detailed error message on failure
 /// than that in status.
+#[allow(unused_variables)]
 #[get("/attach?<type>&<source>&<size>")]
 pub fn attach_source(
     r#type: String,

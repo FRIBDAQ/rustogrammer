@@ -20,7 +20,6 @@
 //!  as for all : minimum *_low, maximum of *_high and *_bins.
 //!
 use super::*;
-use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 
 // This struct defines a parameter for the spectrum:

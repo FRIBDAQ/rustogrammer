@@ -1,5 +1,4 @@
 use super::*;
-use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 /// Twod is a simple two dimensional spectrum.
 /// It has two parameters x and y and a SpectrumGate
@@ -135,7 +134,6 @@ impl Twod {
 #[cfg(test)]
 mod twod_tests {
     use super::*;
-    use ndhistogram::axis::*;
     use std::cell::RefCell;
     use std::rc::Rc;
 

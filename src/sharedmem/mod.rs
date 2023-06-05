@@ -30,14 +30,15 @@ const TITLE_LENGTH: usize = 128;
 
 /// Types of spectra:
 
+#[allow(dead_code)]
 #[repr(C)]
 #[derive(PartialEq, Copy, Clone)]
 pub enum SpectrumTypes {
-    undefined = 0,
-    twodlong = 5,
-    onedlong = 4,
-    twodword = 3,
-    twodbyte = 1,
+    Undefined = 0,
+    TwodLong = 5,
+    OnedLong = 4,
+    TwodWord = 3,
+    TwodByte = 1,
 }
 
 /// The dimension of a spectrum:
@@ -255,7 +256,7 @@ impl SharedMemory {
         // Maybe there's a better way to do this but I'm not sure
         // what it is:
 
-        for i in 0..XAMINE_MAXSPEC {
+        for _ in 0..XAMINE_MAXSPEC {
             shm.bindings.push(String::new());
         }
         shm
@@ -279,7 +280,7 @@ impl SharedMemory {
     fn slot_as_pointer(&mut self, slot: usize) -> *mut u32 {
         let header = self.get_header();
         // this is why for 1ds we initialized ychans to 1 not zero.
-        let size = header.dsp_xy[slot].xchans * header.dsp_xy[slot].ychans;
+        
         let offset = header.dsp_offsets[slot];
 
         // Make a *mut u32 pointer to the spectrum data:
@@ -333,7 +334,7 @@ impl SharedMemory {
         let header = map.as_mut_ptr() as *mut XamineSharedMemory;
         unsafe {
             for i in 0..XAMINE_MAXSPEC {
-                (*header).dsp_types[i] = SpectrumTypes::undefined;
+                (*header).dsp_types[i] = SpectrumTypes::Undefined;
             }
         }
         println!(
@@ -363,7 +364,7 @@ impl SharedMemory {
     pub fn get_free_slot(&self) -> Option<usize> {
         let header = self.map.as_ptr() as *mut XamineSharedMemory;
         for i in 0..XAMINE_MAXSPEC {
-            if unsafe { (*header).dsp_types[i] } == SpectrumTypes::undefined {
+            if unsafe { (*header).dsp_types[i] } == SpectrumTypes::Undefined {
                 return Some(i);
             }
         }
@@ -429,10 +430,10 @@ impl SharedMemory {
         // We allow for the hidden under/overflow channels here too:
 
         let mut required = xaxis.2;
-        let mut spectrum_type = SpectrumTypes::onedlong;
+        let mut spectrum_type = SpectrumTypes::OnedLong;
         if let Some(y) = yaxis {
             required = required * (y.2);
-            spectrum_type = SpectrumTypes::twodlong;
+            spectrum_type = SpectrumTypes::TwodLong;
         }
         let storage = self.get_free_spectrum_pointer(required as usize);
         if storage.is_none() {
@@ -456,7 +457,7 @@ impl SharedMemory {
             header.dsp_titles[slot][i] = c;
             header.dsp_info[slot][i] = c;
         }
-        header.dsp_offsets[slot] = (offset/mem::size_of::<u32>()) as u32;
+        header.dsp_offsets[slot] = (offset / mem::size_of::<u32>()) as u32;
         header.dsp_types[slot] = spectrum_type;
         header.dsp_map[slot].xmin = xaxis.0 as f32;
         header.dsp_map[slot].xmax = xaxis.1 as f32;
@@ -488,7 +489,7 @@ impl SharedMemory {
     pub fn unbind(&mut self, slot: usize) {
         self.bindings[slot] = String::new();
         let header = self.get_header();
-        header.dsp_types[slot] = SpectrumTypes::undefined;
+        header.dsp_types[slot] = SpectrumTypes::Undefined;
 
         let offset = (header.dsp_offsets[slot] as usize) * mem::size_of::<u32>();
         self.allocator
@@ -551,7 +552,7 @@ impl SharedMemory {
         {
             let header = self.get_header();
             for i in 0..XAMINE_MAXSPEC {
-                if header.dsp_types[i] != SpectrumTypes::undefined {
+                if header.dsp_types[i] != SpectrumTypes::Undefined {
                     indices.push(i);
                 }
             }
@@ -632,7 +633,7 @@ mod allocator_tests {
         // Test that each allocation winds up in the free list:
         let mut arena = StorageAllocator::new(100);
         for i in 0..10 {
-            let result = arena
+            arena
                 .allocate(2)
                 .expect(&format!("Allocation {} failed", i));
         }
@@ -742,6 +743,5 @@ mod allocator_tests {
 
         arena.free_trusted(extent1).expect("Failed to free extent1");
         arena.free_trusted(extent2).expect("Failed to free extent2");
-
     }
 }

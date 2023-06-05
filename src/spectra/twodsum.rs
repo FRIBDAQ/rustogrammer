@@ -20,7 +20,6 @@
 //!  the x axis and all y parameters for the y axis.
 //!
 use super::*;
-use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 
 // 2d sum spectra are defined on x/y parameter pairs.
@@ -249,7 +248,6 @@ impl TwodSum {
 #[cfg(test)]
 mod twodsum_tests {
     use super::*;
-    use ndhistogram::axis::*;
     use std::cell::RefCell;
     use std::rc::Rc;
     #[test]

@@ -108,6 +108,7 @@ impl ConditionList {
     }
     // Clears the dependent conditions:
     //
+    #[allow(dead_code)]
     pub fn clear(&mut self) -> &mut Self {
         self.dependent_conditions.clear();
         self
@@ -144,6 +145,7 @@ impl And {
         self.dependencies.add_condition(c);
         self
     }
+    #[allow(dead_code)]
     pub fn clear(&mut self) -> &mut Self {
         self.dependencies.clear();
         self
@@ -216,6 +218,7 @@ impl Or {
         self.dependencies.add_condition(c);
         self
     }
+    #[allow(dead_code)]
     pub fn clear(&mut self) -> &mut Self {
         self.dependencies.clear();
         self

@@ -208,9 +208,11 @@ impl ParameterDictionary {
     }
     /// Get an iterator that allows modification of the parameters:
 
+    #[allow(dead_code)]
     pub fn iter_mut(&mut self) -> IterMut<'_, String, Parameter> {
         self.dictionary.iter_mut()
     }
+    #[allow(dead_code)]
     pub fn len(&self) -> usize {
         self.dictionary.len()
     }
@@ -283,6 +285,7 @@ impl ParameterIdMap {
     /// Rather than wrapping all of the dicts
     /// methods, just expose the dict itself.
     ///
+    #[allow(dead_code)]
     pub fn get_dict(&self) -> &HashMap<String, u32> {
         &self.dict
     }

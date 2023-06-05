@@ -13,9 +13,7 @@ use rocket::State;
 use super::*;
 
 use crate::messaging::spectrum_messages::{
-    SpectrumMessageClient, SpectrumProperties, SpectrumServerContentsResult,
-    SpectrumServerEmptyResult, SpectrumServerListingResult,
-};
+    SpectrumMessageClient, SpectrumProperties};
 use crate::sharedmem::binder;
 /// as with gates we need to map from Rustogramer spectrum
 /// types to SpecTcl spectrum types.
@@ -748,11 +746,11 @@ pub fn get_contents(
         });
     }
     let description = list[0].clone();
-    
+
     let (mut x_low, mut x_high) = if let Some(x) = description.xaxis {
         (x.low, x.high)
     } else {
-        (0.0,0.0)
+        (0.0, 0.0)
     };
     let (mut y_low, mut y_high) = if has_y_axis(&description.type_name) {
         let yaxis = description.yaxis.unwrap();
