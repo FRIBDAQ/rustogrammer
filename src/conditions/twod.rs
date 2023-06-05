@@ -159,6 +159,7 @@ impl Band {
             None
         }
     }
+    #[allow(dead_code)]
     pub fn get_points(&self) -> Points {
         self.points.clone()
     }
@@ -315,6 +316,7 @@ impl Contour {
             })
         }
     }
+    #[allow(dead_code)]
     pub fn get_points(&self) -> Points {
         self.pts.clone()
     }
