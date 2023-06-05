@@ -418,6 +418,7 @@ impl SpectrumStorage {
     }
     /// Clear all the spectra
     ///
+    #[allow(dead_code)]
     pub fn clear_all(&self) {
         for (_, spec) in self.dict.iter() {
             spec.borrow_mut().clear();
@@ -1379,7 +1380,6 @@ mod spec_storage_tests {
 #[cfg(test)]
 mod stats_tests {
     use super::*;
-    use crate::parameters::*;
     #[test]
     fn onedstats_1() {
         let mut p = ParameterDictionary::new();
