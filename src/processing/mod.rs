@@ -69,7 +69,7 @@ pub type Reply = Result<String, String>;
 /// in the REST state.
 ///  This is because chunk_size is cached.
 pub struct ProcessingApi {
-    spectrum_api: spectrum_messages::SpectrumMessageClient,
+    
     req_chan: mpsc::Sender<Request>,
     chunk_size: usize,
 }
@@ -98,7 +98,6 @@ impl ProcessingApi {
         let api_chan = chan.clone();
         thread::spawn(move || processing_thread(recv, api_chan));
         ProcessingApi {
-            spectrum_api: spectrum_messages::SpectrumMessageClient::new(chan),
             req_chan: send,
             chunk_size: DEFAULT_EVENT_CHUNKSIZE,
         }
