@@ -33,6 +33,7 @@ impl Cut {
             cache: None, // Starts with invalid cache.
         }
     }
+    #[allow(dead_code)]
     pub fn replace_limits(&mut self, low: f64, high: f64) -> &Cut {
         self.low = low;
         self.high = high;
