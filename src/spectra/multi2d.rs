@@ -18,7 +18,7 @@
 //! for events for which the gating condition is true.
 
 use super::*;
-use ndhistogram::axis::*;
+
 use ndhistogram::value::Sum;
 pub struct Multi2d {
     applied_gate: SpectrumGate,
