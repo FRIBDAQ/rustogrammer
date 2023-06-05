@@ -1,5 +1,4 @@
 use super::*;
-use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 
 /// This is a simple 1-d histogram with f64 valued channels.
