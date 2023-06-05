@@ -98,12 +98,14 @@ impl Request {
     }
     /// Get a request (by the histogramer).
     ///
+    #[allow(dead_code)]
     pub fn get_request(chan: mpsc::Receiver<Request>) -> Request {
         let result = chan.recv().expect("Receive by histogramer failed!");
         result
     }
     /// Send a reply to the client:
     ///
+    #[allow(dead_code)]
     pub fn send_reply(&self, msg: Reply) {
         self.reply_channel
             .send(msg)
