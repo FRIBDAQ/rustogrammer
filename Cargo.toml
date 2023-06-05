@@ -2,6 +2,19 @@
 name = "rustogramer"
 version = "0.1.0"
 edition = "2021"
+authors = ["Ron Fox fox@frib.msu.edu"]
+description="A generic histogramer intended for nuclear science data from the FRIB"
+repository="https://github.com/FRIBDAQ/rustogrammer/"
+license = "GPL-3.0"
+categories=["command-line-utilities", "science"]
+keywords=["FRIB", "histogramer", "science-nuclear"]
+
+#   For now, since distribution, theoretically require 
+#   MSU intellectual property management:
+#   (and this is not a derived work of any sort).
+
+publish = false
+
 
 [[bin]]
 name="rustogrammer"
