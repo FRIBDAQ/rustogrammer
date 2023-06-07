@@ -1,6 +1,7 @@
 use crate::ring_items;
 use std::fmt;
 use std::mem;
+use std::ptr;
 
 ///
 /// This module contains code to handle physics event items.
@@ -59,7 +60,7 @@ impl PhysicsEvent {
             // Need to cast this to a pointer of type T:
 
             let pt = p.cast::<T>();
-            let result = unsafe { *pt };
+            let result = unsafe { ptr::read_unaligned(pt) };
             self.get_cursor = self.get_cursor + mem::size_of::<T>();
             Some(result)
         } else {

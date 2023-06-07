@@ -51,7 +51,7 @@ struct SpectrumDimension {
 
 /// A title or label:
 
-type SpectrumTitle = [char; TITLE_LENGTH];
+type SpectrumTitle = [u8; TITLE_LENGTH];
 
 /// Statistics (not used but still present):
 
@@ -454,8 +454,8 @@ impl SharedMemory {
             header.dsp_xy[slot].ychans = 1;
         }
         for (i, c) in name.chars().enumerate() {
-            header.dsp_titles[slot][i] = c;
-            header.dsp_info[slot][i] = c;
+            header.dsp_titles[slot][i] = c as u8;
+            header.dsp_info[slot][i] = c as u8;
         }
         header.dsp_offsets[slot] = (offset / mem::size_of::<u32>()) as u32;
         header.dsp_types[slot] = spectrum_type;
@@ -470,8 +470,8 @@ impl SharedMemory {
         }
         //Empty  axis titles:
 
-        header.dsp_map[slot].xlabel[0] = '\0';
-        header.dsp_map[slot].ylabel[0] = '\0';
+        header.dsp_map[slot].xlabel[0] = 0 ;
+        header.dsp_map[slot].ylabel[0] = 0;
         header.dsp_statistics[slot].overflows = [0, 0];
         header.dsp_statistics[slot].underflows = [0, 0];
 
