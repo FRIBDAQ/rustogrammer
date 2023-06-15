@@ -138,15 +138,9 @@ pub fn stop_server(req_send: &mpsc::Sender<Request>) {
         reply_channel: rep_send,
         message: MessageType::Exit,
     };
-    assert!(
-        if let Reply::Exiting = req.transaction(req_send.clone(), rep_recv) {
-            true
-        } else {
-            false
-        }
-    );
+    
+    req.transaction(req_send.clone(), rep_recv);
 
-    //jh.join().expect("Failed to join server thread");
 }
 
 // Note we're just going to try some simple requests for each
