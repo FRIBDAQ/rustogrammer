@@ -7,7 +7,7 @@
 //! shutdown which, in turn exits th main program.
 //!
 
-use rocket::serde::{json::Json};
+use rocket::serde::json::Json;
 use rocket::Shutdown;
 
 use super::*; // For generic response.
@@ -21,9 +21,8 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
     // Shutdown the processor:
 
     let prc_api = state.inner().processing.lock().unwrap();
-    prc_api
-        .stop_thread()
-        .expect("Failed to stop processing thread!");
+    prc_api.stop_thread();
+
 
     // Shutdown the shared memory program.
 
