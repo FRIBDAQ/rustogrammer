@@ -22,15 +22,20 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
 
     let prc_api = state.inner().processing.lock().unwrap();
     if let Err(s) = prc_api.stop_thread() {
-        println!("Note failed to stop processing thread -might have already stopped {}", s);
+        println!(
+            "Note failed to stop processing thread -might have already stopped {}",
+            s
+        );
     }
-
 
     // Shutdown the shared memory program.
 
     let bind_api = BindingApi::new(&state.inner().binder.lock().unwrap().0);
     if let Err(s) = bind_api.exit() {
-        println!("Note failed to stop shared memory thread - might have already stopped {}", s);
+        println!(
+            "Note failed to stop shared memory thread - might have already stopped {}",
+            s
+        );
     }
 
     // Shutdown the histogrammer
