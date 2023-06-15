@@ -138,9 +138,8 @@ pub fn stop_server(req_send: &mpsc::Sender<Request>) {
         reply_channel: rep_send,
         message: MessageType::Exit,
     };
-    
-    req.transaction(req_send.clone(), rep_recv);
 
+    req.transaction(req_send.clone(), rep_recv);
 }
 
 // Note we're just going to try some simple requests for each
