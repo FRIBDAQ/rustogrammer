@@ -15,7 +15,6 @@ use std::mem;
 use tempfile;
 
 use crate::messaging::spectrum_messages;
-
 pub mod binder;
 
 // These constants are used to size the fixed sized arrays in the
@@ -280,7 +279,7 @@ impl SharedMemory {
     fn slot_as_pointer(&mut self, slot: usize) -> *mut u32 {
         let header = self.get_header();
         // this is why for 1ds we initialized ychans to 1 not zero.
-        
+
         let offset = header.dsp_offsets[slot];
 
         // Make a *mut u32 pointer to the spectrum data:
@@ -470,7 +469,7 @@ impl SharedMemory {
         }
         //Empty  axis titles:
 
-        header.dsp_map[slot].xlabel[0] = 0 ;
+        header.dsp_map[slot].xlabel[0] = 0;
         header.dsp_map[slot].ylabel[0] = 0;
         header.dsp_statistics[slot].overflows = [0, 0];
         header.dsp_statistics[slot].underflows = [0, 0];
@@ -599,11 +598,8 @@ impl SharedMemory {
             self.total_size,
         )
     }
-    /// Attemt to cleanup.
-    /// __bad___ things will happen if any other operations are attempted
-    /// on this object after this.
-    pub fn cleanup(&mut self) {
-        drop(self);
+    pub fn get_backing_store(&self) -> String {
+        String::from(self.backing_store.path().to_string_lossy())
     }
 }
 // Tests for the allocator:

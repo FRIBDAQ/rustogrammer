@@ -375,7 +375,7 @@ impl BindingThread {
             }
             RequestType::Exit => {
                 req.reply_chan
-                    .send(Reply::Generic(GenericResult::Ok(())))
+                    .send(Reply::String(Ok(self.shm.get_backing_store())))
                     .expect("Failed to send reply to client from binding thread");
                 false
             }
@@ -426,8 +426,6 @@ impl BindingThread {
                 }
             }
         }
-        self.shm.cleanup();
-        drop(self);
     }
 }
 /// This is the function to call to initiate a BindingThread.
@@ -691,9 +689,9 @@ impl BindingApi {
     /// ### Returns:
     /// *   GenericResult instance.
     ///
-    pub fn exit(&self) -> GenericResult {
+    pub fn exit(&self) -> StringResult {
         match self.transaction(RequestType::Exit) {
-            Reply::Generic(r) => r,
+            Reply::String(r) => r,
             _ => Err(String::from("Unexpected reply type from BindingServer")),
         }
     }
