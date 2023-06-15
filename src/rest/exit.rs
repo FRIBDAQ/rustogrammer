@@ -13,6 +13,10 @@ use rocket::Shutdown;
 use super::*; // For generic response.
 use crate::histogramer;
 use crate::sharedmem::binder::BindingApi;
+use std::fs;
+use std::path::Path;
+use std::thread;
+use std::time;
 
 /// This performs the shutdown:
 ///
@@ -31,11 +35,22 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
     // Shutdown the shared memory program.
 
     let bind_api = BindingApi::new(&state.inner().binder.lock().unwrap().0);
-    if let Err(s) = bind_api.exit() {
-        println!(
-            "Note failed to stop shared memory thread - might have already stopped {}",
-            s
-        );
+
+
+    match bind_api.exit() {
+        Ok(s) => {
+            // Let the thread exit first...
+            thread::sleep(time::Duration::from_millis(500));
+            if let Err(e) = fs::remove_file(Path::new(&s)) {
+                println!("Failed to remove shared memory backing store {}: {}", s, e);
+            }
+        }
+        Err(s) => {
+            println!(
+                "Note failed to stop shared memory thread - might have already stopped {}",
+                s
+            );
+        }
     }
 
     // Shutdown the histogrammer
