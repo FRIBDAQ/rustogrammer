@@ -1229,7 +1229,7 @@ mod cnd_api_tests {
             String::from("condition.3"), // Dependent conditions.
             String::from("condition.4"),
         ];
-        
+
         if let ConditionReply::Created = api.create_or_condition("or", &names) {
             if let ConditionReply::Listing(l) = api.list_conditions("or") {
                 assert_eq!(1, l.len());
