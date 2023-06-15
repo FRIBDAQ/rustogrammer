@@ -7,7 +7,7 @@
 //! shutdown which, in turn exits th main program.
 //!
 
-use rocket::serde::{json::Json};
+use rocket::serde::json::Json;
 use rocket::Shutdown;
 
 use super::*; // For generic response.
@@ -21,14 +21,17 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
     // Shutdown the processor:
 
     let prc_api = state.inner().processing.lock().unwrap();
-    prc_api
-        .stop_thread()
-        .expect("Failed to stop processing thread!");
+    if let Err(s) = prc_api.stop_thread() {
+        println!("Note failed to stop processing thread -might have already stopped {}", s);
+    }
+
 
     // Shutdown the shared memory program.
 
     let bind_api = BindingApi::new(&state.inner().binder.lock().unwrap().0);
-    bind_api.exit().expect("Unable to stop the bind thread");
+    if let Err(s) = bind_api.exit() {
+        println!("Note failed to stop shared memory thread - might have already stopped {}", s);
+    }
 
     // Shutdown the histogrammer
 

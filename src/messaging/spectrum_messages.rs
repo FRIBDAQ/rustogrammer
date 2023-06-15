@@ -153,7 +153,6 @@ pub struct SpectrumProcessor {
     dict: spectra::SpectrumStorage,
 }
 
-
 impl SpectrumProcessor {
     // private methods:
 
@@ -556,7 +555,7 @@ impl SpectrumProcessor {
                             ctype = ChannelType::Overflow;
                             x = start;
                         }
-                        BinInterval::Underflow {end } => {
+                        BinInterval::Underflow { end } => {
                             ctype = ChannelType::Underflow;
                             x = end;
                         }
@@ -571,7 +570,7 @@ impl SpectrumProcessor {
                             }
                             y = start;
                         }
-                        BinInterval::Underflow {end } => {
+                        BinInterval::Underflow { end } => {
                             if ctype == ChannelType::Bin {
                                 ctype = ChannelType::Underflow;
                             }

@@ -69,7 +69,6 @@ pub type Reply = Result<String, String>;
 /// in the REST state.
 ///  This is because chunk_size is cached.
 pub struct ProcessingApi {
-    
     req_chan: mpsc::Sender<Request>,
     chunk_size: usize,
 }
@@ -83,10 +82,17 @@ impl ProcessingApi {
             reply_chan: rep_send,
             request: req,
         };
-        self.req_chan
-            .send(request)
-            .expect("Failed send to read thread");
-        rep_recv.recv().expect("Failed read from read thread")
+        let result = self.req_chan.send(request);
+        if result.is_err() {
+            Err(String::from("Send to processing thread failed"))
+        } else {
+            let result = rep_recv.recv();
+            if result.is_err() {
+                Err(String::from("Receive from processing thread failed"))
+            } else {
+                result.unwrap()
+            }
+        }
     }
 
     /// Note that theoretically this allows more than one

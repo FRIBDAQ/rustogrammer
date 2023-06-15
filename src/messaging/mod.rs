@@ -54,6 +54,7 @@ pub enum Reply {
     Condition(ConditionReply),
     Spectrum(SpectrumReply),
     Exiting,
+    Failed,
 }
 
 ///
@@ -92,9 +93,13 @@ pub struct Request {
 impl Request {
     /// Send request message to the histogramer along chan.
     ///
-    pub fn send(&self, chan: mpsc::Sender<Request>) {
-        chan.send(self.clone())
-            .expect("Send to histogramer failed!");
+    pub fn send(&self, chan: mpsc::Sender<Request>) -> Result<(), ()> {
+        if let Err(_) = chan.send(self.clone()) {
+            println!("Failed to send a request to histogram thread -possibly it's exited");
+            Err(())
+        } else {
+            Ok(())
+        }
     }
     /// Get a request (by the histogramer).
     ///
@@ -123,7 +128,10 @@ impl Request {
     /// overlap some work between the request/reply
     ///
     pub fn transaction(&self, req: mpsc::Sender<Request>, reply: mpsc::Receiver<Reply>) -> Reply {
-        self.send(req);
-        Self::get_reply(reply)
+        if let Ok(_) = self.send(req) {
+            Self::get_reply(reply)
+        } else {
+            Reply::Failed
+        }
     }
 }
