@@ -62,11 +62,10 @@ use portman_client;
 use rocket::serde::Serialize;
 use rocket::State;
 use std::sync::{mpsc, Mutex};
-use std::thread;
 
 pub struct HistogramState {
     pub histogramer: Mutex<mpsc::Sender<Request>>,
-    pub binder: Mutex<(mpsc::Sender<binder::Request>, thread::JoinHandle<()>)>,
+    pub binder: Mutex<mpsc::Sender<binder::Request>>,
     pub processing: Mutex<processing::ProcessingApi>,
     pub portman_client: Option<portman_client::Client>,
 }

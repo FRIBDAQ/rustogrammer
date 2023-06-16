@@ -69,7 +69,7 @@ fn rocket() -> _ {
 
     let state = rest::HistogramState {
         histogramer: Mutex::new(histogramer_channel),
-        binder: Mutex::new(binder),
+        binder: Mutex::new(binder.0),
         processing: Mutex::new(processor),
         portman_client: client,
     };

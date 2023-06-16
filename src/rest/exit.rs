@@ -34,7 +34,7 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
 
     // Shutdown the shared memory program.
 
-    let bind_api = BindingApi::new(&state.inner().binder.lock().unwrap().0);
+    let bind_api = BindingApi::new(&state.inner().binder.lock().unwrap());
 
     match bind_api.exit() {
         Ok(s) => {

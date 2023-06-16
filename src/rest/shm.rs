@@ -29,7 +29,7 @@ use std::env;
 ///
 #[get("/key")]
 pub fn shmem_name(state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = BindingApi::new(&state.inner().binder.lock().unwrap().0);
+    let api = BindingApi::new(&state.inner().binder.lock().unwrap());
     Json(match api.get_shname() {
         Ok(name) => GenericResponse::ok(&name),
         Err(reason) => GenericResponse::err("Failed to get shared memory name", &reason),
@@ -54,7 +54,7 @@ pub fn shmem_name(state: &State<HistogramState>) -> Json<GenericResponse> {
 ///
 #[get("/size")]
 pub fn shmem_size(state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = BindingApi::new(&state.inner().binder.lock().unwrap().0);
+    let api = BindingApi::new(&state.inner().binder.lock().unwrap());
     let info = api.get_usage();
     let response = match info {
         Ok(stats) => GenericResponse::ok(&(stats.total_size.to_string())),
@@ -130,7 +130,7 @@ const UNDEF: &str = "-undefined-";
 ///
 #[get("/variables")]
 pub fn get_variables(state: &State<HistogramState>) -> Json<SpectclVarResult> {
-    let shmapi = BindingApi::new(&state.inner().binder.lock().unwrap().0);
+    let shmapi = BindingApi::new(&state.inner().binder.lock().unwrap());
     let prcapi = state.inner().processing.lock().unwrap();
     let batching = prcapi.get_batching();
     let mut vars = SpectclVariables {

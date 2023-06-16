@@ -583,8 +583,9 @@ fn enter_spectra(
     // snapshots require a _snapshot_condition_ gate.  No harm to
     // make it again so just undonditionally make it:
     if as_snapshot {
-        let condition_api =
-            condition_messages::ConditionMessageClient::new(&state.inner().histogramer.lock().unwrap());
+        let condition_api = condition_messages::ConditionMessageClient::new(
+            &state.inner().histogramer.lock().unwrap(),
+        );
         condition_api.create_false_condition("_snapshot_condition_");
     }
     for s in spectra {
@@ -612,7 +613,7 @@ fn enter_spectra(
         // Bind the spectrum if it's supposed to be in shared memory.
 
         if to_shm {
-            let bind_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
+            let bind_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
             bind_api.bind(&actual_name)?;
         }
     }

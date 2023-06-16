@@ -827,7 +827,7 @@ pub fn clear_spectra(
         // also need to clear the shared memory copies of the bound
         // spectra:
 
-        let bind_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
+        let bind_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
         if let Err(s) = bind_api.clear_spectra(&pat) {
             GenericResponse::err("Failed to clear bound spectra: ", &s)
         } else {
