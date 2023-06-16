@@ -54,7 +54,8 @@ pub fn get_statistics(
         String::from("*")
     };
 
-    let api = spectrum_messages::SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api =
+        spectrum_messages::SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let spectra = api.list_spectra(&pat);
     if let Err(s) = spectra {
         return Json(SpectrumStatisticsReply {

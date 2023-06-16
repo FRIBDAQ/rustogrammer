@@ -36,7 +36,6 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
 
     let bind_api = BindingApi::new(&state.inner().binder.lock().unwrap().0);
 
-
     match bind_api.exit() {
         Ok(s) => {
             // Let the thread exit first...
@@ -55,8 +54,8 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
 
     // Shutdown the histogrammer
 
-    let hg = state.inner().state.lock().unwrap();
-    histogramer::stop_server(&hg.1);
+    let hg = state.inner().histogramer.lock().unwrap();
+    histogramer::stop_server(&hg);
 
     //  Tell rocket to shutdown when processing of all requests is complete:
     shutdown.notify();

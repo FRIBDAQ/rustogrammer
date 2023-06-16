@@ -251,7 +251,7 @@ pub fn swrite_handler(
     state: &State<HistogramState>,
 ) -> Json<GenericResponse> {
     let api =
-        spectrum_messages::SpectrumMessageClient::new(&(state.inner().state.lock().unwrap().1));
+        spectrum_messages::SpectrumMessageClient::new(&(state.inner().histogramer.lock().unwrap()));
 
     // Get the spectrum properties for the spectra:
 
@@ -576,15 +576,15 @@ fn enter_spectra(
     // We need the API:
 
     let spectrum_api =
-        spectrum_messages::SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+        spectrum_messages::SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let parameter_api =
-        parameter_messages::ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+        parameter_messages::ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let mut parameters = make_parameter_set(&parameter_api)?;
     // snapshots require a _snapshot_condition_ gate.  No harm to
     // make it again so just undonditionally make it:
     if as_snapshot {
         let condition_api =
-            condition_messages::ConditionMessageClient::new(&state.inner().state.lock().unwrap().1);
+            condition_messages::ConditionMessageClient::new(&state.inner().histogramer.lock().unwrap());
         condition_api.create_false_condition("_snapshot_condition_");
     }
     for s in spectra {

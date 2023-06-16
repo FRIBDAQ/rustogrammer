@@ -125,7 +125,7 @@ fn bind_spectrum_list(
 #[get("/all")]
 pub fn sbind_all(state: &State<HistogramState>) -> Json<GenericResponse> {
     let spectrum_api =
-        spectrum_messages::SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+        spectrum_messages::SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let binding_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
 
     // Get the spectra:

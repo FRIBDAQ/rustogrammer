@@ -12,8 +12,7 @@ use rocket::State;
 
 use super::*;
 
-use crate::messaging::spectrum_messages::{
-    SpectrumMessageClient, SpectrumProperties};
+use crate::messaging::spectrum_messages::{SpectrumMessageClient, SpectrumProperties};
 use crate::sharedmem::binder;
 /// as with gates we need to map from Rustogramer spectrum
 /// types to SpecTcl spectrum types.
@@ -179,7 +178,7 @@ pub fn list_spectrum(filter: OptionalString, state: &State<HistogramState>) -> J
         String::from("*")
     };
 
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
 
     let response = match api.list_spectra(&pattern) {
         Ok(l) => ListResponse {
@@ -208,7 +207,7 @@ pub fn list_spectrum(filter: OptionalString, state: &State<HistogramState>) -> J
 ///
 #[get("/delete?<name>")]
 pub fn delete_spectrum(name: String, state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
 
     let response = match api.delete_spectrum(&name) {
         Ok(()) => GenericResponse::ok(""),
@@ -409,7 +408,7 @@ fn make_1d(
         return GenericResponse::err("Invalid axis specification", &parsed_axes.unwrap_err());
     }
     let (low, high, bins) = parsed_axes.unwrap();
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
 
     if let Err(s) = api.create_spectrum_1d(name, &parameter, low, high, bins) {
         GenericResponse::err("Failed to create 1d spectrum", &s)
@@ -451,7 +450,7 @@ fn make_2d(
 
     // Now we can try to make the spectrum:
 
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     if let Err(s) = api.create_spectrum_2d(name, &xp, &yp, xlow, xhigh, xbins, ylow, yhigh, ybins) {
         GenericResponse::err("Failed to create 2d spectrum", &s)
     } else {
@@ -478,7 +477,7 @@ fn make_gamma1(
     }
     let (low, high, bins) = axis.unwrap();
 
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     if let Err(s) = api.create_spectrum_multi1d(name, &parameters, low, high, bins) {
         GenericResponse::err("Failed to make multi1d spectrum", &s)
     } else {
@@ -505,7 +504,7 @@ fn make_gamma2(
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     if let Err(s) =
         api.create_spectrum_multi2d(name, &parameters, xlow, xhigh, xbins, ylow, yhigh, ybins)
     {
@@ -543,7 +542,7 @@ fn make_pgamma(
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     if let Err(s) = api.create_spectrum_pgamma(
         name, &xparams, &yparams, xlow, xhigh, xbins, ylow, yhigh, ybins,
     ) {
@@ -576,7 +575,7 @@ fn make_summary(
     }
     let (low, high, bins) = axes.unwrap();
 
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     if let Err(s) = api.create_spectrum_summary(name, &parameters, low, high, bins) {
         GenericResponse::err("Failed to create spectrum", &s)
     } else {
@@ -607,7 +606,7 @@ fn make_2dsum(
     }
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     if let Err(s) =
         api.create_spectrum_2dsum(name, &xpars, &ypars, xlow, xhigh, xbins, ylow, yhigh, ybins)
     {
@@ -727,7 +726,7 @@ pub fn get_contents(
     // First get the description of the spectrum to set the
     // default ROI to the entire spectrum:
 
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let list = api.list_spectra(&name);
     if let Err(s) = list {
         return Json(ContentsResponse {
@@ -821,7 +820,7 @@ pub fn clear_spectra(
     if let Some(p) = pattern {
         pat = p;
     }
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let reply = if let Err(s) = api.clear_spectra(&pat) {
         GenericResponse::err(&format!("Failed to clear spectra matching '{}'", pat), &s)
     } else {
