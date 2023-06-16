@@ -139,7 +139,7 @@ pub fn list_gates(pattern: Option<String>, state: &State<HistogramState>) -> Jso
         String::from("*")
     };
 
-    let api = ConditionMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = ConditionMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let reply = match api.list_conditions(&pat) {
         ConditionReply::Listing(l) => {
             let mut r = ListReply {
@@ -188,7 +188,7 @@ pub fn list_gates(pattern: Option<String>, state: &State<HistogramState>) -> Jso
 ///
 #[get("/delete?<name>")]
 pub fn delete_gate(name: String, state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = ConditionMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = ConditionMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let response = match api.delete_condition(&name) {
         ConditionReply::Deleted => GenericResponse::ok(""),
         ConditionReply::Error(s) => GenericResponse::err("Failed to delete condition", &s),
@@ -348,7 +348,7 @@ pub fn edit_gate(
     high: Option<f64>,
     state: &State<HistogramState>,
 ) -> Json<GenericResponse> {
-    let api = ConditionMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = ConditionMessageClient::new(&state.inner().histogramer.lock().unwrap());
 
     let raw_result = match r#type.as_str() {
         "T" => api.create_true_condition(&name),

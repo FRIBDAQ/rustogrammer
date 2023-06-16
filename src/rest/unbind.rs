@@ -13,7 +13,7 @@
 //!  function that implements each REST handler.
 //!
 
-use rocket::serde::{json::Json};
+use rocket::serde::json::Json;
 use rocket::State;
 
 use super::*;
@@ -36,7 +36,7 @@ use crate::sharedmem::binder;
 ///
 #[get("/byname?<name>")]
 pub fn unbind_byname(name: String, state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
+    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
 
     let response = if let Err(s) = api.unbind(&name) {
         GenericResponse::err(&format!("Failed to unbind {}", name), &s)
@@ -78,7 +78,7 @@ pub fn unbind_byid() -> Json<GenericResponse> {
 ///
 #[get("/all")]
 pub fn unbind_all(state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
+    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
 
     let response = if let Err(s) = api.unbind_all() {
         GenericResponse::err("Failed to unbind all spectra", &s)

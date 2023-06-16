@@ -62,11 +62,10 @@ use portman_client;
 use rocket::serde::Serialize;
 use rocket::State;
 use std::sync::{mpsc, Mutex};
-use std::thread;
 
 pub struct HistogramState {
-    pub state: Mutex<(thread::JoinHandle<()>, mpsc::Sender<Request>)>,
-    pub binder: Mutex<(mpsc::Sender<binder::Request>, thread::JoinHandle<()>)>,
+    pub histogramer: Mutex<mpsc::Sender<Request>>,
+    pub binder: Mutex<mpsc::Sender<binder::Request>>,
     pub processing: Mutex<processing::ProcessingApi>,
     pub portman_client: Option<portman_client::Client>,
 }
@@ -114,7 +113,7 @@ impl StringArrayResponse {
 // Utility method to return the name of a parameter given its id
 
 fn find_parameter_by_id(id: u32, state: &State<HistogramState>) -> Option<String> {
-    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
     if let Ok(l) = api.list_parameters("*") {
         for p in l {
             if p.get_id() == id {
@@ -129,7 +128,7 @@ fn find_parameter_by_id(id: u32, state: &State<HistogramState>) -> Option<String
 // utility to find a parameter given it's name:
 
 fn find_parameter_by_name(name: &str, state: &State<HistogramState>) -> Option<u32> {
-    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
     if let Ok(l) = api.list_parameters(name) {
         if l.len() > 0 {
             Some(l[0].get_id())
