@@ -36,7 +36,6 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
 
     let bind_api = BindingApi::new(&state.inner().binder.lock().unwrap().0);
 
-
     match bind_api.exit() {
         Ok(s) => {
             // Let the thread exit first...

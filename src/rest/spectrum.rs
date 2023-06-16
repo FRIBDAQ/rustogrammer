@@ -12,8 +12,7 @@ use rocket::State;
 
 use super::*;
 
-use crate::messaging::spectrum_messages::{
-    SpectrumMessageClient, SpectrumProperties};
+use crate::messaging::spectrum_messages::{SpectrumMessageClient, SpectrumProperties};
 use crate::sharedmem::binder;
 /// as with gates we need to map from Rustogramer spectrum
 /// types to SpecTcl spectrum types.

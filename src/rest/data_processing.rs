@@ -12,7 +12,7 @@
 
 // Imports:
 
-use rocket::serde::{json::Json};
+use rocket::serde::json::Json;
 use rocket::State;
 
 use super::*;

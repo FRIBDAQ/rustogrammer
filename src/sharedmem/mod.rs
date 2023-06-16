@@ -17,7 +17,6 @@ use tempfile;
 use crate::messaging::spectrum_messages;
 pub mod binder;
 
-
 // These constants are used to size the fixed sized arrays in the
 // shared memory header:
 

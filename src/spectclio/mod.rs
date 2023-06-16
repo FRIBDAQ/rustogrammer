@@ -430,7 +430,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
             types
         ));
     }
-    
+
     let (spectrum_type, _) = types_result.unwrap();
     // the spectrum type needs to be converted to our spectrum type:
 
