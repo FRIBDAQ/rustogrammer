@@ -65,7 +65,7 @@ pub fn list_parameters(filter: Option<String>, state: &State<HistogramState>) ->
         status: String::from("OK"),
         detail: Vec::<ParameterDefinition>::new(),
     };
-    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
 
     let pattern = if let Some(p) = filter {
         p
@@ -181,7 +181,7 @@ pub fn create_parameter(
         // Make the API so we can create and, if needed,
         // modify the metadata:
 
-        let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+        let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
         let reply = api.create_parameter(&name);
         match reply {
             Ok(_) => {
@@ -248,7 +248,7 @@ pub fn edit_parameter(
         // Make the API so we can create and, if needed,
         // modify the metadata:
 
-        let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+        let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
         if let Err(s) = api.modify_parameter_metadata(&name, bins, limits, units, description) {
             response.status = String::from("Could not modify metadata");
             response.detail = s;
@@ -291,7 +291,7 @@ fn check_uncheck_common_code(name: &str, state: &State<HistogramState>) -> Check
         status: String::from("OK"),
         detail: Some(0),
     };
-    let api = ParameterMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let result = api.list_parameters(name);
     match result {
         Ok(listing) => {

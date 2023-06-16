@@ -61,15 +61,15 @@ fn rocket() -> _ {
     // dropped start the histogram server in a thread:
     //
 
-    let (jh, channel) = histogramer::start_server();
-    let processor = processing::ProcessingApi::new(&channel);
-    let binder = binder::start_server(&channel, args.shm_mbytes * 1024 * 1024);
+    let (_, histogramer_channel) = histogramer::start_server();
+    let processor = processing::ProcessingApi::new(&histogramer_channel);
+    let binder = binder::start_server(&histogramer_channel, args.shm_mbytes * 1024 * 1024);
 
     let (port, client) = get_port(&args);
 
     let state = rest::HistogramState {
-        state: Mutex::new((jh, channel)),
-        binder: Mutex::new(binder),
+        histogramer: Mutex::new(histogramer_channel),
+        binder: Mutex::new(binder.0),
         processing: Mutex::new(processor),
         portman_client: client,
     };

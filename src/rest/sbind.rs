@@ -125,8 +125,8 @@ fn bind_spectrum_list(
 #[get("/all")]
 pub fn sbind_all(state: &State<HistogramState>) -> Json<GenericResponse> {
     let spectrum_api =
-        spectrum_messages::SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
-    let binding_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
+        spectrum_messages::SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let binding_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
 
     // Get the spectra:
 
@@ -169,7 +169,7 @@ pub fn sbind_all(state: &State<HistogramState>) -> Json<GenericResponse> {
 pub fn sbind_list(spectrum: Vec<String>, state: &State<HistogramState>) -> Json<GenericResponse> {
     // We need the bindings api.
 
-    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
+    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
     let binding_list = match api.list_bindings("*") {
         Ok(l) => l,
         Err(s) => {
@@ -222,7 +222,7 @@ pub fn sbind_bindings(
     pattern: OptionalString,
     state: &State<HistogramState>,
 ) -> Json<BindingsResponse> {
-    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap().0);
+    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
     let p = if let Some(pat) = pattern {
         pat
     } else {

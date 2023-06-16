@@ -49,7 +49,7 @@ pub fn apply_gate(
         status: String::from("OK"),
         detail: Vec::new(),
     };
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     for name in spectrum {
         if let Err(s) = api.gate_spectrum(&name, &gate) {
             response.status = format!("Failed to apply {} to some spectra", gate);
@@ -84,7 +84,7 @@ pub fn apply_list(
         pat = s; // User supplied pattern.
     }
 
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let listing = api.list_spectra(&pat);
     if listing.is_err() {
         return Json(ApplicationListing {
@@ -133,7 +133,7 @@ pub fn ungate_spectrum(
     name: Vec<String>,
     state: &State<HistogramState>,
 ) -> Json<GateApplicationResponse> {
-    let api = SpectrumMessageClient::new(&state.inner().state.lock().unwrap().1);
+    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let mut result = GateApplicationResponse {
         status: String::from("OK"),
         detail: Vec::new(),
