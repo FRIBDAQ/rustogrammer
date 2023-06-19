@@ -54,7 +54,7 @@ impl Spectrum for Multi1d {
     fn get_yparams(&self) -> Vec<String> {
         vec![]
     }
-    
+
     fn get_gate(&self) -> Option<String> {
         if let Some(g) = self.applied_gate.gate.clone() {
             Some(g.condition_name)

@@ -54,7 +54,7 @@ impl Spectrum for Twod {
     fn get_yparams(&self) -> Vec<String> {
         vec![self.y_name.clone()]
     }
-    
+
     fn get_gate(&self) -> Option<String> {
         if let Some(g) = self.applied_gate.gate.clone() {
             Some(g.condition_name)

@@ -88,7 +88,7 @@ impl Spectrum for PGamma {
         }
         result
     }
-    
+
     fn get_gate(&self) -> Option<String> {
         if let Some(g) = self.applied_gate.gate.clone() {
             Some(g.condition_name)

@@ -88,7 +88,7 @@ impl Spectrum for TwodSum {
         }
         result
     }
-    
+
     fn get_gate(&self) -> Option<String> {
         if let Some(g) = self.applied_gate.gate.clone() {
             Some(g.condition_name)
@@ -108,7 +108,6 @@ impl Spectrum for TwodSum {
     fn get_histogram_2d(&self) -> Option<H2DContainer> {
         Some(Rc::clone(&self.histogram))
     }
-    
 }
 impl TwodSum {
     pub fn new(
