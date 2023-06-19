@@ -17,7 +17,7 @@
 //! event processing pipeline which is not needed in Rustogramer
 //! because data are already  unpacked into a mechanically
 //! usable form.
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::json::Json;
 
 use super::*; // For GenericResponse.
 
