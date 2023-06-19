@@ -108,6 +108,9 @@ impl StringArrayResponse {
             detail: vec![],
         }
     }
+    pub fn push(&mut self, s: &str) {
+        self.detail.push(String::from(s));
+    }
 }
 
 // Utility method to return the name of a parameter given its id
