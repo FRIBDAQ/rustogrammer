@@ -97,7 +97,6 @@ pub fn list_parameters(filter: Option<String>, state: &State<HistogramState>) ->
 //---------------------------------------------------------
 // What we need to provide the version:
 
-
 /// Fetch the tree parameter version number.
 /// The URL is of the form:
 ///
@@ -109,7 +108,6 @@ pub fn list_parameters(filter: Option<String>, state: &State<HistogramState>) ->
 #[get("/version")]
 pub fn parameter_version() -> Json<GenericResponse> {
     let version = GenericResponse::ok("2.0");
-    
 
     Json(version)
 }
