@@ -41,13 +41,7 @@ impl Spectrum for Oned {
     fn get_yparams(&self) -> Vec<String> {
         vec![]
     }
-    fn get_xaxis(&self) -> Option<(f64, f64, u32)> {
-        let x = self.histogram.borrow().axes().as_tuple().0.clone();
-        Some((*x.low(), *x.high(), x.num_bins() as u32))
-    }
-    fn get_yaxis(&self) -> Option<(f64, f64, u32)> {
-        None
-    }
+    
     fn get_gate(&self) -> Option<String> {
         if let Some(g) = self.applied_gate.gate.clone() {
             Some(g.condition_name)

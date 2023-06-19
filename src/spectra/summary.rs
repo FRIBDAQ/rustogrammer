@@ -68,10 +68,7 @@ impl Spectrum for Summary {
     fn get_xaxis(&self) -> Option<(f64, f64, u32)> {
         None
     }
-    fn get_yaxis(&self) -> Option<(f64, f64, u32)> {
-        let y = self.histogram.borrow().axes().as_tuple().1.clone();
-        Some((*y.low(), *y.high(), y.num_bins() as u32))
-    }
+    
     fn get_gate(&self) -> Option<String> {
         if let Some(g) = self.applied_gate.gate.clone() {
             Some(g.condition_name)
@@ -91,7 +88,6 @@ impl Spectrum for Summary {
     fn get_histogram_2d(&self) -> Option<H2DContainer> {
         Some(Rc::clone(&self.histogram))
     }
-    
 }
 impl Summary {
     /// This local function takes the minimum of two values which
