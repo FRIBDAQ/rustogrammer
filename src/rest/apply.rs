@@ -8,7 +8,7 @@
 //! the pattern supplied in the request.
 //!
 
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
 
 use super::*;
@@ -17,7 +17,7 @@ use crate::messaging::spectrum_messages::SpectrumMessageClient;
 //---------------------------------------------------------------
 // Stuff needed to implement apply:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct GateApplicationResponse {
     status: String,
@@ -145,4 +145,68 @@ pub fn ungate_spectrum(
         }
     }
     Json(result)
+}
+#[cfg(test)]
+mod apply_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::processing;
+    use crate::sharedmem::binder;
+    use rocket;
+    use rocket::http::Status;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Config;
+    use rocket::Rocket;
+    use rocket::Shutdown;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender.clone())),
+            portman_client: None,
+        };
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![apply_gate, apply_list, ungate_spectrum])
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>) {
+        histogramer::stop_server(&c);
+    }
+    #[test]
+    fn apply_gate() {
+        let rocket = setup();
+        let chan = rocket
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        // No spectra so applying a gate will fail:
+
+        let c = Client::tracked(rocket).unwrap();
+        let r = c.get("/apply?gate=g&spectrum=spec");
+        let reply = r.dispatch();
+
+        let json = reply.into_json::<GateApplicationResponse>();
+        assert!(json.is_some());
+        let json = json.unwrap();
+        assert_eq!(
+            format!("Failed to apply {} to some spectra", "g"),
+            json.status
+        );
+
+        teardown(chan);
+    }
 }
