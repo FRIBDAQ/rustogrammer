@@ -81,12 +81,6 @@ impl Spectrum for Multi1d {
     fn get_histogram_2d(&self) -> Option<H2DContainer> {
         None
     }
-
-    fn clear(&mut self) {
-        for c in self.histogram.borrow_mut().iter_mut() {
-            *c.value = Sum::new();
-        }
-    }
 }
 
 impl Multi1d {

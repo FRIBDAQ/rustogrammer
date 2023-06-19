@@ -89,12 +89,6 @@ impl Spectrum for Multi2d {
     fn get_histogram_2d(&self) -> Option<H2DContainer> {
         Some(Rc::clone(&self.histogram))
     }
-
-    fn clear(&mut self) {
-        for c in self.histogram.borrow_mut().iter_mut() {
-            *c.value = Sum::new();
-        }
-    }
 }
 impl Multi2d {
     /// Create a multi2d spectrum.

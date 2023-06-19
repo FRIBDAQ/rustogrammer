@@ -95,12 +95,16 @@ impl GenericResponse {
         }
     }
 }
+
+
 #[derive(Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct StringArrayResponse {
     status: String,
     pub detail: Vec<String>,
 }
+
+
 impl StringArrayResponse {
     pub fn new(status: &str) -> StringArrayResponse {
         StringArrayResponse {
@@ -108,6 +112,7 @@ impl StringArrayResponse {
             detail: vec![],
         }
     }
+    #[allow(dead_code)]        
     pub fn push(&mut self, s: &str) {
         self.detail.push(String::from(s));
     }

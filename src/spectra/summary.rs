@@ -91,11 +91,7 @@ impl Spectrum for Summary {
     fn get_histogram_2d(&self) -> Option<H2DContainer> {
         Some(Rc::clone(&self.histogram))
     }
-    fn clear(&mut self) {
-        for c in self.histogram.borrow_mut().iter_mut() {
-            *c.value = Sum::new();
-        }
-    }
+    
 }
 impl Summary {
     /// This local function takes the minimum of two values which

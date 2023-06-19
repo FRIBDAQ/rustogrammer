@@ -42,6 +42,7 @@
 use super::conditions::*;
 use super::parameters::*;
 use ndhistogram::axis::*;
+use ndhistogram::value::Sum;
 use ndhistogram::*;
 use std::cell::RefCell;
 use std::collections::{hash_map, HashMap};
@@ -206,7 +207,19 @@ pub trait Spectrum {
 
     /// Clear the histogram counts.:
 
-    fn clear(&mut self);
+    fn clear(&mut self) {
+        if let Some(spec) = self.get_histogram_1d() {
+            for c in spec.borrow_mut().iter_mut() {
+                *c.value = Sum::new();
+            }
+        } else if let Some(spec) = self.get_histogram_2d() {
+            for c in spec.borrow_mut().iter_mut() {
+                *c.value = Sum::new();
+            }
+        } else {
+            panic!("Clearing spectrum that's neither 1 nor 2d");
+        }
+    }
 
     // Added to get the spectrum statistics:
 

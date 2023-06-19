@@ -116,11 +116,6 @@ impl Spectrum for PGamma {
         Some(Rc::clone(&self.histogram))
     }
 
-    fn clear(&mut self) {
-        for c in self.histogram.borrow_mut().iter_mut() {
-            *c.value = Sum::new();
-        }
-    }
 }
 impl PGamma {
     fn make_axis_def(
