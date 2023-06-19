@@ -55,12 +55,6 @@ pub fn add_evbunpack() -> Json<GenericResponse> {
     ))
 }
 
-#[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
-pub struct ListResponse {
-    status: String,
-    detail: Vec<String>,
-}
 /// list.  If this were implemented; it would take an optional
 /// query parameter _pattern_ which would restrict the names of
 /// the patterns matched to add to the listing.
@@ -70,9 +64,8 @@ pub struct ListResponse {
 /// names that have been created, or otherwise known to the system.
 ///
 #[get("/list")]
-pub fn list_evbunpack() -> Json<ListResponse> {
-    Json(ListResponse {
-        status: String::from("/spectcl/evb/unpack/list is not implemented - this is not SpecTcl"),
-        detail: vec![],
-    })
+pub fn list_evbunpack() -> Json<StringArrayResponse> {
+    Json(StringArrayResponse::new(
+        "/spectcl/evb/unpack/list is not implemented - this is not SpecTcl",
+    ))
 }

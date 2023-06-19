@@ -97,12 +97,6 @@ pub fn list_parameters(filter: Option<String>, state: &State<HistogramState>) ->
 //---------------------------------------------------------
 // What we need to provide the version:
 
-#[derive(Serialize)]
-#[serde(crate = "rocket::serde")]
-pub struct TreeParameterVersion {
-    status: String,
-    detail: String,
-}
 
 /// Fetch the tree parameter version number.
 /// The URL is of the form:
@@ -113,11 +107,9 @@ pub struct TreeParameterVersion {
 /// is a version string.
 ///
 #[get("/version")]
-pub fn parameter_version() -> Json<TreeParameterVersion> {
-    let version = TreeParameterVersion {
-        status: String::from("OK"),
-        detail: String::from("2.0"),
-    };
+pub fn parameter_version() -> Json<GenericResponse> {
+    let version = GenericResponse::ok("2.0");
+    
 
     Json(version)
 }
