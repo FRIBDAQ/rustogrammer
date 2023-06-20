@@ -181,8 +181,9 @@ mod apply_tests {
             .manage(state)
             .mount("/", routes![apply_gate, apply_list, ungate_spectrum])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>) {
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
         histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
     }
     #[test]
     fn apply_gate_1() {
@@ -191,6 +192,13 @@ mod apply_tests {
             .state::<HistogramState>()
             .expect("Valid state")
             .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = rocket
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
             .lock()
             .unwrap()
             .clone();
@@ -210,7 +218,7 @@ mod apply_tests {
         assert_eq!(1, json.detail.len());
         assert_eq!(String::from("spec"), json.detail[0].0);
 
-        teardown(chan);
+        teardown(chan, &papi);
     }
     #[test]
     fn apply_gate_2() {
@@ -227,7 +235,13 @@ mod apply_tests {
             .lock()
             .unwrap()
             .clone();
-
+        let papi = rocket
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
         // Use the channel to make a parameter, spectrum  and
         // condition api which we'll use to create what we need to test
         // application:
@@ -271,7 +285,7 @@ mod apply_tests {
         let gate = spectra[0].clone().gate.expect("Gated").clone();
         assert_eq!("True", gate.as_str());
 
-        teardown(chan);
+        teardown(chan, &papi);
     }
     #[test]
     fn apply_list_1() {
@@ -282,6 +296,13 @@ mod apply_tests {
             .state::<HistogramState>()
             .expect("Valid state")
             .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = rocket
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
             .lock()
             .unwrap()
             .clone();
@@ -297,7 +318,7 @@ mod apply_tests {
         assert_eq!("OK", json.status.as_str());
         assert_eq!(0, json.detail.len());
 
-        teardown(chan);
+        teardown(chan, &papi);
     }
     #[test]
     fn apply_list_2() {
@@ -316,7 +337,13 @@ mod apply_tests {
             .lock()
             .unwrap()
             .clone();
-
+        let papi = rocket
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
         // Use the channel to make a parameter, spectrum  and
         // condition api which we'll use to create what we need to test
         // application:
@@ -359,7 +386,7 @@ mod apply_tests {
         assert_eq!("test_spec", json.detail[0].spectrum.as_str());
         assert_eq!("True", json.detail[0].gate.as_str());
 
-        teardown(chan);
+        teardown(chan, &papi);
     }
     #[test]
     fn apply_list_3() {
@@ -378,7 +405,13 @@ mod apply_tests {
             .lock()
             .unwrap()
             .clone();
-
+        let papi = rocket
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
         // Use the channel to make a parameter, spectrum  and
         // condition api which we'll use to create what we need to test
         // application:
@@ -419,7 +452,7 @@ mod apply_tests {
         assert_eq!("OK", json.status.as_str());
         assert_eq!(0, json.detail.len());
 
-        teardown(chan);
+        teardown(chan, &papi);
     }
     #[test]
     fn apply_list_4() {
@@ -438,7 +471,13 @@ mod apply_tests {
             .lock()
             .unwrap()
             .clone();
-
+        let papi = rocket
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
         // Use the channel to make a parameter, spectrum  and
         // condition api which we'll use to create what we need to test
         // application:
@@ -480,7 +519,7 @@ mod apply_tests {
         assert_eq!(1, json.detail.len());
         assert_eq!("test_spec", json.detail[0].spectrum.as_str());
         assert_eq!("True", json.detail[0].gate.as_str());
-        teardown(chan);
+        teardown(chan, &papi);
     }
     #[test]
     fn ungate_1() {
@@ -492,6 +531,13 @@ mod apply_tests {
             .state::<HistogramState>()
             .expect("Valid state")
             .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = rocket
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
             .lock()
             .unwrap()
             .clone();
@@ -510,7 +556,7 @@ mod apply_tests {
         assert_eq!(1, json.detail.len());
         assert_eq!("george", json.detail[0].0.as_str());
 
-        teardown(chan);
+        teardown(chan, &papi);
     }
     #[test]
     fn ungate_2() {
@@ -524,6 +570,13 @@ mod apply_tests {
             .state::<HistogramState>()
             .expect("Valid state")
             .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = rocket
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
             .lock()
             .unwrap()
             .clone();
@@ -574,6 +627,6 @@ mod apply_tests {
         assert_eq!(1, listing.len());
         assert!(listing[0].gate.is_none());
 
-        teardown(chan);
+        teardown(chan, &papi);
     }
 }
