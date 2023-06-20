@@ -118,3 +118,140 @@ pub fn set_event_batch(events: usize, state: &State<HistogramState>) -> Json<Gen
         Err(s) => GenericResponse::err("Failed to set event processing batch size", &s),
     })
 }
+#[cfg(test)]
+mod processing_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::processing;
+    use crate::sharedmem::binder;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+
+    // Setup needs to set a state for Rocket that includes valid
+    // histogramer request channel and thread.
+    // binder channel (no need for thread).
+    // processing channel and thread.
+    // No port manager instance.
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender.clone())),
+            portman_client: None,
+        };
+
+        rocket::build().manage(state).mount(
+            "/",
+            routes![
+                attach_source,
+                list_source,
+                detach_source,
+                start_processing,
+                stop_processing,
+                set_event_batch
+            ],
+        )
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    fn get_state(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
+    }
+    #[test]
+    fn attach_1() {
+        // fail attach because the type is bad:
+
+        let rocket = setup();
+        let (chan, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/attach?type=pipe&source=ring2stdout");
+        let reply = req.dispatch();
+
+        let json = reply
+            .into_json::<GenericResponse>()
+            .expect("Bad Json returned");
+
+        assert_eq!(
+            "Data source type 'pipe' is not supported",
+            json.status.as_str()
+        );
+
+        teardown(chan, &papi);
+    }
+    #[test]
+    fn attach_2() {
+        // fail attach b/c no such file:
+
+        let rocket = setup();
+        let (chan, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/attach?type=file&source=no-such_file.par");
+        let reply = req.dispatch();
+
+        let json = reply.into_json::<GenericResponse>().expect("Bad JSON");
+        assert_eq!("Attach failed", json.status.as_str());
+
+        teardown(chan, &papi);
+    }
+    #[test]
+    fn attach_3() {
+        // success
+
+        let rocket = setup();
+        let (chan, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/attach?type=file&source=run-0000-00.par");
+        let json = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!("OK", json.status.as_str());
+
+        // double check the file is attached in the processing
+        // thread:
+
+        let reply = papi.list().expect("Getting attchment");
+        assert_eq!("file:run-0000-00.par", reply);
+
+        teardown(chan, &papi);
+    }
+}

@@ -68,6 +68,7 @@ pub type Reply = Result<String, String>;
 /// For now only one instance of this should be held and that's
 /// in the REST state.
 ///  This is because chunk_size is cached.
+#[derive(Clone)]
 pub struct ProcessingApi {
     req_chan: mpsc::Sender<Request>,
     chunk_size: usize,
