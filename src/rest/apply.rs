@@ -61,13 +61,13 @@ pub fn apply_gate(
 //---------------------------------------------------------------------
 // Stuff needed to provde the application list.
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Application {
     spectrum: String,
     gate: String,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct ApplicationListing {
     status: String,
@@ -151,15 +151,16 @@ mod apply_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::messaging::condition_messages;
+    use crate::messaging::parameter_messages;
+    use crate::messaging::spectrum_messages;
     use crate::processing;
     use crate::sharedmem::binder;
+
     use rocket;
-    use rocket::http::Status;
     use rocket::local::blocking::Client;
     use rocket::Build;
-    use rocket::Config;
     use rocket::Rocket;
-    use rocket::Shutdown;
 
     use std::sync::mpsc;
     use std::sync::Mutex;
@@ -184,7 +185,7 @@ mod apply_tests {
         histogramer::stop_server(&c);
     }
     #[test]
-    fn apply_gate() {
+    fn apply_gate_1() {
         let rocket = setup();
         let chan = rocket
             .state::<HistogramState>()
@@ -206,7 +207,275 @@ mod apply_tests {
             format!("Failed to apply {} to some spectra", "g"),
             json.status
         );
+        assert_eq!(1, json.detail.len());
+        assert_eq!(String::from("spec"), json.detail[0].0);
 
         teardown(chan);
+    }
+    #[test]
+    fn apply_gate_2() {
+        // need to make a parameter a spectrum and a gate to
+        // test success.
+
+        let rocket = setup();
+        //
+
+        let chan = rocket
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+
+        // Use the channel to make a parameter, spectrum  and
+        // condition api which we'll use to create what we need to test
+        // application:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&chan);
+        let cnd_api = condition_messages::ConditionMessageClient::new(&chan);
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&chan);
+
+        param_api
+            .create_parameter("test")
+            .expect("Making parameter");
+        assert!(if let condition_messages::ConditionReply::Created =
+            cnd_api.create_true_condition("True")
+        {
+            true
+        } else {
+            false
+        });
+        spec_api
+            .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
+            .expect("making spectrum");
+
+        // Now apply the True condition to test_spec.
+
+        let c = Client::tracked(rocket).expect("client created");
+        let r = c.get("/apply?gate=True&spectrum=test_spec");
+        let reply = r.dispatch();
+
+        // Should get success and the gate should be applied:
+
+        let json = reply
+            .into_json::<GateApplicationResponse>()
+            .expect("Valid JSON back");
+        assert_eq!(String::from("OK"), json.status);
+        assert_eq!(0, json.detail.len());
+
+        // Check that the spectrum is gated on True:
+
+        let spectra = spec_api.list_spectra("test_spec").expect("Listing");
+        assert_eq!(1, spectra.len());
+        let gate = spectra[0].clone().gate.expect("Gated").clone();
+        assert_eq!("True", gate.as_str());
+
+        teardown(chan);
+    }
+    #[test]
+    fn apply_list_1() {
+        // Empty list:
+
+        let rocket = setup();
+        let chan = rocket
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        // No spectra so applying a gate will fail:
+
+        let c = Client::tracked(rocket).unwrap();
+        let r = c.get("/list"); // no pattern/
+        let reply = r.dispatch();
+
+        let json = reply
+            .into_json::<ApplicationListing>()
+            .expect("Failed Json decode");
+        assert_eq!("OK", json.status.as_str());
+        assert_eq!(0, json.detail.len());
+
+        teardown(chan);
+    }
+    #[test]
+    fn apply_list_2() {
+        // List no pattern but one listing.
+
+        // need to make a parameter a spectrum and a gate to
+        // test success.
+
+        let rocket = setup();
+        //
+
+        let chan = rocket
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+
+        // Use the channel to make a parameter, spectrum  and
+        // condition api which we'll use to create what we need to test
+        // application:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&chan);
+        let cnd_api = condition_messages::ConditionMessageClient::new(&chan);
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&chan);
+
+        param_api
+            .create_parameter("test")
+            .expect("Making parameter");
+        assert!(if let condition_messages::ConditionReply::Created =
+            cnd_api.create_true_condition("True")
+        {
+            true
+        } else {
+            false
+        });
+        spec_api
+            .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
+            .expect("making spectrum");
+
+        // apply the gate the easy way:
+
+        spec_api
+            .gate_spectrum("test_spec", "True")
+            .expect("Failed to gate spectrum");
+
+        //  Get the listing:
+
+        let c = Client::tracked(rocket).unwrap();
+        let r = c.get("/list"); // no pattern/
+        let reply = r.dispatch();
+
+        let json = reply
+            .into_json::<ApplicationListing>()
+            .expect("Failed Json decode");
+        assert_eq!("OK", json.status.as_str());
+        assert_eq!(1, json.detail.len());
+        assert_eq!("test_spec", json.detail[0].spectrum.as_str());
+        assert_eq!("True", json.detail[0].gate.as_str());
+    }
+    #[test]
+    fn apply_list_3() {
+        // list pattern but does not match
+
+        // need to make a parameter a spectrum and a gate to
+        // test success.
+
+        let rocket = setup();
+        //
+
+        let chan = rocket
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+
+        // Use the channel to make a parameter, spectrum  and
+        // condition api which we'll use to create what we need to test
+        // application:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&chan);
+        let cnd_api = condition_messages::ConditionMessageClient::new(&chan);
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&chan);
+
+        param_api
+            .create_parameter("test")
+            .expect("Making parameter");
+        assert!(if let condition_messages::ConditionReply::Created =
+            cnd_api.create_true_condition("True")
+        {
+            true
+        } else {
+            false
+        });
+        spec_api
+            .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
+            .expect("making spectrum");
+
+        // apply the gate the easy way:
+
+        spec_api
+            .gate_spectrum("test_spec", "True")
+            .expect("Failed to gate spectrum");
+
+        //  Get the listing:
+
+        let c = Client::tracked(rocket).unwrap();
+        let r = c.get("/list?pattern=test_spork"); // no pattern/
+        let reply = r.dispatch();
+
+        let json = reply
+            .into_json::<ApplicationListing>()
+            .expect("Failed Json decode");
+        assert_eq!("OK", json.status.as_str());
+        assert_eq!(0, json.detail.len());
+
+    }
+    #[test]
+    fn apply_list_4() {
+        // List with pattern which does match.
+
+        // need to make a parameter a spectrum and a gate to
+        // test success.
+
+        let rocket = setup();
+        //
+
+        let chan = rocket
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+
+        // Use the channel to make a parameter, spectrum  and
+        // condition api which we'll use to create what we need to test
+        // application:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&chan);
+        let cnd_api = condition_messages::ConditionMessageClient::new(&chan);
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&chan);
+
+        param_api
+            .create_parameter("test")
+            .expect("Making parameter");
+        assert!(if let condition_messages::ConditionReply::Created =
+            cnd_api.create_true_condition("True")
+        {
+            true
+        } else {
+            false
+        });
+        spec_api
+            .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
+            .expect("making spectrum");
+
+        // apply the gate the easy way:
+
+        spec_api
+            .gate_spectrum("test_spec", "True")
+            .expect("Failed to gate spectrum");
+
+        //  Get the listing:
+
+        let c = Client::tracked(rocket).unwrap();
+        let r = c.get("/list?pattern=test_spec"); // no pattern/
+        let reply = r.dispatch();
+
+        let json = reply
+            .into_json::<ApplicationListing>()
+            .expect("Failed Json decode");
+        assert_eq!("OK", json.status.as_str());
+        assert_eq!(1, json.detail.len());
+        assert_eq!("test_spec", json.detail[0].spectrum.as_str());
+        assert_eq!("True", json.detail[0].gate.as_str());
     }
 }
