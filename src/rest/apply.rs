@@ -358,6 +358,8 @@ mod apply_tests {
         assert_eq!(1, json.detail.len());
         assert_eq!("test_spec", json.detail[0].spectrum.as_str());
         assert_eq!("True", json.detail[0].gate.as_str());
+
+        teardown(chan);
     }
     #[test]
     fn apply_list_3() {
@@ -417,6 +419,7 @@ mod apply_tests {
         assert_eq!("OK", json.status.as_str());
         assert_eq!(0, json.detail.len());
 
+        teardown(chan);
     }
     #[test]
     fn apply_list_4() {
@@ -477,5 +480,100 @@ mod apply_tests {
         assert_eq!(1, json.detail.len());
         assert_eq!("test_spec", json.detail[0].spectrum.as_str());
         assert_eq!("True", json.detail[0].gate.as_str());
+        teardown(chan);
+    }
+    #[test]
+    fn ungate_1() {
+        // no such spectrum.
+        let rocket = setup();
+        //
+
+        let chan = rocket
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+
+        let c = Client::tracked(rocket).unwrap();
+        let r = c.get("/?name=george");
+        let reply = r.dispatch();
+        let json = reply
+            .into_json::<GateApplicationResponse>()
+            .expect("Invalid json");
+
+        assert_eq!(
+            "Unable to ungate at least one spectrum",
+            json.status.as_str()
+        );
+        assert_eq!(1, json.detail.len());
+        assert_eq!("george", json.detail[0].0.as_str());
+
+        teardown(chan);
+    }
+    #[test]
+    fn ungate_2() {
+        // Sucessful ungate - we're going to test he ungating as
+        // well:
+
+        let rocket = setup();
+        //
+
+        let chan = rocket
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+
+        // Use the channel to make a parameter, spectrum  and
+        // condition api which we'll use to create what we need to test
+        // application:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&chan);
+        let cnd_api = condition_messages::ConditionMessageClient::new(&chan);
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&chan);
+
+        param_api
+            .create_parameter("test")
+            .expect("Making parameter");
+        assert!(if let condition_messages::ConditionReply::Created =
+            cnd_api.create_true_condition("True")
+        {
+            true
+        } else {
+            false
+        });
+        spec_api
+            .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
+            .expect("making spectrum");
+
+        // apply the gate the easy way:
+
+        spec_api
+            .gate_spectrum("test_spec", "True")
+            .expect("Failed to gate spectrum");
+
+        //  Get the listing:
+
+        let c = Client::tracked(rocket).unwrap();
+        let r = c.get("/?name=test_spec"); // no pattern/
+        let reply = r.dispatch();
+
+        let json = reply
+            .into_json::<ApplicationListing>()
+            .expect("Failed Json decode");
+        assert_eq!("OK", json.status.as_str());
+        assert_eq!(0, json.detail.len());
+
+        // The spectrum should not be gated now:
+
+        let listing = spec_api.list_spectra("*").expect("Failed listing");
+        assert_eq!(1, listing.len());
+        assert!(listing[0].gate.is_none());
+
+        teardown(chan);
     }
 }
