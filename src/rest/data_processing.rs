@@ -263,7 +263,10 @@ mod processing_tests {
 
         let client = Client::tracked(rocket).expect("Creating clent");
         let req = client.get("/list");
-        let reply = req.dispatch().into_json::<GenericResponse>().expect("Bad JSON");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
 
         assert_eq!("OK", reply.status.as_str());
         assert_eq!("Not Attached", reply.detail.as_str());
@@ -274,17 +277,59 @@ mod processing_tests {
     fn list_2() {
         // attached
         let rocket = setup();
-        let (chan, papi)= get_state(&rocket);
+        let (chan, papi) = get_state(&rocket);
 
-        papi.attach("run-0000-00.par");  // attach the easy way
-        
+        papi.attach("run-0000-00.par").expect("attaching file"); // attach the easy way
+
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/list");
-        let reply = req.dispatch().into_json::<GenericResponse>().expect("Bad JSON");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
 
         assert_eq!("OK", reply.status.as_str());
         assert_eq!("file:run-0000-00.par", reply.detail.as_str());
 
+        teardown(chan, &papi);
+    }
+    #[test]
+    fn detach_1() {
+        // Test detach with nothing attached.
+
+        let rocket = setup();
+        let (chan, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/detach");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!("Failed to detach", reply.status.as_str());
+        assert_eq!("Not attached to a data source", reply.detail.as_str());
+
+        teardown(chan, &papi);
+    }
+    #[test]
+    fn detach_2() {
+        // test detach with something attached.
+
+        let rocket = setup();
+        let (chan, papi) = get_state(&rocket);
+
+        papi.attach("run-0000-00.par").expect("attaching file"); // attach the easy way
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/detach");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(String::from("").as_str(), reply.detail.as_str());
         teardown(chan, &papi);
     }
 }
