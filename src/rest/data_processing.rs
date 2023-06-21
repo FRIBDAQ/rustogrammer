@@ -383,6 +383,7 @@ mod processing_tests {
     }
     #[test]
     fn start_3() {
+        // attached - but started already
         let rocket = setup();
         let (chan, papi) = get_state(&rocket);
 
@@ -401,5 +402,13 @@ mod processing_tests {
         assert_eq!("Already processing run-0000-00.par", reply.detail.as_str());
 
         teardown(chan, &papi);
+    }
+    #[test]
+    fn stop_1() {
+        // Stopped but not started.
+    }
+    #[test]
+    fn stop_2() {
+        // Stopped and is started.
     }
 }
