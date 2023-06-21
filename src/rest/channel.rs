@@ -74,10 +74,11 @@ mod channels_tests {
         let c = Client::tracked(r).expect("Failed to make client");
         let request = c.get("/set");
         let reply = request.dispatch();
-        let json = reply.into_json::<GenericResponse>().expect("bad JSON parse");
+        let json = reply
+            .into_json::<GenericResponse>()
+            .expect("bad JSON parse");
         assert_eq!("Unsupported /spectcl/channel/set", json.status.as_str());
         assert_eq!("This is not SpecTcl", json.detail.as_str());
-
     }
 
     #[test]
@@ -87,7 +88,9 @@ mod channels_tests {
         let c = Client::tracked(r).expect("Failed to make client");
         let request = c.get("/get");
         let reply = request.dispatch();
-        let json = reply.into_json::<GenericResponse>().expect("bad JSON parse");
+        let json = reply
+            .into_json::<GenericResponse>()
+            .expect("bad JSON parse");
         assert_eq!("Unsupported /spectcl/channel/get", json.status.as_str());
         assert_eq!("This is not SpecTcl", json.detail.as_str());
     }

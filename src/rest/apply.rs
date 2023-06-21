@@ -185,7 +185,9 @@ mod apply_tests {
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
-    fn get_state(r : &Rocket<Build>) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    fn get_state(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
         let chan = r
             .state::<HistogramState>()
             .expect("Valid state")
@@ -208,7 +210,7 @@ mod apply_tests {
     fn apply_gate_1() {
         let rocket = setup();
         let (chan, papi) = get_state(&rocket);
-        
+
         // No spectra so applying a gate will fail:
 
         let c = Client::tracked(rocket).unwrap();
