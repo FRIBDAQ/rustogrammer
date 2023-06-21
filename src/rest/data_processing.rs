@@ -254,4 +254,37 @@ mod processing_tests {
 
         teardown(chan, &papi);
     }
+    #[test]
+    fn list_1() {
+        // not attached:
+
+        let rocket = setup();
+        let (chan, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating clent");
+        let req = client.get("/list");
+        let reply = req.dispatch().into_json::<GenericResponse>().expect("Bad JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!("Not Attached", reply.detail.as_str());
+
+        teardown(chan, &papi);
+    }
+    #[test]
+    fn list_2() {
+        // attached
+        let rocket = setup();
+        let (chan, papi)= get_state(&rocket);
+
+        papi.attach("run-0000-00.par");  // attach the easy way
+        
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/list");
+        let reply = req.dispatch().into_json::<GenericResponse>().expect("Bad JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!("file:run-0000-00.par", reply.detail.as_str());
+
+        teardown(chan, &papi);
+    }
 }
