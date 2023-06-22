@@ -31,7 +31,7 @@
 //! *  format - selects the output format for an existing filter.
 //!
 use super::*;
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 
 /// new - would create a new filter.  Parameters, if implemented
 /// are:
@@ -115,7 +115,7 @@ pub fn file() -> Json<GenericResponse> {
 
 //----------------------------------------------------------------
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FilterDetail {
     name: String,
@@ -125,7 +125,7 @@ pub struct FilterDetail {
     enabled: bool,
     format: String,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FilterListResponse {
     status: String,
@@ -143,4 +143,188 @@ pub fn list() -> Json<FilterListResponse> {
         status: String::from("/spectcl/filter/list is not implemented - this is not SpecTcl"),
         detail: vec![],
     })
+}
+
+#[cfg(test)]
+mod filter_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::processing;
+    use crate::sharedmem::binder;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    // note these are all unimplemented URLS so...
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![new, delete, enable, disable, regate, file])
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    fn get_state(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
+    }
+
+    #[test]
+    fn new_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/new");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/filter/new is not implemented",
+            reply.status.as_str()
+        );
+        assert_eq!("This is not SpecTcl", reply.detail.as_str());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn delete_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/delete");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/filter/delete is not implemented",
+            reply.status.as_str()
+        );
+        assert_eq!("This is not SpecTcl", reply.detail.as_str());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn enable_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/enable");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/filter/enable is not implemented",
+            reply.status.as_str()
+        );
+        assert_eq!("This is not SpecTcl", reply.detail.as_str());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn disable_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/disable");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/filter/disable is not implemented",
+            reply.status.as_str()
+        );
+        assert_eq!("This is not SpecTcl", reply.detail.as_str());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn regate_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/regate");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/filter/regate is not implemented",
+            reply.status.as_str()
+        );
+        assert_eq!("This is not SpecTcl", reply.detail.as_str());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn file_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/file");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/filter/file is not implemented",
+            reply.status.as_str()
+        );
+        assert_eq!("This is not SpecTcl", reply.detail.as_str());
+
+        teardown(r, &papi);
+    }
 }
