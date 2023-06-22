@@ -112,7 +112,6 @@ pub fn stop_processing(state: &State<HistogramState>) -> Json<GenericResponse> {
 ///
 #[get("/size?<events>")]
 pub fn set_event_batch(events: usize, state: &State<HistogramState>) -> Json<GenericResponse> {
-    println!("Setting size to {}", events);
     let mut api = state.inner().processing.lock().unwrap();
     Json(match api.set_batching(events) {
         Ok(_) => GenericResponse::ok(""),

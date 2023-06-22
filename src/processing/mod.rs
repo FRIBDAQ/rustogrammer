@@ -72,7 +72,7 @@ pub type Reply = Result<String, String>;
 #[derive(Clone)]
 pub struct ProcessingApi {
     req_chan: mpsc::Sender<Request>,
-    chunk_size: usize,
+    
 }
 
 impl ProcessingApi {
@@ -107,7 +107,6 @@ impl ProcessingApi {
         thread::spawn(move || processing_thread(recv, api_chan));
         ProcessingApi {
             req_chan: send,
-            chunk_size: DEFAULT_EVENT_CHUNKSIZE,
         }
     }
 
@@ -121,12 +120,7 @@ impl ProcessingApi {
         self.transaction(RequestType::Detach)
     }
     pub fn set_batching(&mut self, events: usize) -> Result<String, String> {
-        println!("Setting batching to {}", events);
         let result = self.transaction(RequestType::ChunkSize(events));
-        if let Ok(_) = result {
-            println!("Updating local cache of chunksize");
-            self.chunk_size = events;
-        }
         result
     }
     pub fn get_batching(&self) -> usize {
@@ -468,7 +462,6 @@ impl ProcessingThread {
             RequestType::Start => self.start_processing(),
             RequestType::Stop => self.stop_processing(),
             RequestType::ChunkSize(n) => {
-                println!("Setting chunksize to {} in thread", n);
                 self.chunk_size = n;
                 Ok(String::from(""))
             }
