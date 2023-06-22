@@ -49,6 +49,7 @@ pub enum RequestType {
     Start,            // Start analyzing source
     Stop,             // Stop analyzing, keep file open.
     ChunkSize(usize), // Set # events per request to Histogramer
+    GetChunkSize,     // Return chunksize.
     Exit,             // Exit thread (mostly for testing).
     List,
     Version(RingVersion),
@@ -120,14 +121,21 @@ impl ProcessingApi {
         self.transaction(RequestType::Detach)
     }
     pub fn set_batching(&mut self, events: usize) -> Result<String, String> {
+        println!("Setting batching to {}", events);
         let result = self.transaction(RequestType::ChunkSize(events));
         if let Ok(_) = result {
+            println!("Updating local cache of chunksize");
             self.chunk_size = events;
         }
         result
     }
     pub fn get_batching(&self) -> usize {
-        self.chunk_size
+        let result = self.transaction(RequestType::GetChunkSize);
+        if let Ok(s) = result {
+            s.parse::<usize>().expect("Not a usize from get_batching")
+        } else {
+            panic!("Getting chunksize failed!");
+        }
     }
     pub fn start_analysis(&self) -> Result<String, String> {
         self.transaction(RequestType::Start)
@@ -460,9 +468,11 @@ impl ProcessingThread {
             RequestType::Start => self.start_processing(),
             RequestType::Stop => self.stop_processing(),
             RequestType::ChunkSize(n) => {
+                println!("Setting chunksize to {} in thread", n);
                 self.chunk_size = n;
                 Ok(String::from(""))
             }
+            RequestType::GetChunkSize => Ok(self.chunk_size.to_string()),
             RequestType::Exit => {
                 self.keep_running = false;
                 Ok(String::from(""))
