@@ -96,7 +96,7 @@ impl GenericResponse {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct StringArrayResponse {
     status: String,
