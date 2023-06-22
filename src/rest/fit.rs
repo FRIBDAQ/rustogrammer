@@ -16,7 +16,7 @@
 //! (In SpecTcl this allowed evaulation of the fit).
 //!  
 use super::*;
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 
 /// create - create a new fit object. (unimplemented).
 /// If this is implemented the following query parameters
@@ -76,13 +76,13 @@ pub fn delete() -> Json<GenericResponse> {
     ))
 }
 //
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FitParameter {
     name: String,
     value: f64,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FitDescription {
     name: String,
@@ -92,7 +92,7 @@ pub struct FitDescription {
     high: f64,
     parameters: Vec<FitParameter>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FitListReply {
     status: String,
@@ -115,7 +115,7 @@ pub struct FitListReply {
 #[get("/list")]
 pub fn list() -> Json<FitListReply> {
     Json(FitListReply {
-        status: String::from("spectcl/fit/list is not implemented - this is not SpecTcl"),
+        status: String::from("/spectcl/fit/list is not implemented - this is not SpecTcl"),
         detail: vec![],
     })
 }
@@ -135,4 +135,167 @@ pub fn proc() -> Json<GenericResponse> {
         "/spectcl/fit/proc is not supported",
         "This is not Spectcl",
     ))
+}
+
+#[cfg(test)]
+mod fit_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::processing;
+    use crate::sharedmem::binder;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    // note these are all unimplemented URLS so...
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![create, update, delete, list, proc])
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    fn get_state(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
+    }
+    #[test]
+    fn create_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/create");
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/fit/create is not supported",
+            response.status.as_str()
+        );
+        assert_eq!("This is not Spectcl", response.detail.as_str());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn update_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/update");
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/fit/update is not supported",
+            response.status.as_str()
+        );
+        assert_eq!("This is not Spectcl", response.detail.as_str());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn delete_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/delete");
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/fit/delete is not supported",
+            response.status.as_str()
+        );
+        assert_eq!("This is not Spectcl", response.detail.as_str());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/list");
+        let response = req
+            .dispatch()
+            .into_json::<FitListReply>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/fit/list is not implemented - this is not SpecTcl",
+            response.status.as_str()
+        );
+        assert_eq!(0, response.detail.len());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn proc_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/proc");
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/fit/proc is not supported",
+            response.status.as_str()
+        );
+        assert_eq!("This is not Spectcl", response.detail.as_str());
+
+        teardown(r, &papi);
+    }
 }
