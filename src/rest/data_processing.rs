@@ -112,6 +112,7 @@ pub fn stop_processing(state: &State<HistogramState>) -> Json<GenericResponse> {
 ///
 #[get("/size?<events>")]
 pub fn set_event_batch(events: usize, state: &State<HistogramState>) -> Json<GenericResponse> {
+    println!("Setting size to {}", events);
     let mut api = state.inner().processing.lock().unwrap();
     Json(match api.set_batching(events) {
         Ok(_) => GenericResponse::ok(""),
@@ -406,9 +407,69 @@ mod processing_tests {
     #[test]
     fn stop_1() {
         // Stopped but not started.
+
+        let rocket = setup();
+        let (chan, papi) = get_state(&rocket);
+
+        papi.attach("run-0000-00.par").expect("attaching file"); // attach the easy way
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/stop");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!("Failed to stop analysis", reply.status.as_str());
+        assert_eq!("Not processing data", reply.detail.as_str());
+
+        teardown(chan, &papi);
     }
     #[test]
     fn stop_2() {
         // Stopped and is started.
+
+        let rocket = setup();
+        let (chan, papi) = get_state(&rocket);
+
+        papi.attach("run-0000-00.par").expect("attaching file"); // attach the easy way
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/stop");
+        papi.start_analysis().expect("Starting via api");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(String::from("").as_str(), reply.detail.as_str());
+
+        teardown(chan, &papi);
+    }
+    #[test]
+    fn batching_1() {
+        // set the batching size...this can be fetched by the api:
+        // This has no faiure as long as everything is still running:
+
+        let rocket = setup();
+        let (chan, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("creating client");
+        let req = client.get("/size?events=12345");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        // check the reply
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(String::from("").as_str(), reply.detail.as_str());
+
+        // check the value:
+        assert_eq!(12345, papi.get_batching());
+
+        teardown(chan, &papi);
     }
 }
