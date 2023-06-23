@@ -72,7 +72,6 @@ pub type Reply = Result<String, String>;
 #[derive(Clone)]
 pub struct ProcessingApi {
     req_chan: mpsc::Sender<Request>,
-    
 }
 
 impl ProcessingApi {
@@ -105,9 +104,7 @@ impl ProcessingApi {
         let (send, recv) = mpsc::channel();
         let api_chan = chan.clone();
         thread::spawn(move || processing_thread(recv, api_chan));
-        ProcessingApi {
-            req_chan: send,
-        }
+        ProcessingApi { req_chan: send }
     }
 
     pub fn stop_thread(&self) -> Result<String, String> {
