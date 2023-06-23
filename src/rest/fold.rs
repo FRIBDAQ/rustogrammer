@@ -22,7 +22,7 @@
 //! *   remove - Removes a fold from the spectrum.
 //!
 use super::*;
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 
 /// apply - unimplemented
 ///  If implemented the following query parameters would be required:
@@ -41,13 +41,13 @@ pub fn apply() -> Json<GenericResponse> {
 }
 
 //
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FoldInfo {
     spectrum: String,
     gate: String,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct FoldListResponse {
     status: String,
@@ -77,4 +77,133 @@ pub fn remove() -> Json<GenericResponse> {
         "/spectcl/fold/remove is not implemented",
         "This is not SpecTcl",
     ))
+}
+#[cfg(test)]
+mod fold_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::processing;
+    use crate::sharedmem::binder;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    // note these are all unimplemented URLS so...
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![crate::fold::apply, list, remove])
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    fn get_state(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
+    }
+    // Note none of thes URIS are implemented so the tests are
+    // simple and don't need any other setup.  These tests are
+    // actually placeholders against the eventual implementation
+    // of folds in rustogramer.
+
+    #[test]
+    fn apply_1() {
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/apply");
+
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!(
+            "/spectcl/fold/apply is not implemented",
+            response.status.as_str()
+        );
+        assert_eq!("This is not SpecTcl", response.detail.as_str());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/list");
+
+        let response = req
+            .dispatch()
+            .into_json::<FoldListResponse>()
+            .expect("Decoding JSON");
+        assert_eq!(
+            "/spectcl/fold/list is not implemented - this is not SpecTcl",
+            response.status.as_str()
+        );
+        assert_eq!(0, response.detail.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn remove_1() {
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/remove");
+
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!(
+            "/spectcl/fold/remove is not implemented",
+            response.status.as_str()
+        );
+        assert_eq!("This is not SpecTcl", response.detail.as_str());
+
+        teardown(c, &papi);
+    }
 }
