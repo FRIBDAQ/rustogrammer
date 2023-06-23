@@ -15,7 +15,7 @@
 //! it is therefore necessary to map from Rustogramer
 //! Gate types to SpecTcl gate types in this domain of URLs.
 
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
 
 use super::*;
@@ -43,14 +43,14 @@ fn rg_condition_to_spctl(rg_type: &str) -> String {
 //----------------------------------------------------------------
 // Stuff to handle listing conditions(gates):
 
-#[derive(Serialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct GatePoint {
     x: f64,
     y: f64,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct GateProperties {
     name: String,
@@ -64,7 +64,7 @@ pub struct GateProperties {
     // value : u32            // Note Rustogrammer has no support for mask gates.
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct ListReply {
     status: String,
@@ -436,4 +436,373 @@ pub fn edit_gate(
         ),
     };
     Json(reply)
+}
+
+#[cfg(test)]
+mod gate_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::messaging::{condition_messages, parameter_messages};
+    use crate::processing;
+    use crate::sharedmem::binder;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    // note these are all unimplemented URLS so...
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![list_gates, delete_gate, edit_gate])
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    fn get_state(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
+    }
+    // Create parameters p1, p2
+    // which will be used to create gates that need parameters.
+    //
+    fn make_test_objects(c: &mpsc::Sender<messaging::Request>) {
+        let api = parameter_messages::ParameterMessageClient::new(c);
+        api.create_parameter("p1").expect("Creating p1");
+        api.create_parameter("p2").expect("Creating p2");
+    }
+
+    #[test]
+    fn list_1() {
+        // empty list:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/list");
+
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(0, reply.detail.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_2() {
+        // Make a T gate and make sure the right properties are present.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_true_condition("TRUE");
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("TRUE", l.name.as_str());
+        assert_eq!("T", l.type_name);
+        assert_eq!(0, l.gates.len());
+        assert_eq!(0, l.points.len());
+
+        // low/high are unimportant.
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_3() {
+        // Make an F gate ...
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_false_condition("FALSE");
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("FALSE", l.name);
+        assert_eq!("F", l.type_name);
+        assert_eq!(0, l.gates.len());
+        assert_eq!(0, l.points.len());
+
+        // low/high are unimportant.
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_4() {
+        // Not condition:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_false_condition("FALSE");
+        api.create_not_condition("NOT", "FALSE");
+
+        // Note this will, to some extent, test filtering too:
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list?pattern=NOT");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("NOT", l.name.as_str());
+        assert_eq!("-", l.type_name);
+        assert_eq!(1, l.gates.len());
+        assert_eq!("FALSE", l.gates[0]);
+        assert_eq!(0, l.points.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_5() {
+        // and condtion:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_false_condition("FALSE");
+        api.create_true_condition("TRUE");
+        api.create_and_condition("AND", &vec![String::from("FALSE"), String::from("TRUE")]);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list?pattern=AND");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("AND", l.name.as_str());
+        assert_eq!("*", l.type_name);
+        assert_eq!(2, l.gates.len());
+        assert_eq!("FALSE", l.gates[0]);
+        assert_eq!("TRUE", l.gates[1]);
+        assert_eq!(0, l.points.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_6() {
+        // list or condition:
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_false_condition("FALSE");
+        api.create_true_condition("TRUE");
+        api.create_or_condition("OR", &vec![String::from("FALSE"), String::from("TRUE")]);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list?pattern=OR");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("OR", l.name.as_str());
+        assert_eq!("+", l.type_name);
+        assert_eq!(2, l.gates.len());
+        assert_eq!("FALSE", l.gates[0]);
+        assert_eq!("TRUE", l.gates[1]);
+        assert_eq!(0, l.points.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_7() {
+        // Cut condition:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_cut_condition("cut", 1, 10.0, 20.0); //1 is p1 I think?
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("cut", l.name);
+        assert_eq!("s", l.type_name);
+        assert_eq!(0, l.gates.len());
+        assert_eq!(1, l.parameters.len());
+        assert_eq!(2, l.points.len());
+        assert_eq!(10.0, l.points[0].x);
+        assert_eq!(20.0, l.points[1].x);
+        assert_eq!("p1", l.parameters[0]);
+        assert_eq!(10.0, l.low);
+        assert_eq!(20.0, l.high);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_8() {
+        // Band condition:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_band_condition(
+            "band",
+            1,
+            2,
+            &vec![(10.0, 10.0), (15.0, 20.0), (100.0, 15.0)],
+        );
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+        let l = &reply.detail[0];
+
+        assert_eq!("band", l.name);
+        assert_eq!("b", l.type_name);
+        assert_eq!(0, l.gates.len());
+        assert_eq!(2, l.parameters.len());
+        assert_eq!("p1", l.parameters[0]);
+        assert_eq!("p2", l.parameters[1]);
+        assert_eq!(3, l.points.len());
+        assert_eq!(GatePoint { x: 10.0, y: 10.0 }, l.points[0]);
+        assert_eq!(GatePoint { x: 15.0, y: 20.0 }, l.points[1]);
+        assert_eq!(GatePoint { x: 100.0, y: 15.0 }, l.points[2]);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_9() {
+        // contour conditions:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_contour_condition(
+            "contour",
+            1,
+            2,
+            &vec![(10.0, 10.0), (15.0, 20.0), (100.0, 15.0)],
+        );
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+        let l = &reply.detail[0];
+
+        assert_eq!("contour", l.name);
+        assert_eq!("c", l.type_name);
+        assert_eq!(0, l.gates.len());
+        assert_eq!(2, l.parameters.len());
+        assert_eq!("p1", l.parameters[0]);
+        assert_eq!("p2", l.parameters[1]);
+        assert_eq!(3, l.points.len());
+        assert_eq!(GatePoint { x: 10.0, y: 10.0 }, l.points[0]);
+        assert_eq!(GatePoint { x: 15.0, y: 20.0 }, l.points[1]);
+        assert_eq!(GatePoint { x: 100.0, y: 15.0 }, l.points[2]);
+
+        teardown(c, &papi);
+    }
+
 }
