@@ -191,10 +191,12 @@ pub fn delete_gate(name: String, state: &State<HistogramState>) -> Json<GenericR
     let api = ConditionMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let response = match api.delete_condition(&name) {
         ConditionReply::Deleted => GenericResponse::ok(""),
-        ConditionReply::Error(s) => GenericResponse::err("Failed to delete condition", &s),
+        ConditionReply::Error(s) => {
+            GenericResponse::err(format!("Failed to delete condition {}", name).as_str(), &s)
+        }
         _ => GenericResponse::err(
             &format!("Failed to delete condition {}", name),
-            "Invalid repsonse from server",
+            "Invalid response from server",
         ),
     };
     Json(response)
@@ -804,5 +806,43 @@ mod gate_tests {
 
         teardown(c, &papi);
     }
+    // Gate deletion:
 
+    #[test]
+    fn delete_1() {
+        // Delete a nonexistent gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/delete?name=george");
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Failed to delete condition george", response.status);
+        assert_eq!("No such condition george", response.detail);
+        teardown(c, &papi);
+    }
+    #[test]
+    fn delete_2() {
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        // Make a condition to delete:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_true_condition("george");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/delete?name=george");
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+        assert_eq!("OK", response.status);
+        assert_eq!("", response.detail);
+    }
 }
