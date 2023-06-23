@@ -369,7 +369,7 @@ pub fn edit_gate(
                 }
             } else {
                 ConditionReply::Error(String::from(
-                    "gate is a required query parameter for not gatess",
+                    "gate is a required query parameter for not gates",
                 ))
             }
         }
@@ -844,5 +844,289 @@ mod gate_tests {
             .expect("Parsing json");
         assert_eq!("OK", response.status);
         assert_eq!("", response.detail);
+
+        teardown(c, &papi);
+    }
+
+    // Note that edit is used to both create and modify gates.
+    // Except for the last test we'll be creating gates.
+    // The final edit_n test will modify an existing gate.
+
+    #[test]
+    fn edit_1() {
+        // Create True gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=true&type=T");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        // ah but was it really created:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let gates = api.list_conditions("*");
+        assert!(if let ConditionReply::Listing(l) = gates {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("true", cond.cond_name);
+            assert_eq!("True", cond.type_name);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_2() {
+        // create a False gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=false&type=F");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        // ah but was it really created:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let gates = api.list_conditions("*");
+
+        assert!(if let ConditionReply::Listing(l) = gates {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("false", cond.cond_name);
+            assert_eq!("False", cond.type_name);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    // Test not gates and error scenarios.  Note we assume that
+    // dependent gate existence is checked by the tests in condition_messages.
+
+    #[test]
+    fn edit_3() {
+        // make  a not gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_true_condition("true"); // dependent gate:
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=not&type=-&gate=true");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        // Check the 'not' gate:
+
+        let gates = api.list_conditions("not");
+
+        assert!(if let ConditionReply::Listing(l) = gates {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("not", cond.cond_name);
+            assert_eq!("Not", cond.type_name);
+            assert_eq!(1, cond.gates.len());
+            assert_eq!("true", cond.gates[0]);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_4() {
+        // fail creation of not gate -- need a dependent gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=not&type=-");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate not", reply.status);
+        assert_eq!(
+            "gate is a required query parameter for not gates",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_5() {
+        // Fail creation of not gate - must have only 1 dependent gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=not&type=-&gate=g1&gate=g2");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate not", reply.status);
+        assert_eq!(
+            "Not gates can have at most one dependent gate",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    // Test and gates and error scenarios.
+
+    #[test]
+    fn edit_6() {
+        // Good creation.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        // Make dependent gates:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_true_condition("true"); // dependent gate:
+        api.create_false_condition("false");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=and&type=*&gate=true&gate=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        let listing = api.list_conditions("and");
+        assert!(if let ConditionReply::Listing(l) = listing {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("and", cond.cond_name);
+            assert_eq!("And", cond.type_name);
+            assert_eq!(2, cond.gates.len());
+            assert_eq!("true", cond.gates[0]);
+            assert_eq!("false", cond.gates[1]);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_7() {
+        // no dependent gates provided.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=and&type=*");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate and", reply.status);
+        assert_eq!(
+            "And gates require the 'gate' query parameters",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    // Tests for Or gates. Note the literal + is a stand-in for
+    // ' ' so we need to use the escap %2B instead.
+
+    #[test]
+    fn edit_8() {
+        // Good creation
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        // Make dependent gates:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_true_condition("true"); // dependent gate:
+        api.create_false_condition("false");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=or&type=%2B&gate=true&gate=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        let listing = api.list_conditions("or");
+        assert!(if let ConditionReply::Listing(l) = listing {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("or", cond.cond_name);
+            assert_eq!("Or", cond.type_name);
+            assert_eq!(2, cond.gates.len());
+            assert_eq!("true", cond.gates[0]);
+            assert_eq!("false", cond.gates[1]);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_9() {
+        // failed for missing dependent gates;
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=or&type=%2B");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate or", reply.status);
+        assert_eq!("Or gates require the 'gate' query parameters",
+            
+            reply.detail
+        );
+
+        teardown(c, &papi);
     }
 }
