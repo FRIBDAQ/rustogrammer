@@ -1226,5 +1226,27 @@ mod gate_tests {
         );
         teardown(c, &papi);
     }
+    // Tests for making new Bands.
+    
+    #[test]
+    fn edit_14() {
+        // good creation.
+    }
+    #[test]
+    fn edit_15() {
+        // missing x parameter.
+    }
+    #[test]
+    fn edit_16() {
+        // missing y parameter.
+    }
+    #[test]
+    fn edit_17() {
+        // no points.
+    }
+    #[test]
+    fn edit_18() {
+        // only 1 point (need at least 2).
+    }
     
 }
