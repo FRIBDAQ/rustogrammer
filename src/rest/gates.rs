@@ -1468,4 +1468,44 @@ mod gate_tests {
 
         teardown(c, &papi);
     }
+    // Edit can modify an existing condition:
+
+    #[test]
+    fn edit_23() {
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        // Create a true condition:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let cr = api.create_true_condition("existing");
+        assert!(if let ConditionReply::Created = cr {
+            true
+        } else {
+            false
+        }); // I had to get Created back.
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let request = client.get("/edit?name=existing&type=F"); // flip to false condition.
+        let response = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", response.status);
+        assert_eq!("Replaced", response.detail);
+
+        let l = api.list_conditions("*");
+        assert!(if let ConditionReply::Listing(gates) = l {
+            assert_eq!(1, gates.len());
+            let g = &gates[0];
+            assert_eq!("existing", g.cond_name);
+            assert_eq!("False", g.type_name);
+            true
+        } else {
+            false
+        });
+        teardown(c, &papi);
+    }
 }
