@@ -164,7 +164,7 @@ mod getstats_tests {
 
         (chan, papi)
     }
-    fn sortdetail(inp: &Vec<SpectrumStatistics>) -> Vec<SpectrumStatistics> {
+    fn sortdetail(inp : &Vec<SpectrumStatistics>) -> Vec<SpectrumStatistics> {
         let mut result = inp.clone();
         result.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
         result
@@ -191,12 +191,37 @@ mod getstats_tests {
         // 2 then p1:
         let detail = sortdetail(&reply.detail);
         assert_eq!("2", detail[0].name);
-        assert_eq!(vec![0, 0], detail[0].underflows);
-        assert_eq!(vec![0, 0], detail[0].overflows);
+        assert_eq!(vec![0,0], detail[0].underflows);
+        assert_eq!(vec![0,0], detail[0].overflows);
 
         assert_eq!("p1", detail[1].name);
-        assert_eq!(vec![0, 0], detail[1].underflows);
-        assert_eq!(vec![0, 0], detail[1].overflows);
+        assert_eq!(vec![0,0], detail[1].underflows);
+        assert_eq!(vec![0,0], detail[1].overflows);
+        
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn getstats_2() {
+        // No counts but a filter pattern:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let request = client.get("/?pattern=p*");  // gets p1
+        let reply = request
+            .dispatch()
+            .into_json::<SpectrumStatisticsReply>()
+            .expect("Parsing Json");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+
+        let detail = &reply.detail[0];  // for notational brevity.
+        assert_eq!("p1", detail.name);
+        assert_eq!(vec![0,0], detail.underflows);
+        assert_eq!(vec![0,0], detail.overflows);
 
         teardown(c, &papi);
     }
