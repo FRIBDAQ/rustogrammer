@@ -7,16 +7,16 @@
 //!
 //!  There is only /spectcl/integrate, nothing underneath it.
 //!
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct IntegrationDetail {
     centroid: f64,
     fwhm: f64,
     counts: u64,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct IntegrationResponse {
     status: String,
@@ -53,4 +53,86 @@ pub fn integrate() -> Json<IntegrationResponse> {
             counts: 0,
         },
     })
+}
+// Placeholder for tests if/when this is supported:
+
+#[cfg(test)]
+mod integrate_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::rest::HistogramState;
+    use crate::messaging;
+    use crate::processing;
+    use crate::sharedmem::binder;
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        rocket::build().manage(state).mount("/", routes![integrate])
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
+    }
+    #[test]
+    fn integrate_1() {
+        // Make the request...
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let request = client.get("/");
+        let response = request
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!(
+            "/spectcl/integrate is not supported - this is not SpecTcl",
+            response.status
+        );
+
+        teardown(c, &papi);
+    }
 }

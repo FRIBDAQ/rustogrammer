@@ -325,9 +325,9 @@ mod getstats_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(2, reply.detail.len());
         let details = sortdetail(&reply.detail);
-        
+
         // 2:
-        
+
         let stats = &details[0];
         assert_eq!("2", stats.name);
         assert_eq!(vec![1, 2], stats.underflows);
@@ -340,8 +340,6 @@ mod getstats_tests {
         assert_eq!(vec![1, 0], stats.underflows);
         assert_eq!(vec![2, 0], stats.overflows);
 
-
         teardown(c, &papi);
-
     }
 }
