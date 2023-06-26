@@ -88,6 +88,7 @@ mod getstats_tests {
     use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::parameters::{Event, EventParameter};
     use crate::processing;
     use crate::sharedmem::binder;
 
@@ -164,10 +165,30 @@ mod getstats_tests {
 
         (chan, papi)
     }
-    fn sortdetail(inp : &Vec<SpectrumStatistics>) -> Vec<SpectrumStatistics> {
+    fn sortdetail(inp: &Vec<SpectrumStatistics>) -> Vec<SpectrumStatistics> {
         let mut result = inp.clone();
         result.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
         result
+    }
+    fn make_events() -> Vec<Event> {
+        // We make events that make 1 underflow, 2 overflows in p1
+        // and 2 underflows and 1 overflow in p2
+
+        let mut result: Vec<Event> = vec![];
+        result.push(vec![
+            EventParameter::new(1, -1.0), // p1 underflow.
+            EventParameter::new(2, -1.0), // p2 underflow.
+        ]);
+        result.push(vec![
+            EventParameter::new(1, 2000.0), // p1 overflow.
+            EventParameter::new(2, -1.0),   // p2 underflow.
+        ]);
+        result.push(vec![
+            EventParameter::new(1, 2000.0), // p1 overflow
+            EventParameter::new(2, 2000.0), // p2 overflow
+        ]);
+
+        return result;
     }
     #[test]
     fn getstats_1() {
@@ -191,13 +212,12 @@ mod getstats_tests {
         // 2 then p1:
         let detail = sortdetail(&reply.detail);
         assert_eq!("2", detail[0].name);
-        assert_eq!(vec![0,0], detail[0].underflows);
-        assert_eq!(vec![0,0], detail[0].overflows);
+        assert_eq!(vec![0, 0], detail[0].underflows);
+        assert_eq!(vec![0, 0], detail[0].overflows);
 
         assert_eq!("p1", detail[1].name);
-        assert_eq!(vec![0,0], detail[1].underflows);
-        assert_eq!(vec![0,0], detail[1].overflows);
-        
+        assert_eq!(vec![0, 0], detail[1].underflows);
+        assert_eq!(vec![0, 0], detail[1].overflows);
 
         teardown(c, &papi);
     }
@@ -209,7 +229,7 @@ mod getstats_tests {
         let (c, papi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
-        let request = client.get("/?pattern=p*");  // gets p1
+        let request = client.get("/?pattern=p*"); // gets p1
         let reply = request
             .dispatch()
             .into_json::<SpectrumStatisticsReply>()
@@ -218,11 +238,110 @@ mod getstats_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(1, reply.detail.len());
 
-        let detail = &reply.detail[0];  // for notational brevity.
+        let detail = &reply.detail[0]; // for notational brevity.
         assert_eq!("p1", detail.name);
-        assert_eq!(vec![0,0], detail.underflows);
-        assert_eq!(vec![0,0], detail.overflows);
+        assert_eq!(vec![0, 0], detail.underflows);
+        assert_eq!(vec![0, 0], detail.overflows);
 
         teardown(c, &papi);
+    }
+    #[test]
+    fn getstats_3() {
+        // test for underflow/overflows correct in 1d -
+        // 1 under and 2 overs, filtered to p1:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+        let events = make_events();
+        let api = spectrum_messages::SpectrumMessageClient::new(&c);
+        assert!(api.process_events(&events).is_ok());
+
+        // now get the statustics in p1:
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let request = client.get("/?pattern=p*");
+        let reply = request
+            .dispatch()
+            .into_json::<SpectrumStatisticsReply>()
+            .expect("Parsing json");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        let stats = &reply.detail[0];
+        assert_eq!("p1", stats.name);
+        assert_eq!(vec![1, 0], stats.underflows);
+        assert_eq!(vec![2, 0], stats.overflows);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn getstats_4() {
+        // same as 3 but get 2:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+        let events = make_events();
+        let api = spectrum_messages::SpectrumMessageClient::new(&c);
+        assert!(api.process_events(&events).is_ok());
+
+        // now get the statustics in 2:
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let request = client.get("/?pattern=2");
+        let reply = request
+            .dispatch()
+            .into_json::<SpectrumStatisticsReply>()
+            .expect("Parsing json");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        let stats = &reply.detail[0];
+
+        assert_eq!("2", stats.name);
+        assert_eq!(vec![1, 2], stats.underflows);
+        assert_eq!(vec![2, 1], stats.overflows);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn getstats_5() {
+        // get both stats:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+        let events = make_events();
+        let api = spectrum_messages::SpectrumMessageClient::new(&c);
+        assert!(api.process_events(&events).is_ok());
+
+        // now get the statustics in 2:
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let request = client.get("/");
+        let reply = request
+            .dispatch()
+            .into_json::<SpectrumStatisticsReply>()
+            .expect("Parsing json");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(2, reply.detail.len());
+        let details = sortdetail(&reply.detail);
+        
+        // 2:
+        
+        let stats = &details[0];
+        assert_eq!("2", stats.name);
+        assert_eq!(vec![1, 2], stats.underflows);
+        assert_eq!(vec![2, 1], stats.overflows);
+
+        // p1:
+
+        let stats = &details[1];
+        assert_eq!("p1", stats.name);
+        assert_eq!(vec![1, 0], stats.underflows);
+        assert_eq!(vec![2, 0], stats.overflows);
+
+
+        teardown(c, &papi);
+
     }
 }
