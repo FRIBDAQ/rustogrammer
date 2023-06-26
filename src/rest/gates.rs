@@ -43,7 +43,7 @@ fn rg_condition_to_spctl(rg_type: &str) -> String {
 //----------------------------------------------------------------
 // Stuff to handle listing conditions(gates):
 
-#[derive(Serialize, Deserialize, Clone, Copy,  Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 #[serde(crate = "rocket::serde")]
 pub struct GatePoint {
     x: f64,
@@ -763,7 +763,7 @@ mod gate_tests {
         assert_eq!(GatePoint { x: 10.0, y: 10.0 }, l.points[0]);
         assert_eq!(GatePoint { x: 15.0, y: 20.0 }, l.points[1]);
         assert_eq!(GatePoint { x: 100.0, y: 15.0 }, l.points[2]);
-        
+
         teardown(c, &papi);
     }
     #[test]
@@ -803,7 +803,6 @@ mod gate_tests {
         assert_eq!(GatePoint { x: 10.0, y: 10.0 }, l.points[0]);
         assert_eq!(GatePoint { x: 15.0, y: 20.0 }, l.points[1]);
         assert_eq!(GatePoint { x: 100.0, y: 15.0 }, l.points[2]);
-
 
         teardown(c, &papi);
     }
@@ -1227,26 +1226,163 @@ mod gate_tests {
         teardown(c, &papi);
     }
     // Tests for making new Bands.
-    
+
     #[test]
     fn edit_14() {
         // good creation.
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request = client.get("/edit?name=band&type=b&xparameter=p1&yparameter=p2&xcoord=100&ycoord=50&xcoord=200&ycoord=60");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("OK", reply.status);
+
+        teardown(c, &papi);
     }
     #[test]
     fn edit_15() {
-        // missing x parameter.
+        // missing x parameter
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request = client
+            .get("/edit?name=band&type=b&yparameter=p2&xcoord=100&ycoord=50&xcoord=200&ycoord=60");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!(
+            "xparameter is a mandatory query parameter for this gate type",
+            reply.detail
+        );
+
+        teardown(c, &papi);
     }
     #[test]
     fn edit_16() {
         // missing y parameter.
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request = client
+            .get("/edit?name=band&type=b&xparameter=p1&xcoord=100&ycoord=50&xcoord=200&ycoord=60");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!(
+            "yparameter is a mandatory query parameter for this gate type",
+            reply.detail
+        );
+
+        teardown(c, &papi);
     }
     #[test]
     fn edit_17() {
-        // no points.
+        // xcoords
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request =
+            client.get("/edit?name=band&type=b&xparameter=p1&yparameter=p2&ycoord=50&ycoord=60");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!(
+            "xcoord is a mandatory query parameter for this gate type",
+            reply.detail
+        );
+
+        teardown(c, &papi);
     }
     #[test]
     fn edit_18() {
-        // only 1 point (need at least 2).
+        // No ycoords
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request =
+            client.get("/edit?name=band&type=b&xparameter=p1&yparameter=p2&xcoord=100&xcoord=200");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!(
+            "ycoord is a mandatory query parameter for this gate type",
+            reply.detail
+        );
+
+        teardown(c, &papi);
     }
-    
+    #[test]
+    fn edit_19() {
+        // differing lengths of xcoord/ycoords.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request = client.get(
+            "/edit?name=band&type=b&xparameter=p1&yparameter=p2&xcoord=100&ycoord=50&xcoord=200",
+        );
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!(
+            "xcoord array has 2 entries but ycoord array has 1 -they must be the same length",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_20() {
+        // only one point.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request =
+            client.get("/edit?name=band&type=b&xparameter=p1&yparameter=p2&xcoord=100&ycoord=50");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+
+        teardown(c, &papi);
+    }
 }
