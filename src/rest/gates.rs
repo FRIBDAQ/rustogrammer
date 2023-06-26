@@ -1243,6 +1243,25 @@ mod gate_tests {
 
         assert_eq!("OK", reply.status);
 
+        // Check the gate was proprly made:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let l = api.list_conditions("*");
+        assert!(if let ConditionReply::Listing(gates) = l {
+            assert_eq!(1, gates.len());
+            let gate = &gates[0];
+            assert_eq!("band", gate.cond_name);
+            assert_eq!("Band", gate.type_name);
+            assert_eq!(2, gate.points.len());
+            assert_eq!(100.0, gate.points[0].0);
+            assert_eq!(50.0, gate.points[0].1);
+            assert_eq!(200.0, gate.points[1].0);
+            assert_eq!(60.0, gate.points[1].1);
+            true
+        } else {
+            false
+        });
+
         teardown(c, &papi);
     }
     #[test]
@@ -1382,6 +1401,70 @@ mod gate_tests {
             .expect("Parsing json");
 
         assert_eq!("Could not create/edit gate band", reply.status);
+
+        teardown(c, &papi);
+    }
+    // Tests for contours.
+    // A bit of white box-ness.  The same parameter validation is
+    // done for contours as bands so we can reduce the number of
+    // tests dramatically:
+
+    #[test]
+    fn edit_21() {
+        // Good contour creation.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let request = client.get("/edit?name=contour&type=c&xparameter=p1&yparameter=p2&xcoord=100&ycoord=50&xcoord=200&ycoord=60&xcoord=100&ycoord=100");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing json");
+
+        assert_eq!("OK", reply.status);
+
+        // Check the condition was made:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let l = api.list_conditions("*");
+        assert!(if let ConditionReply::Listing(gates) = l {
+            assert_eq!(1, gates.len());
+            let g = &gates[0];
+            assert_eq!("contour", g.cond_name);
+            assert_eq!("Contour", g.type_name);
+            assert_eq!(3, g.points.len());
+            assert_eq!(100.0, g.points[0].0);
+            assert_eq!(50.0, g.points[0].1);
+            assert_eq!(200.0, g.points[1].0);
+            assert_eq!(60.0, g.points[1].1);
+            assert_eq!(100.0, g.points[2].0);
+            assert_eq!(100.0, g.points[2].1);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_22() {
+        // Not enough points for a contour.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let request = client.get("/edit?name=contour&type=c&xparameter=p1&yparameter=p2&xcoord=100&ycoord=50&xcoord=200&ycoord=60");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing json");
+
+        assert_eq!("Could not create/edit gate contour", reply.status);
 
         teardown(c, &papi);
     }
