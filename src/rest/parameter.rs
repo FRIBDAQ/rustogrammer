@@ -567,4 +567,86 @@ mod parameter_tests {
 
         teardown(c, &papi);
     }
+    #[test]
+    fn listp_4() {
+        // List parameter that has metadata:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+
+        param_api.create_parameter("param1").expect("param1");
+        param_api
+            .modify_parameter_metadata(
+                "param1",
+                Some(1024),
+                Some((0.0, 1024.0)),
+                Some(String::from("furlong/fortnight")),
+                Some(String::from("this is a description")),
+            )
+            .expect("Setting param1's metadata");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/par/list");
+        let reply = req
+            .dispatch()
+            .into_json::<Parameters>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        let info = &reply.detail[0];
+        assert_eq!("param1", info.name);
+        assert_eq!(1, info.id);
+        assert!(if let Some(bins) = info.bins {
+            assert_eq!(1024, bins);
+            true
+        } else {
+            false
+        });
+        assert!(if let Some(low) = info.low {
+            assert_eq!(0.0, low);
+            true
+        } else {
+            false
+        });
+        assert!(if let Some(high) = info.high {
+            assert_eq!(1024.0, high);
+            true
+        } else {
+            false
+        });
+        assert!(if let Some(units) = &info.units {
+            assert_eq!("furlong/fortnight", units);
+            true
+        } else {
+            false
+        });
+        assert!(if let Some(desc) = &info.description {
+            assert_eq!("this is a description", desc);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn version_1() {
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/par/version");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("2.0", reply.detail);
+
+        teardown(c, &papi);
+    }
 }
