@@ -17,7 +17,7 @@
 
 //#[macro_use]
 //extern crate rocket;
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
 
 use super::*;
@@ -29,7 +29,7 @@ use crate::messaging::parameter_messages::ParameterMessageClient;
 // to Json:
 // And, where needed their implementation of traits required.
 //
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct ParameterDefinition {
     name: String,
@@ -41,7 +41,7 @@ pub struct ParameterDefinition {
     description: Option<String>, // New in rustogramer.
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Parameters {
     status: String,
@@ -267,7 +267,7 @@ pub fn promote_parameter(
 //--------------------------------------------------------------------
 // CHeck status
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct CheckResponse {
     status: String,
@@ -412,4 +412,159 @@ pub fn delete_rawparameter() -> Json<GenericResponse> {
         "This is rustogrammer not SpecTcl",
     );
     Json(result)
+}
+
+#[cfg(test)]
+mod parameter_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::messaging::parameter_messages;
+    use crate::processing;
+    use crate::rest::HistogramState;
+    use crate::sharedmem::binder;
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build()
+            .manage(state)
+            .mount("/par", routes![list_parameters, parameter_version])
+            .mount(
+                "/tree",
+                routes![
+                    create_parameter,
+                    edit_parameter,
+                    promote_parameter,
+                    check_parameter,
+                    uncheck_parameter,
+                    new_rawparameter,
+                    list_rawparameter,
+                    delete_rawparameter
+                ],
+            )
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
+    }
+    #[test]
+    fn listp_1() {
+        // list_parameters - none existing and no filter.
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/par/list");
+        let reply = req
+            .dispatch()
+            .into_json::<Parameters>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(0, reply.detail.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn listp_2() {
+        // Make a parameter then list with no filter:
+        // no metadata:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("a_parameter")
+            .expect("Creating test parmaeter");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/par/list");
+        let reply = req
+            .dispatch()
+            .into_json::<Parameters>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        let pinfo = &reply.detail[0];
+        assert_eq!("a_parameter", pinfo.name);
+        assert_eq!(1, pinfo.id);
+        assert!(pinfo.bins.is_none());
+        assert!(pinfo.low.is_none());
+        assert!(pinfo.high.is_none());
+        assert!(pinfo.units.is_none());
+        assert!(pinfo.description.is_none());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn listp_3() {
+        // Filter only lists the paramters that match:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api.create_parameter("param1").expect("making param1");
+        param_api.create_parameter("param2").expect("making param2");
+
+        let client = Client::tracked(rocket).expect("Making client'");
+        let req = client.get("/par/list?filter=*2");
+        let reply = req
+            .dispatch()
+            .into_json::<Parameters>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        assert_eq!("param2", reply.detail[0].name);
+        assert_eq!(2, reply.detail[0].id);
+
+        teardown(c, &papi);
+    }
 }

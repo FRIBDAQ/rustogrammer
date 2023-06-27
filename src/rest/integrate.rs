@@ -60,9 +60,9 @@ pub fn integrate() -> Json<IntegrationResponse> {
 mod integrate_tests {
     use super::*;
     use crate::histogramer;
-    use crate::rest::HistogramState;
     use crate::messaging;
     use crate::processing;
+    use crate::rest::HistogramState;
     use crate::sharedmem::binder;
     use rocket;
     use rocket::local::blocking::Client;
