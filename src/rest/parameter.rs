@@ -1110,8 +1110,6 @@ mod parameter_tests {
     fn check_2() {
         // Parameter does exist:
 
-        // Parameter does not exist:
-
         let rocket = setup();
         let (c, papi) = getstate(&rocket);
 
@@ -1130,6 +1128,49 @@ mod parameter_tests {
         assert_eq!("OK", reply.status);
         assert!(reply.detail.is_some());
         assert_eq!(0, reply.detail.unwrap());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn uncheck_1() {
+        // Parameter does not exist:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/uncheck?name=p1");
+        let reply = req
+            .dispatch()
+            .into_json::<CheckResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("No such parameter p1", reply.status);
+        assert!(reply.detail.is_none());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn uncheck_2() {
+        // Parameter does exist:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("p1")
+            .expect("Making parameter with API");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/uncheck?name=p1");
+        let reply = req
+            .dispatch()
+            .into_json::<CheckResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert!(reply.detail.is_none());
 
         teardown(c, &papi);
     }
