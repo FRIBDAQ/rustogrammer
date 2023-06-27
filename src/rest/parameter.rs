@@ -1084,4 +1084,53 @@ mod parameter_tests {
 
         teardown(c, &papi);
     }
+    // Note that the 'check' flag does not exit in rustogramer
+    // so return values are fixed -- if there are matching parameters.
+
+    #[test]
+    fn check_1() {
+        // Parameter does not exist:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/check?name=p1");
+        let reply = req
+            .dispatch()
+            .into_json::<CheckResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("No such parameter p1", reply.status);
+        assert!(reply.detail.is_none());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn check_2() {
+        // Parameter does exist:
+
+        // Parameter does not exist:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("p1")
+            .expect("Making parameter with API");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/check?name=p1");
+        let reply = req
+            .dispatch()
+            .into_json::<CheckResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert!(reply.detail.is_some());
+        assert_eq!(0, reply.detail.unwrap());
+
+        teardown(c, &papi);
+    }
 }
