@@ -420,6 +420,7 @@ mod parameter_tests {
     use crate::histogramer;
     use crate::messaging;
     use crate::messaging::parameter_messages;
+    use crate::parameters::Parameter;
     use crate::processing;
     use crate::rest::HistogramState;
     use crate::sharedmem::binder;
@@ -646,6 +647,249 @@ mod parameter_tests {
 
         assert_eq!("OK", reply.status);
         assert_eq!("2.0", reply.detail);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn pcreate_1() {
+        // create a parameter with no metadata:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/create?name=param1");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        // Now let's be sure the parameter go created (with no metadata):
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        let listing = param_api.list_parameters("*");
+        assert!(listing.is_ok());
+        let listing = listing.unwrap();
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("param1", info.get_name());
+        assert_eq!(1, info.get_id());
+        assert!(info.get_limits().0.is_none());
+        assert!(info.get_limits().1.is_none());
+        assert!(info.get_bins().is_none());
+        assert!(info.get_units().is_none());
+        assert!(info.get_description().is_none());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn pcreate_2() {
+        // Making a duplicate parameter is an error:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("p1")
+            .expect("Making existing parameter");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/tree/create?name=p1");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("'treeparameter -create' failed: ", reply.status);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn pcreate_3() {
+        // Make aparameter with limits
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/tree/create?name=p1&low=0.0&high=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        // See what got created:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        let listing = param_api
+            .list_parameters("*")
+            .expect("Listing parameters via API");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("p1", info.get_name());
+        assert_eq!(1, info.get_id());
+        let limits = info.get_limits();
+        assert!(limits.0.is_some());
+        assert_eq!(0.0, limits.0.unwrap());
+        assert!(limits.1.is_some());
+        assert_eq!(1024.0, limits.1.unwrap());
+        assert!(info.get_bins().is_none());
+        assert!(info.get_units().is_none());
+        assert!(info.get_description().is_none());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn pcreate_4() {
+        // If we're giving limits we need both of them:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/tree/create?name=p1&low=0.0");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("invalid request", reply.status);
+        assert_eq!(
+            "Either low and high must be provided or neither",
+            reply.detail
+        );
+
+        let req = client.get("/tree/create?name=p1&high=0.0");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("invalid request", reply.status);
+        assert_eq!(
+            "Either low and high must be provided or neither",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn pcreate_5() {
+        // Set bins:
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/tree/create?name=p1&low=0.0&high=1024.0&bins=512");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        // see what got made:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        let listing = param_api
+            .list_parameters("*")
+            .expect("Listing parameters via API");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("p1", info.get_name());
+        assert_eq!(1, info.get_id());
+        let limits = info.get_limits();
+        assert!(limits.0.is_some());
+        assert_eq!(0.0, limits.0.unwrap());
+        assert!(limits.1.is_some());
+        assert_eq!(1024.0, limits.1.unwrap());
+        assert!(info.get_bins().is_some());
+        assert_eq!(512, info.get_bins().unwrap());
+        assert!(info.get_units().is_none());
+        assert!(info.get_description().is_none());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn pcreate_6() {
+        // Set the units of measure:
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/tree/create?name=p1&low=0.0&high=1024.0&bins=512&units=cm");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        // see what got made:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        let listing = param_api
+            .list_parameters("*")
+            .expect("Listing parameters via API");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("p1", info.get_name());
+        assert_eq!(1, info.get_id());
+        let limits = info.get_limits();
+        assert!(limits.0.is_some());
+        assert_eq!(0.0, limits.0.unwrap());
+        assert!(limits.1.is_some());
+        assert_eq!(1024.0, limits.1.unwrap());
+        assert!(info.get_bins().is_some());
+        assert_eq!(512, info.get_bins().unwrap());
+        assert!(info.get_units().is_some());
+        assert_eq!("cm", info.get_units().unwrap());
+        assert!(info.get_description().is_none());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn pcreate_7() {
+        // Create with a description.
+
+        // Set the units of measure:
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/tree/create?name=p1&low=0.0&high=1024.0&bins=512&units=cm&description=This%20is%20a%20parameter");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        // see what got made:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        let listing = param_api
+            .list_parameters("*")
+            .expect("Listing parameters via API");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("p1", info.get_name());
+        assert_eq!(1, info.get_id());
+        let limits = info.get_limits();
+        assert!(limits.0.is_some());
+        assert_eq!(0.0, limits.0.unwrap());
+        assert!(limits.1.is_some());
+        assert_eq!(1024.0, limits.1.unwrap());
+        assert!(info.get_bins().is_some());
+        assert_eq!(512, info.get_bins().unwrap());
+        assert!(info.get_units().is_some());
+        assert_eq!("cm", info.get_units().unwrap());
+        assert!(info.get_description().is_some());
+        assert_eq!("This is a parameter", info.get_description().unwrap());
 
         teardown(c, &papi);
     }
