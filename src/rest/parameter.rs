@@ -420,7 +420,6 @@ mod parameter_tests {
     use crate::histogramer;
     use crate::messaging;
     use crate::messaging::parameter_messages;
-    use crate::parameters::Parameter;
     use crate::processing;
     use crate::rest::HistogramState;
     use crate::sharedmem::binder;
@@ -890,6 +889,198 @@ mod parameter_tests {
         assert_eq!("cm", info.get_units().unwrap());
         assert!(info.get_description().is_some());
         assert_eq!("This is a parameter", info.get_description().unwrap());
+
+        teardown(c, &papi);
+    }
+    // Tests to edit the metadata for an existing parameter.
+
+    #[test]
+    fn edit_1() {
+        // Parameter must exist. Else an error
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/tree/edit?name=p1");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing json");
+
+        assert_eq!("Could not modify metadata", reply.status);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_2() {
+        // Set bins:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("param")
+            .expect("Creating parameter");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/edit?name=param&bins=1024");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let listing = param_api.list_parameters("*").expect("Getting list");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("param", info.get_name());
+        let bins = info.get_bins().expect("should be bins");
+        assert_eq!(1024, bins);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_3() {
+        // set low and high:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("param")
+            .expect("Creating parameter");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/edit?name=param&bins=1024&low=0&high=512");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let listing = param_api.list_parameters("*").expect("Getting list");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("param", info.get_name());
+        let bins = info.get_bins().expect("should be bins");
+        assert_eq!(1024, bins);
+        let limits = info.get_limits();
+        assert_eq!(0.0, limits.0.expect("Low not here"));
+        assert_eq!(512.0, limits.1.expect("HIgh not here"));
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_4() {
+        // both low and high must be present if either is:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("param")
+            .expect("Creating parameter");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/edit?name=param&bins=1024&low=0");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("invalid request", reply.status);
+        assert_eq!(
+            "Either low and high must be provided or neither",
+            reply.detail
+        );
+
+        let req = client.get("/tree/edit?name=param&bins=1024&high=0");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("invalid request", reply.status);
+        assert_eq!(
+            "Either low and high must be provided or neither",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_5() {
+        // Set units of measure:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("param")
+            .expect("Creating parameter");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/edit?name=param&bins=1024&low=0&high=512&units=furlongs");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let listing = param_api.list_parameters("*").expect("Getting list");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("param", info.get_name());
+        let bins = info.get_bins().expect("should be bins");
+        assert_eq!(1024, bins);
+        let limits = info.get_limits();
+        assert_eq!(0.0, limits.0.expect("Low not here"));
+        assert_eq!(512.0, limits.1.expect("HIgh not here"));
+        let units = info.get_units().expect("No units!");
+        assert_eq!("furlongs", units);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_6() {
+        // set the description:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("param")
+            .expect("Creating parameter");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/edit?name=param&bins=1024&low=0&high=512&units=furlongs&description=This%20is%20a%20description");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let listing = param_api.list_parameters("*").expect("Getting list");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("param", info.get_name());
+        let bins = info.get_bins().expect("should be bins");
+        assert_eq!(1024, bins);
+        let limits = info.get_limits();
+        assert_eq!(0.0, limits.0.expect("Low not here"));
+        assert_eq!(512.0, limits.1.expect("HIgh not here"));
+        let units = info.get_units().expect("No units!");
+        assert_eq!("furlongs", units);
+        let desc = info.get_description().expect("No description");
+        assert_eq!("This is a description", desc);
 
         teardown(c, &papi);
     }
