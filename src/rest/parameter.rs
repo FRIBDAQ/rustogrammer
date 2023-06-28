@@ -1273,4 +1273,20 @@ mod parameter_tests {
 
         teardown(c, &papi);
     }
+    #[test]
+    fn delete_1() {
+        // parameters can't be deleted:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/delete");
+        let reply = req.dispatch().into_json::<GenericResponse>().expect("Decoding JSON");
+
+        assert_eq!("Deletion of parameters is not supported", reply.status);
+        assert_eq!("This is rustogrammer not SpecTcl", reply.detail);
+
+        teardown(c, &papi);
+    }
 }
