@@ -148,6 +148,22 @@ pub fn sbind_all(state: &State<HistogramState>) -> Json<GenericResponse> {
 //----------------------------------------------------------------
 // bind a list of spectra (note uses bind_spectrum_list)
 
+// Only use unique spectra:
+
+fn remove_duplicates(in_names: Vec<String>) -> Vec<String> {
+    let mut result = Vec::new();
+    let mut scoreboard: HashSet<String> = HashSet::new();
+
+    for s in in_names {
+        if !scoreboard.contains(&s) {
+            scoreboard.insert(s.clone());
+            result.push(s);
+        }
+    }
+
+    return result;
+}
+
 /// Implements the /spectcl/sbind/sbind REST interface.
 ///
 /// ### Parameters
@@ -176,6 +192,7 @@ pub fn sbind_list(spectrum: Vec<String>, state: &State<HistogramState>) -> Json<
             return Json(GenericResponse::err("Unable to get bindings", &s));
         }
     };
+    let spectrum = remove_duplicates(spectrum);
     let binding_hash = make_binding_hash(&binding_list);
     let to_bind = remove_bound_spectra(&spectrum, &binding_hash);
     let response = bind_spectrum_list(&to_bind, &api);
@@ -385,6 +402,139 @@ mod sbind_tests {
         // We don't know the binding indices so we just ensure
         // both names are there:
 
+        assert_eq!("oned", bindings[0].1);
+        assert_eq!("twod", bindings[1].1);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn sbindlist_1() {
+        // Bind a single spectrum that's not bound.
+        // Should end up with a single bound spectrum.
+
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/sbind?spectrum=oned");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("", reply.detail);
+
+        let bindings = bapi.list_bindings("*").expect("API list of bindings");
+        assert_eq!(1, bindings.len());
+        assert_eq!("oned", bindings[0].1);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn sbindlist_2() {
+        // Bind a single spectrum that is bound - should not get
+        // double bound:
+
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        bapi.bind("oned").expect("bound oned via api");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/sbind?spectrum=oned");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("", reply.detail);
+
+        let bindings = bapi.list_bindings("*").expect("API list of bindings");
+        assert_eq!(1, bindings.len());
+        assert_eq!("oned", bindings[0].1);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn sbindlist_3() {
+        // Bind a spectrum when there's a different one bound..
+        // should get an extra binding:
+
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        bapi.bind("oned").expect("bound oned via api");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/sbind?spectrum=twod");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("", reply.detail);
+
+        let mut bindings = bapi.list_bindings("*").expect("API list of bindings");
+        assert_eq!(2, bindings.len());
+
+        bindings.sort_by(|a, b| a.1.cmp(&b.1)); // sort by name.
+        assert_eq!("oned", bindings[0].1);
+        assert_eq!("twod", bindings[1].1);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn sbindlist_4() {
+        // Make a list of bindings... none of them done yet:
+
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/sbind?spectrum=twod&spectrum=oned");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("", reply.detail);
+
+        let mut bindings = bapi.list_bindings("*").expect("API list of bindings");
+        assert_eq!(2, bindings.len());
+
+        bindings.sort_by(|a, b| a.1.cmp(&b.1)); // sort by name.
+        assert_eq!("oned", bindings[0].1);
+        assert_eq!("twod", bindings[1].1);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn sbindlist_5() {
+        // Duplicate bindings requests in the list get filtered out:
+
+        // Make a list of bindings... none of them done yet:
+
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/sbind?spectrum=twod&spectrum=oned&spectrum=twod&spectrum=oned");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("", reply.detail);
+
+        let mut bindings = bapi.list_bindings("*").expect("API list of bindings");
+        assert_eq!(2, bindings.len());
+
+        bindings.sort_by(|a, b| a.1.cmp(&b.1)); // sort by name.
         assert_eq!("oned", bindings[0].1);
         assert_eq!("twod", bindings[1].1);
 
