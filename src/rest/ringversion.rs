@@ -53,7 +53,7 @@ pub struct VersionDetail {
     major: usize,
     minor: usize,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct VersionResponse {
     status: String,
@@ -187,6 +187,54 @@ mod ringversion_tests {
             .expect("Parsing JSON");
 
         assert_eq!("Unable to set ring format version", reply.status);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn get_1() {
+        // get 11.0:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        // Set it to 11:
+
+        papi.set_ring_version(RingVersion::V11).expect("Setting ringversion");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/get");
+        let reply = req
+            .dispatch()
+            .into_json::<VersionResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(11, reply.detail.major);
+        assert_eq!(0, reply.detail.minor);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn get_2() {
+        // get 12.0:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        // Set it to 11:
+
+        papi.set_ring_version(RingVersion::V12).expect("Setting ringversion");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/get");
+        let reply = req
+            .dispatch()
+            .into_json::<VersionResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(12, reply.detail.major);
+        assert_eq!(0, reply.detail.minor);
 
         teardown(c, &papi);
     }
