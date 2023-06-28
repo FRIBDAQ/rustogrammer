@@ -22,7 +22,7 @@
 use super::*;
 use crate::messaging::spectrum_messages;
 use crate::sharedmem::binder;
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
 
 use std::collections::HashSet;
@@ -187,7 +187,7 @@ pub fn sbind_list(spectrum: Vec<String>, state: &State<HistogramState>) -> Json<
 
 // The structure we will return in the detail:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Binding {
     spectrumid: usize,
@@ -195,7 +195,7 @@ pub struct Binding {
     binding: usize,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct BindingsResponse {
     status: String,
@@ -249,4 +249,145 @@ pub fn sbind_bindings(
     };
 
     Json(response)
+}
+#[cfg(test)]
+mod sbind_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::processing;
+    use crate::rest::HistogramState;
+    use crate::sharedmem::binder;
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+        // We need histograms regardless:
+
+        make_test_objects(&hg_sender);
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![sbind_all, sbind_list, sbind_bindings,])
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        fs::remove_file(Path::new(&backing_file)).expect(&format!(
+            "Failed to remove shared memory file {}",
+            backing_file
+        ));
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    // Make some spectra.. which means making parameters as well:
+
+    fn make_test_objects(req: &mpsc::Sender<messaging::Request>) {
+        let param_api = parameter_messages::ParameterMessageClient::new(req);
+
+        param_api.create_parameter("p1").expect("making p1");
+        param_api.create_parameter("p2").expect("Making p2");
+
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&req);
+
+        spec_api
+            .create_spectrum_1d("oned", "p1", 0.0, 1024.0, 1024)
+            .expect("Making 1d spectrum");
+        spec_api
+            .create_spectrum_2d("twod", "p1", "p2", -1.0, 1.0, 100, -2.0, 4.0, 100)
+            .expect("Making 2d specttrum");
+    }
+    #[test]
+    fn sbindall_1() {
+        // Bind all spectra:
+
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/all");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("", reply.detail);
+
+        // Check that both 'one' and 'twod' are bound:
+
+        let mut bindings = bapi.list_bindings("*").expect("API List of bindings");
+        assert_eq!(2, bindings.len());
+
+        // Sort by name so that we have known ordering:
+
+        bindings.sort_by(|a, b| a.1.cmp(&b.1));
+
+        // We don't know the binding indices so we just ensure
+        // both names are there:
+
+        assert_eq!("oned", bindings[0].1);
+        assert_eq!("twod", bindings[1].1);
+
+        teardown(c, &papi, &bapi);
+    }
 }
