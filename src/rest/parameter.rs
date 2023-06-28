@@ -451,7 +451,7 @@ mod parameter_tests {
 
         rocket::build()
             .manage(state)
-            .mount("/par", routes![list_parameters, parameter_version])
+            .mount("/par", routes![list_parameters, parameter_version,])
             .mount(
                 "/tree",
                 routes![
@@ -1171,6 +1171,105 @@ mod parameter_tests {
 
         assert_eq!("OK", reply.status);
         assert!(reply.detail.is_none());
+
+        teardown(c, &papi);
+    }
+    // list_rawparameters is mostly a front end to list cases to test:
+    //
+    // - neither name nor id suppllied.
+    // - both name and id supplied.
+    // - id supplied and found.
+    // - id supplied and  not found.
+
+    #[test]
+    fn rawlist_1() {
+        // Name _and_ id missing.
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/list");
+        let reply = req
+            .dispatch()
+            .into_json::<Parameters>()
+            .expect("Decoding JSON");
+
+        assert_eq!(
+            "One of name or id must be supplied neither were",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn rawlist_2() {
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/tree/list?pattern=*&id=12");
+        let reply = req
+            .dispatch()
+            .into_json::<Parameters>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Only id or pattern can be supplied, not both", reply.status);
+        assert_eq!(0, reply.detail.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn rawlist_3() {
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("abcd")
+            .expect("Creating parameter");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/list?id=1");
+        let reply = req
+            .dispatch()
+            .into_json::<Parameters>()
+            .expect("Decoding Json");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        let info = &reply.detail[0];
+        assert_eq!("abcd", info.name);
+        assert_eq!(1, info.id);
+        assert!(info.bins.is_none());
+        assert!(info.low.is_none());
+        assert!(info.high.is_none());
+        assert!(info.units.is_none());
+        assert!(info.description.is_none());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn rawlist_4() {
+        // id supplied and not found.
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&c);
+        param_api
+            .create_parameter("abcd")
+            .expect("Creating parameter");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/tree/list?id=2");
+        let reply = req
+            .dispatch()
+            .into_json::<Parameters>()
+            .expect("Decoding Json");
+
+        assert_eq!("No parameter with id 2 exists", reply.status);
+        assert_eq!(0, reply.detail.len());
 
         teardown(c, &papi);
     }
