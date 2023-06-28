@@ -204,7 +204,7 @@ pub fn sbind_list(spectrum: Vec<String>, state: &State<HistogramState>) -> Json<
 
 // The structure we will return in the detail:
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct Binding {
     spectrumid: usize,
@@ -537,6 +537,100 @@ mod sbind_tests {
         bindings.sort_by(|a, b| a.1.cmp(&b.1)); // sort by name.
         assert_eq!("oned", bindings[0].1);
         assert_eq!("twod", bindings[1].1);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn list_1() {
+        // list bindings when there aren't any.
+
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<BindingsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(0, reply.detail.len());
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn list_2() {
+        // list bindings when there is one:
+
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        bapi.bind("oned").expect("Binding oned");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<BindingsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+
+        assert_eq!("oned", reply.detail[0].name);
+        assert_eq!(0, reply.detail[0].spectrumid);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn list_3() {
+        // list bindings when both are bound:
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        bapi.bind("oned").expect("binding oned with api");
+        bapi.bind("twod").expect("binding twod with api");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<BindingsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(2, reply.detail.len());
+
+        let mut bind_list = reply.detail.clone();
+        bind_list.sort_by(|a, b| a.name.cmp(&b.name));
+
+        assert_eq!("oned", bind_list[0].name);
+        assert_eq!("twod", bind_list[1].name);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn list_4() {
+        // test list with pattern
+
+        // list bindings when both are bound:
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        bapi.bind("oned").expect("binding oned with api");
+        bapi.bind("twod").expect("binding twod with api");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/list?pattern=t*");
+        let reply = req
+            .dispatch()
+            .into_json::<BindingsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        assert_eq!("twod", reply.detail[0].name);
 
         teardown(c, &papi, &bapi);
     }
