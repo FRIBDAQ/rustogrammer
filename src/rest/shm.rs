@@ -310,7 +310,6 @@ mod shm_tests {
 
         assert_eq!("OK", reply.status);
         let vars = &reply.detail;
-        println!("Vars: {:?}", vars);
 
         // The  undefined ones:
 
@@ -325,7 +324,6 @@ mod shm_tests {
         // the usage:
 
         let usage = binder_api.get_usage().expect("getting usage via API");
-        println!("Usgae: {:?}", usage);
         let batching = papi.get_batching();
 
         assert_eq!((usage.free_bytes + usage.used_bytes)/ (1024 * 1024), vars.display_megabytes);
