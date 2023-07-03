@@ -19,6 +19,7 @@ use std::time;
 
 /// Memory statistics have this format:
 ///
+#[derive(Debug)]
 pub struct MemoryStatistics {
     pub free_bytes: usize,
     pub largest_free_bytes: usize,

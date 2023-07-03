@@ -5,7 +5,7 @@
 //! * /spectcl/shmem - Gets the shared memory information.
 use super::*;
 use crate::sharedmem::binder::BindingApi;
-use rocket::{serde::json::Json, serde::Serialize, State};
+use rocket::{serde::json::Json, serde::Deserialize, serde::Serialize, State};
 use std::env;
 
 //----------------------------------------------------------------
@@ -69,7 +69,7 @@ pub fn shmem_size(state: &State<HistogramState>) -> Json<GenericResponse> {
 /// that we are able to produce.  The ones that we cannot produce,
 /// will be filed in with the string _-undefined-_
 ///
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct SpectclVariables {
     #[serde(rename = "DisplayMegabytes")]
@@ -95,7 +95,7 @@ pub struct SpectclVariables {
     #[serde(rename = "RunTitle")]
     title: String, // undefined.
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct SpectclVarResult {
     status: String,
@@ -163,4 +163,177 @@ pub fn get_variables(state: &State<HistogramState>) -> Json<SpectclVarResult> {
     // Ok
 
     Json(result)
+}
+#[cfg(test)]
+mod shm_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::processing;
+    use crate::rest::HistogramState;
+    use crate::sharedmem::binder;
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![shmem_name, shmem_size, get_variables])
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        fs::remove_file(Path::new(&backing_file)).expect(&format!(
+            "Failed to remove shared memory file {}",
+            backing_file
+        ));
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn key_1() {
+        // Get the key name and check it should be file://memory_name:
+
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/key");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("OK", reply.status);
+
+        // Get the correct key:
+
+        let mem_name = binder_api
+            .get_shname()
+            .expect("Getting memory name via API");
+        assert_eq!(mem_name.as_str(), reply.detail);
+
+        teardown(chan, &papi, &binder_api);
+    }
+    #[test]
+    fn size_1() {
+        // get the memory total size and see it's right:
+
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/size");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Deocding JSON");
+
+        assert_eq!("OK", reply.status);
+        let usage = binder_api.get_usage().expect("Getting usage via API");
+        assert_eq!(usage.total_size.to_string().as_str(), reply.detail);
+
+        teardown(chan, &papi, &binder_api);
+    }
+    #[test]
+    fn vars_1() {
+        // Check the variables.
+
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/variables");
+        let reply = req
+            .dispatch()
+            .into_json::<SpectclVarResult>()
+            .expect("Parsing json");
+
+        assert_eq!("OK", reply.status);
+        let vars = &reply.detail;
+        println!("Vars: {:?}", vars);
+
+        // The  undefined ones:
+
+        assert_eq!(UNDEF, vars.parameter_count);
+        assert_eq!(UNDEF, vars.last_seq);
+        assert_eq!(UNDEF, vars.run_number);
+        assert_eq!(UNDEF, vars.run_state);
+        assert_eq!(UNDEF, vars.buffers_analyzed);
+        assert_eq!(UNDEF, vars.title);
+
+        // Now the ones with values.. which may need us to get
+        // the usage:
+
+        let usage = binder_api.get_usage().expect("getting usage via API");
+        println!("Usgae: {:?}", usage);
+        let batching = papi.get_batching();
+
+        assert_eq!((usage.free_bytes + usage.used_bytes)/ (1024 * 1024), vars.display_megabytes);
+        assert_eq!(false, vars.online);
+        assert_eq!(batching, vars.event_list_size);
+        assert_eq!(get_instdir(), vars.instdir);
+        assert_eq!("None", vars.display_type);
+
+        teardown(chan, &papi, &binder_api);
+    }
 }
