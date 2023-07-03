@@ -7,7 +7,7 @@
 //! *  /spectcl/spectrum/create - create a new spectrum.
 //! *  /spectcl/spectrum/contents - Get the contents of a spectrum.
 //! *  /spectcl/sspectrum/clear - clear
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
 
 use super::*;
@@ -47,14 +47,14 @@ pub fn spectcl_sptype_to_rustogramer(sptype: &str) -> Result<String, String> {
 
 // structures that define the JSON we'll return:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct Axis {
     low: f64,
     high: f64,
     bins: u32,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct SpectrumDescription {
     name: String,
@@ -70,7 +70,7 @@ pub struct SpectrumDescription {
     gate: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct ListResponse {
     status: String,
@@ -634,6 +634,10 @@ fn make_2dsum(
 /// SpecTcl REST defines _chantype_ which we ignore because
 /// all our spectra are f64 (double).
 ///
+/// **Note**, however, that copies bound in shared memory will
+/// have type long (u32) for all spectra as that's supported by
+/// Xamine and f64 is not.
+///
 /// The SpecTcl REST supports defining projection spectra which
 /// Rustogrammer does not have. These have _roi_ and _direction_
 /// which define a region of interest contour/band and a projection direction
@@ -672,14 +676,14 @@ pub fn create_spectrum(
 
 /// Each channel value looks like this:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Channel {
     xchan: f64,
     ychan: f64,
     value: f64,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct ContentsResponse {
     status: String,
@@ -1004,5 +1008,365 @@ mod list_parse_tests {
         let list = "{1 2 3} {a b} c}";
         let parsed = parse_two_element_list(list);
         assert!(parsed.is_err());
+    }
+}
+
+#[cfg(test)]
+mod spectrum_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::processing;
+    use crate::rest::HistogramState;
+    use crate::sharedmem::binder;
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn make_some_test_objects(
+        sapi: &spectrum_messages::SpectrumMessageClient,
+        papi: &parameter_messages::ParameterMessageClient,
+    ) {
+        // Some parameters:
+
+        for i in 0..10 {
+            papi.create_parameter(&(format!("parameter.{}", i)))
+                .expect("Creating a parameters");
+        }
+
+        // Some spectra: One of each type.
+
+        sapi.create_spectrum_1d("oned", "parameter.0", 0.0, 1024.0, 512)
+            .expect("oned");
+        sapi.create_spectrum_multi1d(
+            "m1d",
+            &vec![
+                String::from("parameter.0"),
+                String::from("parameter.1"),
+                String::from("parameter.2"),
+                String::from("parameter.3"),
+                String::from("parameter.4"),
+                String::from("parameter.5"),
+            ],
+            0.0,
+            1024.0,
+            512,
+        )
+        .expect("m1d");
+        sapi.create_spectrum_multi2d(
+            "m2d",
+            &vec![
+                String::from("parameter.0"),
+                String::from("parameter.1"),
+                String::from("parameter.2"),
+                String::from("parameter.3"),
+                String::from("parameter.4"),
+                String::from("parameter.5"),
+            ],
+            0.0,
+            1024.0,
+            256,
+            0.0,
+            1024.0,
+            256,
+        )
+        .expect("m2d");
+        sapi.create_spectrum_pgamma(
+            "pgamma",
+            &vec![
+                String::from("parameter.0"),
+                String::from("parameter.1"),
+                String::from("parameter.2"),
+                String::from("parameter.3"),
+                String::from("parameter.4"),
+                String::from("parameter.5"),
+            ],
+            &vec![
+                String::from("parameter.4"),
+                String::from("parameter.5"),
+                String::from("parameter.6"),
+                String::from("parameter.7"),
+                String::from("parameter.8"),
+                String::from("parameter.9"),
+            ],
+            0.0,
+            1024.0,
+            256,
+            0.0,
+            1024.0,
+            256,
+        )
+        .expect("pgamma");
+        sapi.create_spectrum_summary(
+            "summary",
+            &vec![
+                String::from("parameter.0"),
+                String::from("parameter.1"),
+                String::from("parameter.2"),
+                String::from("parameter.3"),
+                String::from("parameter.4"),
+                String::from("parameter.5"),
+                String::from("parameter.6"),
+                String::from("parameter.7"),
+                String::from("parameter.8"),
+                String::from("parameter.9"),
+            ],
+            0.0,
+            1024.0,
+            256,
+        )
+        .expect("summary");
+        sapi.create_spectrum_2d(
+            "twod",
+            "parameter.0",
+            "parameter.1",
+            0.0,
+            1024.0,
+            256,
+            0.0,
+            1024.0,
+            256,
+        )
+        .expect("twod");
+        sapi.create_spectrum_2dsum(
+            "2dsum",
+            &vec![String::from("parameter.0"), String::from("parameter.1")],
+            &vec![String::from("parameter.2"), String::from("parameter.3")],
+            0.0,
+            1024.0,
+            256,
+            0.0,
+            1024.0,
+            256,
+        )
+        .expect("2dsum");
+    }
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hg_sender);
+        let papi = parameter_messages::ParameterMessageClient::new(&hg_sender);
+
+        make_some_test_objects(&sapi, &papi);
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build().manage(state).mount(
+            "/",
+            routes![
+                list_spectrum,
+                delete_spectrum,
+                create_spectrum,
+                get_contents,
+                clear_spectra,
+            ],
+        )
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        fs::remove_file(Path::new(&backing_file)).expect(&format!(
+            "Failed to remove shared memory file {}",
+            backing_file
+        ));
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn list_1() {
+        // Unfiltered all spectra made by make_some_test_objects get listed:
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(7, reply.detail.len());
+
+        // The order of the spectra is unpredictable so we
+        // first sort by name:
+
+        let mut spectrum_info = reply.detail.clone();
+        spectrum_info.sort_by(|a, b| a.name.cmp(&b.name));
+
+        // first is 2dsum:
+
+        let info = &spectrum_info[0];
+        assert_eq!("2dsum", info.name);
+        assert_eq!("m2", info.spectrum_type); // SpecTcl type.
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(
+            vec![String::from("parameter.0"), String::from("parameter.1")].len(),
+            info.xparameters.len()
+        );
+        for (i, s) in vec![String::from("parameter.0"), String::from("parameter.1")]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(s.as_str(), info.xparameters[i]);
+        }
+        assert_eq!(
+            vec![String::from("parameter.2"), String::from("parameter.3")].len(),
+            info.yparameters.len()
+        );
+        for (i, s) in vec![String::from("parameter.2"), String::from("parameter.3")]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(s.as_str(), info.yparameters[i]);
+        }
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(256, xaxis.bins);
+
+        assert!(info.yaxis.is_some());
+        let yaxis = &info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+
+        // m1d is next alphabetically - an m2 spectrum.
+
+        let info = &spectrum_info[1];
+        assert_eq!("m1d", info.name);
+        assert_eq!("g1", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        let sbparams = vec![
+            String::from("parameter.0"),
+            String::from("parameter.1"),
+            String::from("parameter.2"),
+            String::from("parameter.3"),
+            String::from("parameter.4"),
+            String::from("parameter.5"),
+        ];
+        assert_eq!(sbparams.len(), info.parameters.len());
+        for (i, s) in sbparams.iter().enumerate() {
+            assert_eq!(s.as_str(), info.parameters[i]);
+        }
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(512, xaxis.bins);
+        assert!(info.yaxis.is_none());
+
+        // next is m2d - a g2 spectrum.
+
+        let info = &spectrum_info[2];
+        assert_eq!("m2d", info.name);
+        assert_eq!("g2", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        let sbparams = vec![
+            String::from("parameter.0"),
+            String::from("parameter.1"),
+            String::from("parameter.2"),
+            String::from("parameter.3"),
+            String::from("parameter.4"),
+            String::from("parameter.5"),
+        ];
+        assert_eq!(sbparams.len(), info.parameters.len());
+        for (i, s) in sbparams.iter().enumerate() {
+            assert_eq!(s.as_str(), info.parameters[i]);
+        }
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(256, xaxis.bins);
+
+        assert!(info.yaxis.is_some());
+        let yaxis = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+
+        // Next is oned - "1" spectrum.
+
+        let info = &spectrum_info[3];
+        assert_eq!("oned", info.name);
+        assert_eq!("1", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(1, info.parameters.len());
+        assert_eq!("parameter.0", info.parameters[0]);
+        assert!(info.xaxis.is_some());
+        assert!(info.yaxis.is_none());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0,xaxis.high);
+        assert_eq!(512, xaxis.bins);
+
+        // next pgamma I think (type gd).
+
+        let info = &spectrum_info[4];
+        
+
+        // Close out the test
+        teardown(chan, &papi, &binder_api);
     }
 }
