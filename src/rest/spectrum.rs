@@ -1886,4 +1886,85 @@ mod spectrum_tests {
 
         teardown(chan, &papi, &bind_api);
     }
+    #[test]
+    fn createg2_1() {
+        // succesfully create a Multi2d (g2 in SpecTcl parlance).
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0%20100%20100}%20{0%20100%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let list = sapi.list_spectra("test").expect("API listing of spectrum");
+        assert_eq!(1, list.len());
+        let info = &list[0];
+        assert_eq!("test", info.name);
+        assert_eq!("Multi2d", info.type_name);
+        assert_eq!(4, info.xparams.len());
+        assert_eq!(0, info.yparams.len());
+        assert!(info.xaxis.is_some());
+        assert!(info.yaxis.is_some());
+        assert!(info.gate.is_none());
+
+        let params = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        for (i, s) in params.iter().enumerate() {
+            assert_eq!(*s, info.xparams[i]);
+        }
+
+        let x = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, x.low);
+        assert_eq!(100.0, x.high);
+        assert_eq!(102, x.bins);
+
+        let y = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, y.low);
+        assert_eq!(100.0, y.high);
+        assert_eq!(102, y.bins);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg2_2() {
+        // all parameters must be defined:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.13&axes={0%20100%20100}%20{0%20100%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+        assert_eq!("Failed to create multi2d spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg2_3() {
+        // Need 2 axes:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes=0%20100%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+        assert_eq!("Failed to parse axes definitions", reply.status);
+
+
+        teardown(chan, &papi, &bind_api);
+    }
+    
 }
