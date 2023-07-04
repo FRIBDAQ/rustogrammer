@@ -1963,8 +1963,54 @@ mod spectrum_tests {
             .expect("parsing JSON");
         assert_eq!("Failed to parse axes definitions", reply.status);
 
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_1() {
+        // Successful creation of PGamma  spectrum (gd in SpecTcl).
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.2}%20{parameter.3%20parameter.4}&axes={0%20100%20100}%20{-1%201%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let listing = sapi.list_spectra("test").expect("Listing spectra with API");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("test", info.name);
+        assert_eq!("PGamma", info.type_name);
+        assert_eq!(3, info.xparams.len());
+        assert_eq!(2, info.yparams.len());
+        assert!(info.xaxis.is_some());
+        assert!(info.yaxis.is_some());
+        assert!(info.gate.is_none());
+
+        let xpars = vec!["parameter.0", "parameter.1", "parameter.2"];
+        for (i, s) in xpars.iter().enumerate() {
+            assert_eq!(*s, info.xparams[i]);
+        }
+        let ypars = vec!["parameter.3", "parameter.4"];
+        for (i, s) in ypars.iter().enumerate() {
+            assert_eq!(*s, info.yparams[i]);
+        }
+        let x = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, x.low);
+        assert_eq!(100.0, x.high);
+        assert_eq!(102, x.bins);
+
+        let y = info.yaxis.clone().unwrap();
+        assert_eq!(-1.0, y.low);
+        assert_eq!(1.0, y.high);
+        assert_eq!(202, y.bins);
 
         teardown(chan, &papi, &bind_api);
     }
-    
 }
