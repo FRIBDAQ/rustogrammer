@@ -1677,7 +1677,7 @@ mod spectrum_tests {
         let info = &listing[0];
 
         assert_eq!("test", info.name);
-        assert_eq!("2D", info.type_name);  // native type.
+        assert_eq!("2D", info.type_name); // native type.
         assert_eq!(1, info.xparams.len());
         assert_eq!("parameter.0", info.xparams[0]);
         assert_eq!(1, info.yparams.len());
@@ -1711,7 +1711,10 @@ mod spectrum_tests {
             .expect("Decoding JSON");
 
         assert_eq!("Failed to process parameter list", reply.status);
-        assert_eq!("There must be exactly two parameters for a 2d spectrum", reply.detail);
+        assert_eq!(
+            "There must be exactly two parameters for a 2d spectrum",
+            reply.detail
+        );
 
         teardown(chan, &papi, &bind_api);
     }
@@ -1728,7 +1731,7 @@ mod spectrum_tests {
             .dispatch()
             .into_json::<GenericResponse>()
             .expect("Decoding JSON");
-        
+
         assert_eq!("Failed to parse 2d parameter list", reply.status);
 
         teardown(chan, &papi, &bind_api);
@@ -1775,7 +1778,9 @@ mod spectrum_tests {
         let (chan, papi, bind_api) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Createing client");
-        let req = client.get("/create?name=test&type=2&parameters=parameter.0%20parameter.1%&axes=0%20100%20100");
+        let req = client.get(
+            "/create?name=test&type=2&parameters=parameter.0%20parameter.1%&axes=0%20100%20100",
+        );
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
@@ -1789,12 +1794,10 @@ mod spectrum_tests {
     fn create2d_7() {
         // Parse error for axis defs:
 
-        // Create a valid 2d spectrum.
-
         let rocket = setup();
         let (chan, papi, bind_api) = getstate(&rocket);
 
-        let client = Client::untracked(rocket).expect("Createing client");
+        let client = Client::untracked(rocket).expect("Creating client");
         let req = client.get("/create?name=test&type=2&parameters=parameter.0%20parameter.1&axes={0%20100%20100}%20{-1%201%20100");
         let reply = req
             .dispatch()
@@ -1803,7 +1806,84 @@ mod spectrum_tests {
 
         assert_eq!("Failed to parse axes definitions", reply.status);
         teardown(chan, &papi, &bind_api);
-
     }
+    #[test]
+    fn createg1_1() {
+        // successful creation of a Multi1D (g1 in SpecTcl notation).
 
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g1&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes=0%20100%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let list = sapi.list_spectra("test").expect("API listing of spectrum");
+        assert_eq!(1, list.len());
+        let info = &list[0];
+        assert_eq!("test", info.name);
+        assert_eq!("Multi1d", info.type_name);
+        assert_eq!(4, info.xparams.len());
+        assert_eq!(0, info.yparams.len());
+        let params = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        for (i, s) in params.iter().enumerate() {
+            assert_eq!(*s, info.xparams[i]);
+        }
+
+        assert!(info.xaxis.is_some());
+        assert!(info.yaxis.is_none());
+        assert!(info.gate.is_none());
+
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(100.0, xaxis.high);
+        assert_eq!(102, xaxis.bins);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg1_2() {
+        // Need only one axis.
+        // A white box note:  The sam code is used to parse
+        // axes for all spectrum types so between the 1d and 2d
+        // tests, parse error reporting has been done.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g1&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0%20100%20100}%20{0%20100%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("Failed to process axis definition", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg1_3() {
+        // all parameters must be defined:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g1&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.13&axes=0%20100%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("Failed to make multi1d spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
 }
