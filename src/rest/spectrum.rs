@@ -396,7 +396,7 @@ fn make_1d(
     let params = parsed_params.unwrap();
     if params.len() != 1 {
         return GenericResponse::err(
-            "Eror processing 1d spectrum parameters",
+            "Error processing 1d spectrum parameters",
             "Only allowed one parameter",
         );
     }
@@ -1507,7 +1507,8 @@ mod spectrum_tests {
         let capi = condition_messages::ConditionMessageClient::new(&chan);
         capi.create_true_condition("Acondition");
         let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
-        sapi.gate_spectrum("twod", "Acondition").expect("Gating spectrum");
+        sapi.gate_spectrum("twod", "Acondition")
+            .expect("Gating spectrum");
 
         let client = Client::untracked(rocket).expect("Making client");
         let req = client.get("/list?filter=twod");
@@ -1561,4 +1562,97 @@ mod spectrum_tests {
     }
     // Test spectrum creation.  We'll use ReST to create the test spectrum
     // and the API to see if it was correctly made.
+
+    #[test]
+    fn create1d_1() {
+        // Correct creation of a 1d spectrum:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=1&parameters=parameter.0&axes=-1%201%20512");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Creating 1d spectrum");
+
+        assert_eq!("OK", reply.status);
+
+        let hapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let listing = hapi.list_spectra("test").expect("listing spectra");
+
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("test", info.name);
+        assert_eq!("1D", info.type_name); // Native type.
+        assert_eq!(1, info.xparams.len());
+        assert_eq!("parameter.0", info.xparams[0]);
+        assert_eq!(0, info.yparams.len());
+        assert!(info.xaxis.is_some());
+        let x = info.xaxis.clone().unwrap();
+        assert_eq!(-1.0, x.low);
+        assert_eq!(1.0, x.high);
+        assert_eq!(514, x.bins); // underflow and overflow.
+        assert!(info.yaxis.is_none());
+        assert!(info.gate.is_none());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create1d_2() {
+        // invalid parameter:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=1&parameters=parameter.00&axes=-1%201%20512");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Creating 1d spectrum");
+
+        assert_eq!("Failed to create 1d spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create1d_3() {
+        // can only have one parameters:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client
+            .get("/create?name=test&type=1&parameters=parameter.0%20parameter.1&axes=-1%201%20512");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Creating 1d spectrum");
+
+        assert_eq!("Error processing 1d spectrum parameters", reply.status);
+        assert_eq!("Only allowed one parameter", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create1d_4() {
+        // invalid axis specification:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=1&parameters=parameter.0&axes=-1%201");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Creating 1d spectrum");
+
+        assert_eq!("Invalid axis specification", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
 }
