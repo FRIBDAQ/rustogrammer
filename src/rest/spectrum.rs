@@ -1495,4 +1495,34 @@ mod spectrum_tests {
 
         teardown(chan, &papi, &binder_api);
     }
+    #[test]
+    fn delete_1() {
+        // delete an existing spectrum.
+
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/delete?name=summary");
+        let reply = req.dispatch().into_json::<GenericResponse>().expect("parsing json");
+
+        assert_eq!("OK", reply.status);
+
+        teardown(chan, &papi, &binder_api);
+    }
+    #[test]
+    fn delete_2() {
+        // delete a nonexistenf spectrum is an error:
+
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/delete?name=nosuch");
+        let reply = req.dispatch().into_json::<GenericResponse>().expect("parsing json");
+
+        assert_eq!("Failed to delete nosuch", reply.status);
+
+        teardown(chan, &papi, &binder_api);
+    }
 }
