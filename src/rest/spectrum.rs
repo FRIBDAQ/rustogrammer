@@ -1459,4 +1459,40 @@ mod spectrum_tests {
         // Close out the test
         teardown(chan, &papi, &binder_api);
     }
+    #[test]
+    fn list_2() {
+        // filtered list.
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making client");
+        let req = client.get("/list?filter=t*");
+        let reply = req.dispatch().into_json::<ListResponse>().expect("Parsing json");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        let info = &reply.detail[0];
+        assert_eq!("twod", info.name);
+        assert_eq!("2", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(1, info.xparameters.len());
+        assert_eq!("parameter.0", info.xparameters[0]);
+        assert_eq!(1, info.yparameters.len());
+        assert_eq!("parameter.1", info.yparameters[0]);
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(256, xaxis.bins);
+
+        assert!(info.yaxis.is_some());
+        let yaxis = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+
+
+        teardown(chan, &papi, &binder_api);
+    }
 }
