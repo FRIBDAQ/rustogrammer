@@ -1016,7 +1016,7 @@ mod spectrum_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
-    use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
     use crate::processing;
     use crate::rest::HistogramState;
     use crate::sharedmem::binder;
@@ -1467,7 +1467,10 @@ mod spectrum_tests {
 
         let client = Client::untracked(rocket).expect("making client");
         let req = client.get("/list?filter=t*");
-        let reply = req.dispatch().into_json::<ListResponse>().expect("Parsing json");
+        let reply = req
+            .dispatch()
+            .into_json::<ListResponse>()
+            .expect("Parsing json");
 
         assert_eq!("OK", reply.status);
         assert_eq!(1, reply.detail.len());
@@ -1492,6 +1495,31 @@ mod spectrum_tests {
         assert_eq!(1024.0, yaxis.high);
         assert_eq!(256, yaxis.bins);
 
+        teardown(chan, &papi, &binder_api);
+    }
+    #[test]
+    fn list_3() {
+        // Make a spectrm gated and check that the list shows this:
+
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let capi = condition_messages::ConditionMessageClient::new(&chan);
+        capi.create_true_condition("Acondition");
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.gate_spectrum("twod", "Acondition").expect("Gating spectrum");
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/list?filter=twod");
+        let reply = req
+            .dispatch()
+            .into_json::<ListResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        assert!(reply.detail[0].gate.is_some());
+        assert_eq!("Acondition", reply.detail[0].gate.clone().unwrap());
 
         teardown(chan, &papi, &binder_api);
     }
@@ -1504,7 +1532,10 @@ mod spectrum_tests {
 
         let client = Client::untracked(rocket).expect("Making client");
         let req = client.get("/delete?name=summary");
-        let reply = req.dispatch().into_json::<GenericResponse>().expect("parsing json");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing json");
 
         assert_eq!("OK", reply.status);
 
@@ -1519,10 +1550,15 @@ mod spectrum_tests {
 
         let client = Client::untracked(rocket).expect("Making client");
         let req = client.get("/delete?name=nosuch");
-        let reply = req.dispatch().into_json::<GenericResponse>().expect("parsing json");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing json");
 
         assert_eq!("Failed to delete nosuch", reply.status);
 
         teardown(chan, &papi, &binder_api);
     }
+    // Test spectrum creation.  We'll use ReST to create the test spectrum
+    // and the API to see if it was correctly made.
 }
