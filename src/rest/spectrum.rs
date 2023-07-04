@@ -1358,13 +1358,103 @@ mod spectrum_tests {
         assert!(info.yaxis.is_none());
         let xaxis = info.xaxis.clone().unwrap();
         assert_eq!(0.0, xaxis.low);
-        assert_eq!(1024.0,xaxis.high);
+        assert_eq!(1024.0, xaxis.high);
         assert_eq!(512, xaxis.bins);
 
         // next pgamma I think (type gd).
 
         let info = &spectrum_info[4];
-        
+        assert_eq!("pgamma", info.name);
+        assert_eq!("gd", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(6, info.xparameters.len());
+        let xparams = vec![
+            String::from("parameter.0"),
+            String::from("parameter.1"),
+            String::from("parameter.2"),
+            String::from("parameter.3"),
+            String::from("parameter.4"),
+            String::from("parameter.5"),
+        ];
+        for (i, s) in xparams.iter().enumerate() {
+            assert_eq!(s.as_str(), info.xparameters[i]);
+        }
+        assert_eq!(6, info.yparameters.len());
+        let yparams = vec![
+            String::from("parameter.4"),
+            String::from("parameter.5"),
+            String::from("parameter.6"),
+            String::from("parameter.7"),
+            String::from("parameter.8"),
+            String::from("parameter.9"),
+        ];
+        for (i, s) in yparams.iter().enumerate() {
+            assert_eq!(s.as_str(), info.yparameters[i]);
+        }
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(256, xaxis.bins);
+        assert!(info.yaxis.is_some());
+        let yaxis = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+
+        // Next is summary:
+
+        let info = &spectrum_info[5];
+        assert_eq!("summary", info.name);
+        assert_eq!("s", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(10, info.parameters.len());
+        let params = vec![
+            String::from("parameter.0"),
+            String::from("parameter.1"),
+            String::from("parameter.2"),
+            String::from("parameter.3"),
+            String::from("parameter.4"),
+            String::from("parameter.5"),
+            String::from("parameter.6"),
+            String::from("parameter.7"),
+            String::from("parameter.8"),
+            String::from("parameter.9"),
+        ];
+        for (i, s) in params.iter().enumerate() {
+            assert_eq!(s.as_str(), info.parameters[i]);
+        }
+        assert!(info.yaxis.is_some());
+        let yaxis = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+        assert!(info.xaxis.is_none());
+
+        // Twod is last:
+
+        let info = &spectrum_info[6];
+        assert_eq!("twod", info.name);
+        assert_eq!("2", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(1, info.xparameters.len());
+        assert_eq!("parameter.0", info.xparameters[0]);
+        assert_eq!(1, info.yparameters.len());
+        assert_eq!("parameter.1", info.yparameters[0]);
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(256, xaxis.bins);
+
+        assert!(info.yaxis.is_some());
+        let yaxis = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
 
         // Close out the test
         teardown(chan, &papi, &binder_api);
