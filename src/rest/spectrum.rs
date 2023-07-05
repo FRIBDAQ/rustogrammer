@@ -2469,5 +2469,74 @@ mod spectrum_tests {
         teardown(chan, &papi, &bind_api);
 
     }
+    #[test]
+    fn clear_1() {
+        // Clear all spectra:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p1 = EventParameter::new(1, 512.0);
+        let p2 = EventParameter::new(2, 256.0); // so xchan/ychan differ.
+        let e = vec![p1, p2];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Rocket client");
+        let req = client.get("/clear");  // no pattern means *
+        let reply = req.dispatch().into_json::<GenericResponse>().expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status, "{}", reply.detail);
+
+        // all of the spectra should have no counts:
+
+        let spectra = vec!["oned", "m1d", "m2d", "pgamma", "summary", "twod", "2dsum"];
+        for s in spectra {
+            let data = sapi.get_contents(s, -1024.0, 1024.0, -1024.0, 1024.0).expect("Get contents");
+            assert_eq!(0, data.len(), "{} has counts", s);
+        }
+
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn clear_2() {
+        // Clear only m1d
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p1 = EventParameter::new(1, 512.0);
+        let p2 = EventParameter::new(2, 256.0); // so xchan/ychan differ.
+        let e = vec![p1, p2];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Rocket client");
+        let req = client.get("/clear?pattern=m1d");  // no pattern means *
+        let reply = req.dispatch().into_json::<GenericResponse>().expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status, "{}", reply.detail);
+
+        // m1 should be cleared...everyone else has counts (I think).
+
+        
+        let spectra = vec![("m1d", 0), ("oned", 1), ("pgamma", 0), ("summary",2), ("twod", 1), 
+        ("2dsum", 0) ];
+        for s in spectra {
+            let data = sapi.get_contents(s.0, -1024.0, 1024.0, -1024.0, 1024.0).expect("Get contents");
+            assert_eq!(s.1, data.len(), "{} has count mismatch", s.0);
+        }
+
+        teardown(chan, &papi, &bind_api);
+    }
 }
  
