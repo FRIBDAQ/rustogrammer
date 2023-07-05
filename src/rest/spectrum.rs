@@ -1017,6 +1017,7 @@ mod spectrum_tests {
     use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
+    use crate::parameters::EventParameter;
     use crate::processing;
     use crate::rest::HistogramState;
     use crate::sharedmem::binder;
@@ -2310,6 +2311,83 @@ mod spectrum_tests {
             .expect("Parsing JSON");
 
         assert_eq!("Failed to parse axes definitions", reply.status);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_1() {
+        // Initially, none of the test spectra have any data:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=oned&xlow=0.0&xhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_2() {
+        // put a count in channel 256 (512.0) first.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p = EventParameter::new(1, 512.0);
+        let e = vec![p];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=oned&xlow=0.0&xhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        assert_eq!(512.0, reply.detail[0].xchan);
+        assert_eq!(1.0, reply.detail[0].value);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_3() {
+        // set AOI so that we don't see the count:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p = EventParameter::new(1, 512.0);
+        let e = vec![p];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=oned&xlow=514.0&xhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(0, reply.detail.len());
+
         teardown(chan, &papi, &bind_api);
     }
 }
