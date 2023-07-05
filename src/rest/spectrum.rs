@@ -2061,7 +2061,7 @@ mod spectrum_tests {
             .dispatch()
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
-        
+
         assert_eq!("Failed to parse parameter list", reply.status);
 
         teardown(chan, &papi, &bind_api);
@@ -2079,12 +2079,104 @@ mod spectrum_tests {
             .dispatch()
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
-        
+
         assert_eq!("Failed to parse axes definitions", reply.status);
 
         teardown(chan, &papi, &bind_api);
     }
+    #[test]
+    fn createsummary_1() {
+        // Create a valid summary spectrum.
 
-    
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=s&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes=-1%201%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let listing = sapi
+            .list_spectra("test")
+            .expect("Using API to list spectra");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("test", info.name);
+        assert_eq!("Summary", info.type_name);
+        assert_eq!(4, info.xparams.len());
+        assert_eq!(0, info.yparams.len());
+        assert!(info.xaxis.is_none());
+        assert!(info.yaxis.is_some());
+        assert!(info.gate.is_none());
+
+        let pars = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        for (i, p) in pars.iter().enumerate() {
+            assert_eq!(*p, info.xparams[i]);
+        }
+        let y = info.yaxis.clone().unwrap();
+        assert_eq!(-1.0, y.low);
+        assert_eq!(1.0, y.high);
+        assert_eq!(102, y.bins);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createsummary_2() {
+        // All parameters must be defined.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=s&parameters=xparameter.0%20parameter.1%20parameter.2%20parameter.3&axes=-1%201%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to create spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createsummary_3() {
+        // Only one parameter list allowed.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=s&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4}&axes=-1%201%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to parse the parameter list", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creatsummary_4() {
+        // only one axis list allowed.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=s&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={-1%201%20100}%20{0.0%201.0%2050}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to process axis definition", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
 }
-
