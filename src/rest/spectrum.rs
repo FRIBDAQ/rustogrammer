@@ -2013,4 +2013,78 @@ mod spectrum_tests {
 
         teardown(chan, &papi, &bind_api);
     }
+    #[test]
+    fn creategd_2() {
+        // All params must be defined. for x
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.12}%20{parameter.3%20parameter.4}&axes={0%20100%20100}%20{-1%201%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to create pgamma spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_3() {
+        // All params must be defined for y
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.2}%20{parameter.3%20parameter.14}&axes={0%20100%20100}%20{-1%201%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to create pgamma spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_4() {
+        // need two parameter lists.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters=parameter.0%20parameter.1%20parameter.2&axes={0%20100%20100}%20{-1%201%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        
+        assert_eq!("Failed to parse parameter list", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_5() {
+        // Need two axes.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.2}%20{parameter.3%20parameter.4}&axes=0%20100%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        
+        assert_eq!("Failed to parse axes definitions", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+
+    
 }
+
