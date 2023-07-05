@@ -2464,10 +2464,12 @@ mod spectrum_tests {
             .into_json::<ContentsResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Failed to fetch info for twodd no such spectrum or ambiguous name", reply.status);
+        assert_eq!(
+            "Failed to fetch info for twodd no such spectrum or ambiguous name",
+            reply.status
+        );
 
         teardown(chan, &papi, &bind_api);
-
     }
     #[test]
     fn clear_1() {
@@ -2487,8 +2489,11 @@ mod spectrum_tests {
         sapi.process_events(&events).expect("Providing events");
 
         let client = Client::untracked(rocket).expect("Rocket client");
-        let req = client.get("/clear");  // no pattern means *
-        let reply = req.dispatch().into_json::<GenericResponse>().expect("Parsing JSON");
+        let req = client.get("/clear"); // no pattern means *
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
 
         assert_eq!("OK", reply.status, "{}", reply.detail);
 
@@ -2496,10 +2501,11 @@ mod spectrum_tests {
 
         let spectra = vec!["oned", "m1d", "m2d", "pgamma", "summary", "twod", "2dsum"];
         for s in spectra {
-            let data = sapi.get_contents(s, -1024.0, 1024.0, -1024.0, 1024.0).expect("Get contents");
+            let data = sapi
+                .get_contents(s, -1024.0, 1024.0, -1024.0, 1024.0)
+                .expect("Get contents");
             assert_eq!(0, data.len(), "{} has counts", s);
         }
-
 
         teardown(chan, &papi, &bind_api);
     }
@@ -2521,22 +2527,31 @@ mod spectrum_tests {
         sapi.process_events(&events).expect("Providing events");
 
         let client = Client::untracked(rocket).expect("Rocket client");
-        let req = client.get("/clear?pattern=m1d");  // no pattern means *
-        let reply = req.dispatch().into_json::<GenericResponse>().expect("Parsing JSON");
+        let req = client.get("/clear?pattern=m1d"); // no pattern means *
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
 
         assert_eq!("OK", reply.status, "{}", reply.detail);
 
         // m1 should be cleared...everyone else has counts (I think).
 
-        
-        let spectra = vec![("m1d", 0), ("oned", 1), ("pgamma", 0), ("summary",2), ("twod", 1), 
-        ("2dsum", 0) ];
+        let spectra = vec![
+            ("m1d", 0),
+            ("oned", 1),
+            ("pgamma", 0),
+            ("summary", 2),
+            ("twod", 1),
+            ("2dsum", 0),
+        ];
         for s in spectra {
-            let data = sapi.get_contents(s.0, -1024.0, 1024.0, -1024.0, 1024.0).expect("Get contents");
+            let data = sapi
+                .get_contents(s.0, -1024.0, 1024.0, -1024.0, 1024.0)
+                .expect("Get contents");
             assert_eq!(s.1, data.len(), "{} has count mismatch", s.0);
         }
 
         teardown(chan, &papi, &bind_api);
     }
 }
- 
