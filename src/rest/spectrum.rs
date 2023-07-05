@@ -2390,4 +2390,84 @@ mod spectrum_tests {
 
         teardown(chan, &papi, &bind_api);
     }
+    #[test]
+    fn get_4() {
+        // put a count in the twod spectrum.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p1 = EventParameter::new(1, 512.0);
+        let p2 = EventParameter::new(2, 256.0); // so xchan/ychan differ.
+        let e = vec![p1, p2];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=twod&xlow=0.0&xhigh=1024.0&ylow=0.0&yhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+
+        assert_eq!(512.0, reply.detail[0].xchan);
+        assert_eq!(256.0, reply.detail[0].ychan);
+        assert_eq!(1.0, reply.detail[0].value);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_5() {
+        // count outsidef of ROI
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p1 = EventParameter::new(1, 512.0);
+        let p2 = EventParameter::new(2, 256.0); // so xchan/ychan differ.
+        let e = vec![p1, p2];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=twod&xlow=0.0&xhigh=1024.0&ylow=258.0&yhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_6() {
+        // No such spectrum.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=twodd&xlow=0.0&xhigh=1024.0&ylow=258.0&yhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to fetch info for twodd no such spectrum or ambiguous name", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+
+    }
 }
+ 
