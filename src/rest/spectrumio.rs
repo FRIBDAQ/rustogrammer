@@ -1110,4 +1110,156 @@ mod read_tests {
 
         teardown(chan, &papi, &bind_api);
     }
+    // Test ASCII reads note that all the option handling is common
+    // code as is the unable to open file thing.
+    // We will test the default case and bad format case.
+    ///
+    #[test]
+    fn ascii_1() {
+        // Read ASCII file with default options.  This is the same
+        // stuff as test.json so the same tests can be done:
+
+        // All thedefaults on test.json make 1 and 2
+        // 1 is a 1-d spectrum 2 a 2-d spectrum.  The
+        // required parameters are also created.
+        // These are snapshot, no replace, and bound to shared memory.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?filename=junk.asc&format=ascii");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status, "Detail: {}", reply.detail);
+
+        // we now should have parameters parameters.{05,06}:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&chan);
+        let p = param_api
+            .list_parameters("parameters.05")
+            .expect("Getting parameters.05");
+        assert_eq!(1, p.len());
+        let p = param_api
+            .list_parameters("parameters.06")
+            .expect("getting parameters.06");
+        assert_eq!(1, p.len());
+
+        // There should be a condition named "_snapshot_condition_"
+        // and it's a False condition:
+
+        let cond_api = condition_messages::ConditionMessageClient::new(&chan);
+        let c = cond_api.list_conditions("_snapshot_condition_");
+        assert!(if let condition_messages::ConditionReply::Listing(l) = c {
+            assert_eq!(1, l.len());
+            assert_eq!("False", l[0].type_name);
+            true
+        } else {
+            false
+        });
+        // Spectrum '1' exists:
+        //  -   Native type is Oned
+        //  -   Xparameters is "parameters.05"
+        //  -   x_axis = (0,1024,1026)
+        //  -   Bin 500 should have 163500 counts.
+        //  -   Is bound into shared memory.
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let s = spec_api.list_spectra("1").expect("Listing '1' spectrum");
+        assert_eq!(1, s.len());
+        let sp = &s[0];
+        assert_eq!("1D", sp.type_name);
+        assert_eq!(1, sp.xparams.len());
+        assert_eq!("parameters.05", sp.xparams[0]);
+        let x = sp.xaxis.clone().expect("Unwraping 1's x axis");
+        assert_eq!(0.0, x.low);
+        assert_eq!(1024.0, x.high);
+        assert_eq!(1026, x.bins);
+        assert!(sp.yaxis.is_none());
+        assert!(sp.gate.is_some());
+        assert_eq!("_snapshot_condition_", sp.gate.clone().unwrap());
+
+        let counts = spec_api
+            .get_contents("1", 0.0, 1024.0, 0.0, 0.0)
+            .expect("getting contents");
+        assert_eq!(1, counts.len());
+        let ch = &counts[0];
+        assert_eq!(500.0, ch.x);
+        assert_eq!(501, ch.bin);
+        assert_eq!(spectrum_messages::ChannelType::Bin, ch.chan_type);
+        assert_eq!(163500.0, ch.value);
+
+        let bindings = bind_api.list_bindings("1").expect("listing bindings");
+        assert_eq!(1, bindings.len());
+        assert_eq!("1", bindings[0].1);
+
+        // Spectrum '2' exists:
+        // - Native type is Twod
+        // - xparameters is 'parameters.05"
+        // - yparameters is "parameters.06"
+        // - xaxis  (0, 1024, 1026)
+        // - yaxis  (0, 1024, 1026),
+        // - (500, 600) has 163500 counts.
+        // - Is bound into shared memory.
+
+        let s = spec_api.list_spectra("2").expect("listing '2' spectrum");
+        assert_eq!(1, s.len());
+        let sp = &s[0];
+        assert_eq!("2D", sp.type_name);
+        assert_eq!(1, sp.xparams.len());
+        assert_eq!("parameters.05", sp.xparams[0]);
+        assert_eq!(1, sp.yparams.len());
+        assert_eq!("parameters.06", sp.yparams[0]);
+        let x = sp.xaxis.expect("Unwrapping x axis definition of 2");
+        assert_eq!(0.0, x.low);
+        assert_eq!(1024.0, x.high);
+        assert_eq!(1026, x.bins);
+        let y = sp.yaxis.expect("UNwrapgin 2's y axis");
+        assert_eq!(0.0, y.low);
+        assert_eq!(1024.0, y.high);
+        assert_eq!(1026, y.bins);
+        assert!(sp.gate.is_some());
+        assert_eq!("_snapshot_condition_", sp.gate.clone().unwrap());
+
+        let counts = spec_api
+            .get_contents("2", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("Getting contents of 2");
+        assert_eq!(1, counts.len());
+        let ch = &counts[0];
+        assert_eq!(500.0, ch.x);
+        assert_eq!(600.0, ch.y);
+        assert_eq!(501 + (601 * 1026), ch.bin);
+        assert_eq!(spectrum_messages::ChannelType::Bin, ch.chan_type);
+        assert_eq!(163500.0, ch.value);
+
+        let bindings = bind_api.list_bindings("2").expect("Listing bindings");
+        assert_eq!(1, bindings.len());
+        assert_eq!("2", bindings[0].1);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn ascii_2() {
+        // Bad file format ASCII works but produces nothing:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?filename=Cargo.toml&format=ascii");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let l = sapi.list_spectra("*").expect("listing spectra");
+        assert_eq!(0, l.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
 }
