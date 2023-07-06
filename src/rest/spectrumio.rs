@@ -943,7 +943,7 @@ mod read_tests {
         let ch = &counts[0];
         assert_eq!(500.0, ch.x);
         assert_eq!(600.0, ch.y);
-        assert_eq!(501 + (601*1026) , ch.bin);
+        assert_eq!(501 + (601 * 1026), ch.bin);
         assert_eq!(spectrum_messages::ChannelType::Bin, ch.chan_type);
         assert_eq!(163500.0, ch.value);
 
@@ -978,6 +978,24 @@ mod read_tests {
         }
 
         teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn json_3() {
+        // bind = false does not bind the spectrum:
 
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?filename=test.json&format=json&bind=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        let bindings = bind_api.list_bindings("[12]").expect("Getting bindings");
+        assert_eq!(0, bindings.len());
+
+        teardown(chan, &papi, &bind_api);
     }
 }
