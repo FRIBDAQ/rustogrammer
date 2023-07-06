@@ -831,7 +831,7 @@ mod read_tests {
     // differences.
 
     #[test]
-    fn sread_1() {
+    fn json_1() {
         // All thedefaults on test.json make 1 and 2
         // 1 is a 1-d spectrum 2 a 2-d spectrum.  The
         // required parameters are also created.
@@ -952,5 +952,32 @@ mod read_tests {
         assert_eq!("2", bindings[0].1);
 
         teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn json_2() {
+        // Turn off snapshot mode and the created spectra won't be
+        // gated:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?filename=test.json&format=json&snapshot=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status, "Detail: {}", reply.detail);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let listing = sapi.list_spectra("[12]").expect("Getting spectrum list");
+        assert_eq!(2, listing.len());
+        for s in listing {
+            assert!(s.gate.is_none(), "There's a gate for {}", s.name);
+        }
+
+        teardown(chan, &papi, &bind_api);
+
     }
 }
