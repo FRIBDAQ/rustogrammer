@@ -623,31 +623,28 @@ fn enter_spectra(
 // deducted from each one
 
 fn fix_json_bins(input: Vec<SpectrumFileData>) -> Vec<SpectrumFileData> {
-    let mut  result =  Vec::<SpectrumFileData>::new();
-    
-    for item in input
-        .iter()
-        .map(|x| {
-            let mut x = x.clone();
-            if x.definition.x_axis.is_some() {
-                x.definition.x_axis = Some(
-                    (x.definition.x_axis.unwrap().0,
-                    x.definition.x_axis.unwrap().1,
-                    x.definition.x_axis.unwrap().2 - 2,)
-                );
-            }
-            if x.definition.y_axis.is_some() {
-                x.definition.y_axis = Some(
-                    (x.definition.y_axis.unwrap().0,
-                    x.definition.y_axis.unwrap().1,
-                    x.definition.y_axis.unwrap().2 - 2,)
-                );
-            }
-            x
-        }) {
-            result.push(item); 
+    let mut result = Vec::<SpectrumFileData>::new();
+
+    for item in input.iter().map(|x| {
+        let mut x = x.clone();
+        if x.definition.x_axis.is_some() {
+            x.definition.x_axis = Some((
+                x.definition.x_axis.unwrap().0,
+                x.definition.x_axis.unwrap().1,
+                x.definition.x_axis.unwrap().2 - 2,
+            ));
         }
-        
+        if x.definition.y_axis.is_some() {
+            x.definition.y_axis = Some((
+                x.definition.y_axis.unwrap().0,
+                x.definition.y_axis.unwrap().1,
+                x.definition.y_axis.unwrap().2 - 2,
+            ));
+        }
+        x
+    }) {
+        result.push(item);
+    }
 
     result
 }
@@ -827,6 +824,11 @@ mod read_tests {
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
+    // This is a bit of a long test but then it establishes
+    // that pretty much everything, other than the
+    // mode options work.  Once this one works we
+    // know that we only need to flip switches and look for
+    // differences.
 
     #[test]
     fn sread_1() {
@@ -872,19 +874,19 @@ mod read_tests {
             false
         });
         // Spectrum '1' exists:
-        //  -   Native ype is Oned
-        //  -   Xparameters kis "parameters.05"
+        //  -   Native type is Oned
+        //  -   Xparameters is "parameters.05"
         //  -   x_axis = (0,1024,1026)
         //  -   Bin 500 should have 163500 counts.
-        //
+        //  -   Is bound into shared memory.
         let spec_api = spectrum_messages::SpectrumMessageClient::new(&chan);
         let s = spec_api.list_spectra("1").expect("Listing '1' spectrum");
         assert_eq!(1, s.len());
         let sp = &s[0];
+        assert_eq!("1D", sp.type_name);
         assert_eq!(1, sp.xparams.len());
         assert_eq!("parameters.05", sp.xparams[0]);
-        assert!(sp.xaxis.is_some());
-        let x = sp.xaxis.clone().unwrap();
+        let x = sp.xaxis.clone().expect("Unwraping 1's x axis");
         assert_eq!(0.0, x.low);
         assert_eq!(1024.0, x.high);
         assert_eq!(1026, x.bins);
@@ -901,6 +903,53 @@ mod read_tests {
         assert_eq!(501, ch.bin);
         assert_eq!(spectrum_messages::ChannelType::Bin, ch.chan_type);
         assert_eq!(163500.0, ch.value);
+
+        let bindings = bind_api.list_bindings("1").expect("listing bindings");
+        assert_eq!(1, bindings.len());
+        assert_eq!("1", bindings[0].1);
+
+        // Spectrum '2' exists:
+        // - Native type is Twod
+        // - xparameters is 'parameters.05"
+        // - yparameters is "parameters.06"
+        // - xaxis  (0, 1024, 1026)
+        // - yaxis  (0, 1024, 1026),
+        // - (500, 600) has 163500 counts.
+        // - Is bound into shared memory.
+
+        let s = spec_api.list_spectra("2").expect("listing '2' spectrum");
+        assert_eq!(1, s.len());
+        let sp = &s[0];
+        assert_eq!("2D", sp.type_name);
+        assert_eq!(1, sp.xparams.len());
+        assert_eq!("parameters.05", sp.xparams[0]);
+        assert_eq!(1, sp.yparams.len());
+        assert_eq!("parameters.06", sp.yparams[0]);
+        let x = sp.xaxis.expect("Unwrapping x axis definition of 2");
+        assert_eq!(0.0, x.low);
+        assert_eq!(1024.0, x.high);
+        assert_eq!(1026, x.bins);
+        let y = sp.yaxis.expect("UNwrapgin 2's y axis");
+        assert_eq!(0.0, y.low);
+        assert_eq!(1024.0, y.high);
+        assert_eq!(1026, y.bins);
+        assert!(sp.gate.is_some());
+        assert_eq!("_snapshot_condition_", sp.gate.clone().unwrap());
+
+        let counts = spec_api
+            .get_contents("2", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("Getting contents of 2");
+        assert_eq!(1, counts.len());
+        let ch = &counts[0];
+        assert_eq!(500.0, ch.x);
+        assert_eq!(600.0, ch.y);
+        assert_eq!(501 + (601*1026) , ch.bin);
+        assert_eq!(spectrum_messages::ChannelType::Bin, ch.chan_type);
+        assert_eq!(163500.0, ch.value);
+
+        let bindings = bind_api.list_bindings("2").expect("Listing bindings");
+        assert_eq!(1, bindings.len());
+        assert_eq!("2", bindings[0].1);
 
         teardown(chan, &papi, &bind_api);
     }
