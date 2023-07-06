@@ -352,7 +352,7 @@ where
     if let Err(e) = result {
         return Err(format!("{}", e));
     }
-    Ok(result.unwrap())
+    Ok(fix_json_bins(result.unwrap()))
 }
 // Create a hash set of the existing parameter names.
 
@@ -619,6 +619,38 @@ fn enter_spectra(
     }
     Ok(())
 }
+// JSON Spectra bin count includes the overflows so 2 must be
+// deducted from each one
+
+fn fix_json_bins(input: Vec<SpectrumFileData>) -> Vec<SpectrumFileData> {
+    let mut  result =  Vec::<SpectrumFileData>::new();
+    
+    for item in input
+        .iter()
+        .map(|x| {
+            let mut x = x.clone();
+            if x.definition.x_axis.is_some() {
+                x.definition.x_axis = Some(
+                    (x.definition.x_axis.unwrap().0,
+                    x.definition.x_axis.unwrap().1,
+                    x.definition.x_axis.unwrap().2 - 2,)
+                );
+            }
+            if x.definition.y_axis.is_some() {
+                x.definition.y_axis = Some(
+                    (x.definition.y_axis.unwrap().0,
+                    x.definition.y_axis.unwrap().1,
+                    x.definition.y_axis.unwrap().2 - 2,)
+                );
+            }
+            x
+        }) {
+            result.push(item); 
+        }
+        
+
+    result
+}
 
 ///
 /// sread_handler
@@ -714,9 +746,9 @@ mod read_tests {
     // reads are easier to sort of test since wwe have the 'test.json' and 'junk.asc' files we can use.
 
     use super::*;
-    use crate::messaging;
-    use crate::messaging::spectrum_messages;    // to interrogate.
     use crate::histogramer;
+    use crate::messaging;
+    use crate::messaging::{condition_messages, parameter_messages, spectrum_messages}; // to interrogate.
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -733,7 +765,7 @@ mod read_tests {
     fn setup() -> Rocket<Build> {
         let (_, hg_sender) = histogramer::start_server();
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
 
         // Construct the state:
 
@@ -744,20 +776,12 @@ mod read_tests {
             portman_client: None,
         };
 
-        let sapi = spectrum_messages::SpectrumMessageClient::new(&hg_sender);
-        let papi = parameter_messages::ParameterMessageClient::new(&hg_sender);
-
-     
-
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount(
-            "/",
-            routes![
-                sread_handler
-            ],
-        )
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![sread_handler])
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -811,7 +835,73 @@ mod read_tests {
         // required parameters are also created.
         // These are snapshot, no replace, and bound to shared memory.
 
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
 
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?filename=test.json&format=json");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status, "Detail: {}", reply.detail);
+
+        // we now should have parameters parameters.{05,06}:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&chan);
+        let p = param_api
+            .list_parameters("parameters.05")
+            .expect("Getting parameters.05");
+        assert_eq!(1, p.len());
+        let p = param_api
+            .list_parameters("parameters.06")
+            .expect("getting parameters.06");
+        assert_eq!(1, p.len());
+
+        // There should be a condition named "_snapshot_condition_"
+        // and it's a False condition:
+
+        let cond_api = condition_messages::ConditionMessageClient::new(&chan);
+        let c = cond_api.list_conditions("_snapshot_condition_");
+        assert!(if let condition_messages::ConditionReply::Listing(l) = c {
+            assert_eq!(1, l.len());
+            assert_eq!("False", l[0].type_name);
+            true
+        } else {
+            false
+        });
+        // Spectrum '1' exists:
+        //  -   Native ype is Oned
+        //  -   Xparameters kis "parameters.05"
+        //  -   x_axis = (0,1024,1026)
+        //  -   Bin 500 should have 163500 counts.
+        //
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let s = spec_api.list_spectra("1").expect("Listing '1' spectrum");
+        assert_eq!(1, s.len());
+        let sp = &s[0];
+        assert_eq!(1, sp.xparams.len());
+        assert_eq!("parameters.05", sp.xparams[0]);
+        assert!(sp.xaxis.is_some());
+        let x = sp.xaxis.clone().unwrap();
+        assert_eq!(0.0, x.low);
+        assert_eq!(1024.0, x.high);
+        assert_eq!(1026, x.bins);
+        assert!(sp.yaxis.is_none());
+        assert!(sp.gate.is_some());
+        assert_eq!("_snapshot_condition_", sp.gate.clone().unwrap());
+
+        let counts = spec_api
+            .get_contents("1", 0.0, 1024.0, 0.0, 0.0)
+            .expect("getting contents");
+        assert_eq!(1, counts.len());
+        let ch = &counts[0];
+        assert_eq!(500.0, ch.x);
+        assert_eq!(501, ch.bin);
+        assert_eq!(spectrum_messages::ChannelType::Bin, ch.chan_type);
+        assert_eq!(163500.0, ch.value);
+
+        teardown(chan, &papi, &bind_api);
     }
-    
 }
