@@ -199,7 +199,8 @@ mod ringversion_tests {
 
         // Set it to 11:
 
-        papi.set_ring_version(RingVersion::V11).expect("Setting ringversion");
+        papi.set_ring_version(RingVersion::V11)
+            .expect("Setting ringversion");
 
         let client = Client::tracked(rocket).expect("Making client");
         let req = client.get("/get");
@@ -223,7 +224,8 @@ mod ringversion_tests {
 
         // Set it to 11:
 
-        papi.set_ring_version(RingVersion::V12).expect("Setting ringversion");
+        papi.set_ring_version(RingVersion::V12)
+            .expect("Setting ringversion");
 
         let client = Client::tracked(rocket).expect("Making client");
         let req = client.get("/get");
