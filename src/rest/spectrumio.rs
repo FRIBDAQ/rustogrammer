@@ -993,8 +993,102 @@ mod read_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
+        assert_eq!("OK", reply.status, "Detail: {}", reply.detail);
+
         let bindings = bind_api.list_bindings("[12]").expect("Getting bindings");
         assert_eq!(0, bindings.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn json_4() {
+        // no replace - makes new spectra.  The simplest way to
+        // test this is to read twice.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?filename=test.json&format=json&bind=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        let req = client.get("/?filename=test.json&format=json&bind=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // should have 2 spectra with names matching 1_* and
+        // 2 matching 2_*
+        //
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let list = sapi.list_spectra("1*").expect("listing 1*");
+        assert_eq!(2, list.len());
+
+        let list = sapi.list_spectra("2*").expect("listing 2*");
+        assert_eq!(2, list.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn json_5() {
+        // IF replace is allowed double reads don't add spectra:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?filename=test.json&format=json&bind=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        let req = client.get("/?filename=test.json&format=json&replace=true&bind=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // should have 2 spectra with names matching 1_* and
+        // 2 matching 2_*
+        //
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let list = sapi.list_spectra("1*").expect("listing 1*");
+        assert_eq!(1, list.len());
+
+        let list = sapi.list_spectra("2*").expect("listing 2*");
+        assert_eq!(1, list.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn json_6() {
+        // no such file:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?filename=/no/such/test.json&format=json&bind=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Failed to open input file: /no/such/test.json",
+            reply.status
+        );
 
         teardown(chan, &papi, &bind_api);
     }
