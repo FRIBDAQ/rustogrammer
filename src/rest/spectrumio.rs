@@ -1092,4 +1092,22 @@ mod read_tests {
 
         teardown(chan, &papi, &bind_api);
     }
+    #[test]
+    fn json_7() {
+        // Bad file format:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?filename=Cargo.toml&format=json");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Unable to deserialize from file", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
 }
