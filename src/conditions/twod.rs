@@ -189,9 +189,7 @@ impl Condition for Band {
                         self.cache = Some(result);
                         return result;
                     } else {
-                        println!("m {} b {}", s.m.unwrap(), s.b.unwrap());
                         let pty = s.m.unwrap() * x + s.b.unwrap();
-                        println!("y {}, pty {}", y, pty);
                         let result = y <= pty;
                         self.cache = Some(result);
                         return result;
