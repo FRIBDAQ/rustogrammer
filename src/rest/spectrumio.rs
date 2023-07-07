@@ -439,6 +439,7 @@ fn make_spectrum(
     def: &SpectrumProperties,
     api: &spectrum_messages::SpectrumMessageClient,
 ) -> Result<String, String> {
+    println!("Making spectrum {}", name);
     match def.type_string.as_str() {
         "1" => {
             let axis = def.x_axis.unwrap();
@@ -1546,7 +1547,9 @@ mod swrite_tests {
     fn json1d_1() {
         // Write the empty 1d spectrum as json. see if it reads back:
 
-        let filename = names::Generator::with_naming(names::Name::Numbered).next().expect("making filename");
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
         let rocket = setup();
         let (chan, papi, bind_api) = getstate(&rocket);
 
@@ -1602,8 +1605,10 @@ mod swrite_tests {
     fn json1d_2() {
         // Put counts in the two spectra, they should match:
 
-        let filename = names::Generator::with_naming(names::Name::Numbered).next().expect("making filename");
-        
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
+
         let rocket = setup();
         let (chan, papi, bind_api) = getstate(&rocket);
 
@@ -1645,7 +1650,9 @@ mod swrite_tests {
     fn ascii1d_1() {
         // Write the empty 1d spectrum as ascii. see if it reads back:
 
-        let filename = names::Generator::with_naming(names::Name::Numbered).next().expect("making filename");
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
         let rocket = setup();
         let (chan, papi, bind_api) = getstate(&rocket);
 
@@ -1701,7 +1708,9 @@ mod swrite_tests {
     fn ascii1d_2() {
         // Put counts in the two spectra, they should match:
 
-        let filename = names::Generator::with_naming(names::Name::Numbered).next().expect("making filename");
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
 
         let rocket = setup();
         let (chan, papi, bind_api) = getstate(&rocket);
@@ -1739,4 +1748,189 @@ mod swrite_tests {
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
     }
+    #[test]
+    fn jsong1_1() {
+        // empty g1 spectrum (the metadata are correct):
+
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let write_uri = format!("/swrite?spectrum=gamma1&format=json&file={}", filename);
+        let write_req = client.get(&write_uri);
+        let write_response = write_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", write_response.status);
+
+        let read_uri = format!("/sread?format=json&bind=false&filename={}", filename);
+        let read_req = client.get(&read_uri);
+        let read_response = read_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing read JSON");
+        assert_eq!("OK", read_response.status);
+
+        // make sure the descriptions of gamma1 and gamma1_0 match (except,
+        // of course the names and gates).
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let original = sapi
+            .list_spectra("gamma1")
+            .expect("getting gamma1 descriptions");
+        assert_eq!(1, original.len());
+        let o = &original[0];
+        let copy = sapi
+            .list_spectra("gamma1_0")
+            .expect("Getting gamma1_0 desription");
+        assert_eq!(1, copy.len());
+        let c = &copy[0];
+
+        assert_eq!(o.type_name, c.type_name);
+        assert_eq!(o.xparams, c.xparams);
+        assert_eq!(o.yparams, c.yparams);
+        assert_eq!(o.xaxis, c.xaxis);
+        assert_eq!(o.yaxis, c.yaxis);
+        assert_eq!(Some(String::from("_snapshot_condition_")), c.gate);
+
+        std::fs::remove_file(&filename).expect("removing test file");
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn jsong1_2() {
+        // FIll the spectra this time:
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        fill_test_spectra(&sapi);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let write_uri = format!("/swrite?spectrum=gamma1&format=json&file={}", filename);
+        let write_req = client.get(&write_uri);
+        let write_response = write_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", write_response.status);
+
+        let read_uri = format!("/sread?format=json&bind=false&filename={}", filename);
+        let read_req = client.get(&read_uri);
+        let read_response = read_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing read JSON");
+        assert_eq!("OK", read_response.status);
+
+        // make sure the descriptions of gamma1 and gamma1_0 match (except,
+        // of course the names and gates).
+
+        let original_contents = sapi.get_contents("gamma1", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma1' contents");
+        let copy_contents = sapi.get_contents("gamma1_0", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma1_0 contents");
+        assert_eq!(original_contents, copy_contents);
+
+
+        std::fs::remove_file(&filename).expect("removing test file");
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn asciig1_1() {
+        // empty g1 spectrum (the metadata are correct):
+
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let write_uri = format!("/swrite?spectrum=gamma1&format=ascii&file={}", filename);
+        let write_req = client.get(&write_uri);
+        let write_response = write_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", write_response.status);
+
+        let read_uri = format!("/sread?format=ascii&bind=false&filename={}", filename);
+        let read_req = client.get(&read_uri);
+        let read_response = read_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing read JSON");
+        assert_eq!("OK", read_response.status);
+
+        // make sure the descriptions of gamma1 and gamma1_0 match (except,
+        // of course the names and gates).
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let original = sapi
+            .list_spectra("gamma1")
+            .expect("getting gamma1 descriptions");
+        assert_eq!(1, original.len());
+        let o = &original[0];
+        let copy = sapi
+            .list_spectra("gamma1_0")
+            .expect("Getting gamma1_0 desription");
+        assert_eq!(1, copy.len());
+        let c = &copy[0];
+
+        assert_eq!(o.type_name, c.type_name);
+        assert_eq!(o.xparams, c.xparams);
+        assert_eq!(o.yparams, c.yparams);
+        assert_eq!(o.xaxis, c.xaxis);
+        assert_eq!(o.yaxis, c.yaxis);
+        assert_eq!(Some(String::from("_snapshot_condition_")), c.gate);
+
+        std::fs::remove_file(&filename).expect("removing test file");
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn asciig1_2() {
+        // FIll the spectra this time:
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        fill_test_spectra(&sapi);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let write_uri = format!("/swrite?spectrum=gamma1&format=ascii&file={}", filename);
+        let write_req = client.get(&write_uri);
+        let write_response = write_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", write_response.status);
+
+        let read_uri = format!("/sread?format=ascii&bind=false&filename={}", filename);
+        let read_req = client.get(&read_uri);
+        let read_response = read_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing read JSON");
+        assert_eq!("OK", read_response.status);
+
+        // make sure the descriptions of gamma1 and gamma1_0 match (except,
+        // of course the names and gates).
+
+        let original_contents = sapi.get_contents("gamma1", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma1' contents");
+        let copy_contents = sapi.get_contents("gamma1_0", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma1_0 contents");
+        assert_eq!(original_contents, copy_contents);
+
+
+        std::fs::remove_file(&filename).expect("removing test file");
+        teardown(chan, &papi, &bind_api);
+    }
+
 }
