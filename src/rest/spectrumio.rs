@@ -1562,7 +1562,75 @@ mod swrite_tests {
             .expect("parsing read JSON");
         assert_eq!("OK", read_response.status);
 
+        // The base spectrum is 'oned'.  The one read in should be
+        // 'oned_0'
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let original = sapi.list_spectra("oned").expect("Listing oned");
+        let copy = sapi.list_spectra("oned_0").expect("Listing oned_0");
+
+        // Spectrum descriptions must match execpt for the gate
+        // which is the snapshot gate since we did not turn that off.
+
+        assert_eq!(1, original.len());
+        let o = &original[0];
+        assert_eq!(1, copy.len());
+        let c = &copy[0];
+        assert_eq!(o.type_name, c.type_name);
+        assert_eq!(o.xparams, c.xparams);
+        assert_eq!(o.yparams, c.yparams);
+        assert_eq!(o.xaxis, c.xaxis);
+        assert_eq!(o.yaxis, c.yaxis);
+        assert_eq!(Some(String::from("_snapshot_condition_")), c.gate);
+
+        // Should not have counts:
+
+        let contents = sapi
+            .get_contents(&c.name, 0.0, 1024.0, 0.0, 1024.0)
+            .expect("Getting read spectrum contents");
+        assert_eq!(0, contents.len());
+
         std::fs::remove_file("swrite_tests.json").expect("removing test file");
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn json1d_2() {
+        // Put counts in the two spectra, they should match:
+
+        // Write the empty 1d spectrum as json. see if it reads back:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        fill_test_spectra(&sapi);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let write_req = client.get("/swrite?file=swrite_tests.json&format=json&spectrum=oned");
+        let write_response = write_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing write JSON");
+        assert_eq!("OK", write_response.status);
+
+        let read_req = client.get("/sread?filename=swrite_tests.json&format=json&bind=false");
+        let read_response = read_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing read JSON");
+        assert_eq!("OK", read_response.status);
+
+        // get contents of both "oned" and "oned_0":
+
+        let original_contents = sapi
+            .get_contents("oned", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("original contents");
+        let copy_contents = sapi
+            .get_contents("oned_0", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("copy contents");
+
+        assert_eq!(original_contents, copy_contents);
+
         teardown(chan, &papi, &bind_api);
     }
 }
