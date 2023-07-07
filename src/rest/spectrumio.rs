@@ -439,7 +439,6 @@ fn make_spectrum(
     def: &SpectrumProperties,
     api: &spectrum_messages::SpectrumMessageClient,
 ) -> Result<String, String> {
-    println!("Making spectrum {}", name);
     match def.type_string.as_str() {
         "1" => {
             let axis = def.x_axis.unwrap();
@@ -1519,7 +1518,7 @@ mod swrite_tests {
     fn fill_test_spectra(api: &spectrum_messages::SpectrumMessageClient) {
         // we'll make rolling values.
 
-        let num_events = 1;  // 00
+        let num_events = 100;
         let mut events = vec![];
         for evt in 0..num_events {
             let mut event = vec![];
@@ -1832,10 +1831,13 @@ mod swrite_tests {
         // make sure the descriptions of gamma1 and gamma1_0 match (except,
         // of course the names and gates).
 
-        let original_contents = sapi.get_contents("gamma1", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma1' contents");
-        let copy_contents = sapi.get_contents("gamma1_0", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma1_0 contents");
+        let original_contents = sapi
+            .get_contents("gamma1", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'gamma1' contents");
+        let copy_contents = sapi
+            .get_contents("gamma1_0", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'gamma1_0 contents");
         assert_eq!(original_contents, copy_contents);
-
 
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
@@ -1924,10 +1926,13 @@ mod swrite_tests {
         // make sure the descriptions of gamma1 and gamma1_0 match (except,
         // of course the names and gates).
 
-        let original_contents = sapi.get_contents("gamma1", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma1' contents");
-        let copy_contents = sapi.get_contents("gamma1_0", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma1_0 contents");
+        let original_contents = sapi
+            .get_contents("gamma1", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'gamma1' contents");
+        let copy_contents = sapi
+            .get_contents("gamma1_0", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'gamma1_0 contents");
         assert_eq!(original_contents, copy_contents);
-
 
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
@@ -2016,10 +2021,13 @@ mod swrite_tests {
         // make sure the descriptions of gamma1 and gamma1_0 match (except,
         // of course the names and gates).
 
-        let original_contents = sapi.get_contents("gamma2", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma1' contents");
-        let copy_contents = sapi.get_contents("gamma2_0", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma1_0 contents");
+        let original_contents = sapi
+            .get_contents("gamma2", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'gamma1' contents");
+        let copy_contents = sapi
+            .get_contents("gamma2_0", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'gamma1_0 contents");
         assert_eq!(original_contents, copy_contents);
-
 
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
@@ -2108,15 +2116,18 @@ mod swrite_tests {
         // make sure the descriptions of gamma1 and gamma1_0 match (except,
         // of course the names and gates).
 
-        let original_contents = sapi.get_contents("gamma2", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma2' contents");
-        let copy_contents = sapi.get_contents("gamma2_0", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'gamma2_0 contents");
+        let original_contents = sapi
+            .get_contents("gamma2", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'gamma2' contents");
+        let copy_contents = sapi
+            .get_contents("gamma2_0", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'gamma2_0 contents");
         assert_eq!(original_contents, copy_contents);
-
 
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
     }
-    
+
     #[test]
     fn jsonpg_1() {
         // empty g2 spectrum (the metadata are correct):
@@ -2128,7 +2139,10 @@ mod swrite_tests {
         let (chan, papi, bind_api) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Making rocket client");
-        let write_uri = format!("/swrite?spectrum=particle-gamma&format=json&file={}", filename);
+        let write_uri = format!(
+            "/swrite?spectrum=particle-gamma&format=json&file={}",
+            filename
+        );
         let write_req = client.get(&write_uri);
         let write_response = write_req
             .dispatch()
@@ -2182,7 +2196,10 @@ mod swrite_tests {
         fill_test_spectra(&sapi);
 
         let client = Client::untracked(rocket).expect("Making rocket client");
-        let write_uri = format!("/swrite?spectrum=particle-gamma&format=json&file={}", filename);
+        let write_uri = format!(
+            "/swrite?spectrum=particle-gamma&format=json&file={}",
+            filename
+        );
         let write_req = client.get(&write_uri);
         let write_response = write_req
             .dispatch()
@@ -2201,10 +2218,13 @@ mod swrite_tests {
         // make sure the descriptions of gamma1 and gamma1_0 match (except,
         // of course the names and gates).
 
-        let original_contents = sapi.get_contents("particle-gamma", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'particle-gamma' contents");
-        let copy_contents = sapi.get_contents("particle-gamma_0", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'particle-gamma_0 contents");
+        let original_contents = sapi
+            .get_contents("particle-gamma", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'particle-gamma' contents");
+        let copy_contents = sapi
+            .get_contents("particle-gamma_0", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'particle-gamma_0 contents");
         assert_eq!(original_contents, copy_contents);
-
 
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
@@ -2220,7 +2240,10 @@ mod swrite_tests {
         let (chan, papi, bind_api) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Making rocket client");
-        let write_uri = format!("/swrite?spectrum=particle-gamma&format=ascii&file={}", filename);
+        let write_uri = format!(
+            "/swrite?spectrum=particle-gamma&format=ascii&file={}",
+            filename
+        );
         let write_req = client.get(&write_uri);
         let write_response = write_req
             .dispatch()
@@ -2274,7 +2297,10 @@ mod swrite_tests {
         fill_test_spectra(&sapi);
 
         let client = Client::untracked(rocket).expect("Making rocket client");
-        let write_uri = format!("/swrite?spectrum=particle-gamma&format=ascii&file={}", filename);
+        let write_uri = format!(
+            "/swrite?spectrum=particle-gamma&format=ascii&file={}",
+            filename
+        );
         let write_req = client.get(&write_uri);
         let write_response = write_req
             .dispatch()
@@ -2293,14 +2319,15 @@ mod swrite_tests {
         // make sure the descriptions of gamma1 and gamma1_0 match (except,
         // of course the names and gates).
 
-        let original_contents = sapi.get_contents("particle-gamma", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'particle-gamma' contents");
-        let copy_contents = sapi.get_contents("particle-gamma_0", 0.0, 1024.0, 0.0, 1024.0).expect("getting 'particle-gamma_0 contents");
+        let original_contents = sapi
+            .get_contents("particle-gamma", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'particle-gamma' contents");
+        let copy_contents = sapi
+            .get_contents("particle-gamma_0", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'particle-gamma_0 contents");
         assert_eq!(original_contents, copy_contents);
-
 
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
     }
-    
-
 }

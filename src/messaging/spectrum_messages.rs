@@ -642,7 +642,6 @@ impl SpectrumProcessor {
             } else {
                 let spec2d = histogram.get_histogram_2d().unwrap();
                 for chan in contents {
-                    println!("{} {}", chan.x, chan.y);
                     spec2d
                         .borrow_mut()
                         .value_mut(&(chan.x, chan.y))
