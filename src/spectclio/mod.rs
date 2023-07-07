@@ -77,7 +77,7 @@ fn write_1(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
 fn write_2(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
     fdwrite(
         fd,
-        &format!("({} {}) {}\n", c.x_bin - 1, c.y_bin - 2, c.value),
+        &format!("({} {}) {}\n", c.x_bin - 1, c.y_bin - 1, c.value),
     )
 }
 
