@@ -114,7 +114,7 @@ fn get_spectrum_descriptions(
 // The + 1 allows for the fact that bin 0 is underflows.
 
 fn transform(l: f64, h: f64, b: u32, c: f64) -> usize {
-    (((c - l) / (h - l)) * b as f64) as usize + 1
+    (((c - l) / (h - l)) * (b - 2) as f64) as usize + 1
 }
 
 // Given coordinates  in a normal bin - convert themto (xbin, ybin):
@@ -216,6 +216,8 @@ fn convert_channels(
     d: &SpectrumProperties,
 ) -> Vec<SpectrumChannel> {
     let mut result = Vec::<SpectrumChannel>::new();
+    println!("Xaxis : {:?}", d.x_axis);
+    println!("Yaxis : {:?}", d.y_axis);
     for c in channels.iter() {
         result.push(convert_channel(c, d));
     }
@@ -2325,7 +2327,9 @@ mod swrite_tests {
         let copy_contents = sapi
             .get_contents("particle-gamma_0", 0.0, 1024.0, 0.0, 1024.0)
             .expect("getting 'particle-gamma_0 contents");
+        //assert_eq!(original_contents, copy_contents);
         assert_eq!(original_contents, copy_contents);
+        
 
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
