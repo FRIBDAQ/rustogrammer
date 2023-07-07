@@ -222,8 +222,6 @@ fn convert_channels(
     // the x parameter list size.
 
     let desc = if d.type_string == "s" {
-        println!("Fixing summary spectrum");
-        println!("There are {} channels", channels.len());
         let mut summary_d = d.clone();
         summary_d.x_axis = Some((
             0.0,
@@ -235,10 +233,8 @@ fn convert_channels(
         d.clone()
     };
 
-    println!("Xaxis : {:?}", desc.x_axis);
-    println!("Yaxis : {:?}", desc.y_axis);
     for c in channels.iter() {
-        result.push(convert_channel(c, d));
+        result.push(convert_channel(c, &desc));
     }
 
     result
@@ -499,7 +495,14 @@ fn make_spectrum(
             )?;
         }
         "s" => {
-            let axis = def.y_axis.unwrap();
+            let axis = if let Some(y) = def.y_axis {
+                y
+            } else {
+                // ASCII format special case - ascii reader thinks the
+                // axis is an x axis.
+                def.x_axis.unwrap()
+            };
+            println!("Entering spectrum: {}", name);
             api.create_spectrum_summary(name, &def.x_parameters, axis.0, axis.1, axis.2)?;
         }
         "2" => {

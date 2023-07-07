@@ -117,13 +117,15 @@ pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Re
         if let Some((_, _, bins)) = spectrum.definition.x_axis {
             let bins = bins - 2;
             fdwrite(fd, &bins.to_string())?;
-            fdwrite(fd, " ")?;
         }
         if let Some((_, _, bins)) = spectrum.definition.y_axis {
             let bins = bins - 2;
             fdwrite(fd, &bins.to_string())?;
+            if spectrum.definition.type_string == "s" {
+                fdwrite(fd, " ")?;
+            }
         }
-        fdwrite(fd, ")\n")?;
+        fdwrite(fd, ") \n")?;
         // Date/time stamp.
 
         fdwrite(fd, &format!("{}\n", Local::now()))?;
@@ -410,6 +412,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
             s
         ));
     }
+
     // Next is the format version which we also skip:
 
     let _version_line = read_line(l);
@@ -484,6 +487,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
         ));
     }
     let (xaxis_str, yaxis_str) = axes.unwrap();
+
     // Convert axis strings to low, high -- if possible:
 
     let xaxis = parse_axis(&xaxis_str);
