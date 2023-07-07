@@ -268,7 +268,7 @@ fn parse_paren_list(line: &str) -> Result<(Vec<String>, Vec<String>), String> {
     let open = remainder.find('(');
     if let Some(open) = open {
         if let Some(close) = remainder.find(')') {
-            let y: Vec<&str> = remainder[open + 1..close].split(" ").collect();
+            let y: Vec<&str> = remainder[open + 1..close].split_whitespace().collect();
             for yp in y {
                 yparams.push(String::from(yp));
             }
