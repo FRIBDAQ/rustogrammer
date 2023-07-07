@@ -1243,6 +1243,8 @@ mod read_tests {
     #[test]
     fn ascii_2() {
         // Bad file format ASCII works but produces nothing:
+        // There is an issue that this should be changed to produce
+        // errors (Issue #88).
 
         let rocket = setup();
         let (chan, papi, bind_api) = getstate(&rocket);
@@ -1259,6 +1261,177 @@ mod read_tests {
         let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
         let l = sapi.list_spectra("*").expect("listing spectra");
         assert_eq!(0, l.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+}
+// Testing swrite is a bit harder.
+// I think what I'll do is populate spectra,
+// Do swrites and then sreads to check that the spectra read in
+// match the ones written out.
+// this relies on a well tested sread (see the module above).
+// we'll read with bind=false so we don't need a big shared memory region.
+//
+#[cfg(test)]
+mod swrite_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::messaging::{parameter_messages, spectrum_messages}; // to interrogate.
+    use crate::parameters;
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
+ 
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+        // We always make the spectra
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hg_sender);
+        let papi = parameter_messages::ParameterMessageClient::new(&hg_sender);
+        make_test_spectra(&papi, &sapi);
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![swrite_handler])
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        fs::remove_file(Path::new(&backing_file)).expect(&format!(
+            "Failed to remove shared memory file {}",
+            backing_file
+        ));
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+
+    //Creating spectra is divorced from filling it so we
+    //can write/read empty spectra if we want:
+
+    fn make_test_spectra(
+        papi: &parameter_messages::ParameterMessageClient,
+        sapi: &spectrum_messages::SpectrumMessageClient,
+    ) {
+        // Make parameters p.0 -> p.9:
+        // ids 1-10.
+        //
+        for i in 0..10 {
+            let name = format!("p.{}", i);
+            papi.create_parameter(&name)
+                .expect("Failed to make parameter");
+        }
+
+        // make 1 of each kind of spectrum:
+        // we're going to keep them unbound so we don't need to
+
+        sapi.create_spectrum_1d("oned", "p.0", 0.0, 1024.0, 1024).expect("Create 'oned'");
+        sapi.create_spectrum_multi1d("gamma1", &vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"), String::from("p.5"), String::from("p.6"), String::from("p.7"), String::from("p.8"), String::from("p.9")], 0.0, 1024.0, 1024).expect("Making multi-1d spectrum");
+        sapi.create_spectrum_multi2d("gamma2",
+            &vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"), String::from("p.5"), String::from("p.6"), String::from("p.7"), String::from("p.8"), String::from("p.9")],
+            0.0, 512.0, 512, 0.0, 512.0, 512
+        ).expect("Multi 2d spectrum");
+        sapi.create_spectrum_pgamma(
+            "particle-gamma",
+            &vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"),],
+            &vec![ String::from("p.5"), String::from("p.6"), String::from("p.7"), String::from("p.8"), String::from("p.9")],
+            0.0, 256.0, 256, 0.0, 256.0, 256
+        ).expect("particle-gamma spectrum");
+        sapi.create_spectrum_summary(
+            "summary",
+            &vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"), String::from("p.5"), String::from("p.6"), String::from("p.7"), String::from("p.8"), String::from("p.9")],
+            0.0, 1024.0, 1024
+        ).expect("summary spectrum");
+        sapi.create_spectrum_2d("twod", "p.0", "p.1", 0.0, 256.0, 256, 0.0, 256.0, 256).expect("Making twod");
+        sapi.create_spectrum_2dsum("2d-sum",
+            &vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"),],
+            &vec![ String::from("p.5"), String::from("p.6"), String::from("p.7"), String::from("p.8"), String::from("p.9")],
+            0.0, 256.0, 256, 0.0, 256.0, 256
+        ).expect("Making 2d sum spectrum");
+
+
+    }
+    fn fill_test_spectra(api: &spectrum_messages::SpectrumMessageClient) {
+        // we'll make rolling values.
+
+        
+        let num_events=100;
+        let mut events = vec![];
+        for evt in 0..num_events {
+            let mut event = vec![];
+            for i in 1..11 {
+                event.push(parameters::EventParameter::new(i, (i*10+evt) as f64));
+            }
+            events.push(event);
+        }
+        api.process_events(&events).expect("FIlling spectra");
+    }
+
+    #[test]
+    fn dummy() {
+        // JUst make sure we can get throur the initialization/shutdown
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        fill_test_spectra(&sapi);
 
         teardown(chan, &papi, &bind_api);
     }
