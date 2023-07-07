@@ -719,7 +719,7 @@ pub fn sread_handler(
         "json" => read_json(&mut fd),
         "ascii" => Ok(spectclio::read_spectra(&mut fd)),
         _ => {
-            return Json(GenericResponse::err("Unspported format", &format));
+            return Json(GenericResponse::err("Unsupported format", &format));
         }
     };
 
@@ -1264,6 +1264,24 @@ mod read_tests {
 
         teardown(chan, &papi, &bind_api);
     }
+    #[test]
+    fn bad_format() {
+        // Format specification in get is bad:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?filename=test.json&format=no-such-format");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Unsupported format", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
 }
 // Testing swrite is a bit harder.
 // I think what I'll do is populate spectra,
@@ -1295,7 +1313,7 @@ mod swrite_tests {
         let (_, hg_sender) = histogramer::start_server();
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
- 
+
         // Construct the state:
 
         let state = HistogramState {
@@ -1315,7 +1333,8 @@ mod swrite_tests {
 
         rocket::build()
             .manage(state)
-            .mount("/", routes![swrite_handler])
+            .mount("/swrite", routes![swrite_handler])
+            .mount("/sread", routes![sread_handler])
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -1381,42 +1400,128 @@ mod swrite_tests {
         // make 1 of each kind of spectrum:
         // we're going to keep them unbound so we don't need to
 
-        sapi.create_spectrum_1d("oned", "p.0", 0.0, 1024.0, 1024).expect("Create 'oned'");
-        sapi.create_spectrum_multi1d("gamma1", &vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"), String::from("p.5"), String::from("p.6"), String::from("p.7"), String::from("p.8"), String::from("p.9")], 0.0, 1024.0, 1024).expect("Making multi-1d spectrum");
-        sapi.create_spectrum_multi2d("gamma2",
-            &vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"), String::from("p.5"), String::from("p.6"), String::from("p.7"), String::from("p.8"), String::from("p.9")],
-            0.0, 512.0, 512, 0.0, 512.0, 512
-        ).expect("Multi 2d spectrum");
+        sapi.create_spectrum_1d("oned", "p.0", 0.0, 1024.0, 1024)
+            .expect("Create 'oned'");
+        sapi.create_spectrum_multi1d(
+            "gamma1",
+            &vec![
+                String::from("p.0"),
+                String::from("p.1"),
+                String::from("p.2"),
+                String::from("p.3"),
+                String::from("p.4"),
+                String::from("p.5"),
+                String::from("p.6"),
+                String::from("p.7"),
+                String::from("p.8"),
+                String::from("p.9"),
+            ],
+            0.0,
+            1024.0,
+            1024,
+        )
+        .expect("Making multi-1d spectrum");
+        sapi.create_spectrum_multi2d(
+            "gamma2",
+            &vec![
+                String::from("p.0"),
+                String::from("p.1"),
+                String::from("p.2"),
+                String::from("p.3"),
+                String::from("p.4"),
+                String::from("p.5"),
+                String::from("p.6"),
+                String::from("p.7"),
+                String::from("p.8"),
+                String::from("p.9"),
+            ],
+            0.0,
+            512.0,
+            512,
+            0.0,
+            512.0,
+            512,
+        )
+        .expect("Multi 2d spectrum");
         sapi.create_spectrum_pgamma(
             "particle-gamma",
-            &vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"),],
-            &vec![ String::from("p.5"), String::from("p.6"), String::from("p.7"), String::from("p.8"), String::from("p.9")],
-            0.0, 256.0, 256, 0.0, 256.0, 256
-        ).expect("particle-gamma spectrum");
+            &vec![
+                String::from("p.0"),
+                String::from("p.1"),
+                String::from("p.2"),
+                String::from("p.3"),
+                String::from("p.4"),
+            ],
+            &vec![
+                String::from("p.5"),
+                String::from("p.6"),
+                String::from("p.7"),
+                String::from("p.8"),
+                String::from("p.9"),
+            ],
+            0.0,
+            256.0,
+            256,
+            0.0,
+            256.0,
+            256,
+        )
+        .expect("particle-gamma spectrum");
         sapi.create_spectrum_summary(
             "summary",
-            &vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"), String::from("p.5"), String::from("p.6"), String::from("p.7"), String::from("p.8"), String::from("p.9")],
-            0.0, 1024.0, 1024
-        ).expect("summary spectrum");
-        sapi.create_spectrum_2d("twod", "p.0", "p.1", 0.0, 256.0, 256, 0.0, 256.0, 256).expect("Making twod");
-        sapi.create_spectrum_2dsum("2d-sum",
-            &vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"),],
-            &vec![ String::from("p.5"), String::from("p.6"), String::from("p.7"), String::from("p.8"), String::from("p.9")],
-            0.0, 256.0, 256, 0.0, 256.0, 256
-        ).expect("Making 2d sum spectrum");
-
-
+            &vec![
+                String::from("p.0"),
+                String::from("p.1"),
+                String::from("p.2"),
+                String::from("p.3"),
+                String::from("p.4"),
+                String::from("p.5"),
+                String::from("p.6"),
+                String::from("p.7"),
+                String::from("p.8"),
+                String::from("p.9"),
+            ],
+            0.0,
+            1024.0,
+            1024,
+        )
+        .expect("summary spectrum");
+        sapi.create_spectrum_2d("twod", "p.0", "p.1", 0.0, 256.0, 256, 0.0, 256.0, 256)
+            .expect("Making twod");
+        sapi.create_spectrum_2dsum(
+            "2d-sum",
+            &vec![
+                String::from("p.0"),
+                String::from("p.1"),
+                String::from("p.2"),
+                String::from("p.3"),
+                String::from("p.4"),
+            ],
+            &vec![
+                String::from("p.5"),
+                String::from("p.6"),
+                String::from("p.7"),
+                String::from("p.8"),
+                String::from("p.9"),
+            ],
+            0.0,
+            256.0,
+            256,
+            0.0,
+            256.0,
+            256,
+        )
+        .expect("Making 2d sum spectrum");
     }
     fn fill_test_spectra(api: &spectrum_messages::SpectrumMessageClient) {
         // we'll make rolling values.
 
-        
-        let num_events=100;
+        let num_events = 100;
         let mut events = vec![];
         for evt in 0..num_events {
             let mut event = vec![];
             for i in 1..11 {
-                event.push(parameters::EventParameter::new(i, (i*10+evt) as f64));
+                event.push(parameters::EventParameter::new(i, (i * 10 + evt) as f64));
             }
             events.push(event);
         }
@@ -1424,7 +1529,7 @@ mod swrite_tests {
     }
 
     #[test]
-    fn dummy() {
+    fn setup_and_teardown() {
         // JUst make sure we can get throur the initialization/shutdown
 
         let rocket = setup();
@@ -1433,6 +1538,31 @@ mod swrite_tests {
         let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
         fill_test_spectra(&sapi);
 
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn json1d_1() {
+        // Write the empty 1d spectrum as json. see if it reads back:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let write_req = client.get("/swrite?file=swrite_tests.json&format=json&spectrum=oned");
+        let write_response = write_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing write JSON");
+        assert_eq!("OK", write_response.status);
+
+        let read_req = client.get("/sread?filename=swrite_tests.json&format=json&bind=false");
+        let read_response = read_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing read JSON");
+        assert_eq!("OK", read_response.status);
+
+        std::fs::remove_file("swrite_tests.json").expect("removing test file");
         teardown(chan, &papi, &bind_api);
     }
 }
