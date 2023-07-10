@@ -2743,7 +2743,6 @@ mod swrite_tests {
         teardown(chan, &papi, &bind_api);
     }
 
-
     #[test]
     fn json2dsum_1() {
         // Empty 2d spectrum:
@@ -2939,5 +2938,4 @@ mod swrite_tests {
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
     }
-
 }
