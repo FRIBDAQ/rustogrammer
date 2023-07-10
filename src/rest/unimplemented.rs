@@ -27,7 +27,7 @@
 //! supported by the analysis pipeline.
 
 use super::*;
-use rocket::serde::{json::Json, Serialize, Deserialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 
 //------------------------------------------------------------
 // Mirroring
@@ -62,7 +62,7 @@ pub fn mirror_list() -> Json<MirrorResponse> {
 #[get("/create?<name>")]
 pub fn pman_create(name: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
-        "Pipline management is not implemented",
+        "Pipeline management is not implemented",
         "This is not SpecTcl",
     ))
 }
@@ -84,13 +84,13 @@ pub fn pman_current() -> Json<GenericResponse> {
 }
 // listall
 #[allow(unused_variables)]
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct PipelineDescription {
     name: String,
     processors: Vec<String>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct ListAllResponse {
     status: String,
@@ -416,7 +416,6 @@ mod mirror_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
-    
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -501,10 +500,287 @@ mod mirror_tests {
 
         let client = Client::untracked(rocket).expect("Making rocket test client");
         let req = client.get("/");
-        let reply = req.dispatch().into_json::<MirrorResponse>().expect("parsing Json");
+        let reply = req
+            .dispatch()
+            .into_json::<MirrorResponse>()
+            .expect("parsing Json");
 
         assert_eq!("Mirroring is not implemented in Rustogramer", reply.status);
         assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+}
+#[cfg(test)]
+mod pipeline_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build().manage(state).mount(
+            "/",
+            routes![
+                pman_create,
+                pman_list,
+                pman_current,
+                pman_listall,
+                pman_list_event_processors,
+                pman_choose_pipeline,
+                pman_add_processor,
+                pman_rm_processor,
+                pman_clear,
+                pman_clone,
+            ],
+        )
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        fs::remove_file(Path::new(&backing_file)).expect(&format!(
+            "Failed to remove shared memory file {}",
+            backing_file
+        ));
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn create_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/create?name=junk");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/list?pattern=junk");
+        let reply = req
+            .dispatch()
+            .into_json::<StringArrayResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Pipeline managment is not implemented - this is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn current_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/current");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn listall_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/lsall?pattern=*");
+        let reply = req
+            .dispatch()
+            .into_json::<ListAllResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Pipeline management is not implemented - this is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn lsevp_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/lsevp?pattern=*");
+        let reply = req
+            .dispatch()
+            .into_json::<StringArrayResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Pipeline management is not implemented - this is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn use_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/use?name=junk");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn add_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/add?pipeline=pipe&processor=proc");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn rm_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/rm?pipeline=pipe&processor=proc");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn clear_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/clear?pipeline=pipe");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn clone_1()  {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/clone?source=src&new=new");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
 
         teardown(chan, &papi, &bind_api);
     }
