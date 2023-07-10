@@ -536,6 +536,7 @@ impl BindingApi {
     /// *  GenericResult instance.
     ///
     pub fn unbind_all(&self) -> GenericResult {
+        
         match self.transaction(RequestType::UnbindAll) {
             Reply::Generic(result) => result,
             _ => Err(String::from("Unexpected return type from binding thread")),
