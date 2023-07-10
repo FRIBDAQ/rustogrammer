@@ -613,6 +613,7 @@ fn enter_spectra(
         condition_api.create_false_condition("_snapshot_condition_");
     }
     for s in spectra {
+        
         // We need to create parameters for each missing parameter each spectrum
         // needs:
 
@@ -755,6 +756,7 @@ pub fn sread_handler(
         ));
     }
     let spectra = spectra.as_ref().unwrap();
+    
     let response = if let Err(e) = enter_spectra(spectra, snap, repl, toshm, state) {
         GenericResponse::err("Unable to enter spectra in histogram thread: ", &e)
     } else {
