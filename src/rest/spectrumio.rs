@@ -502,7 +502,6 @@ fn make_spectrum(
                 // axis is an x axis.
                 def.x_axis.unwrap()
             };
-            println!("Entering spectrum: {}", name);
             api.create_spectrum_summary(name, &def.x_parameters, axis.0, axis.1, axis.2)?;
         }
         "2" => {
@@ -613,7 +612,6 @@ fn enter_spectra(
         condition_api.create_false_condition("_snapshot_condition_");
     }
     for s in spectra {
-        
         // We need to create parameters for each missing parameter each spectrum
         // needs:
 
@@ -756,7 +754,7 @@ pub fn sread_handler(
         ));
     }
     let spectra = spectra.as_ref().unwrap();
-    
+
     let response = if let Err(e) = enter_spectra(spectra, snap, repl, toshm, state) {
         GenericResponse::err("Unable to enter spectra in histogram thread: ", &e)
     } else {
@@ -2544,6 +2542,201 @@ mod swrite_tests {
             .get_contents("summary_0", 0.0, 1024.0, 0.0, 1024.0)
             .expect("getting 'summary_0 contents");
         //assert_eq!(original_contents, copy_contents);
+        assert_eq!(original_contents, copy_contents);
+
+        std::fs::remove_file(&filename).expect("removing test file");
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn json2d_1() {
+        // Empty 2d spectrum:
+
+        // empty g2 spectrum (the metadata are correct):
+
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let write_uri = format!("/swrite?spectrum=twod&format=json&file={}", filename);
+        let write_req = client.get(&write_uri);
+        let write_response = write_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", write_response.status);
+
+        let read_uri = format!("/sread?format=json&bind=false&filename={}", filename);
+        let read_req = client.get(&read_uri);
+        let read_response = read_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing read JSON");
+        assert_eq!("OK", read_response.status);
+
+        // make sure the descriptions of gamma1 and gamma1_0 match (except,
+        // of course the names and gates).
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let original = sapi
+            .list_spectra("twod")
+            .expect("getting twod descriptions");
+        assert_eq!(1, original.len());
+        let o = &original[0];
+        let copy = sapi
+            .list_spectra("twod_0")
+            .expect("Getting twod_0 desription");
+        assert_eq!(1, copy.len());
+        let c = &copy[0];
+
+        assert_eq!(o.type_name, c.type_name);
+        assert_eq!(o.xparams, c.xparams);
+        assert_eq!(o.yparams, c.yparams);
+        assert_eq!(o.xaxis, c.xaxis);
+        assert_eq!(o.yaxis, c.yaxis);
+        assert_eq!(Some(String::from("_snapshot_condition_")), c.gate);
+
+        std::fs::remove_file(&filename).expect("removing test file");
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn json2d_2() {
+        // FIll the spectra this time:
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        fill_test_spectra(&sapi);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let write_uri = format!("/swrite?spectrum=twod&format=json&file={}", filename);
+        let write_req = client.get(&write_uri);
+        let write_response = write_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", write_response.status);
+
+        let read_uri = format!("/sread?format=json&bind=false&filename={}", filename);
+        let read_req = client.get(&read_uri);
+        let read_response = read_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing read JSON");
+        assert_eq!("OK", read_response.status);
+
+        // make sure the descriptions of gamma1 and gamma1_0 match (except,
+        // of course the names and gates).
+
+        let original_contents = sapi
+            .get_contents("twod", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'twod' contents");
+        let copy_contents = sapi
+            .get_contents("twod_0", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'twod_0 contents");
+        assert_eq!(original_contents, copy_contents);
+
+        std::fs::remove_file(&filename).expect("removing test file");
+        teardown(chan, &papi, &bind_api);
+    }
+
+    #[test]
+    fn ascii2d_1() {
+        // Empty 2d spectrum:
+
+        // empty g2 spectrum (the metadata are correct):
+
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let write_uri = format!("/swrite?spectrum=twod&format=ascii&file={}", filename);
+        let write_req = client.get(&write_uri);
+        let write_response = write_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", write_response.status);
+
+        let read_uri = format!("/sread?format=ascii&bind=false&filename={}", filename);
+        let read_req = client.get(&read_uri);
+        let read_response = read_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing read JSON");
+        assert_eq!("OK", read_response.status);
+
+        // make sure the descriptions of gamma1 and gamma1_0 match (except,
+        // of course the names and gates).
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let original = sapi
+            .list_spectra("twod")
+            .expect("getting twod descriptions");
+        assert_eq!(1, original.len());
+        let o = &original[0];
+        let copy = sapi
+            .list_spectra("twod_0")
+            .expect("Getting twod_0 desription");
+        assert_eq!(1, copy.len());
+        let c = &copy[0];
+
+        assert_eq!(o.type_name, c.type_name);
+        assert_eq!(o.xparams, c.xparams);
+        assert_eq!(o.yparams, c.yparams);
+        assert_eq!(o.xaxis, c.xaxis);
+        assert_eq!(o.yaxis, c.yaxis);
+        assert_eq!(Some(String::from("_snapshot_condition_")), c.gate);
+
+        std::fs::remove_file(&filename).expect("removing test file");
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn ascii2d_2() {
+        // FIll the spectra this time:
+        let filename = names::Generator::with_naming(names::Name::Numbered)
+            .next()
+            .expect("making filename");
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        fill_test_spectra(&sapi);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let write_uri = format!("/swrite?spectrum=twod&format=ascii&file={}", filename);
+        let write_req = client.get(&write_uri);
+        let write_response = write_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", write_response.status);
+
+        let read_uri = format!("/sread?format=ascii&bind=false&filename={}", filename);
+        let read_req = client.get(&read_uri);
+        let read_response = read_req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing read JSON");
+        assert_eq!("OK", read_response.status);
+
+        // make sure the descriptions of gamma1 and gamma1_0 match (except,
+        // of course the names and gates).
+
+        let original_contents = sapi
+            .get_contents("twod", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'twod' contents");
+        let copy_contents = sapi
+            .get_contents("twod_0", 0.0, 1024.0, 0.0, 1024.0)
+            .expect("getting 'twod_0 contents");
         assert_eq!(original_contents, copy_contents);
 
         std::fs::remove_file(&filename).expect("removing test file");

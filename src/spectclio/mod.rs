@@ -111,7 +111,6 @@ fn write_string_list(fd: &mut dyn Write, s: &Vec<String>) -> Result<(), String> 
 
 pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Result<(), String> {
     for spectrum in spectra.iter() {
-        println!("Writing {:?}", spectrum.definition);
         // Header: Spectrum name/bins:
         fdwrite(fd, &format!("\"{}\"", spectrum.definition.name))?;
         fdwrite(fd, " (")?;
