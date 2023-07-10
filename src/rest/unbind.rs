@@ -170,20 +170,20 @@ mod unbind_tests {
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
-    fn make_some_spectra(chan :  &mpsc::Sender<messaging::Request>) {
+    fn make_some_spectra(chan: &mpsc::Sender<messaging::Request>) {
         // Make parameters p.0 .. p.9 and a 1d for each.  The spectrum
         // type doesn't really matter as that is/was tested in the sharedmem
         // tests.
         let papi = parameter_messages::ParameterMessageClient::new(&chan);
         let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
-        for i in 0..9 {
+        for i in 0..10 {
             let name = format!("p.{}", i);
             papi.create_parameter(&name).expect("making a parameter");
-            sapi.create_spectrum_1d(&name, &name, 0.0, 512.0, 512).expect("Making a spectrum");
-    
+            sapi.create_spectrum_1d(&name, &name, 0.0, 512.0, 512)
+                .expect("Making a spectrum");
         }
     }
-    fn bind_spectrum_list(api : &binder::BindingApi, names : Vec::<String>) {
+    fn bind_spectrum_list(api: &binder::BindingApi, names: Vec<String>) {
         for n in names {
             api.bind(&n).expect("attempting to bind a spectrum");
         }
@@ -237,13 +237,19 @@ mod unbind_tests {
 
         let client = Client::untracked(rocket).expect("Creating rocket test client");
         let req = client.get("/byname?name=p.0");
-        let reply = req.dispatch().into_json::<GenericResponse>().expect("Parsing JSON");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
 
         assert_eq!("OK", reply.status);
 
         // the be no bindings now:
 
-        assert_eq!(0, bind_api.list_bindings("*").expect("Listing bindings").len());
+        assert_eq!(
+            0,
+            bind_api.list_bindings("*").expect("Listing bindings").len()
+        );
 
         teardown(chan, &papi, &bind_api);
     }
@@ -256,19 +262,71 @@ mod unbind_tests {
         let (chan, papi, bind_api) = getstate(&rocket);
 
         make_some_spectra(&chan);
-        bind_spectrum_list(&bind_api, vec![String::from("p.0"), String::from("p.1"), String::from("p.2"), String::from("p.3"), String::from("p.4"), String::from("p.5"), String::from("p.6")]);
+        bind_spectrum_list(
+            &bind_api,
+            vec![
+                String::from("p.0"),
+                String::from("p.1"),
+                String::from("p.2"),
+                String::from("p.3"),
+                String::from("p.4"),
+                String::from("p.5"),
+                String::from("p.6"),
+            ],
+        );
 
         let client = Client::untracked(rocket).expect("Creating rocket test client");
-        let req = client.get("/byname?name=p.0");
-        let reply = req.dispatch().into_json::<GenericResponse>().expect("Parsing JSON");
+        let req = client.get("/byname?name=p.1");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
 
         assert_eq!("OK", reply.status);
 
         let bindings = bind_api.list_bindings("*").expect("listing bindings");
-        assert_eq!(6, bindings.len());  // one fewer than before.
+        assert_eq!(6, bindings.len()); // one fewer than before.
         for (_, name) in bindings {
-            assert!("p0" != name);
+            assert!("p1" != name);
         }
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn all_1() {
+        // Bind a bunch, unbind all:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        make_some_spectra(&chan);
+        bind_spectrum_list(
+            &bind_api,
+            vec![
+                String::from("p.0"),
+                String::from("p.1"),
+                String::from("p.2"),
+                String::from("p.3"),
+                String::from("p.4"),
+                String::from("p.5"),
+                String::from("p.6"),
+                String::from("p.7"),
+                String::from("p.8"),
+                String::from("p.9"),
+            ],
+        );
+
+        let client = Client::untracked(rocket).expect("Creating rocket test client");
+        let req = client.get("/all");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status, "Reason for failure: {}", reply.detail);
+
+        let bindings = bind_api.list_bindings("*").expect("listing bindings");
+        assert_eq!(0, bindings.len()); // all gone.
 
         teardown(chan, &papi, &bind_api);
     }
