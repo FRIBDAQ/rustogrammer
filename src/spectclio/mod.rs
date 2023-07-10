@@ -111,6 +111,7 @@ fn write_string_list(fd: &mut dyn Write, s: &Vec<String>) -> Result<(), String> 
 
 pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Result<(), String> {
     for spectrum in spectra.iter() {
+        println!("Writing: {:?}", spectrum.definition);
         // Header: Spectrum name/bins:
         fdwrite(fd, &format!("\"{}\"", spectrum.definition.name))?;
         fdwrite(fd, " (")?;
@@ -138,10 +139,12 @@ pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Re
 
         fdwrite(fd, &format!("{} long\n", spectrum.definition.type_string,))?;
 
-        // Parenthesized names of parameters (x) - if not pgamma this is one
-        // list otherwise two:
+        // Parenthesized names of parameters (x) - if not pgamma, or 2dsum
+        //  this is one list otherwise two:
 
-        if spectrum.definition.type_string.as_str() != "gd" {
+        if spectrum.definition.type_string.as_str() != "gd"
+            && spectrum.definition.type_string.as_str() != "m2"
+        {
             let mut params = spectrum.definition.x_parameters.clone();
             params.extend(spectrum.definition.y_parameters.clone());
             write_string_list(fd, &params)?;
