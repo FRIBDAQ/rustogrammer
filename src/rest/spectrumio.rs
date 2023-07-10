@@ -786,7 +786,7 @@ mod read_tests {
     fn setup() -> Rocket<Build> {
         let (_, hg_sender) = histogramer::start_server();
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 32 * 1024 * 1024);
 
         // Construct the state:
 
