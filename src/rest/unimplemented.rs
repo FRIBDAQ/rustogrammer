@@ -351,7 +351,7 @@ pub fn trace_fetch(token: String) -> Json<TraceListResponse> {
 
 // What we get per tree variable in a listing:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct TreeVariable {
     name: String,
@@ -359,7 +359,7 @@ pub struct TreeVariable {
     units: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct TreeVariableListResponse {
     status: String,
@@ -1394,6 +1394,184 @@ mod trace_tests {
         assert_eq!(0, reply.detail.spectrum.len());
         assert_eq!(0, reply.detail.gate.len());
         assert_eq!(0, reply.detail.binding.len());
+
+        teardown(chan, &papi, &bapi);
+    }
+}
+#[cfg(test)]
+mod treevar_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build().manage(state).mount(
+            "/",
+            routes![
+                treevariable_list,
+                treevariable_set,
+                treevariable_check,
+                treevariable_set_changed,
+                treevariable_fire_traces
+            ],
+        )
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        fs::remove_file(Path::new(&backing_file)).expect(&format!(
+            "Failed to remove shared memory file {}",
+            backing_file
+        ));
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<TreeVariableListResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Tree variables are not implemented.  This is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn set_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/set?name=dummy&value=2.54&units=cm%2Fin");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Tree variables are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn check_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/check?name=dummy");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Tree variables are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn setchanged_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/setchanged?name=dummy");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Tree variables are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn firetraces_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/firetraces?pattern=*");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Tree variables are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
 
         teardown(chan, &papi, &bapi);
     }
