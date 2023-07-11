@@ -106,12 +106,13 @@ mod version_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
-    
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
+    use std::env;
     use std::fs;
     use std::path::Path;
     use std::sync::mpsc;
@@ -197,6 +198,25 @@ mod version_tests {
             .expect("Parsing JSON");
 
         assert_eq!("OK", reply.status);
+
+        // See if the values are correct:
+
+        let major = env::var("CARGO_PKG_VERSION_MAJOR")
+            .expect("Getting major")
+            .parse::<u32>()
+            .expect("Parsing major");
+        let minor = env::var("CARGO_PKG_VERSION_MINOR")
+            .expect("Getting minor version")
+            .parse::<u32>()
+            .expect("Parsing minor");
+        let patch = env::var("CARGO_PKG_VERSION_PATCH")
+            .expect("Getting edit level")
+            .parse::<u32>()
+            .expect("Parsing edit level");
+
+        assert_eq!(major, reply.detail.major);
+        assert_eq!(minor, reply.detail.minor);
+        assert_eq!(patch, reply.detail.editlevel);
 
         teardown(chan, &papi, &bapi);
     }
