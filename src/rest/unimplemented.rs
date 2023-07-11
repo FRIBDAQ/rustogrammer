@@ -486,10 +486,7 @@ mod mirror_tests {
     ) {
         let backing_file = b.exit().expect("Forcing binding thread to exit");
         thread::sleep(time::Duration::from_millis(100));
-        fs::remove_file(Path::new(&backing_file)).expect(&format!(
-            "Failed to remove shared memory file {}",
-            backing_file
-        ));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
@@ -598,10 +595,7 @@ mod pipeline_tests {
     ) {
         let backing_file = b.exit().expect("Forcing binding thread to exit");
         thread::sleep(time::Duration::from_millis(100));
-        fs::remove_file(Path::new(&backing_file)).expect(&format!(
-            "Failed to remove shared memory file {}",
-            backing_file
-        ));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
@@ -858,10 +852,7 @@ mod project_tests {
     ) {
         let backing_file = b.exit().expect("Forcing binding thread to exit");
         thread::sleep(time::Duration::from_millis(100));
-        fs::remove_file(Path::new(&backing_file)).expect(&format!(
-            "Failed to remove shared memory file {}",
-            backing_file
-        ));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
@@ -958,10 +949,7 @@ mod pseudo_test {
     ) {
         let backing_file = b.exit().expect("Forcing binding thread to exit");
         thread::sleep(time::Duration::from_millis(100));
-        fs::remove_file(Path::new(&backing_file)).expect(&format!(
-            "Failed to remove shared memory file {}",
-            backing_file
-        ));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
@@ -1096,10 +1084,7 @@ mod roottree_tests {
     ) {
         let backing_file = b.exit().expect("Forcing binding thread to exit");
         thread::sleep(time::Duration::from_millis(100));
-        fs::remove_file(Path::new(&backing_file)).expect(&format!(
-            "Failed to remove shared memory file {}",
-            backing_file
-        ));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
@@ -1233,10 +1218,7 @@ mod script_tests {
     ) {
         let backing_file = b.exit().expect("Forcing binding thread to exit");
         thread::sleep(time::Duration::from_millis(100));
-        fs::remove_file(Path::new(&backing_file)).expect(&format!(
-            "Failed to remove shared memory file {}",
-            backing_file
-        ));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
@@ -1333,10 +1315,7 @@ mod trace_tests {
     ) {
         let backing_file = b.exit().expect("Forcing binding thread to exit");
         thread::sleep(time::Duration::from_millis(100));
-        fs::remove_file(Path::new(&backing_file)).expect(&format!(
-            "Failed to remove shared memory file {}",
-            backing_file
-        ));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
@@ -1480,10 +1459,7 @@ mod treevar_tests {
     ) {
         let backing_file = b.exit().expect("Forcing binding thread to exit");
         thread::sleep(time::Duration::from_millis(100));
-        fs::remove_file(Path::new(&backing_file)).expect(&format!(
-            "Failed to remove shared memory file {}",
-            backing_file
-        ));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
