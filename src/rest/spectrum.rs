@@ -7,7 +7,7 @@
 //! *  /spectcl/spectrum/create - create a new spectrum.
 //! *  /spectcl/spectrum/contents - Get the contents of a spectrum.
 //! *  /spectcl/sspectrum/clear - clear
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
 
 use super::*;
@@ -47,14 +47,14 @@ pub fn spectcl_sptype_to_rustogramer(sptype: &str) -> Result<String, String> {
 
 // structures that define the JSON we'll return:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct Axis {
     low: f64,
     high: f64,
     bins: u32,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct SpectrumDescription {
     name: String,
@@ -70,7 +70,7 @@ pub struct SpectrumDescription {
     gate: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct ListResponse {
     status: String,
@@ -396,7 +396,7 @@ fn make_1d(
     let params = parsed_params.unwrap();
     if params.len() != 1 {
         return GenericResponse::err(
-            "Eror processing 1d spectrum parameters",
+            "Error processing 1d spectrum parameters",
             "Only allowed one parameter",
         );
     }
@@ -634,6 +634,10 @@ fn make_2dsum(
 /// SpecTcl REST defines _chantype_ which we ignore because
 /// all our spectra are f64 (double).
 ///
+/// **Note**, however, that copies bound in shared memory will
+/// have type long (u32) for all spectra as that's supported by
+/// Xamine and f64 is not.
+///
 /// The SpecTcl REST supports defining projection spectra which
 /// Rustogrammer does not have. These have _roi_ and _direction_
 /// which define a region of interest contour/band and a projection direction
@@ -672,14 +676,14 @@ pub fn create_spectrum(
 
 /// Each channel value looks like this:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Channel {
     xchan: f64,
     ychan: f64,
     value: f64,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct ContentsResponse {
     status: String,
@@ -1004,5 +1008,1547 @@ mod list_parse_tests {
         let list = "{1 2 3} {a b} c}";
         let parsed = parse_two_element_list(list);
         assert!(parsed.is_err());
+    }
+}
+
+#[cfg(test)]
+mod spectrum_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
+    use crate::parameters::EventParameter;
+    use crate::processing;
+    use crate::rest::HistogramState;
+    use crate::sharedmem::binder;
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn make_some_test_objects(
+        sapi: &spectrum_messages::SpectrumMessageClient,
+        papi: &parameter_messages::ParameterMessageClient,
+    ) {
+        // Some parameters:
+
+        for i in 0..10 {
+            papi.create_parameter(&(format!("parameter.{}", i)))
+                .expect("Creating a parameters");
+        }
+
+        // Some spectra: One of each type.
+
+        sapi.create_spectrum_1d("oned", "parameter.0", 0.0, 1024.0, 512)
+            .expect("oned");
+        sapi.create_spectrum_multi1d(
+            "m1d",
+            &vec![
+                String::from("parameter.0"),
+                String::from("parameter.1"),
+                String::from("parameter.2"),
+                String::from("parameter.3"),
+                String::from("parameter.4"),
+                String::from("parameter.5"),
+            ],
+            0.0,
+            1024.0,
+            512,
+        )
+        .expect("m1d");
+        sapi.create_spectrum_multi2d(
+            "m2d",
+            &vec![
+                String::from("parameter.0"),
+                String::from("parameter.1"),
+                String::from("parameter.2"),
+                String::from("parameter.3"),
+                String::from("parameter.4"),
+                String::from("parameter.5"),
+            ],
+            0.0,
+            1024.0,
+            256,
+            0.0,
+            1024.0,
+            256,
+        )
+        .expect("m2d");
+        sapi.create_spectrum_pgamma(
+            "pgamma",
+            &vec![
+                String::from("parameter.0"),
+                String::from("parameter.1"),
+                String::from("parameter.2"),
+                String::from("parameter.3"),
+                String::from("parameter.4"),
+                String::from("parameter.5"),
+            ],
+            &vec![
+                String::from("parameter.4"),
+                String::from("parameter.5"),
+                String::from("parameter.6"),
+                String::from("parameter.7"),
+                String::from("parameter.8"),
+                String::from("parameter.9"),
+            ],
+            0.0,
+            1024.0,
+            256,
+            0.0,
+            1024.0,
+            256,
+        )
+        .expect("pgamma");
+        sapi.create_spectrum_summary(
+            "summary",
+            &vec![
+                String::from("parameter.0"),
+                String::from("parameter.1"),
+                String::from("parameter.2"),
+                String::from("parameter.3"),
+                String::from("parameter.4"),
+                String::from("parameter.5"),
+                String::from("parameter.6"),
+                String::from("parameter.7"),
+                String::from("parameter.8"),
+                String::from("parameter.9"),
+            ],
+            0.0,
+            1024.0,
+            256,
+        )
+        .expect("summary");
+        sapi.create_spectrum_2d(
+            "twod",
+            "parameter.0",
+            "parameter.1",
+            0.0,
+            1024.0,
+            256,
+            0.0,
+            1024.0,
+            256,
+        )
+        .expect("twod");
+        sapi.create_spectrum_2dsum(
+            "2dsum",
+            &vec![String::from("parameter.0"), String::from("parameter.1")],
+            &vec![String::from("parameter.2"), String::from("parameter.3")],
+            0.0,
+            1024.0,
+            256,
+            0.0,
+            1024.0,
+            256,
+        )
+        .expect("2dsum");
+    }
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hg_sender);
+        let papi = parameter_messages::ParameterMessageClient::new(&hg_sender);
+
+        make_some_test_objects(&sapi, &papi);
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build().manage(state).mount(
+            "/",
+            routes![
+                list_spectrum,
+                delete_spectrum,
+                create_spectrum,
+                get_contents,
+                clear_spectra,
+            ],
+        )
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn list_1() {
+        // Unfiltered all spectra made by make_some_test_objects get listed:
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(7, reply.detail.len());
+
+        // The order of the spectra is unpredictable so we
+        // first sort by name:
+
+        let mut spectrum_info = reply.detail.clone();
+        spectrum_info.sort_by(|a, b| a.name.cmp(&b.name));
+
+        // first is 2dsum:
+
+        let info = &spectrum_info[0];
+        assert_eq!("2dsum", info.name);
+        assert_eq!("m2", info.spectrum_type); // SpecTcl type.
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(
+            vec![String::from("parameter.0"), String::from("parameter.1")].len(),
+            info.xparameters.len()
+        );
+        for (i, s) in vec![String::from("parameter.0"), String::from("parameter.1")]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(s.as_str(), info.xparameters[i]);
+        }
+        assert_eq!(
+            vec![String::from("parameter.2"), String::from("parameter.3")].len(),
+            info.yparameters.len()
+        );
+        for (i, s) in vec![String::from("parameter.2"), String::from("parameter.3")]
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(s.as_str(), info.yparameters[i]);
+        }
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(256, xaxis.bins);
+
+        assert!(info.yaxis.is_some());
+        let yaxis = &info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+
+        // m1d is next alphabetically - an m2 spectrum.
+
+        let info = &spectrum_info[1];
+        assert_eq!("m1d", info.name);
+        assert_eq!("g1", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        let sbparams = vec![
+            String::from("parameter.0"),
+            String::from("parameter.1"),
+            String::from("parameter.2"),
+            String::from("parameter.3"),
+            String::from("parameter.4"),
+            String::from("parameter.5"),
+        ];
+        assert_eq!(sbparams.len(), info.parameters.len());
+        for (i, s) in sbparams.iter().enumerate() {
+            assert_eq!(s.as_str(), info.parameters[i]);
+        }
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(512, xaxis.bins);
+        assert!(info.yaxis.is_none());
+
+        // next is m2d - a g2 spectrum.
+
+        let info = &spectrum_info[2];
+        assert_eq!("m2d", info.name);
+        assert_eq!("g2", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        let sbparams = vec![
+            String::from("parameter.0"),
+            String::from("parameter.1"),
+            String::from("parameter.2"),
+            String::from("parameter.3"),
+            String::from("parameter.4"),
+            String::from("parameter.5"),
+        ];
+        assert_eq!(sbparams.len(), info.parameters.len());
+        for (i, s) in sbparams.iter().enumerate() {
+            assert_eq!(s.as_str(), info.parameters[i]);
+        }
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(256, xaxis.bins);
+
+        assert!(info.yaxis.is_some());
+        let yaxis = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+
+        // Next is oned - "1" spectrum.
+
+        let info = &spectrum_info[3];
+        assert_eq!("oned", info.name);
+        assert_eq!("1", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(1, info.parameters.len());
+        assert_eq!("parameter.0", info.parameters[0]);
+        assert!(info.xaxis.is_some());
+        assert!(info.yaxis.is_none());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(512, xaxis.bins);
+
+        // next pgamma I think (type gd).
+
+        let info = &spectrum_info[4];
+        assert_eq!("pgamma", info.name);
+        assert_eq!("gd", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(6, info.xparameters.len());
+        let xparams = vec![
+            String::from("parameter.0"),
+            String::from("parameter.1"),
+            String::from("parameter.2"),
+            String::from("parameter.3"),
+            String::from("parameter.4"),
+            String::from("parameter.5"),
+        ];
+        for (i, s) in xparams.iter().enumerate() {
+            assert_eq!(s.as_str(), info.xparameters[i]);
+        }
+        assert_eq!(6, info.yparameters.len());
+        let yparams = vec![
+            String::from("parameter.4"),
+            String::from("parameter.5"),
+            String::from("parameter.6"),
+            String::from("parameter.7"),
+            String::from("parameter.8"),
+            String::from("parameter.9"),
+        ];
+        for (i, s) in yparams.iter().enumerate() {
+            assert_eq!(s.as_str(), info.yparameters[i]);
+        }
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(256, xaxis.bins);
+        assert!(info.yaxis.is_some());
+        let yaxis = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+
+        // Next is summary:
+
+        let info = &spectrum_info[5];
+        assert_eq!("summary", info.name);
+        assert_eq!("s", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(10, info.parameters.len());
+        let params = vec![
+            String::from("parameter.0"),
+            String::from("parameter.1"),
+            String::from("parameter.2"),
+            String::from("parameter.3"),
+            String::from("parameter.4"),
+            String::from("parameter.5"),
+            String::from("parameter.6"),
+            String::from("parameter.7"),
+            String::from("parameter.8"),
+            String::from("parameter.9"),
+        ];
+        for (i, s) in params.iter().enumerate() {
+            assert_eq!(s.as_str(), info.parameters[i]);
+        }
+        assert!(info.yaxis.is_some());
+        let yaxis = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+        assert!(info.xaxis.is_none());
+
+        // Twod is last:
+
+        let info = &spectrum_info[6];
+        assert_eq!("twod", info.name);
+        assert_eq!("2", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(1, info.xparameters.len());
+        assert_eq!("parameter.0", info.xparameters[0]);
+        assert_eq!(1, info.yparameters.len());
+        assert_eq!("parameter.1", info.yparameters[0]);
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(256, xaxis.bins);
+
+        assert!(info.yaxis.is_some());
+        let yaxis = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+
+        // Close out the test
+        teardown(chan, &papi, &binder_api);
+    }
+    #[test]
+    fn list_2() {
+        // filtered list.
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making client");
+        let req = client.get("/list?filter=t*");
+        let reply = req
+            .dispatch()
+            .into_json::<ListResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        let info = &reply.detail[0];
+        assert_eq!("twod", info.name);
+        assert_eq!("2", info.spectrum_type);
+        assert_eq!("f64", info.chantype);
+        assert!(info.gate.is_none());
+        assert_eq!(1, info.xparameters.len());
+        assert_eq!("parameter.0", info.xparameters[0]);
+        assert_eq!(1, info.yparameters.len());
+        assert_eq!("parameter.1", info.yparameters[0]);
+        assert!(info.xaxis.is_some());
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(256, xaxis.bins);
+
+        assert!(info.yaxis.is_some());
+        let yaxis = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, yaxis.low);
+        assert_eq!(1024.0, yaxis.high);
+        assert_eq!(256, yaxis.bins);
+
+        teardown(chan, &papi, &binder_api);
+    }
+    #[test]
+    fn list_3() {
+        // Make a spectrm gated and check that the list shows this:
+
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let capi = condition_messages::ConditionMessageClient::new(&chan);
+        capi.create_true_condition("Acondition");
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.gate_spectrum("twod", "Acondition")
+            .expect("Gating spectrum");
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/list?filter=twod");
+        let reply = req
+            .dispatch()
+            .into_json::<ListResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        assert!(reply.detail[0].gate.is_some());
+        assert_eq!("Acondition", reply.detail[0].gate.clone().unwrap());
+
+        teardown(chan, &papi, &binder_api);
+    }
+    #[test]
+    fn delete_1() {
+        // delete an existing spectrum.
+
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/delete?name=summary");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing json");
+
+        assert_eq!("OK", reply.status);
+
+        teardown(chan, &papi, &binder_api);
+    }
+    #[test]
+    fn delete_2() {
+        // delete a nonexistenf spectrum is an error:
+
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/delete?name=nosuch");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing json");
+
+        assert_eq!("Failed to delete nosuch", reply.status);
+
+        teardown(chan, &papi, &binder_api);
+    }
+    // Test spectrum creation.  We'll use ReST to create the test spectrum
+    // and the API to see if it was correctly made.
+
+    #[test]
+    fn create1d_1() {
+        // Correct creation of a 1d spectrum:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=1&parameters=parameter.0&axes=-1%201%20512");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Creating 1d spectrum");
+
+        assert_eq!("OK", reply.status);
+
+        let hapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let listing = hapi.list_spectra("test").expect("listing spectra");
+
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("test", info.name);
+        assert_eq!("1D", info.type_name); // Native type.
+        assert_eq!(1, info.xparams.len());
+        assert_eq!("parameter.0", info.xparams[0]);
+        assert_eq!(0, info.yparams.len());
+        assert!(info.xaxis.is_some());
+        let x = info.xaxis.clone().unwrap();
+        assert_eq!(-1.0, x.low);
+        assert_eq!(1.0, x.high);
+        assert_eq!(514, x.bins); // underflow and overflow.
+        assert!(info.yaxis.is_none());
+        assert!(info.gate.is_none());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create1d_2() {
+        // invalid parameter:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=1&parameters=parameter.00&axes=-1%201%20512");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Creating 1d spectrum");
+
+        assert_eq!("Failed to create 1d spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create1d_3() {
+        // can only have one parameters:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client
+            .get("/create?name=test&type=1&parameters=parameter.0%20parameter.1&axes=-1%201%20512");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Creating 1d spectrum");
+
+        assert_eq!("Error processing 1d spectrum parameters", reply.status);
+        assert_eq!("Only allowed one parameter", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create1d_4() {
+        // invalid axis specification:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=1&parameters=parameter.0&axes=-1%201");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Creating 1d spectrum");
+
+        assert_eq!("Invalid axis specification", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2d_1() {
+        // Create a valid 2d spectrum.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Createing client");
+        let req = client.get("/create?name=test&type=2&parameters=parameter.0%20parameter.1&axes={0%20100%20100}%20{-1%201%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let hapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let listing = hapi.list_spectra("test").expect("Listing with API");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+
+        assert_eq!("test", info.name);
+        assert_eq!("2D", info.type_name); // native type.
+        assert_eq!(1, info.xparams.len());
+        assert_eq!("parameter.0", info.xparams[0]);
+        assert_eq!(1, info.yparams.len());
+        assert_eq!("parameter.1", info.yparams[0]);
+        assert!(info.xaxis.is_some());
+        assert!(info.yaxis.is_some());
+        assert!(info.gate.is_none());
+        let x = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, x.low);
+        assert_eq!(100.0, x.high);
+        assert_eq!(102, x.bins);
+        let y = info.yaxis.clone().unwrap();
+        assert_eq!(-1.0, y.low);
+        assert_eq!(1.0, y.high);
+        assert_eq!(102, y.bins);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2d_2() {
+        // must only be 2 parameters
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Createing client");
+        let req = client.get("/create?name=test&type=2&parameters=parameter.0%20parameter.1%20parameter.2&axes={0%20100%20100}%20{-1%201%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Failed to process parameter list", reply.status);
+        assert_eq!(
+            "There must be exactly two parameters for a 2d spectrum",
+            reply.detail
+        );
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2d_3() {
+        // badly formed parameter list:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Createing client");
+        let req = client.get("/create?name=test&type=2&parameters={parameter.0%20parameter.1&axes={0%20100%20100}%20{-1%201%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Failed to parse 2d parameter list", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2d_4() {
+        // bad X parameter
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Createing client");
+        let req = client.get("/create?name=test&type=2&parameters=parameter.10%20parameter.1%&axes={0%20100%20100}%20{-1%201%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Failed to create 2d spectrum", reply.status);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2d_5() {
+        // bad y parameter.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Createing client");
+        let req = client.get("/create?name=test&type=2&parameters=parameter.0%20parameter.11%&axes={0%20100%20100}%20{-1%201%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Failed to create 2d spectrum", reply.status);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2d_6() {
+        // only one axis specification.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Createing client");
+        let req = client.get(
+            "/create?name=test&type=2&parameters=parameter.0%20parameter.1%&axes=0%20100%20100",
+        );
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Failed to parse axes definitions", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2d_7() {
+        // Parse error for axis defs:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=2&parameters=parameter.0%20parameter.1&axes={0%20100%20100}%20{-1%201%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Failed to parse axes definitions", reply.status);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg1_1() {
+        // successful creation of a Multi1D (g1 in SpecTcl notation).
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g1&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes=0%20100%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let list = sapi.list_spectra("test").expect("API listing of spectrum");
+        assert_eq!(1, list.len());
+        let info = &list[0];
+        assert_eq!("test", info.name);
+        assert_eq!("Multi1d", info.type_name);
+        assert_eq!(4, info.xparams.len());
+        assert_eq!(0, info.yparams.len());
+        let params = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        for (i, s) in params.iter().enumerate() {
+            assert_eq!(*s, info.xparams[i]);
+        }
+
+        assert!(info.xaxis.is_some());
+        assert!(info.yaxis.is_none());
+        assert!(info.gate.is_none());
+
+        let xaxis = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(100.0, xaxis.high);
+        assert_eq!(102, xaxis.bins);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg1_2() {
+        // Need only one axis.
+        // A white box note:  The sam code is used to parse
+        // axes for all spectrum types so between the 1d and 2d
+        // tests, parse error reporting has been done.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g1&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0%20100%20100}%20{0%20100%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("Failed to process axis definition", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg1_3() {
+        // all parameters must be defined:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g1&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.13&axes=0%20100%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("Failed to make multi1d spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg2_1() {
+        // succesfully create a Multi2d (g2 in SpecTcl parlance).
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0%20100%20100}%20{0%20100%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let list = sapi.list_spectra("test").expect("API listing of spectrum");
+        assert_eq!(1, list.len());
+        let info = &list[0];
+        assert_eq!("test", info.name);
+        assert_eq!("Multi2d", info.type_name);
+        assert_eq!(4, info.xparams.len());
+        assert_eq!(0, info.yparams.len());
+        assert!(info.xaxis.is_some());
+        assert!(info.yaxis.is_some());
+        assert!(info.gate.is_none());
+
+        let params = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        for (i, s) in params.iter().enumerate() {
+            assert_eq!(*s, info.xparams[i]);
+        }
+
+        let x = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, x.low);
+        assert_eq!(100.0, x.high);
+        assert_eq!(102, x.bins);
+
+        let y = info.yaxis.clone().unwrap();
+        assert_eq!(0.0, y.low);
+        assert_eq!(100.0, y.high);
+        assert_eq!(102, y.bins);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg2_2() {
+        // all parameters must be defined:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.13&axes={0%20100%20100}%20{0%20100%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+        assert_eq!("Failed to create multi2d spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg2_3() {
+        // Need 2 axes:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes=0%20100%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+        assert_eq!("Failed to parse axes definitions", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_1() {
+        // Successful creation of PGamma  spectrum (gd in SpecTcl).
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.2}%20{parameter.3%20parameter.4}&axes={0%20100%20100}%20{-1%201%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let listing = sapi.list_spectra("test").expect("Listing spectra with API");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("test", info.name);
+        assert_eq!("PGamma", info.type_name);
+        assert_eq!(3, info.xparams.len());
+        assert_eq!(2, info.yparams.len());
+        assert!(info.xaxis.is_some());
+        assert!(info.yaxis.is_some());
+        assert!(info.gate.is_none());
+
+        let xpars = vec!["parameter.0", "parameter.1", "parameter.2"];
+        for (i, s) in xpars.iter().enumerate() {
+            assert_eq!(*s, info.xparams[i]);
+        }
+        let ypars = vec!["parameter.3", "parameter.4"];
+        for (i, s) in ypars.iter().enumerate() {
+            assert_eq!(*s, info.yparams[i]);
+        }
+        let x = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, x.low);
+        assert_eq!(100.0, x.high);
+        assert_eq!(102, x.bins);
+
+        let y = info.yaxis.clone().unwrap();
+        assert_eq!(-1.0, y.low);
+        assert_eq!(1.0, y.high);
+        assert_eq!(202, y.bins);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_2() {
+        // All params must be defined. for x
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.12}%20{parameter.3%20parameter.4}&axes={0%20100%20100}%20{-1%201%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to create pgamma spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_3() {
+        // All params must be defined for y
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.2}%20{parameter.3%20parameter.14}&axes={0%20100%20100}%20{-1%201%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to create pgamma spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_4() {
+        // need two parameter lists.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters=parameter.0%20parameter.1%20parameter.2&axes={0%20100%20100}%20{-1%201%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to parse parameter list", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_5() {
+        // Need two axes.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.2}%20{parameter.3%20parameter.4}&axes=0%20100%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to parse axes definitions", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createsummary_1() {
+        // Create a valid summary spectrum.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=s&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes=-1%201%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let listing = sapi
+            .list_spectra("test")
+            .expect("Using API to list spectra");
+        assert_eq!(1, listing.len());
+        let info = &listing[0];
+        assert_eq!("test", info.name);
+        assert_eq!("Summary", info.type_name);
+        assert_eq!(4, info.xparams.len());
+        assert_eq!(0, info.yparams.len());
+        assert!(info.xaxis.is_none());
+        assert!(info.yaxis.is_some());
+        assert!(info.gate.is_none());
+
+        let pars = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        for (i, p) in pars.iter().enumerate() {
+            assert_eq!(*p, info.xparams[i]);
+        }
+        let y = info.yaxis.clone().unwrap();
+        assert_eq!(-1.0, y.low);
+        assert_eq!(1.0, y.high);
+        assert_eq!(102, y.bins);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createsummary_2() {
+        // All parameters must be defined.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=s&parameters=xparameter.0%20parameter.1%20parameter.2%20parameter.3&axes=-1%201%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to create spectrum", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createsummary_3() {
+        // Only one parameter list allowed.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=s&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4}&axes=-1%201%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to parse the parameter list", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creatsummary_4() {
+        // only one axis list allowed.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=s&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={-1%201%20100}%20{0.0%201.0%2050}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to process axis definition", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2dsum_1() {
+        // Correctly create a 2DSum (m2) spectrum.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=m2&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4%20parameter.5%20parameter.6%20parameter.7}&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let list = sapi
+            .list_spectra("test")
+            .expect("Using API to get spectrum info");
+        assert_eq!(1, list.len());
+        let info = &list[0];
+        assert_eq!("test", info.name);
+        assert_eq!("2DSum", info.type_name);
+        assert_eq!(4, info.xparams.len());
+        assert_eq!(4, info.yparams.len());
+        assert!(info.xaxis.is_some());
+        assert!(info.yaxis.is_some());
+        assert!(info.gate.is_none());
+        let xpars = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        let ypars = vec!["parameter.4", "parameter.5", "parameter.6", "parameter.7"];
+        // this loop takes advantage of the fact the param lists are same lengths.
+        for (i, s) in xpars.iter().enumerate() {
+            assert_eq!(*s, info.xparams[i]);
+            assert_eq!(ypars[i], info.yparams[i]);
+        }
+
+        let x = info.xaxis.clone().unwrap();
+        assert_eq!(0.0, x.low);
+        assert_eq!(10.0, x.high);
+        assert_eq!(102, x.bins);
+
+        let y = info.yaxis.clone().unwrap();
+        assert_eq!(-1.0, y.low);
+        assert_eq!(1.0, y.high);
+        assert_eq!(252, y.bins);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creates2dsum_2() {
+        // two parameter lists are required.
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=m2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to parse the parameter list(s)", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2dsum_3() {
+        // all x parameters must be defined.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=m2&parameters={xparameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4%20parameter.5%20parameter.6%20parameter.7}&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to create 2d sum spectrum", reply.status);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2dsum_4() {
+        // All y parameters must be defined.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=m2&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4%20parameter.5%20parameter.6%20parameter.70}&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to create 2d sum spectrum", reply.status);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2dsum_5() {
+        // X/Y parameters must be the same length.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=m2&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4%20parameter.5%20parameter.6}&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("Failed to create 2d sum spectrum", reply.status);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2dsum_6() {
+        // Must have two axis lists.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=m2&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4%20parameter.5%20parameter.6%20parameter.7}&axes=0.0%2010.0%20100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to parse axes definitions", reply.status);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_1() {
+        // Initially, none of the test spectra have any data:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=oned&xlow=0.0&xhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_2() {
+        // put a count in channel 256 (512.0) first.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p = EventParameter::new(1, 512.0);
+        let e = vec![p];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=oned&xlow=0.0&xhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        assert_eq!(512.0, reply.detail[0].xchan);
+        assert_eq!(1.0, reply.detail[0].value);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_3() {
+        // set AOI so that we don't see the count:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p = EventParameter::new(1, 512.0);
+        let e = vec![p];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=oned&xlow=514.0&xhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_4() {
+        // put a count in the twod spectrum.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p1 = EventParameter::new(1, 512.0);
+        let p2 = EventParameter::new(2, 256.0); // so xchan/ychan differ.
+        let e = vec![p1, p2];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=twod&xlow=0.0&xhigh=1024.0&ylow=0.0&yhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+
+        assert_eq!(512.0, reply.detail[0].xchan);
+        assert_eq!(256.0, reply.detail[0].ychan);
+        assert_eq!(1.0, reply.detail[0].value);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_5() {
+        // count outsidef of ROI
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p1 = EventParameter::new(1, 512.0);
+        let p2 = EventParameter::new(2, 256.0); // so xchan/ychan differ.
+        let e = vec![p1, p2];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=twod&xlow=0.0&xhigh=1024.0&ylow=258.0&yhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn get_6() {
+        // No such spectrum.
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/contents?name=twodd&xlow=0.0&xhigh=1024.0&ylow=258.0&yhigh=1024.0");
+        let reply = req
+            .dispatch()
+            .into_json::<ContentsResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Failed to fetch info for twodd no such spectrum or ambiguous name",
+            reply.status
+        );
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn clear_1() {
+        // Clear all spectra:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p1 = EventParameter::new(1, 512.0);
+        let p2 = EventParameter::new(2, 256.0); // so xchan/ychan differ.
+        let e = vec![p1, p2];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Rocket client");
+        let req = client.get("/clear"); // no pattern means *
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status, "{}", reply.detail);
+
+        // all of the spectra should have no counts:
+
+        let spectra = vec!["oned", "m1d", "m2d", "pgamma", "summary", "twod", "2dsum"];
+        for s in spectra {
+            let data = sapi
+                .get_contents(s, -1024.0, 1024.0, -1024.0, 1024.0)
+                .expect("Get contents");
+            assert_eq!(0, data.len(), "{} has counts", s);
+        }
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn clear_2() {
+        // Clear only m1d
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        // Make the event/event vector to send to the histogramer:
+
+        let p1 = EventParameter::new(1, 512.0);
+        let p2 = EventParameter::new(2, 256.0); // so xchan/ychan differ.
+        let e = vec![p1, p2];
+        let events = vec![e];
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        sapi.process_events(&events).expect("Providing events");
+
+        let client = Client::untracked(rocket).expect("Rocket client");
+        let req = client.get("/clear?pattern=m1d"); // no pattern means *
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status, "{}", reply.detail);
+
+        // m1 should be cleared...everyone else has counts (I think).
+
+        let spectra = vec![
+            ("m1d", 0),
+            ("oned", 1),
+            ("pgamma", 0),
+            ("summary", 2),
+            ("twod", 1),
+            ("2dsum", 0),
+        ];
+        for s in spectra {
+            let data = sapi
+                .get_contents(s.0, -1024.0, 1024.0, -1024.0, 1024.0)
+                .expect("Get contents");
+            assert_eq!(s.1, data.len(), "{} has count mismatch", s.0);
+        }
+
+        teardown(chan, &papi, &bind_api);
     }
 }

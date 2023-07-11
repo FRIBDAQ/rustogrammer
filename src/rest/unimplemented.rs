@@ -27,19 +27,19 @@
 //! supported by the analysis pipeline.
 
 use super::*;
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 
 //------------------------------------------------------------
 // Mirroring
 
 // Description of a mirror client:
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct MirrorInfo {
     host: String,
     memory: String,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct MirrorResponse {
     status: String,
@@ -62,7 +62,7 @@ pub fn mirror_list() -> Json<MirrorResponse> {
 #[get("/create?<name>")]
 pub fn pman_create(name: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
-        "Pipline management is not implemented",
+        "Pipeline management is not implemented",
         "This is not SpecTcl",
     ))
 }
@@ -84,13 +84,13 @@ pub fn pman_current() -> Json<GenericResponse> {
 }
 // listall
 #[allow(unused_variables)]
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct PipelineDescription {
     name: String,
     processors: Vec<String>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct ListAllResponse {
     status: String,
@@ -195,7 +195,7 @@ pub fn pseudo_create(
 }
 // Description of a pseudo parameter:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct PseudoDescription {
     name: String,
@@ -204,7 +204,7 @@ pub struct PseudoDescription {
 }
 // Response to /pseudo/list:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct PseudoListResponse {
     status: String,
@@ -224,7 +224,7 @@ pub fn pseudo_list(pattern: OptionalString) -> Json<PseudoListResponse> {
 #[get("/delete?<name>")]
 pub fn pseudo_delete(name: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
-        "Psuedo parameters are not implemented",
+        "Pseudo parameters are not implemented",
         "This is not SpecTcl",
     ))
 }
@@ -258,7 +258,7 @@ pub fn roottree_delete(tree: String) -> Json<GenericResponse> {
 
 // Description of a root tree:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct RootTreeDescription {
     tree: String,
@@ -266,7 +266,7 @@ pub struct RootTreeDescription {
     gate: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct RootTreeListResponse {
     status: String,
@@ -293,7 +293,7 @@ pub fn script_execute(command: String) -> Json<GenericResponse> {
     ))
 }
 //---------------------------------------------------------------
-// Traces - these are scheduled for release 0.1
+// Traces - these are scheduled for a later relese
 //
 
 /// Establish a trace.
@@ -317,7 +317,7 @@ pub fn trace_done(token: String) -> Json<GenericResponse> {
 
 // Trace information:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct TraceInfo {
     parameter: Vec<String>,
@@ -325,7 +325,7 @@ pub struct TraceInfo {
     gate: Vec<String>,
     binding: Vec<String>,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct TraceListResponse {
     status: String,
@@ -351,7 +351,7 @@ pub fn trace_fetch(token: String) -> Json<TraceListResponse> {
 
 // What we get per tree variable in a listing:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct TreeVariable {
     name: String,
@@ -359,7 +359,7 @@ pub struct TreeVariable {
     units: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct TreeVariableListResponse {
     status: String,
@@ -409,4 +409,1146 @@ pub fn treevariable_fire_traces(pattern: OptionalString) -> Json<GenericResponse
         "Tree variables are not implemented",
         "This is not SpecTcl",
     ))
+}
+
+#[cfg(test)]
+mod mirror_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![mirror_list])
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making rocket test client");
+        let req = client.get("/");
+        let reply = req
+            .dispatch()
+            .into_json::<MirrorResponse>()
+            .expect("parsing Json");
+
+        assert_eq!("Mirroring is not implemented in Rustogramer", reply.status);
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+}
+#[cfg(test)]
+mod pipeline_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build().manage(state).mount(
+            "/",
+            routes![
+                pman_create,
+                pman_list,
+                pman_current,
+                pman_listall,
+                pman_list_event_processors,
+                pman_choose_pipeline,
+                pman_add_processor,
+                pman_rm_processor,
+                pman_clear,
+                pman_clone,
+            ],
+        )
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn create_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/create?name=junk");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/list?pattern=junk");
+        let reply = req
+            .dispatch()
+            .into_json::<StringArrayResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Pipeline managment is not implemented - this is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn current_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/current");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn listall_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/lsall?pattern=*");
+        let reply = req
+            .dispatch()
+            .into_json::<ListAllResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Pipeline management is not implemented - this is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn lsevp_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/lsevp?pattern=*");
+        let reply = req
+            .dispatch()
+            .into_json::<StringArrayResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Pipeline management is not implemented - this is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn use_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/use?name=junk");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn add_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/add?pipeline=pipe&processor=proc");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn rm_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/rm?pipeline=pipe&processor=proc");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn clear_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/clear?pipeline=pipe");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn clone_1() {
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket test client");
+        let req = client.get("/clone?source=src&new=new");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pipeline management is not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+}
+#[cfg(test)]
+mod project_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build().manage(state).mount("/", routes![project])
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn project_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/?snapshot=yes&source=dummy&newname=newspec&direction=x");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Projections are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi)
+    }
+}
+#[cfg(test)]
+mod pseudo_test {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![pseudo_create, pseudo_list, pseudo_delete])
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn create_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("creating client");
+        let req = client.get("/create?pseudo=p&parameter=a&parameter=b&computation={$a+$b}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pseudo parameters are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("creating client");
+        let req = client.get("/list?pattern=*");
+        let reply = req
+            .dispatch()
+            .into_json::<PseudoListResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Psuedo parameters are not implemented - this is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn delete_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("creating client");
+        let req = client.get("/delete?name=dummy");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pseudo parameters are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+}
+#[cfg(test)]
+mod roottree_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build().manage(state).mount(
+            "/",
+            routes![roottree_create, roottree_delete, roottree_list],
+        )
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn create_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket client");
+        let req = client.get("/create?tree=treename&parameter=p1&parmeter=p2");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Root Tree output is not supported", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn delete_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket client");
+        let req = client.get("/delete?tree=treename");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Root Tree output is not supported", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making rocket client");
+        let req = client.get("/list?pattern=*");
+        let reply = req
+            .dispatch()
+            .into_json::<RootTreeListResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Root tree output is not implemented - this is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bapi);
+    }
+}
+#[cfg(test)]
+mod script_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![script_execute])
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn execute_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let req = client.get("/?command=something");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Script execution is not supported", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+}
+#[cfg(test)]
+mod trace_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![trace_establish, trace_done, trace_fetch])
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn establish_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let req = client.get("/establish?retention=100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Traces are not supported", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn done_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let req = client.get("/done?token=123456789");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Traces are not supported", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn fetch_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let req = client.get("/fetch?token=123467890");
+        let reply = req
+            .dispatch()
+            .into_json::<TraceListResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Traces are not supported,  This is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.parameter.len());
+        assert_eq!(0, reply.detail.spectrum.len());
+        assert_eq!(0, reply.detail.gate.len());
+        assert_eq!(0, reply.detail.binding.len());
+
+        teardown(chan, &papi, &bapi);
+    }
+}
+#[cfg(test)]
+mod treevar_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::fs;
+    use std::path::Path;
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    use std::thread;
+    use std::time;
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build().manage(state).mount(
+            "/",
+            routes![
+                treevariable_list,
+                treevariable_set,
+                treevariable_check,
+                treevariable_set_changed,
+                treevariable_fire_traces
+            ],
+        )
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+        let binder_api = binder::BindingApi::new(
+            &r.state::<HistogramState>()
+                .expect("Valid State")
+                .binder
+                .lock()
+                .unwrap(),
+        );
+        (chan, papi, binder_api)
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        let backing_file = b.exit().expect("Forcing binding thread to exit");
+        thread::sleep(time::Duration::from_millis(100));
+        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<TreeVariableListResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Tree variables are not implemented.  This is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn set_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/set?name=dummy&value=2.54&units=cm%2Fin");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Tree variables are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn check_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/check?name=dummy");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Tree variables are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn setchanged_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/setchanged?name=dummy");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Tree variables are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn firetraces_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/firetraces?pattern=*");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Tree variables are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
 }

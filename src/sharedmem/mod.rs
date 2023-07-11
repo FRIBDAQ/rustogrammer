@@ -413,6 +413,7 @@ impl SharedMemory {
         // If the name is too long we need to truncate it to
         // TITLE_LENGTH -1 so there's a null termination
 
+
         let mut name = String::from(sname);
         name.truncate(TITLE_LENGTH - 1);
         name.push('\0'); // Ensure it's all null terminated.
@@ -434,7 +435,7 @@ impl SharedMemory {
             required = required * (y.2);
             spectrum_type = SpectrumTypes::TwodLong;
         }
-        let storage = self.get_free_spectrum_pointer(required as usize);
+        let storage = self.get_free_spectrum_pointer((required as usize) * mem::size_of::<u32>());
         if storage.is_none() {
             return Err(format!(
                 "Unable to allocate spectrum storage for {} bytes",
@@ -489,7 +490,6 @@ impl SharedMemory {
         self.bindings[slot] = String::new();
         let header = self.get_header();
         header.dsp_types[slot] = SpectrumTypes::Undefined;
-
         let offset = (header.dsp_offsets[slot] as usize) * mem::size_of::<u32>();
         self.allocator
             .free_trusted(offset)

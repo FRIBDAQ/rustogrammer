@@ -6,7 +6,7 @@
 //! *  /spectcl/ringformat - sets the ring item format.
 //! *  /spectcl/ringformat/get - returns the current ring format.
 
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
 
 use super::*;
@@ -47,13 +47,13 @@ pub fn ringversion_set(major: String, state: &State<HistogramState>) -> Json<Gen
 //------------------------------------------------------------------------
 // Getting the ring version:
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct VersionDetail {
     major: usize,
     minor: usize,
 }
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct VersionResponse {
     status: String,
@@ -89,4 +89,155 @@ pub fn ringversion_get(state: &State<HistogramState>) -> Json<VersionResponse> {
     };
 
     Json(response)
+}
+
+#[cfg(test)]
+mod ringversion_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::processing;
+    use crate::rest::HistogramState;
+    use crate::sharedmem::binder;
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+        // Note we have two domains here because of the SpecTcl
+        // divsion between tree parameters and raw parameters.
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![ringversion_set, ringversion_get])
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    fn getstate(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
+    }
+
+    #[test]
+    fn set_1() {
+        // Legal version:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/?major=12");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn set_2() {
+        // in valid version:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/?major=xyzzy");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Unable to set ring format version", reply.status);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn get_1() {
+        // get 11.0:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        // Set it to 11:
+
+        papi.set_ring_version(RingVersion::V11)
+            .expect("Setting ringversion");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/get");
+        let reply = req
+            .dispatch()
+            .into_json::<VersionResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(11, reply.detail.major);
+        assert_eq!(0, reply.detail.minor);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn get_2() {
+        // get 12.0:
+
+        let rocket = setup();
+        let (c, papi) = getstate(&rocket);
+
+        // Set it to 11:
+
+        papi.set_ring_version(RingVersion::V12)
+            .expect("Setting ringversion");
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let req = client.get("/get");
+        let reply = req
+            .dispatch()
+            .into_json::<VersionResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(12, reply.detail.major);
+        assert_eq!(0, reply.detail.minor);
+
+        teardown(c, &papi);
+    }
 }

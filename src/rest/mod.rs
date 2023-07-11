@@ -59,7 +59,7 @@ use crate::messaging::Request;
 use crate::processing;
 use crate::sharedmem::binder;
 use portman_client;
-use rocket::serde::Serialize;
+use rocket::serde::{Deserialize, Serialize};
 use rocket::State;
 use std::sync::{mpsc, Mutex};
 
@@ -75,7 +75,7 @@ pub type OptionalString = Option<String>;
 pub type OptionalF64Vec = Option<Vec<f64>>;
 pub type OptionalFlag = Option<bool>;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct GenericResponse {
     status: String,
@@ -96,14 +96,12 @@ impl GenericResponse {
     }
 }
 
-
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct StringArrayResponse {
     status: String,
     pub detail: Vec<String>,
 }
-
 
 impl StringArrayResponse {
     pub fn new(status: &str) -> StringArrayResponse {
@@ -112,7 +110,7 @@ impl StringArrayResponse {
             detail: vec![],
         }
     }
-    #[allow(dead_code)]        
+    #[allow(dead_code)]
     pub fn push(&mut self, s: &str) {
         self.detail.push(String::from(s));
     }

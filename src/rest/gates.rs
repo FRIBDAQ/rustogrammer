@@ -15,7 +15,7 @@
 //! it is therefore necessary to map from Rustogramer
 //! Gate types to SpecTcl gate types in this domain of URLs.
 
-use rocket::serde::{json::Json, Serialize};
+use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
 
 use super::*;
@@ -43,14 +43,14 @@ fn rg_condition_to_spctl(rg_type: &str) -> String {
 //----------------------------------------------------------------
 // Stuff to handle listing conditions(gates):
 
-#[derive(Serialize, Clone, Copy)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 #[serde(crate = "rocket::serde")]
 pub struct GatePoint {
     x: f64,
     y: f64,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct GateProperties {
     name: String,
@@ -64,7 +64,7 @@ pub struct GateProperties {
     // value : u32            // Note Rustogrammer has no support for mask gates.
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct ListReply {
     status: String,
@@ -191,10 +191,12 @@ pub fn delete_gate(name: String, state: &State<HistogramState>) -> Json<GenericR
     let api = ConditionMessageClient::new(&state.inner().histogramer.lock().unwrap());
     let response = match api.delete_condition(&name) {
         ConditionReply::Deleted => GenericResponse::ok(""),
-        ConditionReply::Error(s) => GenericResponse::err("Failed to delete condition", &s),
+        ConditionReply::Error(s) => {
+            GenericResponse::err(format!("Failed to delete condition {}", name).as_str(), &s)
+        }
         _ => GenericResponse::err(
             &format!("Failed to delete condition {}", name),
-            "Invalid repsonse from server",
+            "Invalid response from server",
         ),
     };
     Json(response)
@@ -367,7 +369,7 @@ pub fn edit_gate(
                 }
             } else {
                 ConditionReply::Error(String::from(
-                    "gate is a required query parameter for not gatess",
+                    "gate is a required query parameter for not gates",
                 ))
             }
         }
@@ -436,4 +438,1074 @@ pub fn edit_gate(
         ),
     };
     Json(reply)
+}
+
+#[cfg(test)]
+mod gate_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::messaging::{condition_messages, parameter_messages};
+    use crate::processing;
+    use crate::sharedmem::binder;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    // note these are all unimplemented URLS so...
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![list_gates, delete_gate, edit_gate])
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    fn get_state(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
+    }
+    // Create parameters p1, p2
+    // which will be used to create gates that need parameters.
+    //
+    fn make_test_objects(c: &mpsc::Sender<messaging::Request>) {
+        let api = parameter_messages::ParameterMessageClient::new(c);
+        api.create_parameter("p1").expect("Creating p1");
+        api.create_parameter("p2").expect("Creating p2");
+    }
+
+    #[test]
+    fn list_1() {
+        // empty list:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/list");
+
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(0, reply.detail.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_2() {
+        // Make a T gate and make sure the right properties are present.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_true_condition("TRUE");
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("TRUE", l.name.as_str());
+        assert_eq!("T", l.type_name);
+        assert_eq!(0, l.gates.len());
+        assert_eq!(0, l.points.len());
+
+        // low/high are unimportant.
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_3() {
+        // Make an F gate ...
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_false_condition("FALSE");
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("FALSE", l.name);
+        assert_eq!("F", l.type_name);
+        assert_eq!(0, l.gates.len());
+        assert_eq!(0, l.points.len());
+
+        // low/high are unimportant.
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_4() {
+        // Not condition:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_false_condition("FALSE");
+        api.create_not_condition("NOT", "FALSE");
+
+        // Note this will, to some extent, test filtering too:
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list?pattern=NOT");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("NOT", l.name.as_str());
+        assert_eq!("-", l.type_name);
+        assert_eq!(1, l.gates.len());
+        assert_eq!("FALSE", l.gates[0]);
+        assert_eq!(0, l.points.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_5() {
+        // and condtion:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_false_condition("FALSE");
+        api.create_true_condition("TRUE");
+        api.create_and_condition("AND", &vec![String::from("FALSE"), String::from("TRUE")]);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list?pattern=AND");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("AND", l.name.as_str());
+        assert_eq!("*", l.type_name);
+        assert_eq!(2, l.gates.len());
+        assert_eq!("FALSE", l.gates[0]);
+        assert_eq!("TRUE", l.gates[1]);
+        assert_eq!(0, l.points.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_6() {
+        // list or condition:
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_false_condition("FALSE");
+        api.create_true_condition("TRUE");
+        api.create_or_condition("OR", &vec![String::from("FALSE"), String::from("TRUE")]);
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list?pattern=OR");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("OR", l.name.as_str());
+        assert_eq!("+", l.type_name);
+        assert_eq!(2, l.gates.len());
+        assert_eq!("FALSE", l.gates[0]);
+        assert_eq!("TRUE", l.gates[1]);
+        assert_eq!(0, l.points.len());
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_7() {
+        // Cut condition:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_cut_condition("cut", 1, 10.0, 20.0); //1 is p1 I think?
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("cut", l.name);
+        assert_eq!("s", l.type_name);
+        assert_eq!(0, l.gates.len());
+        assert_eq!(1, l.parameters.len());
+        assert_eq!(2, l.points.len());
+        assert_eq!(10.0, l.points[0].x);
+        assert_eq!(20.0, l.points[1].x);
+        assert_eq!("p1", l.parameters[0]);
+        assert_eq!(10.0, l.low);
+        assert_eq!(20.0, l.high);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_8() {
+        // Band condition:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_band_condition(
+            "band",
+            1,
+            2,
+            &vec![(10.0, 10.0), (15.0, 20.0), (100.0, 15.0)],
+        );
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+        let l = &reply.detail[0];
+
+        assert_eq!("band", l.name);
+        assert_eq!("b", l.type_name);
+        assert_eq!(0, l.gates.len());
+        assert_eq!(2, l.parameters.len());
+        assert_eq!("p1", l.parameters[0]);
+        assert_eq!("p2", l.parameters[1]);
+        assert_eq!(3, l.points.len());
+        assert_eq!(GatePoint { x: 10.0, y: 10.0 }, l.points[0]);
+        assert_eq!(GatePoint { x: 15.0, y: 20.0 }, l.points[1]);
+        assert_eq!(GatePoint { x: 100.0, y: 15.0 }, l.points[2]);
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn list_9() {
+        // contour conditions:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_contour_condition(
+            "contour",
+            1,
+            2,
+            &vec![(10.0, 10.0), (15.0, 20.0), (100.0, 15.0)],
+        );
+
+        let client = Client::tracked(rocket).expect("making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status.as_str());
+        assert_eq!(1, reply.detail.len());
+        let l = &reply.detail[0];
+
+        assert_eq!("contour", l.name);
+        assert_eq!("c", l.type_name);
+        assert_eq!(0, l.gates.len());
+        assert_eq!(2, l.parameters.len());
+        assert_eq!("p1", l.parameters[0]);
+        assert_eq!("p2", l.parameters[1]);
+        assert_eq!(3, l.points.len());
+        assert_eq!(GatePoint { x: 10.0, y: 10.0 }, l.points[0]);
+        assert_eq!(GatePoint { x: 15.0, y: 20.0 }, l.points[1]);
+        assert_eq!(GatePoint { x: 100.0, y: 15.0 }, l.points[2]);
+
+        teardown(c, &papi);
+    }
+    // Gate deletion:
+
+    #[test]
+    fn delete_1() {
+        // Delete a nonexistent gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/delete?name=george");
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Failed to delete condition george", response.status);
+        assert_eq!("No such condition george", response.detail);
+        teardown(c, &papi);
+    }
+    #[test]
+    fn delete_2() {
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        // Make a condition to delete:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_true_condition("george");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/delete?name=george");
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+        assert_eq!("OK", response.status);
+        assert_eq!("", response.detail);
+
+        teardown(c, &papi);
+    }
+
+    // Note that edit is used to both create and modify gates.
+    // Except for the last test we'll be creating gates.
+    // The final edit_n test will modify an existing gate.
+
+    #[test]
+    fn edit_1() {
+        // Create True gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=true&type=T");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        // ah but was it really created:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let gates = api.list_conditions("*");
+        assert!(if let ConditionReply::Listing(l) = gates {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("true", cond.cond_name);
+            assert_eq!("True", cond.type_name);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_2() {
+        // create a False gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=false&type=F");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        // ah but was it really created:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let gates = api.list_conditions("*");
+
+        assert!(if let ConditionReply::Listing(l) = gates {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("false", cond.cond_name);
+            assert_eq!("False", cond.type_name);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    // Test not gates and error scenarios.  Note we assume that
+    // dependent gate existence is checked by the tests in condition_messages.
+
+    #[test]
+    fn edit_3() {
+        // make  a not gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_true_condition("true"); // dependent gate:
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=not&type=-&gate=true");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        // Check the 'not' gate:
+
+        let gates = api.list_conditions("not");
+
+        assert!(if let ConditionReply::Listing(l) = gates {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("not", cond.cond_name);
+            assert_eq!("Not", cond.type_name);
+            assert_eq!(1, cond.gates.len());
+            assert_eq!("true", cond.gates[0]);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_4() {
+        // fail creation of not gate -- need a dependent gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=not&type=-");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate not", reply.status);
+        assert_eq!(
+            "gate is a required query parameter for not gates",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_5() {
+        // Fail creation of not gate - must have only 1 dependent gate:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=not&type=-&gate=g1&gate=g2");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate not", reply.status);
+        assert_eq!(
+            "Not gates can have at most one dependent gate",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    // Test and gates and error scenarios.
+
+    #[test]
+    fn edit_6() {
+        // Good creation.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        // Make dependent gates:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_true_condition("true"); // dependent gate:
+        api.create_false_condition("false");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=and&type=*&gate=true&gate=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        let listing = api.list_conditions("and");
+        assert!(if let ConditionReply::Listing(l) = listing {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("and", cond.cond_name);
+            assert_eq!("And", cond.type_name);
+            assert_eq!(2, cond.gates.len());
+            assert_eq!("true", cond.gates[0]);
+            assert_eq!("false", cond.gates[1]);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_7() {
+        // no dependent gates provided.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=and&type=*");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate and", reply.status);
+        assert_eq!(
+            "And gates require the 'gate' query parameters",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    // Tests for Or gates. Note the literal + is a stand-in for
+    // ' ' so we need to use the escap %2B instead.
+
+    #[test]
+    fn edit_8() {
+        // Good creation
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        // Make dependent gates:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_true_condition("true"); // dependent gate:
+        api.create_false_condition("false");
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=or&type=%2B&gate=true&gate=false");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        let listing = api.list_conditions("or");
+        assert!(if let ConditionReply::Listing(l) = listing {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("or", cond.cond_name);
+            assert_eq!("Or", cond.type_name);
+            assert_eq!(2, cond.gates.len());
+            assert_eq!("true", cond.gates[0]);
+            assert_eq!("false", cond.gates[1]);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_9() {
+        // failed for missing dependent gates;
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=or&type=%2B");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate or", reply.status);
+        assert_eq!("Or gates require the 'gate' query parameters", reply.detail);
+
+        teardown(c, &papi);
+    }
+    // Slice gate tests:
+
+    #[test]
+    fn edit_10() {
+        // Test success.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=slice&type=s&parameter=p1&low=10&high=100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        // check the gate:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let listing = api.list_conditions("*");
+        assert!(if let ConditionReply::Listing(l) = listing {
+            assert_eq!(1, l.len());
+            let cond = &l[0];
+            assert_eq!("slice", cond.cond_name);
+            assert_eq!("Cut", cond.type_name);
+            assert_eq!(2, cond.points.len());
+            assert_eq!(10.0, cond.points[0].0);
+            assert_eq!(100.0, cond.points[1].0);
+            assert_eq!(1, cond.parameters.len());
+            assert_eq!(1, cond.parameters[0]); // p1 parameter
+            true
+        } else {
+            false
+        });
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_11() {
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=slice&type=s&low=10&high=100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate slice", reply.status);
+        assert_eq!(
+            "The parameter query parameter is required for slice gates",
+            reply.detail
+        );
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_12() {
+        // missing low:
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=slice&type=s&parameter=p1&high=100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate slice", reply.status);
+        assert_eq!(
+            "Both the low and high query parameters are requried for slice gates",
+            reply.detail
+        );
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_13() {
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let req = client.get("/edit?name=slice&type=s&parameter=p1&low=100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate slice", reply.status);
+        assert_eq!(
+            "Both the low and high query parameters are requried for slice gates",
+            reply.detail
+        );
+        teardown(c, &papi);
+    }
+    // Tests for making new Bands.
+
+    #[test]
+    fn edit_14() {
+        // good creation.
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request = client.get("/edit?name=band&type=b&xparameter=p1&yparameter=p2&xcoord=100&ycoord=50&xcoord=200&ycoord=60");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("OK", reply.status);
+
+        // Check the gate was proprly made:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let l = api.list_conditions("*");
+        assert!(if let ConditionReply::Listing(gates) = l {
+            assert_eq!(1, gates.len());
+            let gate = &gates[0];
+            assert_eq!("band", gate.cond_name);
+            assert_eq!("Band", gate.type_name);
+            assert_eq!(2, gate.points.len());
+            assert_eq!(100.0, gate.points[0].0);
+            assert_eq!(50.0, gate.points[0].1);
+            assert_eq!(200.0, gate.points[1].0);
+            assert_eq!(60.0, gate.points[1].1);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_15() {
+        // missing x parameter
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request = client
+            .get("/edit?name=band&type=b&yparameter=p2&xcoord=100&ycoord=50&xcoord=200&ycoord=60");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!(
+            "xparameter is a mandatory query parameter for this gate type",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_16() {
+        // missing y parameter.
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request = client
+            .get("/edit?name=band&type=b&xparameter=p1&xcoord=100&ycoord=50&xcoord=200&ycoord=60");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!(
+            "yparameter is a mandatory query parameter for this gate type",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_17() {
+        // xcoords
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request =
+            client.get("/edit?name=band&type=b&xparameter=p1&yparameter=p2&ycoord=50&ycoord=60");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!(
+            "xcoord is a mandatory query parameter for this gate type",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_18() {
+        // No ycoords
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request =
+            client.get("/edit?name=band&type=b&xparameter=p1&yparameter=p2&xcoord=100&xcoord=200");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!(
+            "ycoord is a mandatory query parameter for this gate type",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_19() {
+        // differing lengths of xcoord/ycoords.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request = client.get(
+            "/edit?name=band&type=b&xparameter=p1&yparameter=p2&xcoord=100&ycoord=50&xcoord=200",
+        );
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!(
+            "xcoord array has 2 entries but ycoord array has 1 -they must be the same length",
+            reply.detail
+        );
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_20() {
+        // only one point.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client.");
+        let request =
+            client.get("/edit?name=band&type=b&xparameter=p1&yparameter=p2&xcoord=100&ycoord=50");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("Could not create/edit gate band", reply.status);
+
+        teardown(c, &papi);
+    }
+    // Tests for contours.
+    // A bit of white box-ness.  The same parameter validation is
+    // done for contours as bands so we can reduce the number of
+    // tests dramatically:
+
+    #[test]
+    fn edit_21() {
+        // Good contour creation.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let request = client.get("/edit?name=contour&type=c&xparameter=p1&yparameter=p2&xcoord=100&ycoord=50&xcoord=200&ycoord=60&xcoord=100&ycoord=100");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing json");
+
+        assert_eq!("OK", reply.status);
+
+        // Check the condition was made:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let l = api.list_conditions("*");
+        assert!(if let ConditionReply::Listing(gates) = l {
+            assert_eq!(1, gates.len());
+            let g = &gates[0];
+            assert_eq!("contour", g.cond_name);
+            assert_eq!("Contour", g.type_name);
+            assert_eq!(3, g.points.len());
+            assert_eq!(100.0, g.points[0].0);
+            assert_eq!(50.0, g.points[0].1);
+            assert_eq!(200.0, g.points[1].0);
+            assert_eq!(60.0, g.points[1].1);
+            assert_eq!(100.0, g.points[2].0);
+            assert_eq!(100.0, g.points[2].1);
+            true
+        } else {
+            false
+        });
+
+        teardown(c, &papi);
+    }
+    #[test]
+    fn edit_22() {
+        // Not enough points for a contour.
+
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::tracked(rocket).expect("Making client");
+        let request = client.get("/edit?name=contour&type=c&xparameter=p1&yparameter=p2&xcoord=100&ycoord=50&xcoord=200&ycoord=60");
+        let reply = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing json");
+
+        assert_eq!("Could not create/edit gate contour", reply.status);
+
+        teardown(c, &papi);
+    }
+    // Edit can modify an existing condition:
+
+    #[test]
+    fn edit_23() {
+        let rocket = setup();
+        let (c, papi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        // Create a true condition:
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let cr = api.create_true_condition("existing");
+        assert!(if let ConditionReply::Created = cr {
+            true
+        } else {
+            false
+        }); // I had to get Created back.
+
+        let client = Client::tracked(rocket).expect("Creating client");
+        let request = client.get("/edit?name=existing&type=F"); // flip to false condition.
+        let response = request
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", response.status);
+        assert_eq!("Replaced", response.detail);
+
+        let l = api.list_conditions("*");
+        assert!(if let ConditionReply::Listing(gates) = l {
+            assert_eq!(1, gates.len());
+            let g = &gates[0];
+            assert_eq!("existing", g.cond_name);
+            assert_eq!("False", g.type_name);
+            true
+        } else {
+            false
+        });
+        teardown(c, &papi);
+    }
 }

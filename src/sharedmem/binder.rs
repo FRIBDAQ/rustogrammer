@@ -19,6 +19,7 @@ use std::time;
 
 /// Memory statistics have this format:
 ///
+#[derive(Debug)]
 pub struct MemoryStatistics {
     pub free_bytes: usize,
     pub largest_free_bytes: usize,
@@ -535,6 +536,7 @@ impl BindingApi {
     /// *  GenericResult instance.
     ///
     pub fn unbind_all(&self) -> GenericResult {
+        
         match self.transaction(RequestType::UnbindAll) {
             Reply::Generic(result) => result,
             _ => Err(String::from("Unexpected return type from binding thread")),

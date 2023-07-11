@@ -77,7 +77,7 @@ fn write_1(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
 fn write_2(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
     fdwrite(
         fd,
-        &format!("({} {}) {}\n", c.x_bin - 1, c.y_bin - 2, c.value),
+        &format!("({} {}) {}\n", c.x_bin - 1, c.y_bin - 1, c.value),
     )
 }
 
@@ -111,19 +111,22 @@ fn write_string_list(fd: &mut dyn Write, s: &Vec<String>) -> Result<(), String> 
 
 pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Result<(), String> {
     for spectrum in spectra.iter() {
+        println!("Writing: {:?}", spectrum.definition);
         // Header: Spectrum name/bins:
         fdwrite(fd, &format!("\"{}\"", spectrum.definition.name))?;
         fdwrite(fd, " (")?;
         if let Some((_, _, bins)) = spectrum.definition.x_axis {
             let bins = bins - 2;
             fdwrite(fd, &bins.to_string())?;
-            fdwrite(fd, " ")?;
         }
         if let Some((_, _, bins)) = spectrum.definition.y_axis {
             let bins = bins - 2;
-            fdwrite(fd, &bins.to_string())?;
+            fdwrite(fd, &format!(" {}", &bins.to_string()))?;
+            if spectrum.definition.type_string == "s" {
+                fdwrite(fd, " ")?;
+            }
         }
-        fdwrite(fd, ")\n")?;
+        fdwrite(fd, ") \n")?;
         // Date/time stamp.
 
         fdwrite(fd, &format!("{}\n", Local::now()))?;
@@ -136,10 +139,12 @@ pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Re
 
         fdwrite(fd, &format!("{} long\n", spectrum.definition.type_string,))?;
 
-        // Parenthesized names of parameters (x) - if not pgamma this is one
-        // list otherwise two:
+        // Parenthesized names of parameters (x) - if not pgamma, or 2dsum
+        //  this is one list otherwise two:
 
-        if spectrum.definition.type_string.as_str() != "gd" {
+        if spectrum.definition.type_string.as_str() != "gd"
+            && spectrum.definition.type_string.as_str() != "m2"
+        {
             let mut params = spectrum.definition.x_parameters.clone();
             params.extend(spectrum.definition.y_parameters.clone());
             write_string_list(fd, &params)?;
@@ -268,7 +273,7 @@ fn parse_paren_list(line: &str) -> Result<(Vec<String>, Vec<String>), String> {
     let open = remainder.find('(');
     if let Some(open) = open {
         if let Some(close) = remainder.find(')') {
-            let y: Vec<&str> = remainder[open + 1..close].split(" ").collect();
+            let y: Vec<&str> = remainder[open + 1..close].split_whitespace().collect();
             for yp in y {
                 yparams.push(String::from(yp));
             }
@@ -393,7 +398,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
     if hdr1_result.is_err() {
         // try as 1d:
 
-        let result = scan_fmt!(&hdr1, "\"{}\" ({}", String, u32);
+        let result = scan_fmt!(&hdr1, "\"{}\" ({})", String, u32);
         if let Err(s) = result {
             return Err(format!("Unable to decode header1: {}", s));
         }
@@ -410,6 +415,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
             s
         ));
     }
+
     // Next is the format version which we also skip:
 
     let _version_line = read_line(l);
@@ -484,6 +490,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
         ));
     }
     let (xaxis_str, yaxis_str) = axes.unwrap();
+
     // Convert axis strings to low, high -- if possible:
 
     let xaxis = parse_axis(&xaxis_str);
@@ -536,6 +543,7 @@ fn transform(bins: u32, low: f64, high: f64, chan: usize) -> f64 {
 
 fn compute_coords(c: &mut SpectrumChannel, def: &SpectrumProperties) {
     let xaxis = def.x_axis.unwrap(); // there's always an x:
+
     let x = transform(xaxis.2, xaxis.0, xaxis.1, c.x_bin);
 
     let y = if let Some(yaxis) = def.y_axis {
@@ -556,6 +564,21 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
     }
     let definition = definition.unwrap();
 
+    // Summary spectra need to adjust the definition:
+
+    let def = if definition.type_string == "s" {
+        let mut result = definition.clone();
+        result.x_axis = Some((
+            0.0,
+            definition.x_parameters.len() as f64,
+            definition.x_parameters.len() as u32,
+        ));
+        result.y_axis = definition.x_axis.clone();
+        result
+    } else {
+        definition.clone()
+    };
+
     let mut contents = Vec::<SpectrumChannel>::new();
     loop {
         let channel = read_channel(l);
@@ -563,7 +586,7 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
             break;
         }
         let mut channel = channel.unwrap();
-        compute_coords(&mut channel, &definition);
+        compute_coords(&mut channel, &def);
 
         contents.push(channel);
     }

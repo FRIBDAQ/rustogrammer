@@ -54,3 +54,44 @@ pub fn get_chan() -> Json<GenericResponse> {
         "This is not SpecTcl",
     ))
 }
+
+#[cfg(test)]
+mod channels_tests {
+    use super::*;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    fn setup() -> Rocket<Build> {
+        rocket::build().mount("/", routes![set_chan, get_chan])
+    }
+    #[test]
+    fn set_1() {
+        let r = setup();
+
+        let c = Client::tracked(r).expect("Failed to make client");
+        let request = c.get("/set");
+        let reply = request.dispatch();
+        let json = reply
+            .into_json::<GenericResponse>()
+            .expect("bad JSON parse");
+        assert_eq!("Unsupported /spectcl/channel/set", json.status.as_str());
+        assert_eq!("This is not SpecTcl", json.detail.as_str());
+    }
+
+    #[test]
+    fn get_1() {
+        let r = setup();
+
+        let c = Client::tracked(r).expect("Failed to make client");
+        let request = c.get("/get");
+        let reply = request.dispatch();
+        let json = reply
+            .into_json::<GenericResponse>()
+            .expect("bad JSON parse");
+        assert_eq!("Unsupported /spectcl/channel/get", json.status.as_str());
+        assert_eq!("This is not SpecTcl", json.detail.as_str());
+    }
+}

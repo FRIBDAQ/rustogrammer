@@ -49,6 +49,7 @@ pub enum RequestType {
     Start,            // Start analyzing source
     Stop,             // Stop analyzing, keep file open.
     ChunkSize(usize), // Set # events per request to Histogramer
+    GetChunkSize,     // Return chunksize.
     Exit,             // Exit thread (mostly for testing).
     List,
     Version(RingVersion),
@@ -68,9 +69,9 @@ pub type Reply = Result<String, String>;
 /// For now only one instance of this should be held and that's
 /// in the REST state.
 ///  This is because chunk_size is cached.
+#[derive(Clone)]
 pub struct ProcessingApi {
     req_chan: mpsc::Sender<Request>,
-    chunk_size: usize,
 }
 
 impl ProcessingApi {
@@ -103,10 +104,7 @@ impl ProcessingApi {
         let (send, recv) = mpsc::channel();
         let api_chan = chan.clone();
         thread::spawn(move || processing_thread(recv, api_chan));
-        ProcessingApi {
-            req_chan: send,
-            chunk_size: DEFAULT_EVENT_CHUNKSIZE,
-        }
+        ProcessingApi { req_chan: send }
     }
 
     pub fn stop_thread(&self) -> Result<String, String> {
@@ -120,13 +118,15 @@ impl ProcessingApi {
     }
     pub fn set_batching(&mut self, events: usize) -> Result<String, String> {
         let result = self.transaction(RequestType::ChunkSize(events));
-        if let Ok(_) = result {
-            self.chunk_size = events;
-        }
         result
     }
     pub fn get_batching(&self) -> usize {
-        self.chunk_size
+        let result = self.transaction(RequestType::GetChunkSize);
+        if let Ok(s) = result {
+            s.parse::<usize>().expect("Not a usize from get_batching")
+        } else {
+            panic!("Getting chunksize failed!");
+        }
     }
     pub fn start_analysis(&self) -> Result<String, String> {
         self.transaction(RequestType::Start)
@@ -462,6 +462,7 @@ impl ProcessingThread {
                 self.chunk_size = n;
                 Ok(String::from(""))
             }
+            RequestType::GetChunkSize => Ok(self.chunk_size.to_string()),
             RequestType::Exit => {
                 self.keep_running = false;
                 Ok(String::from(""))

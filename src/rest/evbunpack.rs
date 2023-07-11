@@ -66,6 +66,130 @@ pub fn add_evbunpack() -> Json<GenericResponse> {
 #[get("/list")]
 pub fn list_evbunpack() -> Json<StringArrayResponse> {
     Json(StringArrayResponse::new(
-        "/spectcl/evb/unpack/list is not implemented - this is not SpecTcl",
+        "/spectcl/evbunpack/list is not implemented - this is not SpecTcl",
     ))
+}
+#[cfg(test)]
+mod evb_unpack_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::processing;
+    use crate::sharedmem::binder;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    use std::sync::mpsc;
+    use std::sync::Mutex;
+    // note these are all unimplemented URLS so...
+
+    fn setup() -> Rocket<Build> {
+        let (_, hg_sender) = histogramer::start_server();
+        let (binder_req, _rx): (
+            mpsc::Sender<binder::Request>,
+            mpsc::Receiver<binder::Request>,
+        ) = mpsc::channel();
+
+        // Construct the state:
+
+        let state = HistogramState {
+            histogramer: Mutex::new(hg_sender.clone()),
+            binder: Mutex::new(binder_req),
+            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
+            portman_client: None,
+        };
+
+        rocket::build().manage(state).mount(
+            "/",
+            routes![create_evbunpack, add_evbunpack, list_evbunpack],
+        )
+    }
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
+        histogramer::stop_server(&c);
+        p.stop_thread().expect("Stopping processing thread");
+    }
+    fn get_state(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<HistogramState>()
+            .expect("Valid state")
+            .histogramer
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<HistogramState>()
+            .expect("Valid State")
+            .processing
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
+    }
+
+    #[test]
+    fn create_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/create");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/evbunpack/create is not implemented",
+            reply.status.as_str()
+        );
+        assert_eq!("This is not SpecTcl", reply.detail.as_str());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn add_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/add");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/evbunpack/add is not implemented",
+            reply.status.as_str()
+        );
+        assert_eq!("This is not SpecTcl", reply.detail.as_str());
+
+        teardown(r, &papi);
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (r, papi) = get_state(&rocket);
+
+        let client = Client::tracked(rocket).expect("Failed to make client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<StringArrayResponse>()
+            .expect("Bad JSON");
+
+        assert_eq!(
+            "/spectcl/evbunpack/list is not implemented - this is not SpecTcl",
+            reply.status.as_str()
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(r, &papi);
+    }
 }
