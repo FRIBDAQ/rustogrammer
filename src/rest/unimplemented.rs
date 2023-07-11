@@ -224,7 +224,7 @@ pub fn pseudo_list(pattern: OptionalString) -> Json<PseudoListResponse> {
 #[get("/delete?<name>")]
 pub fn pseudo_delete(name: String) -> Json<GenericResponse> {
     Json(GenericResponse::err(
-        "Psuedo parameters are not implemented",
+        "Pseudo parameters are not implemented",
         "This is not SpecTcl",
     ))
 }
@@ -917,9 +917,9 @@ mod pseudo_test {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount("/", routes![
-            pseudo_create, pseudo_list, pseudo_delete
-        ])
+        rocket::build()
+            .manage(state)
+            .mount("/", routes![pseudo_create, pseudo_list, pseudo_delete])
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -972,8 +972,48 @@ mod pseudo_test {
 
         let client = Client::untracked(rocket).expect("creating client");
         let req = client.get("/create?pseudo=p&parameter=a&parameter=b&computation={$a+$b}");
-        let reply  = req.dispatch().into_json::<GenericResponse>().expect("Parsing JSON");
-        
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Pseudo parameters are not implemented", reply.status);
+        assert_eq!("This is not SpecTcl", reply.detail);
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn list_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("creating client");
+        let req = client.get("/list?pattern=*");
+        let reply = req
+            .dispatch()
+            .into_json::<PseudoListResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!(
+            "Psuedo parameters are not implemented - this is not SpecTcl",
+            reply.status
+        );
+        assert_eq!(0, reply.detail.len());
+
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn delete_1() {
+        let rocket = setup();
+        let (chan, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("creating client");
+        let req = client.get("/delete?name=dummy");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
         assert_eq!("Pseudo parameters are not implemented", reply.status);
         assert_eq!("This is not SpecTcl", reply.detail);
 
