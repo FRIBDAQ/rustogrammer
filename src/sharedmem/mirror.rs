@@ -11,6 +11,9 @@
 //! whose contents depend on the message type.
 //!
 //!
+use super::*;
+use std::collections::hash_map::Values;
+use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 use std::mem;
@@ -82,7 +85,7 @@ impl MessageHeader {
     }
     /// Read a message header from a readable:
 
-    fn read_header<T: Read>(f: &mut T) -> Result<MessageHeader, String> {
+    fn read<T: Read>(f: &mut T) -> Result<MessageHeader, String> {
         let mut buf: [u8; mem::size_of::<MessageHeader>()] = [0; mem::size_of::<MessageHeader>()];
 
         if let Ok(_) = f.read_exact(&mut buf) {
@@ -102,13 +105,13 @@ impl MessageHeader {
     }
     /// write a messgae header to a writeable.
 
-    fn write_header<T: Write>(f: &mut T, hdr: &MessageHeader) -> Result<usize, String> {
+    fn write<T: Write>(&self, f: &mut T) -> Result<usize, String> {
         let mut buf: [u8; mem::size_of::<MessageHeader>()] = [0; mem::size_of::<MessageHeader>()];
-        buf[0..3].copy_from_slice(&hdr.msg_size.to_ne_bytes()[0..]);
-        buf[4..].copy_from_slice(&hdr.msg_type.to_ne_bytes()[0..]);
+        buf[0..4].copy_from_slice(&self.msg_size.to_ne_bytes()[0..]);
+        buf[4..].copy_from_slice(&self.msg_type.to_ne_bytes()[0..]);
         ();
         match f.write_all(&buf) {
-            Ok(n) => Ok(mem::size_of::<MessageHeader>()),
+            Ok(_) => Ok(mem::size_of::<MessageHeader>()),
             Err(e) => Err(format!("Header write failed: {}", e)),
         }
     }
@@ -116,5 +119,118 @@ impl MessageHeader {
     ///
     fn body_size(&self) -> usize {
         self.msg_size as usize - mem::size_of::<MessageHeader>()
+    }
+}
+
+///
+/// The software maintains a directory of hosts and
+/// shared memory keys.  Unlike the
+/// SpecTcl implementation, shared memory keys can be
+/// arbitrary strings.  This allows mirrors to be e.g. file
+/// or posix backed.  
+/// The director is used to let clients know of mirrors that
+/// might already be running in their host so that they
+/// can simply leverage off existing mirrors rather than
+/// chewing up bandwidth with additional mirrors.
+/// Here are entries in the mirror directory:
+///
+#[derive(Clone)]
+struct DirectoryEntry {
+    host: String,
+    key: String,
+}
+
+impl DirectoryEntry {
+    fn new(host: &str, key: &str) -> DirectoryEntry {
+        DirectoryEntry {
+            host: String::from(host),
+            key: String::from(key),
+        }
+    }
+    fn host(&self) -> String {
+        self.host.clone()
+    }
+    fn key(&self) -> String {
+        self.key.clone()
+    }
+}
+
+///  In defining the mirror directory, we assume that
+///
+/// *  Additions are not frequent.
+/// *  There won't be many (on the scaler of computer storage) entries
+/// in a directory.  We therefore have a hash map of directory
+/// entries indexed by host.key.  This at least has the
+/// virtue of making it easy to detect double use of
+/// the same host/key pair:
+///
+struct Directory {
+    items: HashMap<String, DirectoryEntry>,
+}
+
+impl Directory {
+    fn compute_index(host: &str, key: &str) -> String {
+        format!("{}.{}", host, key)
+    }
+    fn new() -> Directory {
+        Directory {
+            items: HashMap::new(),
+        }
+    }
+    /// adds a new directory entry.
+    /// Computes the key and:
+    /// *  If it's a duplicate, Errs indicating that.
+    /// *  If it's not a duplicate, constructs a DirectoryEntry
+    /// and inserts it into the items.
+    fn add(&mut self, host: &str, key: &str) -> Result<(), String> {
+        let index = Self::compute_index(host, key);
+        if self.items.contains_key(&index) {
+            Err(format!(
+                "The host/key pair {} {} are already registered",
+                host, key
+            ))
+        } else {
+            self.items.insert(index, DirectoryEntry::new(host, key));
+            Ok(())
+        }
+    }
+    /// Iterate over the DirectoryEntry -s in the directory.
+    fn iter(&self) -> Values<'_, String, DirectoryEntry> {
+        self.items.values()
+    }
+    /// Remove an entry from the directory:
+
+    fn remove(&mut self, host: &str, key: &str) -> Result<(), String> {
+        let key = Self::compute_index(host, key);
+        if let Some(_) = self.items.remove(&key) {
+            Ok(())
+        } else {
+            Err(format!("No such entry for {} {}", host, key))
+        }
+    }
+}
+
+//------------------- unit tests ---------------------------
+
+#[cfg(test)]
+mod header_tests {
+    use super::*;
+    use std::io::Read;
+    use std::io::Write;
+
+    #[test]
+    fn write_1() {
+        let mut buffer: Vec<u8> = Vec::with_capacity(mem::size_of::<MessageHeader>());
+        let header = MessageHeader {
+            msg_size: mem::size_of::<MessageHeader>() as u32,
+            msg_type: SHM_INFO,
+        };
+        header.write(&mut buffer).expect("Failed write");
+        assert_eq!(mem::size_of::<MessageHeader>(), buffer.len());
+        assert_eq!(header.msg_size, u32::from_ne_bytes(buffer.as_slice()[0..4].try_into().unwrap()));
+        assert_eq!(
+            header.msg_type,
+            u32::from_ne_bytes(buffer.as_slice()[4..].try_into().unwrap())
+        );
     }
 }
