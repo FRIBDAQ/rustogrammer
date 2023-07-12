@@ -80,7 +80,7 @@ impl MessageHeader {
             _ => Err(format!("Invalid message type: {}", h.msg_type)),
         }
     }
-    /// Read a message header from a rea dable:
+    /// Read a message header from a readable:
 
     fn read_header<T: Read>(f: &mut T) -> Result<MessageHeader, String> {
         let mut buf: [u8; mem::size_of::<MessageHeader>()] = [0; mem::size_of::<MessageHeader>()];
@@ -100,6 +100,8 @@ impl MessageHeader {
             Err(String::from("Unable to complete message Header read"))
         }
     }
+    /// write a messgae header to a writeable.
+
     fn write_header<T: Write>(f: &mut T, hdr: &MessageHeader) -> Result<usize, String> {
         let mut buf: [u8; mem::size_of::<MessageHeader>()] = [0; mem::size_of::<MessageHeader>()];
         buf[0..3].copy_from_slice(&hdr.msg_size.to_ne_bytes()[0..]);
@@ -109,5 +111,10 @@ impl MessageHeader {
             Ok(n) => Ok(mem::size_of::<MessageHeader>()),
             Err(e) => Err(format!("Header write failed: {}", e)),
         }
+    }
+    // Given this header, return the body size:
+    ///
+    fn body_size(&self) -> usize {
+        self.msg_size as usize - mem::size_of::<MessageHeader>()
     }
 }
