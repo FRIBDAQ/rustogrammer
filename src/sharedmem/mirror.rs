@@ -215,8 +215,7 @@ impl Directory {
 #[cfg(test)]
 mod header_tests {
     use super::*;
-    use std::io::Read;
-    use std::io::Write;
+    use std::ptr;
 
     #[test]
     fn write_1() {
@@ -227,10 +226,88 @@ mod header_tests {
         };
         header.write(&mut buffer).expect("Failed write");
         assert_eq!(mem::size_of::<MessageHeader>(), buffer.len());
-        assert_eq!(header.msg_size, u32::from_ne_bytes(buffer.as_slice()[0..4].try_into().unwrap()));
+        assert_eq!(
+            header.msg_size,
+            u32::from_ne_bytes(buffer.as_slice()[0..4].try_into().unwrap())
+        );
         assert_eq!(
             header.msg_type,
             u32::from_ne_bytes(buffer.as_slice()[4..].try_into().unwrap())
         );
+    }
+    #[test]
+    fn read_1() {
+        // NOrmal read:
+        // Make a message and a byte buffer into which it wil be put.
+        let hdr_size = mem::size_of::<MessageHeader>();
+        let header = MessageHeader {
+            msg_size: hdr_size as u32,
+            msg_type: SHM_INFO,
+        };
+        let mut buffer = Vec::<u8>::new();
+        buffer.resize(hdr_size, 0);
+        // Now do the rust magic of copying it into the buffer:
+
+        let hdr_ptr: *const MessageHeader = &header;
+        let hdr_as_bytes: *const u8 = hdr_ptr as *const u8;
+        let pbuffer = buffer.as_mut_ptr();
+        unsafe {
+            ptr::copy(hdr_as_bytes, pbuffer, hdr_size);
+        }
+        // Do the read from the buffer:
+
+        let read_header =
+            MessageHeader::read(&mut buffer.as_slice()).expect("Failed to read header");
+        assert_eq!(header.msg_size, read_header.msg_size);
+        assert_eq!(header.msg_type, read_header.msg_type);
+    }
+    #[test]
+    fn read_2() {
+        // Read _but_ invalid message type:
+
+        let hdr_size = mem::size_of::<MessageHeader>();
+        let header = MessageHeader {
+            msg_size: hdr_size as u32,
+            msg_type: 1000,
+        };
+
+        let mut buffer = Vec::<u8>::new();
+        buffer.resize(hdr_size, 0);
+        // Now do the rust magic of copying it into the buffer:
+
+        let hdr_ptr: *const MessageHeader = &header;
+        let hdr_as_bytes: *const u8 = hdr_ptr as *const u8;
+        let pbuffer = buffer.as_mut_ptr();
+        unsafe {
+            ptr::copy(hdr_as_bytes, pbuffer, hdr_size);
+        }
+        // Do the read from the buffer:
+
+        let read_header =
+            MessageHeader::read(&mut buffer.as_slice());
+        assert!(read_header.is_err());
+
+    }
+    #[test]
+    fn bodysize_1() {
+        // No residual after the header:
+
+        let hdr_size = mem::size_of::<MessageHeader>();
+        let header = MessageHeader {
+            msg_size: hdr_size as u32,
+            msg_type: SHM_INFO,
+        };
+        assert_eq!(0, header.body_size());
+    }
+    #[test]
+    fn bodysize_2() {
+        // Non zero body:
+        let hdr_size = mem::size_of::<MessageHeader>();
+        let body_size : u32 = 100;
+        let header = MessageHeader {
+            msg_size: hdr_size as u32 + body_size,
+            msg_type: SHM_INFO,
+        };
+        assert_eq!(body_size as usize, header.body_size());
     }
 }
