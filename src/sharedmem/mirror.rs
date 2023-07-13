@@ -201,8 +201,8 @@ impl Directory {
     /// Remove an entry from the directory:
 
     fn remove(&mut self, host: &str, key: &str) -> Result<(), String> {
-        let key = Self::compute_index(host, key);
-        if let Some(_) = self.items.remove(&key) {
+        let index = Self::compute_index(host, key);
+        if let Some(_) = self.items.remove(&index) {
             Ok(())
         } else {
             Err(format!("No such entry for {} {}", host, key))
@@ -283,10 +283,8 @@ mod header_tests {
         }
         // Do the read from the buffer:
 
-        let read_header =
-            MessageHeader::read(&mut buffer.as_slice());
+        let read_header = MessageHeader::read(&mut buffer.as_slice());
         assert!(read_header.is_err());
-
     }
     #[test]
     fn bodysize_1() {
@@ -303,11 +301,131 @@ mod header_tests {
     fn bodysize_2() {
         // Non zero body:
         let hdr_size = mem::size_of::<MessageHeader>();
-        let body_size : u32 = 100;
+        let body_size: u32 = 100;
         let header = MessageHeader {
             msg_size: hdr_size as u32 + body_size,
             msg_type: SHM_INFO,
         };
         assert_eq!(body_size as usize, header.body_size());
+    }
+}
+
+#[cfg(test)]
+mod dentry_tests {
+    use super::*;
+
+    #[test]
+    fn new_1() {
+        let entry = DirectoryEntry::new("localhost", "file:/some/path");
+        assert_eq!("localhost", entry.host);
+        assert_eq!("file:/some/path", entry.key);
+    }
+    #[test]
+    fn host_1() {
+        let entry = DirectoryEntry::new("localhost", "file:/some/path");
+        assert_eq!("localhost", entry.host().as_str());
+    }
+    #[test]
+    fn key_1() {
+        let entry = DirectoryEntry::new("localhost", "file:/some/path");
+        assert_eq!("file:/some/path", entry.key().as_str());
+    }
+}
+#[cfg(test)]
+mod directory_tests {
+    use super::*;
+    #[test]
+    fn new_1() {
+        let dir = Directory::new();
+        assert_eq!(0, dir.items.len());
+    }
+    #[test]
+    fn add_1() {
+        // add no failure:
+
+        let mut dir = Directory::new();
+        let result = dir.add("localhost", "file:/test/path");
+        assert!(result.is_ok());
+        let key = Directory::compute_index("localhost", "file:/test/path");
+        assert!(dir.items.contains_key(&key));
+        let contents = dir.items.get(&key).expect("Didn't find item");
+        assert_eq!("localhost", contents.host());
+        assert_eq!("file:/test/path", contents.key());
+    }
+    #[test]
+    fn add_2() {
+        // duplicates fail to add:
+
+        let mut dir = Directory::new();
+        let host = "localhost";
+        let key = "file:/some/path";
+
+        dir.add(host, key).expect("added ok");
+        let result = dir.add(host, key); // Should be err:
+        assert!(result.is_err());
+        assert_eq!(
+            format!("The host/key pair {} {} are already registered", host, key),
+            result.unwrap_err().as_str()
+        );
+    }
+    #[test]
+    fn iterator_1() {
+        // Be able to iterate over values..
+
+        let mut dir = Directory::new();
+        // stock it:
+
+        let hosts = vec!["host1", "host2", "host3"];
+        let keys = vec!["file1", "file2", "file3"];
+        for (i, h) in hosts.iter().enumerate() {
+            dir.add(h, &keys[i]).expect("add failed");
+        }
+
+        let mut contents = Vec::<DirectoryEntry>::new();
+        for e in dir.iter() {
+            contents.push(e.clone());
+        }
+        // contents will be in random order so:
+
+        contents.sort_by_key(|e| e.host.clone());
+        assert_eq!(3, contents.len());
+        for (i, e) in contents.iter().enumerate() {
+            assert_eq!(hosts[i], e.host(), "Failed host compare on {}", i);
+            assert_eq!(keys[i], e.key(), "Failed key compare on {}", i);
+        }
+    }
+    #[test]
+    fn remove_1() {
+        // Remove a nonexistent item:
+
+        let host = "localhost";
+        let key = "file:/some/key";
+        let mut dir = Directory::new();
+
+        let r = dir.remove(&host, &key);
+        assert!(r.is_err());
+
+        assert_eq!(
+            format!("No such entry for {} {}", host, key),
+            r.unwrap_err()
+        );
+    }
+    #[test]
+    fn remove_2() {
+        // Remove from amongst some.
+
+        let mut dir = Directory::new();
+        let hosts = vec!["host1", "host2", "host3"];
+        let keys = vec!["file1", "file2", "file3"];
+        for (i, h) in hosts.iter().enumerate() {
+            dir.add(h, &keys[i]).expect("add failed");
+        }
+
+        // remove the first one:
+
+        dir.remove(&hosts[0], &keys[0])
+            .expect("Remove should have worked.");
+        let lookup = Directory::compute_index(&hosts[0], &keys[0]);
+        assert!(!dir.items.contains_key(&lookup));
     }
 }
