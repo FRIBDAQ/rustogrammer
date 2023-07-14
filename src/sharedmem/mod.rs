@@ -405,7 +405,7 @@ impl SharedMemory {
     /// for the data to be transferred from the local histogram
     /// to the spectrum.  The caller should not assume the
     /// spectrum storage is initialized.
-    
+
     pub fn bind_spectrum(
         &mut self,
         sname: &str,
@@ -483,7 +483,6 @@ impl SharedMemory {
 
         self.bindings[slot] = String::from(sname); // Use origial name.
 
-        
         Ok((slot, ptr))
     }
     /// unbind a spectrum from shared memory:
