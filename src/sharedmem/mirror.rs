@@ -17,8 +17,9 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::io::Write;
 use std::mem;
-use std::net::{Shutdown, TcpStream};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::slice::from_raw_parts;
+use std::thread;
 
 use std::sync::{Arc, Mutex};
 
@@ -221,6 +222,8 @@ impl Directory {
 ///
 type SharedDirectory = Arc<Mutex<Directory>>;
 
+type ShmSharedContainer = Arc<Mutex<&'static XamineSharedMemory>>;
+
 /// The mirror server instance needs:
 /// * A TcpStream used to communicate with the
 ///   client.
@@ -231,7 +234,7 @@ type SharedDirectory = Arc<Mutex<Directory>>;
 ///
 struct MirrorServerInstance {
     socket: TcpStream,
-    header: *const XamineSharedMemory,
+    header: ShmSharedContainer,
     directory: SharedDirectory,
     partner: Option<DirectoryEntry>,
 }
@@ -241,13 +244,15 @@ impl MirrorServerInstance {
     // encapsulates unsafe stuff.
     //
     fn get_header(&self) -> &XamineSharedMemory {
-        unsafe { self.header.as_ref().unwrap() }
+        let result = &(*self.header.lock().unwrap());
+        result
     }
     // Returns the spectrum shared memory as a reference
     // of the specified size (preparatory to writing it).
     //
     fn get_storage(&self, size: usize) -> &[u8] {
-        unsafe { from_raw_parts(self.header as *const u8, size) }
+        let p: *const XamineSharedMemory = *self.header.lock().unwrap();
+        unsafe { from_raw_parts(p as *const u8, size) }
     }
     // really reads an arbitrarily sized buffer.
     fn read_body(&mut self, buffer: &mut [u8]) -> Result<(), String> {
@@ -436,12 +441,12 @@ impl MirrorServerInstance {
     ///
     pub fn new(
         sock: &TcpStream,
-        header: &mut SharedMemory,
+        header: ShmSharedContainer,
         directory: &SharedDirectory,
     ) -> MirrorServerInstance {
         MirrorServerInstance {
             socket: sock.try_clone().expect("Could not clone socket"),
-            header: header.get_header(),
+            header: header.clone(),
             directory: directory.clone(),
             partner: None,
         }
@@ -490,6 +495,52 @@ impl MirrorServerInstance {
         // not much we can really do if shutdown fails -- presumably, if it does,
         // dropping the socket when this struct is destroyed will fix all that.
         let _ = self.socket.shutdown(Shutdown::Both); // close the connection before returning.
+    }
+}
+
+/// A mirror server encapsulates the data that each instance
+/// (MirrorServerInstance) needs, listens to requests on
+/// the specified service port and spawns off a thread for each
+/// mirror client that connects.  The client threads run as long as
+/// a connection is retained - which is the lifetime of the client.
+///
+struct MirrorServer {
+    port: u16,                  // Listner port
+    memory: ShmSharedContainer, // Shared memory object.
+    directory: SharedDirectory, // Mirror directory.
+}
+
+impl MirrorServer {
+    /// Create a mirror server.
+    /// Normally instantiation/runningthe mirror server is a two step operation:
+    /// 1.   new is invoked to create an instance of the server.
+    /// 2.   a thread is spawned off which invokes the run method to
+    ///      process new connections.
+
+    fn new(
+        listen_port: u16,
+        shared_memory: &'static XamineSharedMemory,
+        mirror_directory: &SharedDirectory,
+    ) -> MirrorServer {
+        MirrorServer {
+            port: listen_port,
+            memory: Arc::new(Mutex::new(shared_memory)),
+            directory: mirror_directory.clone(),
+        }
+    }
+    /// Run the server - normally done in a separate thread.  
+    /// Create a TcpListener and process connections from it:
+    ///
+    fn run(&mut self) {
+        let listener = TcpListener::bind(&format!("0.0.0.0:{}", self.port))
+            .expect("Failed to create TCP/IP listener");
+        for server in listener.incoming() {
+            let mut server_instance =
+                MirrorServerInstance::new(&server.unwrap(), self.memory.clone(), &self.directory);
+            thread::spawn(move || unsafe {
+                server_instance.run();
+            });
+        }
     }
 }
 
