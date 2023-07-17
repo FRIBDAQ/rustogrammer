@@ -12,16 +12,14 @@
 //!
 //!
 use super::*;
+use memmap;
 use std::collections::hash_map::Values;
 use std::collections::HashMap;
+use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 use std::mem;
-use std::net::{Shutdown, TcpListener, TcpStream};
-use std::slice::from_raw_parts;
-use std::thread;
-
-use std::sync::{Arc, Mutex};
+use std::net::{SocketAddr, TcpStream};
 
 /// Here are the message type codes for the MessageHeader:
 ///
@@ -215,6 +213,57 @@ impl Directory {
     }
 }
 
+/// MirrorServerInstance represents an instance of the
+/// mirror server.  Each mirror server makes its own map to the
+/// shared memory region.  This bypasses the lifetime/Send trait
+/// issues encountered when trying to maintain one map and pass
+/// pointers/references to threads.
+///
+/// This initial version of the MirrorServerInstance is stupid
+/// and only does full updates.  A later version needs to understand
+/// how to do partial updates based on when things change in the
+/// shared memory header.
+
+struct MirrorServerInstance {
+    shared_memory_map: memmap::Mmap,
+    shared_memory: *const XamineSharedMemory,
+    socket: TcpStream,
+    peer: SocketAddr,
+}
+
+impl MirrorServerInstance {
+    fn memory(&self) -> &XamineSharedMemory {
+        unsafe {self.shared_memory.as_ref().unwrap()}
+    }
+
+    /// Create a new server instance.
+    /// Normally a MirrorServerInstance will accept a connection
+    /// request by spawning a thread that wille
+    /// invoke new for MirrorServerInstance to create the server instance state
+    /// and then run on the instance to execute that server.
+    /// The server runs until:
+    ///
+    /// * The peer closes the socket.
+    /// * The peer sends a blatantly illegal request.
+    ///
+    pub fn new(shm_name: &str, shm_size: usize, sock: TcpStream) -> MirrorServerInstance {
+        // Map the shared memory.
+
+        let f = File::open(shm_name).expect("MirrorServerInstance failed to open map file");
+        let map = unsafe {
+            memmap::Mmap::map(&f).expect("MirrorServerInstance failed to map backing file")
+        };
+        let p = unsafe { map.as_ptr() as *const XamineSharedMemory };
+
+        let peer = sock.peer_addr().expect("MirrorServerInstance getting peer addr");
+        MirrorServerInstance {
+            shared_memory_map: map,
+            shared_memory: p,
+            socket: sock,
+            peer: peer
+        }
+    }
+}
 
 //------------------- unit tests ---------------------------
 
