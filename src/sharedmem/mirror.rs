@@ -315,12 +315,14 @@ impl MirrorServerInstance {
 
                     match std::str::from_utf8(&byte_buf) {
                         Ok(body) => {
+                            println!("Entering: {}.{}", self.peer.ip(), body);
                             if let Err(s) = self
                                 .mirror_directory
                                 .lock()
                                 .unwrap()
-                                .add(&format!("{}", self.peer), body)
+                                .add(&format!("{}", self.peer.ip()), body)
                             {
+                                println!("Error: {}", s);
                                 Err(format!("Failed to make directory entry {}", s))
                             } else {
                                 self.shm_info = Some(String::from(body));
@@ -461,7 +463,7 @@ impl MirrorServerInstance {
                     .mirror_directory
                     .lock()
                     .unwrap()
-                    .remove(&format!("{}", self.peer), &shm);
+                    .remove(&format!("{}", self.peer.ip()), &shm);
             }
             // Shutdown the socket rather than letting it linger.
             let _ = self.socket.shutdown(Shutdown::Both); // Ignore shutdown errors.
@@ -517,7 +519,6 @@ impl MirrorServer {
     /// to execute the server code.
 
     fn new(listen_port: u16, shm_file: &str, exit_req: Receiver<bool>) -> MirrorServer {
-        println!("Mirror server with file: {}", shm_file);
         MirrorServer {
             port: listen_port,
             shm_name: String::from(shm_file),
@@ -821,7 +822,7 @@ mod mirror_server_tests {
         let shm = create_shared_memory(spectrum_size);
 
         let thread_shm = format!("{}", shm.path().display());
-        println!("Shared memory path: {}", thread_shm);
+
         thread::spawn(move || {
             let mut server = MirrorServer::new(port, &thread_shm, receiver);
             server.run();
@@ -850,7 +851,10 @@ mod mirror_server_tests {
             .shutdown(Shutdown::Both)
             .expect("Shutting down client stream");
 
-        // remove_file(shmem).expect("removing shared memory file");
+        // Let the server instance start and exit before allowing the
+        // shared memory file to drop:
+
+        thread::sleep(Duration::from_millis(100));
     }
     #[test]
     fn infrastructure_1() {
@@ -941,6 +945,52 @@ mod mirror_server_tests {
         let mut byte = [0; 1];
         let peek = stream.peek(&mut byte);
         assert!(peek.is_err());
+
+        teardown(&sender);
+    }
+    #[test]
+    fn shm_info_3() {
+        // Duplicate shm info between server instances should fail
+        // truly a shared directory:
+
+        // Duplicate shared memory region on same sever should fail:
+
+        let (mem_name, sender) = setup(SERVER_PORT, 0);
+
+        let mut stream = connect_server();
+        let mut msg_body = String::from("file:");
+        msg_body.push_str(&format!("{}", mem_name.path().display()));
+
+        let msg_len = mem::size_of::<MessageHeader>() + msg_body.len();
+        let header = MessageHeader {
+            msg_size: msg_len as u32,
+            msg_type: SHM_INFO,
+        };
+        println!("First registration");
+        header
+            .write(&mut stream)
+            .expect("Failed to write SHM_INFO header");
+        stream
+            .write_all(msg_body.as_bytes())
+            .expect("Failed to write SHM_INFO body");
+
+        // Write it again and the stream will get closed:
+
+        println!("Second registration");
+        let mut stream1 = connect_server();
+        header
+            .write(&mut stream1)
+            .expect("Failed to write SHM_INFO header");
+        stream1
+            .write_all(msg_body.as_bytes())
+            .expect("Failed to write SHM_INFO body");
+
+        // Peer should have disconnected:
+
+
+        let mut buf = [0; 1];
+        let result = stream1.read_exact(&mut buf);
+        assert!(result.is_err());
 
         teardown(&sender);
     }
