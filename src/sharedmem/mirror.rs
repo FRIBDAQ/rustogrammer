@@ -19,9 +19,12 @@ use std::fs::File;
 use std::io::Read;
 use std::io::Write;
 use std::mem;
-use std::net::{Shutdown, SocketAddr, TcpStream};
+use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::ptr;
+use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
 /// Here are the message type codes for the MessageHeader:
 ///
@@ -380,7 +383,7 @@ impl MirrorServerInstance {
     pub fn new(
         shm_name: &str,
         sock: TcpStream,
-        dir: &SharedMirrorDirectory,
+        dir: SharedMirrorDirectory,
     ) -> MirrorServerInstance {
         // Map the shared memory.
 
@@ -388,7 +391,7 @@ impl MirrorServerInstance {
         let map = unsafe {
             memmap::Mmap::map(&f).expect("MirrorServerInstance failed to map backing file")
         };
-        let p = unsafe { map.as_ptr() as *const XamineSharedMemory };
+        let p = map.as_ptr() as *const XamineSharedMemory;
 
         let peer = sock
             .peer_addr()
@@ -462,6 +465,90 @@ impl MirrorServerInstance {
             }
             // Shutdown the socket rather than letting it linger.
             let _ = self.socket.shutdown(Shutdown::Both); // Ignore shutdown errors.
+        }
+    }
+}
+/// MirrorServer listens for connections and, spawns off a MirrorServerInstance thread
+/// to handle requests by the connected client.
+/// The server is the owner of the initial copy of the shared mirror directory
+/// it also is given the patht ot the shared memory backing file.  These
+/// are all passed to the thread.
+///
+///  As with all server objects, running the server is a two step process:
+///
+///  * new is invoked to pass the server any data it must store in its struct.
+///  * run is invoked to actually run the server.  
+///
+/// Normally this is done in a thread
+/// One interesting design point - we want the server listener to be able to
+/// exit but Rust's TcpListener doesn't really give us a mechanism to do that.
+/// What we do is use a tricky combination to exit this server:
+/// *  The server is instantiated given a receiver of bools.
+/// *  After each connection is processe, a recv_timeout is called on the
+///  channel with a very short timeout, and the listener exits if data are
+///  received.  Therefor to force an exit of the server:
+/// *   Send a bool, any bool, to the Sender side of the channel,
+/// *   Make a connection to the server.
+/// *   Close the TCP/IP connection - that will force the server instance to exit.
+///
+/// What we can't do with this method, sadly, is to force the server instance
+/// threads to exit.
+///
+struct MirrorServer {
+    port: u16,                               // Listener port.
+    shm_name: String,                        // Path to the shared memory region.
+    mirror_directory: SharedMirrorDirectory, // Registered mirrors.
+    exit_req: Receiver<bool>,                // Send here to request exit after next connection.
+}
+impl MirrorServer {
+    // handle a new client:
+    // Start a thread that creates a new MirrorServerInstance and runs it:
+
+    fn start_server_instance(&mut self, socket: TcpStream) {
+        let shm_name = self.shm_name.clone();
+        let dir = self.mirror_directory.clone();
+        thread::spawn(move || {
+            let mut instance = MirrorServerInstance::new(&shm_name, socket, dir);
+            instance.run();
+        });
+    }
+
+    /// Create the instance of the MirrorServer - run must still be called
+    /// to execute the server code.
+
+    fn new(listen_port: u16, shm_file: &str, exit_req: Receiver<bool>) -> MirrorServer {
+        MirrorServer {
+            port: listen_port,
+            shm_name: String::from(shm_file),
+            mirror_directory: Arc::new(Mutex::new(Directory::new())),
+            exit_req: exit_req,
+        }
+    }
+    /// Called to run the server.  The typical game is to spawn a thread
+    /// Which
+    /// * Instantiates the listener giving the the port and the receiver
+    /// side of a channel pair that was created as well as the shared memory
+    /// backing file path.
+    /// *  Invokes run() to actually run the server.
+    ///
+    fn run(&mut self) {
+        let listener = TcpListener::bind(&format!("0.0.0.0:{}", self.port))
+            .expect("Unable to listen on server port");
+        let timeout = Duration::from_micros(100); // Suitably short.
+
+        for client in listener.incoming() {
+            if let Ok(client) = client {
+                self.start_server_instance(client);
+            }
+            match self.exit_req.recv_timeout(timeout.clone()) {
+                Ok(_) => break,
+                Err(reason) => {
+                    match reason {
+                        RecvTimeoutError::Disconnected => break, // no senders left...
+                        RecvTimeoutError::Timeout => {}          // Keep accepting connections.
+                    }
+                }
+            }
         }
     }
 }
