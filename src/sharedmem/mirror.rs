@@ -776,6 +776,75 @@ mod directory_tests {
 
 #[cfg(test)]
 mod mirror_server_tests {
+    use super::*;
+    use memmap;
+    use std::fs::{remove_file, File};
+    use std::mem;
+    use std::net::{Shutdown, TcpStream};
+    use std::sync::mpsc::{channel, Receiver, Sender};
+    use tempfile;
+    use thread;
+
+    const SERVER_PORT: u16 = 10000;
+
+    fn init_memory(mem: &mut XamineSharedMemory) {
+        for i in 0..XAMINE_MAXSPEC {
+            mem.dsp_types[i] = SpectrumTypes::Undefined;
+        }
+    }
+    fn create_shared_memory(spec_bytes: usize) -> String {
+        let total_size = mem::size_of::<XamineSharedMemory>() + spec_bytes;
+        let file = tempfile::NamedTempFile::new().expect("Creating shared mem tempfile");
+        file.as_file()
+            .set_len(total_size as u64)
+            .expect("Failed to set file size");
+
+        let map = unsafe { memmap::MmapMut::map_mut(file.as_file()) };
+        let mut map = map.expect("Mapping shared memory");
+
+        let pmap = unsafe { map.as_mut_ptr() as *mut XamineSharedMemory };
+        let memory = unsafe { pmap.as_mut().unwrap() };
+
+        init_memory(memory);
+
+        format!("{}", file.path().display())
+    }
+    // Common set up code.
+    // We need to:
+    // - Make a Shared memory file.
+    // - Initialize the header.
+    // - Start a mirror server on that file.
+    // - Return the send side of the exit request channel.
+    fn setup(port: u16, spectrum_size: usize) -> (String, Sender<bool>) {
+        let (sender, receiver) = channel::<bool>();
+        let shm = create_shared_memory(spectrum_size);
+
+        let thread_shm = shm.clone();
+        thread::spawn(move || {
+            let mut server = MirrorServer::new(port, &thread_shm, receiver);
+            server.run();
+        });
+        (shm, sender)
+    }
+
+    // Common tear down code:
+    //  - Send a request to stop the server.
+    //  - Send a connection request to the server.
+    //  - Close our connection.
+    //  - Delete the shared memory image file.
+    fn teardown(sender: &Sender<bool>, shmem: &str) {
+        sender.send(false).expect("Sending halt request to server");
+        let stream = TcpStream::connect(&format!("127.0.0.0:{}", SERVER_PORT))
+            .expect("Failed connection to server");
+        stream
+            .shutdown(Shutdown::Both)
+            .expect("Shutting down client stream");
+
+        remove_file(shmem).expect("removing shared memory file");
+    }
     #[test]
-    fn dummy() {}
+    fn infrastructure_1() {
+        let (mem_name, sender) = setup(SERVER_PORT, 0);
+        teardown(&sender, &mem_name);
+    }
 }
