@@ -517,6 +517,7 @@ impl MirrorServer {
     /// to execute the server code.
 
     fn new(listen_port: u16, shm_file: &str, exit_req: Receiver<bool>) -> MirrorServer {
+        println!("Mirror server with file: {}", shm_file);
         MirrorServer {
             port: listen_port,
             shm_name: String::from(shm_file),
@@ -778,10 +779,10 @@ mod directory_tests {
 mod mirror_server_tests {
     use super::*;
     use memmap;
-    use std::fs::{remove_file, File};
+    use std::fs::remove_file;
     use std::mem;
     use std::net::{Shutdown, TcpStream};
-    use std::sync::mpsc::{channel, Receiver, Sender};
+    use std::sync::mpsc::{channel, Sender};
     use tempfile;
     use thread;
 
@@ -792,7 +793,7 @@ mod mirror_server_tests {
             mem.dsp_types[i] = SpectrumTypes::Undefined;
         }
     }
-    fn create_shared_memory(spec_bytes: usize) -> String {
+    fn create_shared_memory(spec_bytes: usize) -> tempfile::NamedTempFile {
         let total_size = mem::size_of::<XamineSharedMemory>() + spec_bytes;
         let file = tempfile::NamedTempFile::new().expect("Creating shared mem tempfile");
         file.as_file()
@@ -807,7 +808,7 @@ mod mirror_server_tests {
 
         init_memory(memory);
 
-        format!("{}", file.path().display())
+        file
     }
     // Common set up code.
     // We need to:
@@ -815,16 +816,22 @@ mod mirror_server_tests {
     // - Initialize the header.
     // - Start a mirror server on that file.
     // - Return the send side of the exit request channel.
-    fn setup(port: u16, spectrum_size: usize) -> (String, Sender<bool>) {
+    fn setup(port: u16, spectrum_size: usize) -> (tempfile::NamedTempFile, Sender<bool>) {
         let (sender, receiver) = channel::<bool>();
         let shm = create_shared_memory(spectrum_size);
 
-        let thread_shm = shm.clone();
+        let thread_shm = format!("{}", shm.path().display());
+        println!("Shared memory path: {}", thread_shm);
         thread::spawn(move || {
             let mut server = MirrorServer::new(port, &thread_shm, receiver);
             server.run();
         });
+        thread::sleep(Duration::from_millis(500)); // so the thread can listen.
         (shm, sender)
+    }
+    fn connect_server() -> TcpStream {
+        TcpStream::connect(&format!("127.0.0.1:{}", SERVER_PORT))
+            .expect("Connecting to mirror server")
     }
 
     // Common tear down code:
@@ -832,19 +839,109 @@ mod mirror_server_tests {
     //  - Send a connection request to the server.
     //  - Close our connection.
     //  - Delete the shared memory image file.
-    fn teardown(sender: &Sender<bool>, shmem: &str) {
+    fn teardown(sender: &Sender<bool>) {
+        // this sleep is in case tests are fast enough that the send below gets processed
+        // before the connection:
+
+        thread::sleep(Duration::from_millis(100));
         sender.send(false).expect("Sending halt request to server");
-        let stream = TcpStream::connect(&format!("127.0.0.0:{}", SERVER_PORT))
-            .expect("Failed connection to server");
+        let stream = connect_server();
         stream
             .shutdown(Shutdown::Both)
             .expect("Shutting down client stream");
 
-        remove_file(shmem).expect("removing shared memory file");
+        // remove_file(shmem).expect("removing shared memory file");
     }
     #[test]
     fn infrastructure_1() {
         let (mem_name, sender) = setup(SERVER_PORT, 0);
-        teardown(&sender, &mem_name);
+        teardown(&sender);
+    }
+    #[test]
+    fn connect_1() {
+        // I canconnect to the server:
+
+        let (mem_name, sender) = setup(SERVER_PORT, 0);
+
+        let stream = connect_server();
+
+        stream
+            .shutdown(Shutdown::Both)
+            .expect("Failed to shutdown client test stream");
+
+        teardown(&sender);
+    }
+    #[test]
+    fn shm_info_1() {
+        // A new shared memory name works fine.
+
+        let (mem_name, sender) = setup(SERVER_PORT, 0);
+
+        let mut stream = connect_server();
+        let mut msg_body = String::from("file:");
+        msg_body.push_str(&format!("{}", mem_name.path().display()));
+
+        let msg_len = mem::size_of::<MessageHeader>() + msg_body.len();
+        let header = MessageHeader {
+            msg_size: msg_len as u32,
+            msg_type: SHM_INFO,
+        };
+        header
+            .write(&mut stream)
+            .expect("Failed to write SHM_INFO header");
+        stream
+            .write_all(msg_body.as_bytes())
+            .expect("Failed to write SHM_INFO body");
+
+        // Stream should still be open...test by trying to peek (there won't be anything).
+
+        let mut byte = [0; 1];
+        let peek = stream.peek(&mut byte);
+        assert!(peek.is_ok());
+        assert_eq!(0, peek.unwrap());
+
+        stream
+            .shutdown(Shutdown::Both)
+            .expect("Shutting down client stream");
+        teardown(&sender);
+    }
+    #[test]
+    fn shm_info_2() {
+        // Duplicate shared memory region on same sever should fail:
+
+        let (mem_name, sender) = setup(SERVER_PORT, 0);
+
+        let mut stream = connect_server();
+        let mut msg_body = String::from("file:");
+        msg_body.push_str(&format!("{}", mem_name.path().display()));
+
+        let msg_len = mem::size_of::<MessageHeader>() + msg_body.len();
+        let header = MessageHeader {
+            msg_size: msg_len as u32,
+            msg_type: SHM_INFO,
+        };
+        header
+            .write(&mut stream)
+            .expect("Failed to write SHM_INFO header");
+        stream
+            .write_all(msg_body.as_bytes())
+            .expect("Failed to write SHM_INFO body");
+
+        // Write it again and the stream will get closed:
+
+        header
+            .write(&mut stream)
+            .expect("Failed to write SHM_INFO header");
+        stream
+            .write_all(msg_body.as_bytes())
+            .expect("Failed to write SHM_INFO body");
+
+        // Stream should have closed because this is not allowed:
+
+        let mut byte = [0; 1];
+        let peek = stream.peek(&mut byte);
+        assert!(peek.is_err());
+
+        teardown(&sender);
     }
 }
