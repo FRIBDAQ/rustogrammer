@@ -603,7 +603,7 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
 /// *   f - anything that implements the readable trait.
 ///
 /// ### Returns:
-/// * Vec<SpectrumFileData>  the spectra read from the file (could be more than
+/// * `Vec<SpectrumFileData>`  the spectra read from the file (could be more than
 /// one).  
 ///
 ///  ### Note

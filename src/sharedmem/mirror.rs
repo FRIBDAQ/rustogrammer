@@ -772,3 +772,10 @@ mod directory_tests {
         assert!(!dir.items.contains_key(&lookup));
     }
 }
+// Tests of the mirror server, if I can figure those out.
+
+#[cfg(test)]
+mod mirror_server_tests {
+    #[test]
+    fn dummy() {}
+}

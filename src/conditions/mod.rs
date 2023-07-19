@@ -20,7 +20,7 @@
 //!  to clients via the container.
 //!
 //!  In our case, in order to support transparent replacement, we'll use
-//!  Rc<dyn Condition>.  These get cloned to pass them to
+//!  `Rc<dyn Condition>`.  These get cloned to pass them to
 //!  spectra where Rc::downgrade() turns them into Weak references.
 //!  This trick will get around the SpecTcl problem of *etnernal gates*
 //!  Since it's too much trouble, in general, to track down all

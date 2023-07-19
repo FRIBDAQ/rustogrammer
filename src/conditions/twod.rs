@@ -131,7 +131,7 @@ type EdgeTable = Vec<Edge>;
 /// A band is defined by a pair of dependent parameter ids and
 /// A set of at least two points.  The simplest way to determine
 /// if we can compute a band is to pass in all of the points at
-/// construction time.  We then return an Option<Band> which
+/// construction time.  We then return an `Option<Band>` which
 /// can be None if there are insufficent points.
 ///
 pub struct Band {
