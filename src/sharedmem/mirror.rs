@@ -780,7 +780,6 @@ mod directory_tests {
 mod mirror_server_tests {
     use super::*;
     use memmap;
-    use std::fs::remove_file;
     use std::mem;
     use std::net::{Shutdown, TcpStream};
     use std::sync::mpsc::{channel, Sender};
@@ -987,10 +986,58 @@ mod mirror_server_tests {
 
         // Peer should have disconnected:
 
-
         let mut buf = [0; 1];
         let result = stream1.read_exact(&mut buf);
         assert!(result.is_err());
+
+        teardown(&sender);
+    }
+    #[test]
+    fn shm_info_4() {
+        // Once a shared memory client has closed its connection,
+        // it's shminfo gets released:
+
+        let (mem_name, sender) = setup(SERVER_PORT, 0);
+
+        let mut stream = connect_server();
+        let mut msg_body = String::from("file:");
+        msg_body.push_str(&format!("{}", mem_name.path().display()));
+
+        let msg_len = mem::size_of::<MessageHeader>() + msg_body.len();
+        let header = MessageHeader {
+            msg_size: msg_len as u32,
+            msg_type: SHM_INFO,
+        };
+        println!("First registration");
+        header
+            .write(&mut stream)
+            .expect("Failed to write SHM_INFO header");
+        stream
+            .write_all(msg_body.as_bytes())
+            .expect("Failed to write SHM_INFO body");
+
+        stream.shutdown(Shutdown::Both);
+
+        // This shared memory region should be registerable:
+
+        let mut stream = connect_server();
+        header
+            .write(&mut stream)
+            .expect("Failed to write SHM_INFO header");
+        stream
+            .write_all(msg_body.as_bytes())
+            .expect("Failed to write shm info body");
+
+        // If I've lost it I can't write another shm header e.g.:
+
+        let result = header.write(&mut stream);
+        let result1 = stream.write_all(msg_body.as_bytes());
+
+        // While the server should (and shm_info_2 says it does) reject this
+        // request both results should be ok:
+
+        assert!(result.is_ok());
+        assert!(result1.is_ok());
 
         teardown(&sender);
     }
