@@ -829,8 +829,8 @@ mod mirror_server_tests {
         thread::sleep(Duration::from_millis(500)); // so the thread can listen.
         (shm, sender)
     }
-    fn connect_server() -> TcpStream {
-        TcpStream::connect(&format!("127.0.0.1:{}", SERVER_PORT))
+    fn connect_server(port_offset: u16) -> TcpStream {
+        TcpStream::connect(&format!("127.0.0.1:{}", SERVER_PORT + port_offset))
             .expect("Connecting to mirror server")
     }
 
@@ -839,13 +839,13 @@ mod mirror_server_tests {
     //  - Send a connection request to the server.
     //  - Close our connection.
     //  - Delete the shared memory image file.
-    fn teardown(sender: &Sender<bool>) {
+    fn teardown(sender: &Sender<bool>, offset: u16) {
         // this sleep is in case tests are fast enough that the send below gets processed
         // before the connection:
 
         thread::sleep(Duration::from_millis(100));
         sender.send(false).expect("Sending halt request to server");
-        let stream = connect_server();
+        let stream = connect_server(offset);
         stream
             .shutdown(Shutdown::Both)
             .expect("Shutting down client stream");
@@ -858,29 +858,29 @@ mod mirror_server_tests {
     #[test]
     fn infrastructure_1() {
         let (_, sender) = setup(SERVER_PORT, 0);
-        teardown(&sender);
+        teardown(&sender, 0);
     }
     #[test]
     fn connect_1() {
         // I canconnect to the server:
 
-        let (_, sender) = setup(SERVER_PORT, 0);
+        let (_, sender) = setup(SERVER_PORT+1, 0);
 
-        let stream = connect_server();
+        let stream = connect_server(1);
 
         stream
             .shutdown(Shutdown::Both)
             .expect("Failed to shutdown client test stream");
 
-        teardown(&sender);
+        teardown(&sender, 1);
     }
     #[test]
     fn shm_info_1() {
         // A new shared memory name works fine.
 
-        let (mem_name, sender) = setup(SERVER_PORT, 0);
+        let (mem_name, sender) = setup(SERVER_PORT + 2, 0);
 
-        let mut stream = connect_server();
+        let mut stream = connect_server(2);
         let mut msg_body = String::from("file:");
         msg_body.push_str(&format!("{}", mem_name.path().display()));
 
@@ -906,15 +906,15 @@ mod mirror_server_tests {
         stream
             .shutdown(Shutdown::Both)
             .expect("Shutting down client stream");
-        teardown(&sender);
+        teardown(&sender, 2);
     }
     #[test]
     fn shm_info_2() {
         // Duplicate shared memory region on same sever should fail:
 
-        let (mem_name, sender) = setup(SERVER_PORT, 0);
+        let (mem_name, sender) = setup(SERVER_PORT + 3, 0);
 
-        let mut stream = connect_server();
+        let mut stream = connect_server(3);
         let mut msg_body = String::from("file:");
         msg_body.push_str(&format!("{}", mem_name.path().display()));
 
@@ -945,7 +945,7 @@ mod mirror_server_tests {
         let peek = stream.peek(&mut byte);
         assert!(peek.is_err());
 
-        teardown(&sender);
+        teardown(&sender, 3);
     }
     #[test]
     fn shm_info_3() {
@@ -954,9 +954,9 @@ mod mirror_server_tests {
 
         // Duplicate shared memory region on same sever should fail:
 
-        let (mem_name, sender) = setup(SERVER_PORT, 0);
+        let (mem_name, sender) = setup(SERVER_PORT + 4, 0);
 
-        let mut stream = connect_server();
+        let mut stream = connect_server(4);
         let mut msg_body = String::from("file:");
         msg_body.push_str(&format!("{}", mem_name.path().display()));
 
@@ -976,7 +976,7 @@ mod mirror_server_tests {
         // Write it again and the stream will get closed:
 
         println!("Second registration");
-        let mut stream1 = connect_server();
+        let mut stream1 = connect_server(4);
         header
             .write(&mut stream1)
             .expect("Failed to write SHM_INFO header");
@@ -990,16 +990,16 @@ mod mirror_server_tests {
         let result = stream1.read_exact(&mut buf);
         assert!(result.is_err());
 
-        teardown(&sender);
+        teardown(&sender, 4);
     }
     #[test]
     fn shm_info_4() {
         // Once a shared memory client has closed its connection,
         // it's shminfo gets released:
 
-        let (mem_name, sender) = setup(SERVER_PORT, 0);
+        let (mem_name, sender) = setup(SERVER_PORT + 5, 0);
 
-        let mut stream = connect_server();
+        let mut stream = connect_server(5);
         let mut msg_body = String::from("file:");
         msg_body.push_str(&format!("{}", mem_name.path().display()));
 
@@ -1016,11 +1016,13 @@ mod mirror_server_tests {
             .write_all(msg_body.as_bytes())
             .expect("Failed to write SHM_INFO body");
 
-        stream.shutdown(Shutdown::Both).expect("Failed to shutdown stream");
+        stream
+            .shutdown(Shutdown::Both)
+            .expect("Failed to shutdown stream");
 
         // This shared memory region should be registerable:
 
-        let mut stream = connect_server();
+        let mut stream = connect_server(5);
         header
             .write(&mut stream)
             .expect("Failed to write SHM_INFO header");
@@ -1039,6 +1041,8 @@ mod mirror_server_tests {
         assert!(result.is_ok());
         assert!(result1.is_ok());
 
-        teardown(&sender);
+        teardown(&sender,5);
     }
+    //------------------------------------------------------------------------
+    // Tests for the actual mirroring operation.
 }
