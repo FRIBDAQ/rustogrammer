@@ -21,7 +21,7 @@ use std::io::Write;
 use std::mem;
 use std::net::{Shutdown, SocketAddr, TcpListener, TcpStream};
 use std::ptr;
-use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -803,7 +803,7 @@ mod mirror_server_tests {
         let map = unsafe { memmap::MmapMut::map_mut(file.as_file()) };
         let mut map = map.expect("Mapping shared memory");
 
-        let pmap = unsafe { map.as_mut_ptr() as *mut XamineSharedMemory };
+        let pmap = map.as_mut_ptr() as *mut XamineSharedMemory;
         let memory = unsafe { pmap.as_mut().unwrap() };
 
         init_memory(memory);
@@ -857,14 +857,14 @@ mod mirror_server_tests {
     }
     #[test]
     fn infrastructure_1() {
-        let (mem_name, sender) = setup(SERVER_PORT, 0);
+        let (_, sender) = setup(SERVER_PORT, 0);
         teardown(&sender);
     }
     #[test]
     fn connect_1() {
         // I canconnect to the server:
 
-        let (mem_name, sender) = setup(SERVER_PORT, 0);
+        let (_, sender) = setup(SERVER_PORT, 0);
 
         let stream = connect_server();
 
@@ -1016,7 +1016,7 @@ mod mirror_server_tests {
             .write_all(msg_body.as_bytes())
             .expect("Failed to write SHM_INFO body");
 
-        stream.shutdown(Shutdown::Both);
+        stream.shutdown(Shutdown::Both).expect("Failed to shutdown stream");
 
         // This shared memory region should be registerable:
 
