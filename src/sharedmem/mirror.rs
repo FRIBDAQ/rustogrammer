@@ -879,6 +879,63 @@ mod mirror_server_tests {
             }
         }
     }
+    // initialize the shared memory for the mirror_3 test:
+    // spectrum slot 3 is 10x10 TwodLong at offset 0.
+    // spectrum slot 1 is a 1024 OnedLong at offset 1024.
+
+    fn init_mirror_3shm(mem_file: &tempfile::NamedTempFile) {
+        let mut map =
+            unsafe { memmap::MmapMut::map_mut(mem_file.as_file()) }.expect("mapping shared memory");
+
+        let header = unsafe {
+            (map.as_mut_ptr() as *mut XamineSharedMemory)
+                .as_mut()
+                .unwrap()
+        };
+
+        // Define slot 1 as 1024 Onedlong offset 1024.
+        // This determines how much of the spectrum soup is sent.
+        header.dsp_xy[1].xchans = 1024;
+        header.dsp_xy[1].ychans = 1;
+        header.dsp_offsets[1] = 1024;
+        header.dsp_types[1] = SpectrumTypes::OnedLong;
+
+        // define slot 3 as 10x10 TwodLong at offset 0.
+
+        header.dsp_xy[3].xchans = 10;
+        header.dsp_xy[3].ychans = 10;
+        header.dsp_offsets[3] = 0;
+        header.dsp_types[3] = SpectrumTypes::TwodLong;
+
+        // Fill in spectrum1.
+        // (offset 1024)
+
+        let mut psoup =
+            unsafe { (map.as_mut_ptr() as *mut XamineSharedMemory).offset(1) as *mut u32 };
+        unsafe {
+            psoup = psoup.add(1024);
+        }
+        for i in 0..1024 {
+            unsafe {
+                *psoup = i;
+                psoup = psoup.add(1);
+            }
+        }
+
+        // Fill in Spectrum3.
+
+        let mut psoup =
+            unsafe { (map.as_mut_ptr() as *mut XamineSharedMemory).offset(1) as *mut u32 };
+        for x in 0..10 {
+            for y in 0..10 {
+                unsafe {
+                    *psoup = x + y * 10;
+                    psoup = psoup.add(1);
+                }
+            }
+        }
+    }
+
     // Common set up code.
     // We need to:
     // - Make a Shared memory file.
@@ -1247,8 +1304,92 @@ mod mirror_server_tests {
         assert_eq!(SpectrumTypes::OnedLong, mirror.dsp_types[0]);
 
         for i in 0..1024 {
-            assert_eq!(i, unsafe { *psoup });
+            assert_eq!(i, unsafe { *psoup }, "Mismatch on {}", i);
             unsafe { psoup = psoup.add(1) };
+        }
+
+        teardown(&sender, offset);
+    }
+    #[test]
+    fn mirror_3() {
+        // Spectrum slots 1 and 3 are filled, 3 has offset 0 and is a 10x10 long
+        // 2d 1 has offset 1024 and is a 1024 oned.  Both have counting patterns
+        //
+        let offset = 9;
+        let (mem, sender) = setup(SERVER_PORT + offset, 1024 * 1024);
+
+        init_mirror_3shm(&mem);
+
+        let mut stream = connect_server(offset);
+
+        // Send the upate request:
+
+        let header = MessageHeader {
+            msg_size: mem::size_of::<MessageHeader>() as u32,
+            msg_type: REQUEST_UPDATE,
+        };
+
+        header
+            .write(&mut stream)
+            .expect("Failed to request an update");
+        stream.flush().expect("Flushing stream failed");
+
+        // Request the reply:
+
+        let reply_header = MessageHeader::read(&mut stream).expect("Failed to read update header");
+        assert_eq!(
+            mem::size_of::<MessageHeader>()
+                + mem::size_of::<XamineSharedMemory>()
+                + 2 * 1024 * mem::size_of::<u32>(), //1024 offset + 1024 channels
+            reply_header.msg_size as usize
+        );
+        assert_eq!(FULL_UPDATE, reply_header.msg_type);
+
+        // Let's get the mirror image now:
+
+        let mut mirror_bytes = Vec::<u8>::new();
+        mirror_bytes.resize(
+            mem::size_of::<XamineSharedMemory>() + 2 * 1024 * mem::size_of::<u32>(),
+            0,
+        );
+        stream
+            .read_exact(&mut mirror_bytes)
+            .expect("Reading mirror_image data");
+
+        // Make reference tothe header and check spectrum defs
+
+        let pmirror_bytes = mirror_bytes.as_ptr(); // ptr to u8
+                                                   // All spectra should be undefined...that's the only other thing we can check:
+        let pmirror = pmirror_bytes as *const XamineSharedMemory;
+        let mirror = unsafe { pmirror.as_ref().expect("pmirror nonzero") };
+        let psoup = unsafe { pmirror.offset(1) as *const u32 };
+
+        assert_eq!(mirror.dsp_xy[1].xchans, 1024);
+        assert_eq!(mirror.dsp_xy[1].ychans, 1);
+        assert_eq!(mirror.dsp_offsets[1], 1024);
+        assert_eq!(mirror.dsp_types[1], SpectrumTypes::OnedLong);
+
+        assert_eq!(mirror.dsp_xy[3].xchans, 10);
+        assert_eq!(mirror.dsp_xy[3].ychans, 10);
+        assert_eq!(mirror.dsp_offsets[3], 0);
+        assert_eq!(mirror.dsp_types[3], SpectrumTypes::TwodLong);
+
+        // Data for spectrum 1:
+
+        let mut sp1 = unsafe { psoup.offset(1024) };
+        for i in 0..1024 {
+            assert_eq!(i, unsafe { *sp1 });
+            sp1 = unsafe { sp1.add(1) };
+        }
+
+        // Data for spectrum 3:
+
+        let mut sp3 = psoup;
+        for x in 0..10 {
+            for y in 0..10 {
+                assert_eq!(x + y * 10, unsafe { *sp3 });
+                sp3 = unsafe { sp3.add(1) };
+            }
         }
 
         teardown(&sender, offset);
