@@ -424,8 +424,7 @@ mod mirror_tests {
 
     use std::fs;
     use std::path::Path;
-    use std::sync::mpsc;
-    use std::sync::Mutex;
+    use std::sync::{mpsc, Arc, Mutex};
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
@@ -440,6 +439,8 @@ mod mirror_tests {
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
+            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
+            mirror_port: 0,
         };
 
         // Note we have two domains here because of the SpecTcl
@@ -521,8 +522,7 @@ mod pipeline_tests {
 
     use std::fs;
     use std::path::Path;
-    use std::sync::mpsc;
-    use std::sync::Mutex;
+    use std::sync::{mpsc, Arc, Mutex};
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
@@ -537,6 +537,8 @@ mod pipeline_tests {
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
+            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
+            mirror_port: 0,
         };
 
         // Note we have two domains here because of the SpecTcl
@@ -792,8 +794,7 @@ mod project_tests {
 
     use std::fs;
     use std::path::Path;
-    use std::sync::mpsc;
-    use std::sync::Mutex;
+    use std::sync::{mpsc, Arc, Mutex};
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
@@ -808,6 +809,8 @@ mod project_tests {
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
+            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
+            mirror_port: 0,
         };
 
         // Note we have two domains here because of the SpecTcl
@@ -887,8 +890,7 @@ mod pseudo_test {
 
     use std::fs;
     use std::path::Path;
-    use std::sync::mpsc;
-    use std::sync::Mutex;
+    use std::sync::{mpsc, Arc, Mutex};
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
@@ -903,6 +905,8 @@ mod pseudo_test {
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
+            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
+            mirror_port: 0,
         };
 
         // Note we have two domains here because of the SpecTcl
@@ -1021,8 +1025,8 @@ mod roottree_tests {
 
     use std::fs;
     use std::path::Path;
-    use std::sync::mpsc;
-    use std::sync::Mutex;
+
+    use std::sync::{mpsc, Arc, Mutex};
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
@@ -1037,6 +1041,8 @@ mod roottree_tests {
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
+            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
+            mirror_port: 0,
         };
 
         // Note we have two domains here because of the SpecTcl
@@ -1172,6 +1178,8 @@ mod script_tests {
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
+            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
+            mirror_port: 0,
         };
 
         // Note we have two domains here because of the SpecTcl
@@ -1269,6 +1277,8 @@ mod trace_tests {
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
+            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
+            mirror_port: 0,
         };
 
         // Note we have two domains here because of the SpecTcl
@@ -1406,6 +1416,8 @@ mod treevar_tests {
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
+            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
+            mirror_port: 0,
         };
 
         // Note we have two domains here because of the SpecTcl

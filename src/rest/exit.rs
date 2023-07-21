@@ -62,8 +62,6 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
     let hg = state.inner().histogramer.lock().unwrap();
     histogramer::stop_server(&hg);
 
-    
-
     //  Tell rocket to shutdown when processing of all requests is complete:
     shutdown.notify();
     Json(GenericResponse::ok("")) // Client may not get this.

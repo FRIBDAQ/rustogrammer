@@ -158,8 +158,7 @@ mod filter_tests {
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::sync::mpsc;
-    use std::sync::Mutex;
+    use std::sync::{mpsc, Arc, Mutex};
     // note these are all unimplemented URLS so...
 
     fn setup() -> Rocket<Build> {
@@ -176,6 +175,8 @@ mod filter_tests {
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
+            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
+            mirror_port: 0,
         };
 
         rocket::build()
