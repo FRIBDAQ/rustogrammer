@@ -825,7 +825,7 @@ mod mirror_server_tests {
     use tempfile;
     use thread;
 
-    const SERVER_PORT: u16 = 30000;
+    const SERVER_PORT: u16 =10000;
 
     fn init_memory(mem: &mut XamineSharedMemory) {
         for i in 0..XAMINE_MAXSPEC {
@@ -980,10 +980,11 @@ mod mirror_server_tests {
 
         // Stream should have closed because this is not allowed:
 
-        let mut byte = [0; 1];
-        let peek = stream.peek(&mut byte);
-        assert!(peek.is_err());
 
+        let mut byte = [0; 1];
+        let result = stream.read_exact(&mut byte);
+	assert!(result.is_err());
+	
         teardown(&sender, 3);
     }
     #[test]
