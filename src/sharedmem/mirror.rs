@@ -111,7 +111,6 @@ impl MessageHeader {
                 Self::validate_type(result)
             }
             Err(reason) => {
-                println!("Got: {:?}", buf);
                 Err(format!(
                     "Unable to complete message Header read: {}",
                     reason
@@ -122,7 +121,6 @@ impl MessageHeader {
     /// write a messgae header to a writeable.
 
     fn write<T: Write>(&self, f: &mut T) -> Result<usize, String> {
-        println!("Writing a header to something: {:?}", self);
         let mut buf: [u8; mem::size_of::<MessageHeader>()] = [0; mem::size_of::<MessageHeader>()];
         buf[0..4].copy_from_slice(&self.msg_size.to_ne_bytes()[0..]);
         buf[4..].copy_from_slice(&self.msg_type.to_ne_bytes()[0..]);
@@ -316,16 +314,13 @@ impl MirrorServerInstance {
             // Read the body:
             let mut byte_buf = Vec::<u8>::new();
             byte_buf.resize(body_size, 0);
-            println!("About to read {} bytes from body", body_size);
             match self.socket.read_exact(&mut byte_buf) {
                 Err(reason) => Err(format!("Body read failed: {}", reason)),
                 Ok(()) => {
                     // Make a string from the buffer contents:
 
-                    println!("Read the bytes {:?}", byte_buf);
                     match std::str::from_utf8(&byte_buf) {
                         Ok(body) => {
-                            println!("Entering: {}", body);
                             if let Err(s) = self
                                 .mirror_directory
                                 .lock()
@@ -335,7 +330,6 @@ impl MirrorServerInstance {
                                 Err(format!("Failed to make directory entry {}", s))
                             } else {
                                 self.shm_info = Some(String::from(body));
-                                println!("Ok processing shminfo");
                                 Ok(())
                             }
                         }
@@ -359,7 +353,6 @@ impl MirrorServerInstance {
     // to the socket.
     //
     fn process_update(&mut self, body_size: usize) -> Result<(), String> {
-        println!("Update requested {}", body_size);
         if body_size == 0 {
             let shm_header_size = mem::size_of::<XamineSharedMemory>();
             let shm_spectrum_size = self.size_spectrum_region();
@@ -370,7 +363,6 @@ impl MirrorServerInstance {
                 msg_type: FULL_UPDATE,
             };
             let msg_body = unsafe { shm_ptr.as_ref().unwrap() };
-            println!("Sending header {:?}", msg_header);
             if let Err(s) = msg_header.write(&mut self.socket) {
                 return Err(format!("Failed to write update header: {}", s));
             }
@@ -402,8 +394,7 @@ impl MirrorServerInstance {
     ) -> MirrorServerInstance {
         // Map the shared memory.
 
-        println!("------------------------------------");
-        println!("Map file  {}", shm_name);
+        
         match File::open(shm_name) {
             Ok(f) => {
                 if let Ok(map) = unsafe { memmap::Mmap::map(&f) } {
@@ -458,7 +449,6 @@ impl MirrorServerInstance {
                         }
                     }
                     REQUEST_UPDATE => {
-                        println!("Request update");
                         if let Err(s) = self.process_update(header.body_size()) {
                             eprintln!(
                                 "MirrorServerInstance - invalid REQUEST_UPDATE from {} : {}",
@@ -484,7 +474,7 @@ impl MirrorServerInstance {
                 }
             }
         }
-        println!("Shutting down server");
+        eprintln!("Shutting down MirrorServerInstance");
         // Remove our mirror entry if possible but ignore errors cause there's
         // not much we can do if there is one:
         if let Some(shm) = &self.shm_info {
@@ -898,7 +888,7 @@ mod mirror_server_tests {
     fn teardown(sender: &Sender<bool>, offset: u16) {
         // this sleep is in case tests are fast enough that the send below gets processed
         // before the connection:
-        println!("Teardown {}", offset);
+
         thread::sleep(Duration::from_millis(100));
         sender.send(false).expect("Sending halt request to server");
         let stream = connect_server(offset);
@@ -1017,7 +1007,7 @@ mod mirror_server_tests {
             msg_size: msg_len as u32,
             msg_type: SHM_INFO,
         };
-        println!("First registration");
+    
         header
             .write(&mut stream)
             .expect("Failed to write SHM_INFO header");
@@ -1027,8 +1017,7 @@ mod mirror_server_tests {
 
         // Write it again and the stream will get closed:
 
-        thread::sleep(Duration::from_millis(250));
-        println!("Second registration");
+        thread::sleep(Duration::from_millis(250)); // be sure it's processed second.
         let mut stream1 = connect_server(4);
         header
             .write(&mut stream1)
@@ -1134,7 +1123,7 @@ mod mirror_server_tests {
             msg_size: mem::size_of::<MessageHeader>() as u32,
             msg_type: REQUEST_UPDATE,
         };
-        println!("Sending update request {:?}", header);
+    
         header
             .write(&mut stream)
             .expect("Failed to request an update");
