@@ -110,12 +110,10 @@ impl MessageHeader {
                 result.msg_type = u32::from_ne_bytes(l);
                 Self::validate_type(result)
             }
-            Err(reason) => {
-                Err(format!(
-                    "Unable to complete message Header read: {}",
-                    reason
-                ))
-            }
+            Err(reason) => Err(format!(
+                "Unable to complete message Header read: {}",
+                reason
+            )),
         }
     }
     /// write a messgae header to a writeable.
@@ -394,7 +392,6 @@ impl MirrorServerInstance {
     ) -> MirrorServerInstance {
         // Map the shared memory.
 
-        
         match File::open(shm_name) {
             Ok(f) => {
                 if let Ok(map) = unsafe { memmap::Mmap::map(&f) } {
@@ -827,7 +824,6 @@ mod mirror_server_tests {
     use memmap;
     use std::mem;
     use std::net::{Shutdown, TcpStream};
-    use std::slice::from_raw_parts_mut;
     use std::sync::mpsc::{channel, Sender};
     use tempfile;
     use thread;
@@ -855,6 +851,33 @@ mod mirror_server_tests {
         init_memory(memory);
 
         file
+    }
+    // INitialize shared memory as expectedy by mirror_2:
+
+    fn init_mirror_2shm(mem_file: &tempfile::NamedTempFile) {
+        let mut map =
+            unsafe { memmap::MmapMut::map_mut(mem_file.as_file()) }.expect("mapping shared memory");
+
+        let header = unsafe {
+            (map.as_mut_ptr() as *mut XamineSharedMemory)
+                .as_mut()
+                .unwrap()
+        };
+        let mut psoup =
+            unsafe { (map.as_mut_ptr() as *mut XamineSharedMemory).offset(1) as *mut u32 };
+        // define slot 0 as a u32 1d spectrum with 1024 channels:
+
+        header.dsp_xy[0].xchans = 1024;
+        header.dsp_xy[0].ychans = 1;
+        header.dsp_offsets[0] = 0;
+        header.dsp_types[0] = SpectrumTypes::OnedLong;
+
+        for i in 0..1024 {
+            unsafe {
+                *psoup = i;
+                psoup = psoup.add(1);
+            }
+        }
     }
     // Common set up code.
     // We need to:
@@ -1007,7 +1030,7 @@ mod mirror_server_tests {
             msg_size: msg_len as u32,
             msg_type: SHM_INFO,
         };
-    
+
         header
             .write(&mut stream)
             .expect("Failed to write SHM_INFO header");
@@ -1123,7 +1146,7 @@ mod mirror_server_tests {
             msg_size: mem::size_of::<MessageHeader>() as u32,
             msg_type: REQUEST_UPDATE,
         };
-    
+
         header
             .write(&mut stream)
             .expect("Failed to request an update");
@@ -1147,8 +1170,7 @@ mod mirror_server_tests {
         let pmirror_bytes = mirror_bytes.as_ptr(); // ptr to u8
                                                    // All spectra should be undefined...that's the only other thing we can check:
         let pmirror = pmirror_bytes as *const XamineSharedMemory;
-        let mirror = unsafe {pmirror.as_ref().expect("pmirror nonzero")};
-
+        let mirror = unsafe { pmirror.as_ref().expect("pmirror nonzero") };
 
         for i in 0..XAMINE_MAXSPEC {
             assert_eq!(
@@ -1157,6 +1179,76 @@ mod mirror_server_tests {
                 "Spectrum {} is not undefined",
                 i
             );
+        }
+
+        teardown(&sender, offset);
+    }
+    #[test]
+    fn mirror_2() {
+        // Define a spectrum and see if the mirror returns
+
+        let offset = 8;
+        let (mem, sender) = setup(SERVER_PORT + offset, 1024 * 1024); //1mb of spectrum.
+
+        // Initialize 1, 1-d spectrum - slot 0, offset 0, contains a counting pattern.
+        // 1024 u32's long.
+
+        init_mirror_2shm(&mem);
+        let mut stream = connect_server(offset);
+
+        // Send the upate request:
+
+        let header = MessageHeader {
+            msg_size: mem::size_of::<MessageHeader>() as u32,
+            msg_type: REQUEST_UPDATE,
+        };
+
+        header
+            .write(&mut stream)
+            .expect("Failed to request an update");
+        stream.flush().expect("Flushing stream failed");
+
+        // Request the reply:
+
+        let reply_header = MessageHeader::read(&mut stream).expect("Failed to read update header");
+        assert_eq!(
+            mem::size_of::<MessageHeader>()
+                + mem::size_of::<XamineSharedMemory>()
+                + 1024 * mem::size_of::<u32>(),
+            reply_header.msg_size as usize
+        );
+        assert_eq!(FULL_UPDATE, reply_header.msg_type);
+
+        // Now the mirror data:
+
+        let mut mirror_bytes = Vec::<u8>::new();
+        mirror_bytes.resize(
+            mem::size_of::<XamineSharedMemory>() + 1024 * mem::size_of::<u32>(),
+            0,
+        );
+
+        stream
+            .read_exact(&mut mirror_bytes)
+            .expect("Reading mirror_2 data");
+
+        // Make a pointer to the header and the soup:
+
+        let pmirror_bytes = mirror_bytes.as_ptr(); // ptr to u8
+                                                   // All spectra should be undefined...that's the only other thing we can check:
+        let pmirror = pmirror_bytes as *const XamineSharedMemory;
+        let mirror = unsafe { pmirror.as_ref().expect("pmirror nonzero") };
+        let mut psoup = unsafe { pmirror.offset(1) as *const u32 };
+
+        // Slot 0 defines a 1d spectrum.
+
+        assert_eq!(mirror.dsp_xy[0].xchans, 1024);
+        assert_eq!(mirror.dsp_xy[0].ychans, 1);
+        assert_eq!(mirror.dsp_offsets[0], 0);
+        assert_eq!(SpectrumTypes::OnedLong, mirror.dsp_types[0]);
+
+        for i in 0..1024 {
+            assert_eq!(i, unsafe { *psoup });
+            unsafe { psoup = psoup.add(1) };
         }
 
         teardown(&sender, offset);
