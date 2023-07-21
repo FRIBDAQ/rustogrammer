@@ -32,7 +32,7 @@ const TITLE_LENGTH: usize = 128;
 
 #[allow(dead_code)]
 #[repr(C)]
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum SpectrumTypes {
     Undefined = 0,
     TwodLong = 5,

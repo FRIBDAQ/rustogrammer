@@ -35,7 +35,7 @@ use std::time::Duration;
 /// to mirror the Rustogramer shared memory.  This key can be used
 /// by clients to ensure only one mirror per host is used
 /// (see rest/mirror.rs).  No reply message is sent for this
-/// request.  
+/// request.  *mut
 /// *  REQUEST_UPDATE - Requests updated information for the
 /// shared memory.  The server determines both, based on the
 /// history of what's been sent and the state of the shared memory
@@ -73,6 +73,7 @@ pub const PARTIAL_UPDATE: u32 = 4;
 /// and, at present, there are no RUST clients and hence no RUST
 /// client crate.
 
+#[derive(Debug)]
 #[repr(C)]
 struct MessageHeader {
     msg_size: u32,
@@ -96,24 +97,32 @@ impl MessageHeader {
     fn read<T: Read>(f: &mut T) -> Result<MessageHeader, String> {
         let mut buf: [u8; mem::size_of::<MessageHeader>()] = [0; mem::size_of::<MessageHeader>()];
 
-        if let Ok(_) = f.read_exact(&mut buf) {
-            let mut result = MessageHeader {
-                msg_size: 0,
-                msg_type: 0,
-            };
-            let l: [u8; 4] = buf[0..mem::size_of::<u32>()].try_into().unwrap();
-            result.msg_size = u32::from_ne_bytes(l);
+        match f.read_exact(&mut buf) {
+            Ok(_) => {
+                let mut result = MessageHeader {
+                    msg_size: 0,
+                    msg_type: 0,
+                };
+                let l: [u8; 4] = buf[0..mem::size_of::<u32>()].try_into().unwrap();
+                result.msg_size = u32::from_ne_bytes(l);
 
-            let l: [u8; 4] = buf[mem::size_of::<u32>()..].try_into().unwrap();
-            result.msg_type = u32::from_ne_bytes(l);
-            Self::validate_type(result)
-        } else {
-            Err(String::from("Unable to complete message Header read"))
+                let l: [u8; 4] = buf[mem::size_of::<u32>()..].try_into().unwrap();
+                result.msg_type = u32::from_ne_bytes(l);
+                Self::validate_type(result)
+            }
+            Err(reason) => {
+                println!("Got: {:?}", buf);
+                Err(format!(
+                    "Unable to complete message Header read: {}",
+                    reason
+                ))
+            }
         }
     }
     /// write a messgae header to a writeable.
 
     fn write<T: Write>(&self, f: &mut T) -> Result<usize, String> {
+        println!("Writing a header to something: {:?}", self);
         let mut buf: [u8; mem::size_of::<MessageHeader>()] = [0; mem::size_of::<MessageHeader>()];
         buf[0..4].copy_from_slice(&self.msg_size.to_ne_bytes()[0..]);
         buf[4..].copy_from_slice(&self.msg_type.to_ne_bytes()[0..]);
@@ -315,17 +324,16 @@ impl MirrorServerInstance {
 
                     match std::str::from_utf8(&byte_buf) {
                         Ok(body) => {
-                            println!("Entering: {}.{}", self.peer.ip(), body);
                             if let Err(s) = self
                                 .mirror_directory
                                 .lock()
                                 .unwrap()
                                 .add(&format!("{}", self.peer.ip()), body)
                             {
-                                println!("Error: {}", s);
                                 Err(format!("Failed to make directory entry {}", s))
                             } else {
                                 self.shm_info = Some(String::from(body));
+                                println!("Ok processing shminfo");
                                 Ok(())
                             }
                         }
@@ -349,6 +357,7 @@ impl MirrorServerInstance {
     // to the socket.
     //
     fn process_update(&mut self, body_size: usize) -> Result<(), String> {
+        println!("Update requested {}", body_size);
         if body_size == 0 {
             let shm_header_size = mem::size_of::<XamineSharedMemory>();
             let shm_spectrum_size = self.size_spectrum_region();
@@ -359,12 +368,14 @@ impl MirrorServerInstance {
                 msg_type: FULL_UPDATE,
             };
             let msg_body = unsafe { shm_ptr.as_ref().unwrap() };
+            println!("Sending header {:?}", msg_header);
             if let Err(s) = msg_header.write(&mut self.socket) {
                 return Err(format!("Failed to write update header: {}", s));
             }
             if let Err(reason) = self.socket.write_all(msg_body) {
                 return Err(format!("Failed to write update body: {}", reason));
             }
+            self.socket.flush().expect("Failed toflush socket");
 
             Ok(())
         } else {
@@ -401,7 +412,7 @@ impl MirrorServerInstance {
         MirrorServerInstance {
             shared_memory_map: map,
             shared_memory: p,
-            socket: sock,
+            socket: sock.try_clone().unwrap(),
             peer: peer,
             mirror_directory: dir.clone(),
             shm_info: None,
@@ -432,6 +443,7 @@ impl MirrorServerInstance {
                         }
                     }
                     REQUEST_UPDATE => {
+                        println!("Request update");
                         if let Err(s) = self.process_update(header.body_size()) {
                             eprintln!(
                                 "MirrorServerInstance - invalid REQUEST_UPDATE from {} : {}",
@@ -776,17 +788,44 @@ mod directory_tests {
 }
 // Tests of the mirror server, if I can figure those out.
 
+// ************************ IMPORTANT NOTE: ******************************
+// A bit about these tests:
+// cargo test, by default, runs several tests in threaded parallel.  In this
+// case, since there's a TCP/IP server involved, it's necessary to be sure that each
+// server listens on a different port.  I don't know how to force this to happen
+// as again, data shared between those tests might not work properly to allocate
+// a port.
+// So
+// Suggested form of tests is literals in {} are intended to be substituted:
+//
+// ```
+//    #[test]
+//    fn a_test()  {
+//       let off = {some integer unique across the tests};
+//       let (mem_name, sender) = setup(SERVER_PORT + off, {xamine-spectrumsize});
+//       let mut connection = connect_server(off);
+//       ...
+///      teardown(&sender, off)
+//    }
+//
+// Each test's server then listens on the unique port SERVER_PORT + off and the
+// connections get made to the test's server which is also torn down properly.
+//
+// Convention is that each 'textually next' test uses an offset one larger
+// than the textually previous test.
+
 #[cfg(test)]
 mod mirror_server_tests {
     use super::*;
     use memmap;
     use std::mem;
     use std::net::{Shutdown, TcpStream};
+    use std::slice::from_raw_parts_mut;
     use std::sync::mpsc::{channel, Sender};
     use tempfile;
     use thread;
 
-    const SERVER_PORT: u16 = 10000;
+    const SERVER_PORT: u16 = 30000;
 
     fn init_memory(mem: &mut XamineSharedMemory) {
         for i in 0..XAMINE_MAXSPEC {
@@ -842,7 +881,7 @@ mod mirror_server_tests {
     fn teardown(sender: &Sender<bool>, offset: u16) {
         // this sleep is in case tests are fast enough that the send below gets processed
         // before the connection:
-
+        println!("Teardown{}", offset);
         thread::sleep(Duration::from_millis(100));
         sender.send(false).expect("Sending halt request to server");
         let stream = connect_server(offset);
@@ -864,7 +903,7 @@ mod mirror_server_tests {
     fn connect_1() {
         // I canconnect to the server:
 
-        let (_, sender) = setup(SERVER_PORT+1, 0);
+        let (_, sender) = setup(SERVER_PORT + 1, 0);
 
         let stream = connect_server(1);
 
@@ -1008,7 +1047,7 @@ mod mirror_server_tests {
             msg_size: msg_len as u32,
             msg_type: SHM_INFO,
         };
-        println!("First registration");
+
         header
             .write(&mut stream)
             .expect("Failed to write SHM_INFO header");
@@ -1041,8 +1080,80 @@ mod mirror_server_tests {
         assert!(result.is_ok());
         assert!(result1.is_ok());
 
-        teardown(&sender,5);
+        teardown(&sender, 5);
     }
     //------------------------------------------------------------------------
     // Tests for the actual mirroring operation.
+
+    #[test]
+    fn mirror_1() {
+        // Initially I'll get a shared memory header with nothing else
+        // and no spectra defined:
+
+        let offset = 7;
+        let (mem, sender) = setup(SERVER_PORT + offset, 0);
+
+        // Registering the region isn't strictly required but we do it:
+
+        let mut stream = connect_server(offset);
+        let mut msg_body = String::from("file:");
+        msg_body.push_str(&format!("{}", mem.path().display()));
+        // msg_body.shrink_to_fit();
+        let msg_len = mem::size_of::<MessageHeader>() + msg_body.len();
+        let header = MessageHeader {
+            msg_size: msg_len as u32,
+            msg_type: SHM_INFO,
+        };
+
+        header
+            .write(&mut stream)
+            .expect("Failed to write SHM_INFO header");
+        stream
+            .write_all(msg_body.as_bytes())
+            .expect("Failed to write SHM_INFO body");
+
+        // now request the update, read the header and be sure it's right:
+        // full update and the size is the size of a message header + XamineSharedMemory size.
+
+        thread::sleep(Duration::from_millis(500));
+        let header = MessageHeader {
+            msg_size: mem::size_of::<MessageHeader>() as u32,
+            msg_type: REQUEST_UPDATE,
+        };
+        println!("Sending update request {:?}", header);
+        header
+            .write(&mut stream)
+            .expect("Failed to request an update");
+        stream.flush().expect("Flushing stream failed");
+        let reply_header = MessageHeader::read(&mut stream).expect("Failed to read update header");
+        assert_eq!(
+            mem::size_of::<MessageHeader>() + mem::size_of::<XamineSharedMemory>(),
+            reply_header.msg_size as usize
+        );
+        assert_eq!(FULL_UPDATE, reply_header.msg_type);
+
+        // Read the data - this requires some skulduggery to get a reference
+        // to [u8]:
+
+        let mirror = mem::MaybeUninit::<&mut XamineSharedMemory>::uninit();
+        let mirror = unsafe { mirror.assume_init() };
+        let p: *mut XamineSharedMemory = mirror;
+        let p8 = p as *mut u8;
+        let buffer = unsafe { from_raw_parts_mut(p8, mem::size_of::<XamineSharedMemory>()) };
+
+        stream.read_exact(buffer).expect("Read of mirror failed");
+
+        // All spectra should be undefined...that's the only other thing we can check:
+
+        for i in 0..XAMINE_MAXSPEC {
+            assert_eq!(
+                SpectrumTypes::Undefined,
+                mirror.dsp_types[i],
+                "Spectrum {} is not undefined",
+                i
+            );
+        }
+
+        teardown(&sender, offset);
+    }
 }
