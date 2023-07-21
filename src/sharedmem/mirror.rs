@@ -316,14 +316,16 @@ impl MirrorServerInstance {
             // Read the body:
             let mut byte_buf = Vec::<u8>::new();
             byte_buf.resize(body_size, 0);
-
+            println!("About to read {} bytes from body", body_size);
             match self.socket.read_exact(&mut byte_buf) {
                 Err(reason) => Err(format!("Body read failed: {}", reason)),
                 Ok(()) => {
                     // Make a string from the buffer contents:
 
+                    println!("Read the bytes {:?}", byte_buf);
                     match std::str::from_utf8(&byte_buf) {
                         Ok(body) => {
+                            println!("Entering: {}", body);
                             if let Err(s) = self
                                 .mirror_directory
                                 .lock()
@@ -400,22 +402,35 @@ impl MirrorServerInstance {
     ) -> MirrorServerInstance {
         // Map the shared memory.
 
-        let f = File::open(shm_name).expect("MirrorServerInstance failed to open map file");
-        let map = unsafe {
-            memmap::Mmap::map(&f).expect("MirrorServerInstance failed to map backing file")
-        };
-        let p = map.as_ptr() as *const XamineSharedMemory;
+        println!("------------------------------------");
+        println!("Map file  {}", shm_name);
+        match File::open(shm_name) {
+            Ok(f) => {
+                if let Ok(map) = unsafe { memmap::Mmap::map(&f) } {
+                    let p = map.as_ptr() as *const XamineSharedMemory;
 
-        let peer = sock
-            .peer_addr()
-            .expect("MirrorServerInstance getting peer addr");
-        MirrorServerInstance {
-            shared_memory_map: map,
-            shared_memory: p,
-            socket: sock.try_clone().unwrap(),
-            peer: peer,
-            mirror_directory: dir.clone(),
-            shm_info: None,
+                    let peer = sock
+                        .peer_addr()
+                        .expect("MirrorServerInstance getting peer addr");
+                    MirrorServerInstance {
+                        shared_memory_map: map,
+                        shared_memory: p,
+                        socket: sock.try_clone().unwrap(),
+                        peer: peer,
+                        mirror_directory: dir.clone(),
+                        shm_info: None,
+                    }
+                } else {
+                    sock.shutdown(Shutdown::Both)
+                        .expect("Shutting down socket in new");
+                    panic!("Map of shared memory failed");
+                }
+            }
+            Err(reason) => {
+                sock.shutdown(Shutdown::Both)
+                    .expect("Shutting down socket in new");
+                panic!("Failed to map shared memory in server instance: {}", reason);
+            }
         }
         // The shared image backing file will close here when f is droppted
         // but the mapping will be retained.
@@ -468,18 +483,20 @@ impl MirrorServerInstance {
                     break;
                 }
             }
-            // Remove our mirror entry if possible but ignore errors cause there's
-            // not much we can do if there is one:
-            if let Some(shm) = &self.shm_info {
-                let _ = self
-                    .mirror_directory
-                    .lock()
-                    .unwrap()
-                    .remove(&format!("{}", self.peer.ip()), &shm);
-            }
-            // Shutdown the socket rather than letting it linger.
-            let _ = self.socket.shutdown(Shutdown::Both); // Ignore shutdown errors.
         }
+        println!("Shutting down server");
+        // Remove our mirror entry if possible but ignore errors cause there's
+        // not much we can do if there is one:
+        if let Some(shm) = &self.shm_info {
+            let _ = self
+                .mirror_directory
+                .lock()
+                .unwrap()
+                .remove(&format!("{}", self.peer.ip()), &shm);
+        }
+
+        // Shutdown the socket rather than letting it linger.
+        let _ = self.socket.shutdown(Shutdown::Both); // Ignore shutdown errors.
     }
 }
 /// MirrorServer listens for connections and, spawns off a MirrorServerInstance thread
@@ -825,7 +842,7 @@ mod mirror_server_tests {
     use tempfile;
     use thread;
 
-    const SERVER_PORT: u16 =10000;
+    const SERVER_PORT: u16 = 10000;
 
     fn init_memory(mem: &mut XamineSharedMemory) {
         for i in 0..XAMINE_MAXSPEC {
@@ -881,7 +898,7 @@ mod mirror_server_tests {
     fn teardown(sender: &Sender<bool>, offset: u16) {
         // this sleep is in case tests are fast enough that the send below gets processed
         // before the connection:
-        println!("Teardown{}", offset);
+        println!("Teardown {}", offset);
         thread::sleep(Duration::from_millis(100));
         sender.send(false).expect("Sending halt request to server");
         let stream = connect_server(offset);
@@ -935,16 +952,12 @@ mod mirror_server_tests {
             .write_all(msg_body.as_bytes())
             .expect("Failed to write SHM_INFO body");
 
-        // Stream should still be open...test by trying to peek (there won't be anything).
+        // Stream should still be open...test by trying to write a byte
+        //
+        let byte: [u8; 1] = [0; 1];
+        let result = stream.write_all(&byte);
+        assert!(result.is_ok());
 
-        let mut byte = [0; 1];
-        let peek = stream.peek(&mut byte);
-        assert!(peek.is_ok());
-        assert_eq!(0, peek.unwrap());
-
-        stream
-            .shutdown(Shutdown::Both)
-            .expect("Shutting down client stream");
         teardown(&sender, 2);
     }
     #[test]
@@ -980,11 +993,10 @@ mod mirror_server_tests {
 
         // Stream should have closed because this is not allowed:
 
-
         let mut byte = [0; 1];
         let result = stream.read_exact(&mut byte);
-	assert!(result.is_err());
-	
+        assert!(result.is_err());
+
         teardown(&sender, 3);
     }
     #[test]
@@ -1015,6 +1027,7 @@ mod mirror_server_tests {
 
         // Write it again and the stream will get closed:
 
+        thread::sleep(Duration::from_millis(250));
         println!("Second registration");
         let mut stream1 = connect_server(4);
         header
@@ -1136,15 +1149,17 @@ mod mirror_server_tests {
         // Read the data - this requires some skulduggery to get a reference
         // to [u8]:
 
-        let mirror = mem::MaybeUninit::<&mut XamineSharedMemory>::uninit();
-        let mirror = unsafe { mirror.assume_init() };
-        let p: *mut XamineSharedMemory = mirror;
-        let p8 = p as *mut u8;
-        let buffer = unsafe { from_raw_parts_mut(p8, mem::size_of::<XamineSharedMemory>()) };
+        let mut mirror_bytes = Vec::<u8>::new();
+        mirror_bytes.resize(mem::size_of::<XamineSharedMemory>(), 0);
+        stream
+            .read_exact(&mut mirror_bytes)
+            .expect("Reading mirror.");
 
-        stream.read_exact(buffer).expect("Read of mirror failed");
+        let pmirror_bytes = mirror_bytes.as_ptr(); // ptr to u8
+                                                   // All spectra should be undefined...that's the only other thing we can check:
+        let pmirror = pmirror_bytes as *const XamineSharedMemory;
+        let mirror = unsafe {pmirror.as_ref().expect("pmirror nonzero")};
 
-        // All spectra should be undefined...that's the only other thing we can check:
 
         for i in 0..XAMINE_MAXSPEC {
             assert_eq!(
