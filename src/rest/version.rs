@@ -104,9 +104,9 @@ pub fn get_version() -> Json<VersionResponse> {
 #[cfg(test)]
 mod version_tests {
     use super::*;
-    use crate::rest::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::rest::*;
 
     use rocket;
     use rocket::local::blocking::Client;

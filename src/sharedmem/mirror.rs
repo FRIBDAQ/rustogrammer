@@ -512,7 +512,7 @@ impl MirrorServerInstance {
 /// What we can't do with this method, sadly, is to force the server instance
 /// threads to exit.
 ///
-struct MirrorServer {
+pub struct MirrorServer {
     port: u16,                               // Listener port.
     shm_name: String,                        // Path to the shared memory region.
     mirror_directory: SharedMirrorDirectory, // Registered mirrors.
@@ -534,7 +534,7 @@ impl MirrorServer {
     /// Create the instance of the MirrorServer - run must still be called
     /// to execute the server code.
 
-    fn new(listen_port: u16, shm_file: &str, exit_req: Receiver<bool>) -> MirrorServer {
+    pub fn new(listen_port: u16, shm_file: &str, exit_req: Receiver<bool>) -> MirrorServer {
         MirrorServer {
             port: listen_port,
             shm_name: String::from(shm_file),
@@ -549,7 +549,7 @@ impl MirrorServer {
     /// backing file path.
     /// *  Invokes run() to actually run the server.
     ///
-    fn run(&mut self) {
+    pub fn run(&mut self) {
         let listener = TcpListener::bind(&format!("0.0.0.0:{}", self.port))
             .expect("Unable to listen on server port");
         let timeout = Duration::from_micros(100); // Suitably short.

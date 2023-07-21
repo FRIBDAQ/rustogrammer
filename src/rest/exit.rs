@@ -14,6 +14,7 @@ use super::*; // For generic response.
 use crate::histogramer;
 use crate::sharedmem::binder::BindingApi;
 use std::fs;
+use std::net::TcpStream;
 use std::path::Path;
 use std::thread;
 use std::time;
@@ -31,6 +32,10 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
             s
         );
     }
+    // Kill off the mirror server:...again ignore errors.
+
+    let _ = state.inner().mirror_exit.lock().unwrap().send(true); // ignore errors;
+    let _ = TcpStream::connect(&format!("127.0.0.1:{}", state.inner().mirror_port));
 
     // Shutdown the shared memory program.
 
@@ -56,6 +61,8 @@ pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<Gener
 
     let hg = state.inner().histogramer.lock().unwrap();
     histogramer::stop_server(&hg);
+
+    
 
     //  Tell rocket to shutdown when processing of all requests is complete:
     shutdown.notify();
