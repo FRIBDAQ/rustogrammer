@@ -13,7 +13,7 @@
 //!     must have two axes.
 //! *   summary depends on many x parameters and its fillable item must have
 //!     2 axes.  If its applied condition is satisifed, and any of the x parameters
-//!     is present, for each X parameter i with value xi, The channel c[i,xi] is
+//!     is present, for each X parameter i with value xi, The channel c\[i,xi\] is
 //!     incremented.  If this is confusing, think of the resulting histogram as being
 //!     a two dimensional histogram of vertical strips.  Each vertical strip is the
 //!     1-d spectrum of one of the X parameters. Typical use ase is for a large

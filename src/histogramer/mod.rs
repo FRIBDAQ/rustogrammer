@@ -61,7 +61,7 @@ impl RequestProcessor {
 
 /// The histogramer struct is essentially the the thread.
 /// This layer encapsulates a RequestProcessor and the
-/// Receiver<Request> channel on which requests are received.
+/// `Receiver<Request>` channel on which requests are received.
 ///
 struct Histogramer {
     processor: RequestProcessor,

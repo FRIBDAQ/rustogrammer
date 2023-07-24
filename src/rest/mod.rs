@@ -42,6 +42,7 @@ pub mod fold;
 pub mod gates;
 pub mod getstats;
 pub mod integrate;
+pub mod mirror_list;
 pub mod parameter;
 pub mod ringversion;
 pub mod sbind;
@@ -61,13 +62,15 @@ use crate::sharedmem::binder;
 use portman_client;
 use rocket::serde::{Deserialize, Serialize};
 use rocket::State;
-use std::sync::{mpsc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 
 pub struct HistogramState {
     pub histogramer: Mutex<mpsc::Sender<Request>>,
     pub binder: Mutex<mpsc::Sender<binder::Request>>,
     pub processing: Mutex<processing::ProcessingApi>,
     pub portman_client: Option<portman_client::Client>,
+    pub mirror_exit: Arc<Mutex<mpsc::Sender<bool>>>,
+    pub mirror_port: u16,
 }
 
 pub type OptionalStringVec = Option<Vec<String>>;

@@ -390,7 +390,7 @@ impl EventParameterInfo {
 /// Event in SpecTcl, the FlattenedEvent is the SpecTcl CEvent itself.
 /// We use the same generation number method to determine if an
 /// entry in the vector is valid...with the added wrinkle that the
-/// vector can hold Option<EventParameterInfo> structs so that entries
+/// vector can hold `Option<EventParameterInfo>` structs so that entries
 /// are None if they've _never_ been initialized.
 ///
 #[derive(Debug, PartialEq)]

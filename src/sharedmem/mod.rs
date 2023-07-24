@@ -16,6 +16,7 @@ use tempfile;
 
 use crate::messaging::spectrum_messages;
 pub mod binder;
+pub mod mirror;
 
 // These constants are used to size the fixed sized arrays in the
 // shared memory header:
@@ -31,7 +32,7 @@ const TITLE_LENGTH: usize = 128;
 
 #[allow(dead_code)]
 #[repr(C)]
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone, Debug)]
 pub enum SpectrumTypes {
     Undefined = 0,
     TwodLong = 5,
@@ -404,6 +405,7 @@ impl SharedMemory {
     /// for the data to be transferred from the local histogram
     /// to the spectrum.  The caller should not assume the
     /// spectrum storage is initialized.
+
     pub fn bind_spectrum(
         &mut self,
         sname: &str,
@@ -412,7 +414,6 @@ impl SharedMemory {
     ) -> Result<(usize, *mut u8), String> {
         // If the name is too long we need to truncate it to
         // TITLE_LENGTH -1 so there's a null termination
-
 
         let mut name = String::from(sname);
         name.truncate(TITLE_LENGTH - 1);
@@ -458,7 +459,6 @@ impl SharedMemory {
             header.dsp_info[slot][i] = c as u8;
         }
         header.dsp_offsets[slot] = (offset / mem::size_of::<u32>()) as u32;
-        header.dsp_types[slot] = spectrum_type;
         header.dsp_map[slot].xmin = xaxis.0 as f32;
         header.dsp_map[slot].xmax = xaxis.1 as f32;
         if let Some(y) = yaxis {
@@ -474,6 +474,10 @@ impl SharedMemory {
         header.dsp_map[slot].ylabel[0] = 0;
         header.dsp_statistics[slot].overflows = [0, 0];
         header.dsp_statistics[slot].underflows = [0, 0];
+
+        // Finally the type
+
+        header.dsp_types[slot] = spectrum_type;
 
         // Make the binding
 

@@ -19,12 +19,13 @@ use clap::Parser;
 use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, getstats,
-    integrate, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, unbind,
+    integrate, mirror_list, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, unbind,
     unimplemented, version,
 };
-use sharedmem::binder;
+use sharedmem::{binder, mirror};
 use std::env;
-use std::sync::Mutex;
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
 
 // Pull in Rocket features:
 
@@ -46,9 +47,13 @@ struct Args {
     #[arg(short, long, default_value_t=DEFAULT_SHM_SPECTRUM_MBYTES)]
     shm_mbytes: usize,
     #[arg(short, long, default_value_t = 8000)]
-    port: u16,
+    rest_port: u16,
     #[arg(long)]
-    service: Option<String>,
+    rest_service: Option<String>,
+    #[arg(long, default_value_t = 8001)]
+    mirror_port: u16,
+    #[arg(long)]
+    mirror_service: Option<String>,
 }
 
 // This is now the entry point as Rocket has the main
@@ -65,20 +70,43 @@ fn rocket() -> _ {
     let processor = processing::ProcessingApi::new(&histogramer_channel);
     let binder = binder::start_server(&histogramer_channel, args.shm_mbytes * 1024 * 1024);
 
-    let (port, client) = get_port(&args);
+    let (rest_port, mirror_port, client) = get_ports(&args);
+
+    // Start the mirror server:
+
+    let shm_name = binder::BindingApi::new(&binder.0)
+        .get_shname()
+        .expect("Unable to get shared memoryname");
+    // Remove the file: prefix:
+    let colon = shm_name
+        .find(':')
+        .expect("Finding end of file: in shm name");
+    let shm_name = String::from(&shm_name.as_str()[colon + 1..]);
+    println!("Mirroring {} port: {}", shm_name, mirror_port);
+
+    let (mirror_send, mirror_rcv) = mpsc::channel();
+    let mirror_directory = Arc::new(Mutex::new(mirror::Directory::new()));
+    let server_dir = mirror_directory.clone();
+    thread::spawn(move || {
+        let mut server = mirror::MirrorServer::new(mirror_port, &shm_name, mirror_rcv, server_dir);
+        server.run();
+    });
 
     let state = rest::HistogramState {
         histogramer: Mutex::new(histogramer_channel),
         binder: Mutex::new(binder.0),
         processing: Mutex::new(processor),
         portman_client: client,
+        mirror_exit: Arc::new(Mutex::new(mirror_send)),
+        mirror_port: mirror_port,
     };
 
     // Set the rocket port then fire it off:
 
-    env::set_var("ROCKET_PORT", port.to_string());
+    env::set_var("ROCKET_PORT", rest_port.to_string());
 
     rocket::build()
+        .manage(mirror_directory.clone())
         .manage(state)
         .mount(
             "/spectcl/parameter",
@@ -184,7 +212,7 @@ fn rocket() -> _ {
                 unbind::unbind_all
             ],
         )
-        .mount("/spectcl/mirror", routes![unimplemented::mirror_list])
+        .mount("/spectcl/mirror", routes![mirror_list::mirror_list])
         .mount(
             "/spectcl/pman",
             routes![
@@ -258,12 +286,38 @@ fn rocket() -> _ {
 ///
 /// The Client is part of what's returned as it must remain alive to
 /// keep the allocation.
-fn get_port(args: &Args) -> (u16, Option<portman_client::Client>) {
-    if args.service.is_some() {
-        let mut client = portman_client::Client::new(args.port);
-        let port = client.get(args.service.as_ref().unwrap());
-        (port.expect("Could not allocate service port"), Some(client))
+fn get_ports(args: &Args) -> (u16, u16, Option<portman_client::Client>) {
+    let mut result = (0, 0, None);
+
+    // The rest port/service:
+
+    if args.rest_service.is_some() {
+        let mut client = portman_client::Client::new(args.rest_port);
+        let port = client
+            .get(args.rest_service.as_ref().unwrap())
+            .expect("Could not allocate service port");
+
+        result.0 = port;
+        result.2 = Some(client);
     } else {
-        (args.port, None)
+        result.0 = args.rest_port;
     }
+    // Mirror port/service:
+
+    if args.mirror_service.is_some() {
+        if let Some(c) = result.2.as_mut() {
+            result.1 = c
+                .get(args.rest_service.as_ref().unwrap())
+                .expect("Getting mirror port");
+        } else {
+            let mut client = portman_client::Client::new(args.rest_port);
+            result.1 = client
+                .get(args.rest_service.as_ref().unwrap())
+                .expect("Getting mirror port");
+            result.2 = Some(client);
+        }
+    } else {
+        result.1 = args.mirror_port;
+    }
+    result
 }

@@ -97,8 +97,7 @@ mod getstats_tests {
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::sync::mpsc;
-    use std::sync::Mutex;
+    use std::sync::{mpsc, Arc, Mutex};
 
     fn setup() -> Rocket<Build> {
         let (_, hg_sender) = histogramer::start_server();
@@ -114,6 +113,8 @@ mod getstats_tests {
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
+            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
+            mirror_port: 0,
         };
 
         // Create a pair of parmaeters, p1, p2 and a pair of histograms

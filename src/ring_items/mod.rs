@@ -275,7 +275,7 @@ pub trait ToRaw {
     fn to_raw(&self) -> RingItem;
 }
 /// This can be implemented for each destination type
-/// e.g. ConvertRaw<StateChange> for RingItem to convert a raw
+/// e.g. `ConvertRaw<StateChange>` for RingItem to convert a raw
 /// item to a ring item if possible (correct type_id).
 ///
 pub trait FromRaw<T> {
@@ -300,7 +300,7 @@ pub fn systime_to_raw(stamp: time::SystemTime) -> u32 {
 }
 /// Returns the number of bytes of body header size that are
 /// required of the payload.  Note that the actual value of
-/// the body header size will be one mem::size_of::<u32>()
+/// the body header size will be one `mem::size_of::<u32>()`
 /// larger to account for the size field itself which is held in the
 /// formal fields of a ring_items::RingItem.
 ///
