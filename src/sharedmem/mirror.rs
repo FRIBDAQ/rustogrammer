@@ -147,7 +147,7 @@ impl MessageHeader {
 /// chewing up bandwidth with additional mirrors.
 /// Here are entries in the mirror directory:
 ///
-#[derive(Clone)]   // Needed for tests will warn about dead code.
+#[derive(Clone)] // Needed for tests will warn about dead code.
 pub struct DirectoryEntry {
     host: String,
     key: String,

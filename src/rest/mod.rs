@@ -42,6 +42,7 @@ pub mod fold;
 pub mod gates;
 pub mod getstats;
 pub mod integrate;
+pub mod mirror_list;
 pub mod parameter;
 pub mod ringversion;
 pub mod sbind;

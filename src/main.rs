@@ -19,7 +19,7 @@ use clap::Parser;
 use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, getstats,
-    integrate, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, unbind,
+    integrate, mirror_list, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, unbind,
     unimplemented, version,
 };
 use sharedmem::{binder, mirror};
@@ -212,7 +212,7 @@ fn rocket() -> _ {
                 unbind::unbind_all
             ],
         )
-        .mount("/spectcl/mirror", routes![unimplemented::mirror_list])
+        .mount("/spectcl/mirror", routes![mirror_list::mirror_list])
         .mount(
             "/spectcl/pman",
             routes![

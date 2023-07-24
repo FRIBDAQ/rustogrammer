@@ -29,31 +29,6 @@
 use super::*;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 
-//------------------------------------------------------------
-// Mirroring
-
-// Description of a mirror client:
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
-pub struct MirrorInfo {
-    host: String,
-    memory: String,
-}
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
-pub struct MirrorResponse {
-    status: String,
-    detail: Vec<MirrorInfo>,
-}
-
-#[get("/")]
-pub fn mirror_list() -> Json<MirrorResponse> {
-    Json(MirrorResponse {
-        status: String::from("Mirroring is not implemented in Rustogramer"),
-        detail: vec![],
-    })
-}
-
 //---------------------------------------------------------------
 // Pipeline management:
 
