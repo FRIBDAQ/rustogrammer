@@ -23,9 +23,16 @@ pub struct MirrorResponse {
 }
 
 #[get("/")]
-pub fn mirror_list() -> Json<MirrorResponse> {
-    Json(MirrorResponse {
-        status: String::from("Mirroring is not implemented in Rustogramer"),
-        detail: vec![],
-    })
+pub fn mirror_list(state: &State<mirror::SharedMirrorDirectory>) -> Json<MirrorResponse> {
+    let mut result = MirrorResponse {
+        status: String::from("OK"),
+        detail: Vec::new(),
+    };
+    for entry in state.inner().lock().unwrap().iter() {
+        result.detail.push(MirrorInfo {
+            host: entry.host(),
+            memory: entry.key(),
+        });
+    }
+    Json(result)
 }
