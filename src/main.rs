@@ -85,8 +85,10 @@ fn rocket() -> _ {
     println!("Mirroring {} port: {}", shm_name, mirror_port);
 
     let (mirror_send, mirror_rcv) = mpsc::channel();
+    let mirror_directory = Arc::new(Mutex::new(mirror::Directory::new()));
+    let server_dir = mirror_directory.clone();
     thread::spawn(move || {
-        let mut server = mirror::MirrorServer::new(mirror_port, &shm_name, mirror_rcv);
+        let mut server = mirror::MirrorServer::new(mirror_port, &shm_name, mirror_rcv, server_dir);
         server.run();
     });
 
@@ -104,6 +106,7 @@ fn rocket() -> _ {
     env::set_var("ROCKET_PORT", rest_port.to_string());
 
     rocket::build()
+        .manage(mirror_directory.clone())
         .manage(state)
         .mount(
             "/spectcl/parameter",

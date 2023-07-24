@@ -147,8 +147,8 @@ impl MessageHeader {
 /// chewing up bandwidth with additional mirrors.
 /// Here are entries in the mirror directory:
 ///
-#[derive(Clone)]
-struct DirectoryEntry {
+#[derive(Clone)]   // Needed for tests will warn about dead code.
+pub struct DirectoryEntry {
     host: String,
     key: String,
 }
@@ -160,10 +160,10 @@ impl DirectoryEntry {
             key: String::from(key),
         }
     }
-    fn host(&self) -> String {
+    pub fn host(&self) -> String {
         self.host.clone()
     }
-    fn key(&self) -> String {
+    pub fn key(&self) -> String {
         self.key.clone()
     }
 }
@@ -177,7 +177,7 @@ impl DirectoryEntry {
 /// virtue of making it easy to detect double use of
 /// the same host/key pair:
 ///
-struct Directory {
+pub struct Directory {
     items: HashMap<String, DirectoryEntry>,
 }
 
@@ -185,7 +185,8 @@ impl Directory {
     fn compute_index(host: &str, key: &str) -> String {
         format!("{}.{}", host, key)
     }
-    fn new() -> Directory {
+    /// Create a new directory.
+    pub fn new() -> Directory {
         Directory {
             items: HashMap::new(),
         }
@@ -208,7 +209,7 @@ impl Directory {
         }
     }
     /// Iterate over the DirectoryEntry -s in the directory.
-    fn iter(&self) -> Values<'_, String, DirectoryEntry> {
+    pub fn iter(&self) -> Values<'_, String, DirectoryEntry> {
         self.items.values()
     }
     /// Remove an entry from the directory:
@@ -222,7 +223,7 @@ impl Directory {
         }
     }
 }
-type SharedMirrorDirectory = Arc<Mutex<Directory>>;
+pub type SharedMirrorDirectory = Arc<Mutex<Directory>>;
 
 /// MirrorServerInstance represents an instance of the
 /// mirror server.  Each mirror server makes its own map to the
@@ -236,6 +237,7 @@ type SharedMirrorDirectory = Arc<Mutex<Directory>>;
 /// shared memory header.
 
 struct MirrorServerInstance {
+    #[allow(dead_code)]
     shared_memory_map: memmap::Mmap,
     shared_memory: *const XamineSharedMemory,
     socket: TcpStream,
@@ -534,11 +536,16 @@ impl MirrorServer {
     /// Create the instance of the MirrorServer - run must still be called
     /// to execute the server code.
 
-    pub fn new(listen_port: u16, shm_file: &str, exit_req: Receiver<bool>) -> MirrorServer {
+    pub fn new(
+        listen_port: u16,
+        shm_file: &str,
+        exit_req: Receiver<bool>,
+        mirror_dir: SharedMirrorDirectory,
+    ) -> MirrorServer {
         MirrorServer {
             port: listen_port,
             shm_name: String::from(shm_file),
-            mirror_directory: Arc::new(Mutex::new(Directory::new())),
+            mirror_directory: mirror_dir,
             exit_req: exit_req,
         }
     }
@@ -947,9 +954,9 @@ mod mirror_server_tests {
         let shm = create_shared_memory(spectrum_size);
 
         let thread_shm = format!("{}", shm.path().display());
-
+        let dir = Arc::new(Mutex::new(Directory::new()));
         thread::spawn(move || {
-            let mut server = MirrorServer::new(port, &thread_shm, receiver);
+            let mut server = MirrorServer::new(port, &thread_shm, receiver, dir);
             server.run();
         });
         thread::sleep(Duration::from_millis(500)); // so the thread can listen.
