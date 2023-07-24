@@ -154,7 +154,7 @@ pub struct DirectoryEntry {
 }
 
 impl DirectoryEntry {
-    fn new(host: &str, key: &str) -> DirectoryEntry {
+    pub fn new(host: &str, key: &str) -> DirectoryEntry {
         DirectoryEntry {
             host: String::from(host),
             key: String::from(key),
@@ -196,7 +196,7 @@ impl Directory {
     /// *  If it's a duplicate, Errs indicating that.
     /// *  If it's not a duplicate, constructs a DirectoryEntry
     /// and inserts it into the items.
-    fn add(&mut self, host: &str, key: &str) -> Result<(), String> {
+    pub fn add(&mut self, host: &str, key: &str) -> Result<(), String> {
         let index = Self::compute_index(host, key);
         if self.items.contains_key(&index) {
             Err(format!(
