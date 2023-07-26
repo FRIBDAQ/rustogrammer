@@ -26,7 +26,7 @@ pub const XAMINE_MAXSPEC: usize = 10000;
 
 /// Size of a spectrum title:
 
-const TITLE_LENGTH: usize = 128;
+pub const TITLE_LENGTH: usize = 128;
 
 /// Types of spectra:
 
@@ -44,7 +44,7 @@ pub enum SpectrumTypes {
 /// The dimension of a spectrum:
 
 #[repr(C)]
-struct SpectrumDimension {
+pub struct SpectrumDimension {
     xchans: u32,
     ychans: u32,
 }
@@ -56,7 +56,7 @@ type SpectrumTitle = [u8; TITLE_LENGTH];
 /// Statistics (not used but still present):
 
 #[repr(C)]
-struct Statistics {
+pub struct Statistics {
     overflows: [u32; 2],
     underflows: [u32; 2],
 }
@@ -66,7 +66,7 @@ struct Statistics {
 /// -  X and Y axis labels:
 
 #[repr(C)]
-struct SpectrumMap {
+pub struct SpectrumMap {
     xmin: f32,
     xmax: f32,
     ymin: f32,
@@ -80,7 +80,7 @@ struct SpectrumMap {
 ///
 
 #[repr(C)]
-struct XamineSharedMemory {
+pub struct XamineSharedMemory {
     dsp_xy: [SpectrumDimension; XAMINE_MAXSPEC],
     dsp_titles: [SpectrumTitle; XAMINE_MAXSPEC],
     dsp_info: [SpectrumTitle; XAMINE_MAXSPEC],
