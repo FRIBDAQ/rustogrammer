@@ -5,6 +5,8 @@
 //! * /spectcl/shmem - Gets the shared memory information.
 use super::*;
 use crate::sharedmem::binder::BindingApi;
+use crate::sharedmem::XamineSharedMemory;
+use std::mem;
 use rocket::{serde::json::Json, serde::Deserialize, serde::Serialize, State};
 use std::env;
 
@@ -38,10 +40,8 @@ pub fn shmem_name(state: &State<HistogramState>) -> Json<GenericResponse> {
 //------------------------------------------------------------
 // size
 
-/// Returns the size of the shared memory region in the
-/// status as a string.  This is the total size of the shared
-/// memory region in bytes (not the size of the spectrum pool which is
-/// what's used to instantiate the shared memory region to begin with)
+/// Returns the size of the spectrum part of the  shared memory region in the
+/// status as a string.  
 ///
 /// ### Parameters
 /// *  state - the histogram state object which lets us construct a
@@ -56,8 +56,12 @@ pub fn shmem_name(state: &State<HistogramState>) -> Json<GenericResponse> {
 pub fn shmem_size(state: &State<HistogramState>) -> Json<GenericResponse> {
     let api = BindingApi::new(&state.inner().binder.lock().unwrap());
     let info = api.get_usage();
+
     let response = match info {
-        Ok(stats) => GenericResponse::ok(&(stats.total_size.to_string())),
+        Ok(stats) => {
+	    let spectrum_size = stats.total_size as usize - mem::size_of::<XamineSharedMemory>();
+	    GenericResponse::ok(&(spectrum_size.to_string()))
+        },
         Err(reason) => GenericResponse::err("Could not get shared memory size", &reason),
     };
     Json(response)
@@ -171,7 +175,7 @@ mod shm_tests {
     use crate::messaging;
     use crate::processing;
     use crate::rest::HistogramState;
-    use crate::sharedmem::binder;
+    use crate::sharedmem::{XamineSharedMemory, binder};
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -288,7 +292,8 @@ mod shm_tests {
 
         assert_eq!("OK", reply.status);
         let usage = binder_api.get_usage().expect("Getting usage via API");
-        assert_eq!(usage.total_size.to_string().as_str(), reply.detail);
+	let expected = usage.total_size - mem::size_of::<XamineSharedMemory>();
+        assert_eq!(expected.to_string(), reply.detail);
 
         teardown(chan, &papi, &binder_api);
     }

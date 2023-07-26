@@ -12,7 +12,7 @@ use rocket::State;
 #[serde(crate = "rocket::serde")]
 pub struct MirrorInfo {
     host: String,
-    memory: String,
+    shmkey: String,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -30,7 +30,7 @@ pub fn mirror_list(state: &State<mirror::SharedMirrorDirectory>) -> Json<MirrorR
     for entry in state.inner().lock().unwrap().iter() {
         result.detail.push(MirrorInfo {
             host: entry.host(),
-            memory: entry.key(),
+            shmkey: entry.key(),
         });
     }
     Json(result)
@@ -98,7 +98,7 @@ mod mirror_list_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(1, reply.detail.len());
         assert_eq!("some-host", reply.detail[0].host);
-        assert_eq!("some_key", reply.detail[0].memory);
+        assert_eq!("some_key", reply.detail[0].shmkey);
     }
     #[test]
     fn list_3() {
@@ -131,7 +131,7 @@ mod mirror_list_tests {
 
         for (i, _) in items.iter().enumerate() {
             assert_eq!(hosts[i], items[i].host, "Failed on item: {}", i);
-            assert_eq!(mems[i], items[i].memory, "Failed on item; {}", i);
+            assert_eq!(mems[i], items[i].shmkey, "Failed on item; {}", i);
         }
     }
 }
