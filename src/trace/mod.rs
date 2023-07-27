@@ -187,6 +187,7 @@ impl SharedTraceStore {
     /// have to deal with asynchronous pruning.
 
     pub fn start_prune_thread(&mut self) -> thread::JoinHandle<()> {
+        self.store.lock().unwrap().stop_prune_thread = false; // in case one was previously stopped.
         let mut thread_copy = self.clone();
         thread::spawn(move || loop {
             thread::sleep(time::Duration::from_secs(1));
@@ -223,5 +224,28 @@ mod trace_store_tests {
             }
             _ => false,
         });
+    }
+    #[test]
+    fn ts_new_1() {
+        // Make a new shared trace store and check that it's right:
+
+        let store = SharedTraceStore::new();
+        let inner = store.store.lock().unwrap();
+        assert_eq!(0, inner.next_client);
+        assert_eq!(false, inner.stop_prune_thread);
+        assert!(inner.client_traces.is_empty());
+    }
+    #[test]
+    fn ts_clone_1() {
+        // a clone is actually a new reference to the same underlying data:
+
+        let mut store = SharedTraceStore::new();
+        let cloned = store.clone();
+        store.store.lock().unwrap().next_client = 1234;
+        store.store.lock().unwrap().stop_prune_thread = true;
+
+        let c = cloned.store.lock().unwrap();
+        assert_eq!(1234, c.next_client);
+        assert_eq!(true, c.stop_prune_thread);
     }
 }
