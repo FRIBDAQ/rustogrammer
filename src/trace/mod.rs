@@ -21,7 +21,7 @@
 //!
 //!
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 use std::time;
 
 /// The various types of traces
@@ -135,11 +135,40 @@ impl SharedTraceStore {
     pub fn prune(&mut self) {
         let mut store = self.store.lock().unwrap();
         let now = time::Instant::now();
-        for (_, v) in  store.client_traces.iter_mut() {
+        for (_, v) in store.client_traces.iter_mut() {
             v.trace_store.retain(|x| {
                 let age = now.duration_since(x.stamp);
                 age < v.trace_lifetime
             });
+        }
+    }
+    /// Add a new event to client traces.
+    ///
+
+    pub fn add_event(&mut self, event: TraceEvent) {
+        let stamped_event = StampedTraceEvent {
+            stamp: time::Instant::now(),
+            event: event,
+        };
+
+        for (_, v) in self.store.lock().unwrap().client_traces.iter_mut() {
+            v.trace_store.push(stamped_event.clone());
+        }
+    }
+
+    /// Given a client token,
+    /// Return its traces and clear them:
+
+    pub fn get_traces(&mut self, token: usize) -> Result<Vec<StampedTraceEvent>, String> {
+        let mut store = self.store.lock().unwrap();
+
+        if !store.client_traces.contains_key(&token) {
+            let traces = store.client_traces.get_mut(&token).unwrap();
+            let result = traces.trace_store.clone();
+            traces.trace_store.clear();
+            Ok(result)
+        } else {
+            Err(String::from("No such client token"))
         }
     }
 }
