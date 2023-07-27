@@ -92,8 +92,8 @@ pub struct TraceStore {
 
 /// A shared TraceStore just holds a TraceStore in an Arc/Mutex
 /// container.  The idea is that rather than implementing
-/// the TraceSTore API, I can implement the SharedTraceStore
-/// API instead an hide all the lock().unwrap.crap() needed to
+/// the TraceStore API, I can implement the SharedTraceStore
+/// API instead and hide all the lock().unwrap.crap() needed to
 /// get me the trace store to operate on _and) maybe the
 /// result can be Sendable.
 ///
