@@ -86,7 +86,10 @@ mod mirror_list_tests {
 
         let rocket = setup();
         let dir = get_directory(&rocket);
-        dir.lock().unwrap().add("some-host", "some_key").expect("Adding item");
+        dir.lock()
+            .unwrap()
+            .add("some-host", "some_key")
+            .expect("Adding item");
 
         let client = Client::untracked(rocket).expect("Making server");
         let req = client.get("/");
