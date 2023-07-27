@@ -28,6 +28,7 @@ use std::time;
 /// If the payload for an enumerated type
 /// is just a string, that's the name of the affected
 /// object (e.g. the name of the new parameter for NewParameter below).
+#[derive(Clone)]
 pub enum TraceEvent {
     NewParameter(String),
     SpectrumCreated(String),
@@ -49,8 +50,9 @@ pub enum TraceEvent {
 /// Traces are timestamped with when they are logged.
 /// as descsribed above, this enables aging:
 
+#[derive(Clone)]
 pub struct StampedTraceEvent {
-    stamp: time::SystemTime,
+    stamp: time::Instant,
     event: TraceEvent,
 }
 
@@ -63,7 +65,7 @@ pub struct StampedTraceEvent {
 pub struct ClientTraces {
     token: usize,
     trace_lifetime: time::Duration,
-    trace_store: Vec<TraceEvent>,
+    trace_store: Vec<StampedTraceEvent>,
 }
 impl ClientTraces {
     pub fn new(token: usize, lifetime: time::Duration) -> ClientTraces {
@@ -124,5 +126,20 @@ impl SharedTraceStore {
             .insert(result, ClientTraces::new(result, lifetime));
 
         result
+    }
+    /// Prune the client trace stores.
+    /// for each client, we only retain those elements for which
+    /// their timestamp is newer than the lifetime specified by
+    /// that client.
+    ///
+    pub fn prune(&mut self) {
+        let mut store = self.store.lock().unwrap();
+        let now = time::Instant::now();
+        for (_, v) in  store.client_traces.iter_mut() {
+            v.trace_store.retain(|x| {
+                let age = now.duration_since(x.stamp);
+                age < v.trace_lifetime
+            });
+        }
     }
 }
