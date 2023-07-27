@@ -22,6 +22,7 @@
 //!
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time;
 
 /// The various types of traces
@@ -85,6 +86,7 @@ impl ClientTraces {
 ///
 pub struct TraceStore {
     next_client: usize,
+    stop_prune_thread: bool,
     client_traces: HashMap<usize, ClientTraces>,
 }
 
@@ -105,6 +107,7 @@ impl SharedTraceStore {
         SharedTraceStore {
             store: Arc::new(Mutex::new(TraceStore {
                 next_client: 0,
+                stop_prune_thread: false,
                 client_traces: HashMap::new(),
             })),
         }
@@ -170,5 +173,29 @@ impl SharedTraceStore {
         } else {
             Err(String::from("No such client token"))
         }
+    }
+
+    /// Once a shared trace store is created, this should be called
+    /// to start the prune thread.
+    /// It passes a clone of self to a thread that runs every second
+    /// pruning the events.  Note that this is separate so that testing does not
+    /// have to deal with asynchronous pruning.
+
+    pub fn start_prune_thread(&mut self) -> thread::JoinHandle<()> {
+        let mut thread_copy = self.clone();
+        thread::spawn(move || loop {
+            thread::sleep(time::Duration::from_secs(1));
+            if thread_copy.store.lock().unwrap().stop_prune_thread {
+                break;
+            }
+            thread_copy.prune();
+        })
+    }
+    /// Schedule the prune thread to stop.
+    /// Note that if the caller retains/has access to the join handle returned by
+    /// start_prune_thread, it can synchronize with the stop otherwise,
+    /// sleeping a couple of seconds should do it.
+    pub fn stop_prune(&mut self) {
+        self.store.lock().unwrap().stop_prune_thread = false;
     }
 }
