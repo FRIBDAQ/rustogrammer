@@ -56,6 +56,11 @@ pub struct StampedTraceEvent {
     stamp: time::Instant,
     event: TraceEvent,
 }
+impl StampedTraceEvent {
+    pub fn event(&self) -> TraceEvent {
+        self.event.clone()
+    }
+}
 
 /// Each client has several things associated with it:
 ///
@@ -197,5 +202,26 @@ impl SharedTraceStore {
     /// sleeping a couple of seconds should do it.
     pub fn stop_prune(&mut self) {
         self.store.lock().unwrap().stop_prune_thread = false;
+    }
+}
+
+#[cfg(test)]
+mod trace_store_tests {
+    use super::*;
+    use std::time;
+    #[test]
+    fn event_check() {
+        let event = StampedTraceEvent {
+            stamp: time::Instant::now(),
+            event: TraceEvent::NewParameter(String::from("junk")),
+        };
+
+        assert!(match event.event() {
+            TraceEvent::NewParameter(s) => {
+                assert_eq!("junk", s);
+                true
+            }
+            _ => false,
+        });
     }
 }
