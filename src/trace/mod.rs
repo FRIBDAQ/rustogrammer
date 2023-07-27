@@ -248,4 +248,65 @@ mod trace_store_tests {
         assert_eq!(1234, c.next_client);
         assert_eq!(true, c.stop_prune_thread);
     }
+    #[test]
+    fn ts_add_client_1() {
+        // adding a client increments the next_client field:
+        // and adds the client to the hashmap:
+        let mut store = SharedTraceStore::new();
+        let token = store.new_client(time::Duration::from_secs(10));
+        let s = store.store.lock().unwrap();
+
+        assert_eq!(token + 1, s.next_client);
+        assert!(s.client_traces.contains_key(&token));
+
+        let c = s
+            .client_traces
+            .get(&token)
+            .expect("Token not found in hashmap");
+        assert_eq!(token, c.token);
+        assert_eq!(time::Duration::from_secs(10), c.trace_lifetime);
+        assert!(c.trace_store.is_empty());
+    }
+    #[test]
+    pub fn ts_add_event_1() {
+        // Adding an event with  no clients does nothing:
+
+        let mut store = SharedTraceStore::new();
+        store.add_event(TraceEvent::NewParameter(String::from("george")));
+
+        assert!(store.store.lock().unwrap().client_traces.is_empty());
+    }
+    #[test]
+    pub fn ts_add_event_2() {
+        //  adding an event adds it to all cilents:
+
+        let mut store = SharedTraceStore::new();
+        let tok1 = store.new_client(time::Duration::from_secs(10));
+        let tok2 = store.new_client(time::Duration::from_secs(11));
+        assert!(tok1 != tok2);
+
+        store.add_event(TraceEvent::NewParameter(String::from("george")));
+
+        let s = store.store.lock().unwrap();
+        assert_eq!(2, s.client_traces.len());
+        let c1_traces = s.client_traces.get(&tok1).expect("Getting tok1 traces");
+        assert_eq!(1, c1_traces.trace_store.len());
+        assert!(match &c1_traces.trace_store[0].event {
+            TraceEvent::NewParameter(s) => {
+                assert_eq!("george", s);
+                true
+            }
+            _ => false,
+        });
+
+        let c2_traces = s.client_traces.get(&tok2).expect("Getting tok1 traces");
+        assert_eq!(1, c2_traces.trace_store.len());
+        assert!(match &c2_traces.trace_store[0].event {
+            TraceEvent::NewParameter(s) => {
+                assert_eq!("george", s);
+                true
+            }
+            _ => false,
+        });
+    }
 }
