@@ -108,6 +108,12 @@ pub struct SharedTraceStore {
 }
 
 impl SharedTraceStore {
+    fn add_to_all(&mut self, stamped_event: StampedTraceEvent) {
+        for (_, v) in self.store.lock().unwrap().client_traces.iter_mut() {
+            v.trace_store.push(stamped_event.clone());
+        }
+    }
+    //
     pub fn new() -> SharedTraceStore {
         SharedTraceStore {
             store: Arc::new(Mutex::new(TraceStore {
@@ -158,10 +164,7 @@ impl SharedTraceStore {
             stamp: time::Instant::now(),
             event: event,
         };
-
-        for (_, v) in self.store.lock().unwrap().client_traces.iter_mut() {
-            v.trace_store.push(stamped_event.clone());
-        }
+        self.add_to_all(stamped_event);
     }
 
     /// Given a client token,
