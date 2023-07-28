@@ -192,6 +192,14 @@ impl SharedTraceStore {
     pub fn start_prune_thread(&mut self) -> thread::JoinHandle<()> {
         self.store.lock().unwrap().stop_prune_thread = false; // in case one was previously stopped.
         let mut thread_copy = self.clone();
+        //
+        // Note I _think_ I recall reading that a:
+        //   while !thread_copy.store.lock().unwrap().stop_prune_thread {
+        //    ...
+        //   }
+        // Would hold the lock for the duration of the loop effectively deadlocking
+        // I'd love to be wrong as that's a moe natural formulation.
+        //
         thread::spawn(move || loop {
             thread::sleep(time::Duration::from_secs(1));
             if thread_copy.store.lock().unwrap().stop_prune_thread {
@@ -242,7 +250,7 @@ mod trace_store_tests {
     fn ts_clone_1() {
         // a clone is actually a new reference to the same underlying data:
 
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
         let cloned = store.clone();
         store.store.lock().unwrap().next_client = 1234;
         store.store.lock().unwrap().stop_prune_thread = true;
@@ -307,6 +315,56 @@ mod trace_store_tests {
         assert!(match &c2_traces.trace_store[0].event {
             TraceEvent::NewParameter(s) => {
                 assert_eq!("george", s);
+                true
+            }
+            _ => false,
+        });
+    }
+    #[test]
+    fn ts_prune_1() {
+        // Prune things older than the expiration date.
+        // THere's an assumption that the
+        let mut store = SharedTraceStore::new();
+        let tok1 = store.new_client(time::Duration::from_secs(10));
+        let tok2 = store.new_client(time::Duration::from_secs(10));
+
+        // add an event now so that will not go away:
+
+        store.add_event(TraceEvent::NewParameter(String::from("George")));
+
+        // dirty add of an event that's 25 seconds old:
+
+        store.add_to_all(StampedTraceEvent {
+            stamp: time::Instant::now()
+                .checked_sub(time::Duration::from_secs(25))
+                .unwrap(),
+            event: TraceEvent::NewParameter(String::from("Ringo")),
+        });
+        store.prune(); // the 25 second old event pruned the now events should remain:
+
+        let locked_store = store.store.lock().unwrap();
+
+        let tok1_events = locked_store
+            .client_traces
+            .get(&tok1)
+            .expect("Getting events for tok1");
+        assert_eq!(1, tok1_events.trace_store.len());
+        assert!(match &tok1_events.trace_store[0].event {
+            TraceEvent::NewParameter(s) => {
+                assert_eq!("George", s);
+                true
+            }
+            _ => false,
+        });
+
+        let tok2_events = locked_store
+            .client_traces
+            .get(&tok2)
+            .expect("Getting events for tok2");
+        assert_eq!(1, tok2_events.trace_store.len());
+        assert!(match &tok2_events.trace_store[0].event {
+            TraceEvent::NewParameter(s) => {
+                assert_eq!("George", s);
                 true
             }
             _ => false,
