@@ -66,7 +66,7 @@ fn rocket() -> _ {
     // start the histogram server in a thread:
     //
 
-    let (_, histogramer_channel) = histogramer::start_server();
+    let (_, histogramer_channel) = histogramer::start_server(trace_store.clone());
     let processor = processing::ProcessingApi::new(&histogramer_channel);
     let binder = binder::start_server(&histogramer_channel, args.shm_mbytes * 1024 * 1024);
 

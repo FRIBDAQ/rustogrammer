@@ -11,6 +11,7 @@
 //!
 
 use crate::messaging::*;
+use crate::trace;
 use std::sync::mpsc;
 use std::thread;
 
@@ -45,7 +46,11 @@ impl RequestProcessor {
     ///  Note that we ignore the Exit message since that must be
     /// handled at the level of the thread that runs us:
     ///
-    pub fn process_message(&mut self, message: MessageType) -> Reply {
+    pub fn process_message(
+        &mut self,
+        message: MessageType,
+        tracdb: &trace::SharedTraceStore,
+    ) -> Reply {
         match message {
             MessageType::Parameter(req) => Reply::Parameter(self.parameters.process_request(req)),
             MessageType::Condition(req) => Reply::Condition(self.conditions.process_request(req)),
@@ -66,12 +71,14 @@ impl RequestProcessor {
 struct Histogramer {
     processor: RequestProcessor,
     chan: mpsc::Receiver<Request>,
+    tracdb: trace::SharedTraceStore,
 }
 impl Histogramer {
-    pub fn new(chan: mpsc::Receiver<Request>) -> Histogramer {
+    pub fn new(chan: mpsc::Receiver<Request>, tracedb: trace::SharedTraceStore) -> Histogramer {
         Histogramer {
             processor: RequestProcessor::new(),
             chan: chan,
+            tracdb: tracedb.clone(),
         }
     }
     ///
@@ -84,7 +91,7 @@ impl Histogramer {
                 return;
             }
             let req = req.unwrap();
-            let reply = self.processor.process_message(req.message);
+            let reply = self.processor.process_message(req.message, &self.tracdb);
 
             // The reply is sent to the client but if it's an exit we
             // return
@@ -115,11 +122,14 @@ impl Histogramer {
 /// Note that there are well developed API classes for formating
 /// and sending request message to this server...use them.
 ///
-pub fn start_server() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
+pub fn start_server(
+    tracdb: trace::SharedTraceStore,
+) -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
     let (req_send, req_recv) = mpsc::channel();
 
+    let db = tracdb.clone();
     let join_handle = thread::spawn(move || {
-        let mut processor = Histogramer::new(req_recv);
+        let mut processor = Histogramer::new(req_recv, db);
         processor.run();
     });
 
