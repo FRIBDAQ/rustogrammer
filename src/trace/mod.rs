@@ -186,7 +186,13 @@ impl SharedTraceStore {
     /// This includes any stored traces for that client.
     ///
     pub fn delete_client(&mut self, token: usize) -> Result<(), String> {
-        if let None = self.store.lock().unwrap().client_traces.remove_entry(&token) {
+        if let None = self
+            .store
+            .lock()
+            .unwrap()
+            .client_traces
+            .remove_entry(&token)
+        {
             Err(String::from("No such client token"))
         } else {
             Ok(())
@@ -222,7 +228,7 @@ impl SharedTraceStore {
     /// start_prune_thread, it can synchronize with the stop otherwise,
     /// sleeping a couple of seconds should do it.
     pub fn stop_prune(&mut self) {
-        self.store.lock().unwrap().stop_prune_thread = false;
+        self.store.lock().unwrap().stop_prune_thread = true;
     }
 }
 
@@ -458,6 +464,24 @@ mod trace_store_tests {
 
         assert!(store.delete_client(tok1).is_ok());
 
-        assert!(!(store.store.lock().unwrap().client_traces.contains_key(&tok1)))
+        assert!(
+            !(store
+                .store
+                .lock()
+                .unwrap()
+                .client_traces
+                .contains_key(&tok1))
+        )
+    }
+    #[test]
+    fn ts_thread_start_stop() {
+        // Start and stop prune thread - we're not going to test that it works
+        // as the asynchronism makes that really hard.
+
+        let mut store = SharedTraceStore::new();
+
+        let jh = store.start_prune_thread();
+        store.stop_prune();
+        assert!(jh.join().is_ok());
     }
 }
