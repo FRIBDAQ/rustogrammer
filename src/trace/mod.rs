@@ -108,7 +108,7 @@ pub struct SharedTraceStore {
 }
 
 impl SharedTraceStore {
-    fn add_to_all(&mut self, stamped_event: StampedTraceEvent) {
+    fn add_to_all(&self, stamped_event: StampedTraceEvent) {
         for (_, v) in self.store.lock().unwrap().client_traces.iter_mut() {
             v.trace_store.push(stamped_event.clone());
         }
@@ -130,7 +130,7 @@ impl SharedTraceStore {
     }
     /// Allocate a new token for a new trace client
     /// And add a trace store for it.
-    pub fn new_client(&mut self, lifetime: time::Duration) -> usize {
+    pub fn new_client(&self, lifetime: time::Duration) -> usize {
         let mut store = self.store.lock().unwrap();
         let result = store.next_client;
         store.next_client += 1;
@@ -146,7 +146,7 @@ impl SharedTraceStore {
     /// their timestamp is newer than the lifetime specified by
     /// that client.
     ///
-    pub fn prune(&mut self) {
+    pub fn prune(&self) {
         let mut store = self.store.lock().unwrap();
         let now = time::Instant::now();
         for (_, v) in store.client_traces.iter_mut() {
@@ -159,7 +159,7 @@ impl SharedTraceStore {
     /// Add a new event to client traces.
     ///
 
-    pub fn add_event(&mut self, event: TraceEvent) {
+    pub fn add_event(&self, event: TraceEvent) {
         let stamped_event = StampedTraceEvent {
             stamp: time::Instant::now(),
             event: event,
@@ -170,7 +170,7 @@ impl SharedTraceStore {
     /// Given a client token,
     /// Return its traces and clear them:
 
-    pub fn get_traces(&mut self, token: usize) -> Result<Vec<StampedTraceEvent>, String> {
+    pub fn get_traces(&self, token: usize) -> Result<Vec<StampedTraceEvent>, String> {
         let mut store = self.store.lock().unwrap();
 
         if store.client_traces.contains_key(&token) {
@@ -185,7 +185,7 @@ impl SharedTraceStore {
     /// Remove the data associated with a client token.
     /// This includes any stored traces for that client.
     ///
-    pub fn delete_client(&mut self, token: usize) -> Result<(), String> {
+    pub fn delete_client(&self, token: usize) -> Result<(), String> {
         if let None = self
             .store
             .lock()
@@ -204,9 +204,9 @@ impl SharedTraceStore {
     /// pruning the events.  Note that this is separate so that testing does not
     /// have to deal with asynchronous pruning.
 
-    pub fn start_prune_thread(&mut self) -> thread::JoinHandle<()> {
+    pub fn start_prune_thread(&self) -> thread::JoinHandle<()> {
         self.store.lock().unwrap().stop_prune_thread = false; // in case one was previously stopped.
-        let mut thread_copy = self.clone();
+        let thread_copy = self.clone();
         //
         // Note I _think_ I recall reading that a:
         //   while !thread_copy.store.lock().unwrap().stop_prune_thread {
@@ -227,7 +227,7 @@ impl SharedTraceStore {
     /// Note that if the caller retains/has access to the join handle returned by
     /// start_prune_thread, it can synchronize with the stop otherwise,
     /// sleeping a couple of seconds should do it.
-    pub fn stop_prune(&mut self) {
+    pub fn stop_prune(&self) {
         self.store.lock().unwrap().stop_prune_thread = true;
     }
 }
