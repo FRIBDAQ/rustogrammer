@@ -57,8 +57,13 @@ struct Args {
 fn rocket() -> _ {
     let args = Args::parse();
 
-    // For now to ensure the join handle and channel don't get
-    // dropped start the histogram server in a thread:
+    // Create the trace database and start its prune thread.
+    // we will make a separate state for it.
+
+    let mut trace_store = trace::SharedTraceStore::new();
+    trace_store.start_prune_thread();
+
+    // start the histogram server in a thread:
     //
 
     let (_, histogramer_channel) = histogramer::start_server();
@@ -103,6 +108,7 @@ fn rocket() -> _ {
     rocket::build()
         .manage(mirror_directory.clone())
         .manage(state)
+        .manage(trace_store.clone())
         .mount(
             "/spectcl/parameter",
             routes![
