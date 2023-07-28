@@ -391,6 +391,7 @@ mod pipeline_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -403,7 +404,8 @@ mod pipeline_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
 
@@ -421,7 +423,7 @@ mod pipeline_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount(
+        rocket::build().manage(state).manage(tracedb.clone()).mount(
             "/",
             routes![
                 pman_create,
@@ -663,6 +665,7 @@ mod project_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -675,7 +678,8 @@ mod project_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
 
@@ -693,7 +697,10 @@ mod project_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount("/", routes![project])
+        rocket::build()
+            .manage(state)
+            .manage(tracedb.clone())
+            .mount("/", routes![project])
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -759,6 +766,7 @@ mod pseudo_test {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -771,7 +779,8 @@ mod pseudo_test {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
 
@@ -791,6 +800,7 @@ mod pseudo_test {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![pseudo_create, pseudo_list, pseudo_delete])
     }
     fn getstate(
@@ -894,6 +904,7 @@ mod roottree_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -907,7 +918,8 @@ mod roottree_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
 
@@ -925,7 +937,7 @@ mod roottree_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount(
+        rocket::build().manage(state).manage(tracedb.clone()).mount(
             "/",
             routes![roottree_create, roottree_delete, roottree_list],
         )
@@ -1031,6 +1043,7 @@ mod script_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -1044,7 +1057,8 @@ mod script_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
 
@@ -1064,6 +1078,7 @@ mod script_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![script_execute])
     }
     fn getstate(
@@ -1130,6 +1145,7 @@ mod trace_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -1143,7 +1159,8 @@ mod trace_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
 
@@ -1163,6 +1180,7 @@ mod trace_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![trace_establish, trace_done, trace_fetch])
     }
     fn getstate(
@@ -1269,6 +1287,7 @@ mod treevar_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -1282,7 +1301,8 @@ mod treevar_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
 
@@ -1300,7 +1320,7 @@ mod treevar_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount(
+        rocket::build().manage(state).manage(tracedb.clone()).mount(
             "/",
             routes![
                 treevariable_list,

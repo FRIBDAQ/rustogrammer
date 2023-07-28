@@ -125,6 +125,7 @@ mod processing_tests {
     use crate::messaging;
     use crate::processing;
     use crate::sharedmem::binder;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -141,7 +142,8 @@ mod processing_tests {
     // No port manager instance.
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
         let (binder_req, _rx): (
             mpsc::Sender<binder::Request>,
             mpsc::Receiver<binder::Request>,
@@ -158,7 +160,7 @@ mod processing_tests {
             mirror_port: 0,
         };
 
-        rocket::build().manage(state).mount(
+        rocket::build().manage(state).manage(tracedb.clone()).mount(
             "/",
             routes![
                 attach_source,

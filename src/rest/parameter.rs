@@ -423,6 +423,7 @@ mod parameter_tests {
     use crate::processing;
     use crate::rest::HistogramState;
     use crate::sharedmem::binder;
+    use crate::trace;
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -431,7 +432,8 @@ mod parameter_tests {
     use std::sync::{mpsc, Arc, Mutex};
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
         let (binder_req, _rx): (
             mpsc::Sender<binder::Request>,
             mpsc::Receiver<binder::Request>,
@@ -452,6 +454,7 @@ mod parameter_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/par", routes![list_parameters, parameter_version,])
             .mount(
                 "/tree",

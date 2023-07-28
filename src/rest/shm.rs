@@ -176,6 +176,8 @@ mod shm_tests {
     use crate::processing;
     use crate::rest::HistogramState;
     use crate::sharedmem::{binder, XamineSharedMemory};
+    use crate::trace;
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -188,7 +190,8 @@ mod shm_tests {
     use std::time;
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
 
@@ -208,6 +211,7 @@ mod shm_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![shmem_name, shmem_size, get_variables])
     }
     fn getstate(

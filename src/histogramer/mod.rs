@@ -49,10 +49,12 @@ impl RequestProcessor {
     pub fn process_message(
         &mut self,
         message: MessageType,
-        tracdb: &trace::SharedTraceStore,
+        tracedb: &trace::SharedTraceStore,
     ) -> Reply {
         match message {
-            MessageType::Parameter(req) => Reply::Parameter(self.parameters.process_request(req)),
+            MessageType::Parameter(req) => {
+                Reply::Parameter(self.parameters.process_request(req, tracedb))
+            }
             MessageType::Condition(req) => Reply::Condition(self.conditions.process_request(req)),
             MessageType::Spectrum(req) => Reply::Spectrum(self.spectra.process_request(
                 req,
@@ -160,12 +162,16 @@ pub fn stop_server(req_send: &mpsc::Sender<Request>) {
 mod request_tests {
     use super::*;
     use crate::messaging;
+    use crate::trace;
     #[test]
     fn param_create_1() {
         let mut req = RequestProcessor::new();
+        let tracedb = trace::SharedTraceStore::new();
         let msg = MessageType::Parameter(ParameterRequest::Create(String::from("test")));
         assert!(
-            if let messaging::Reply::Parameter(ParameterReply::Created) = req.process_message(msg) {
+            if let messaging::Reply::Parameter(ParameterReply::Created) =
+                req.process_message(msg, &tracedb)
+            {
                 true
             } else {
                 false
@@ -177,14 +183,15 @@ mod request_tests {
     #[test]
     fn cond_create_1() {
         let mut req = RequestProcessor::new();
+        let tracedb = trace::SharedTraceStore::new();
         let msg = MessageType::Condition(ConditionRequest::CreateTrue(String::from("true")));
-        assert!(
-            if let Reply::Condition(ConditionReply::Created) = req.process_message(msg) {
-                true
-            } else {
-                false
-            }
-        );
+        assert!(if let Reply::Condition(ConditionReply::Created) =
+            req.process_message(msg, &tracedb)
+        {
+            true
+        } else {
+            false
+        });
         let d = req.conditions.get_dict();
         d.get(&String::from("true")).expect("Failed gate lookup");
     }
@@ -194,9 +201,10 @@ mod request_tests {
         // spectra for that.
         //
         let mut req = RequestProcessor::new();
+        let tracedb = trace::SharedTraceStore::new();
         let msg = MessageType::Spectrum(SpectrumRequest::Clear(String::from("*")));
         assert!(
-            if let Reply::Spectrum(SpectrumReply::Cleared) = req.process_message(msg) {
+            if let Reply::Spectrum(SpectrumReply::Cleared) = req.process_message(msg, &tracedb) {
                 true
             } else {
                 false
@@ -206,8 +214,9 @@ mod request_tests {
     #[test]
     fn exit_1() {
         let mut req = RequestProcessor::new();
+        let tracedb = trace::SharedTraceStore::new();
         let msg = MessageType::Exit;
-        assert!(if let Reply::Exiting = req.process_message(msg) {
+        assert!(if let Reply::Exiting = req.process_message(msg, &tracedb) {
             true
         } else {
             false
@@ -218,11 +227,12 @@ mod request_tests {
 mod hgrammer_tests {
     use super::*;
     use crate::messaging;
+    use crate::trace;
     use std::sync::mpsc;
     use std::thread;
 
     fn start_server() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
-        super::start_server()
+        super::start_server(trace::SharedTraceStore::new())
     }
     fn stop_server(req_send: mpsc::Sender<Request>) {
         super::stop_server(&req_send);

@@ -91,6 +91,7 @@ mod getstats_tests {
     use crate::parameters::{Event, EventParameter};
     use crate::processing;
     use crate::sharedmem::binder;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -100,7 +101,8 @@ mod getstats_tests {
     use std::sync::{mpsc, Arc, Mutex};
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
         let (binder_req, _rx): (
             mpsc::Sender<binder::Request>,
             mpsc::Receiver<binder::Request>,
@@ -140,6 +142,7 @@ mod getstats_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![get_statistics])
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {

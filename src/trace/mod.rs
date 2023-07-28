@@ -460,7 +460,7 @@ mod trace_store_tests {
 
         let mut store = SharedTraceStore::new();
         let tok1 = store.new_client(time::Duration::from_secs(10));
-        let tok2 = store.new_client(time::Duration::from_secs(15));
+        let _tok2 = store.new_client(time::Duration::from_secs(15));
 
         assert!(store.delete_client(tok1).is_ok());
 

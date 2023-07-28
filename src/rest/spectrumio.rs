@@ -770,6 +770,7 @@ mod read_tests {
     use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{condition_messages, parameter_messages, spectrum_messages}; // to interrogate.
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -783,7 +784,8 @@ mod read_tests {
     use std::time;
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 32 * 1024 * 1024);
 
@@ -803,6 +805,7 @@ mod read_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![sread_handler])
     }
     fn getstate(
@@ -1319,6 +1322,8 @@ mod swrite_tests {
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages}; // to interrogate.
     use crate::parameters;
+    use crate::trace;
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -1333,7 +1338,8 @@ mod swrite_tests {
     use names;
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
 
@@ -1358,6 +1364,7 @@ mod swrite_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/swrite", routes![swrite_handler])
             .mount("/sread", routes![sread_handler])
     }

@@ -85,6 +85,7 @@ mod fold_tests {
     use crate::messaging;
     use crate::processing;
     use crate::sharedmem::binder;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -95,7 +96,8 @@ mod fold_tests {
     // note these are all unimplemented URLS so...
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
         let (binder_req, _rx): (
             mpsc::Sender<binder::Request>,
             mpsc::Receiver<binder::Request>,
@@ -114,6 +116,7 @@ mod fold_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![crate::fold::apply, list, remove])
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {

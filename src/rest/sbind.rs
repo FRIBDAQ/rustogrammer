@@ -276,6 +276,8 @@ mod sbind_tests {
     use crate::processing;
     use crate::rest::HistogramState;
     use crate::sharedmem::binder;
+    use crate::trace;
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -288,7 +290,8 @@ mod sbind_tests {
     use std::time;
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
 
@@ -311,6 +314,7 @@ mod sbind_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![sbind_all, sbind_list, sbind_bindings,])
     }
     fn getstate(

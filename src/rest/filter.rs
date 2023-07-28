@@ -152,6 +152,7 @@ mod filter_tests {
     use crate::messaging;
     use crate::processing;
     use crate::sharedmem::binder;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -162,7 +163,8 @@ mod filter_tests {
     // note these are all unimplemented URLS so...
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
         let (binder_req, _rx): (
             mpsc::Sender<binder::Request>,
             mpsc::Receiver<binder::Request>,
@@ -181,6 +183,7 @@ mod filter_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![new, delete, enable, disable, regate, file])
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {

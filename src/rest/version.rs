@@ -113,6 +113,7 @@ mod version_tests {
     use rocket::Build;
     use rocket::Rocket;
 
+    use crate::trace;
     use std::env;
     use std::fs;
     use std::path::Path;
@@ -120,7 +121,8 @@ mod version_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
         let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
 
@@ -140,6 +142,7 @@ mod version_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![get_version])
     }
     fn getstate(
