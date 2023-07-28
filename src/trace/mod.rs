@@ -186,7 +186,11 @@ impl SharedTraceStore {
     /// This includes any stored traces for that client.
     ///
     pub fn delete_client(&mut self, token: usize) -> Result<(), String> {
-        Err(String::from("Unimplemented"))
+        if let None = self.store.lock().unwrap().client_traces.remove_entry(&token) {
+            Err(String::from("No such client token"))
+        } else {
+            Ok(())
+        }
     }
     /// Once a shared trace store is created, this should be called
     /// to start the prune thread.
@@ -392,5 +396,68 @@ mod trace_store_tests {
             .get_traces(tok1)
             .expect("Unable to get traces for tok1");
         assert_eq!(0, traces.len());
+    }
+    #[test]
+    fn ts_get_3() {
+        // get traces when the exist.  Whitebox note:  The events are in the
+        // vector in the order in which they were added.
+
+        let mut store = SharedTraceStore::new();
+        let tok1 = store.new_client(time::Duration::from_secs(10));
+        store.add_event(TraceEvent::NewParameter(String::from("p1")));
+
+        let tok2 = store.new_client(time::Duration::from_secs(10));
+        store.add_event(TraceEvent::SpectrumCreated(String::from("aspec")));
+
+        // Tok1 should have both events but tok2 only the second of the two.
+
+        let tok1_traces = store.get_traces(tok1).expect("getting tok1 traces");
+        assert_eq!(2, tok1_traces.len());
+
+        assert!(match &tok1_traces[0].event {
+            TraceEvent::NewParameter(s) => {
+                assert_eq!("p1", s);
+                true
+            }
+            _ => false,
+        });
+        assert!(match &tok1_traces[1].event {
+            TraceEvent::SpectrumCreated(s) => {
+                assert_eq!("aspec", s);
+                true
+            }
+            _ => false,
+        });
+
+        // Now tok2's traces:
+
+        let tok2_traces = store.get_traces(tok2).expect("Getting tok2 traces");
+        assert_eq!(1, tok2_traces.len());
+        assert!(match &tok2_traces[0].event {
+            TraceEvent::SpectrumCreated(s) => {
+                assert_eq!("aspec", s);
+                true
+            }
+            _ => false,
+        });
+    }
+    #[test]
+    fn ts_delete_1() {
+        // Delete no such token is an errors:
+
+        let mut store = SharedTraceStore::new();
+        assert!(store.delete_client(124).is_err());
+    }
+    #[test]
+    fn ts_delete_2() {
+        // Deleting a client deletes it - the right one:
+
+        let mut store = SharedTraceStore::new();
+        let tok1 = store.new_client(time::Duration::from_secs(10));
+        let tok2 = store.new_client(time::Duration::from_secs(15));
+
+        assert!(store.delete_client(tok1).is_ok());
+
+        assert!(!(store.store.lock().unwrap().client_traces.contains_key(&tok1)))
     }
 }
