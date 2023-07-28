@@ -55,7 +55,7 @@ impl RequestProcessor {
             MessageType::Parameter(req) => {
                 Reply::Parameter(self.parameters.process_request(req, tracedb))
             }
-            MessageType::Condition(req) => Reply::Condition(self.conditions.process_request(req)),
+            MessageType::Condition(req) => Reply::Condition(self.conditions.process_request(req, tracedb)),
             MessageType::Spectrum(req) => Reply::Spectrum(self.spectra.process_request(
                 req,
                 self.parameters.get_dict(),

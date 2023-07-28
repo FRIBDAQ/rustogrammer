@@ -8,6 +8,7 @@ use super::MessageType;
 use super::Reply;
 use super::Request;
 use crate::conditions::*;
+use crate::trace;
 
 use glob::Pattern;
 use std::cell::RefCell;
@@ -401,41 +402,54 @@ impl ConditionProcessor {
         &mut self,
         name: &str,
         cond: T,
+        tracedb: &trace::SharedTraceStore,
     ) -> ConditionReply {
         let b = Box::new(cond);
         match self.dict.get(&String::from(name)) {
             Some(prior) => {
                 prior.replace(b);
+                tracedb.add_event(trace::TraceEvent::ConditionModified(String::from(name)));
                 ConditionReply::Replaced
             }
             None => {
                 self.dict
                     .insert(String::from(name), Rc::new(RefCell::new(b)));
+                tracedb.add_event(trace::TraceEvent::ConditionCreated(String::from(name)));
                 ConditionReply::Created
             }
         }
     }
 
-    fn add_true(&mut self, name: &str) -> ConditionReply {
+    fn add_true(&mut self, name: &str, tracedb: &trace::SharedTraceStore) -> ConditionReply {
         let t = True {};
-        self.add_condition(name, t)
+        self.add_condition(name, t, tracedb)
     }
-    fn add_false(&mut self, name: &str) -> ConditionReply {
+    fn add_false(&mut self, name: &str, tracedb: &trace::SharedTraceStore) -> ConditionReply {
         let f = False {};
-        self.add_condition(name, f)
+        self.add_condition(name, f, tracedb)
     }
-    fn add_not(&mut self, name: &str, dependent: &str) -> ConditionReply {
+    fn add_not(
+        &mut self,
+        name: &str,
+        dependent: &str,
+        tracedb: &trace::SharedTraceStore,
+    ) -> ConditionReply {
         // Get the depdent condition:
 
         let d = self.dict.get(&String::from(dependent));
         if let Some(d) = d {
             let n = Not::new(d);
-            self.add_condition(name, n)
+            self.add_condition(name, n, tracedb)
         } else {
             ConditionReply::Error(format!("Dependent gate {} not found", dependent))
         }
     }
-    fn add_and(&mut self, name: &str, dependents: Vec<String>) -> ConditionReply {
+    fn add_and(
+        &mut self,
+        name: &str,
+        dependents: Vec<String>,
+        tracedb: &trace::SharedTraceStore,
+    ) -> ConditionReply {
         let mut a = And::new();
         // now try to add all of the dependencies:
 
@@ -446,9 +460,14 @@ impl ConditionProcessor {
                 return ConditionReply::Error(format!("Dependent gate {} not found", name));
             }
         }
-        self.add_condition(name, a)
+        self.add_condition(name, a, tracedb)
     }
-    fn add_or(&mut self, name: &str, dependents: Vec<String>) -> ConditionReply {
+    fn add_or(
+        &mut self,
+        name: &str,
+        dependents: Vec<String>,
+        tracedb: &trace::SharedTraceStore,
+    ) -> ConditionReply {
         let mut o = Or::new();
 
         // add the dependecies:
@@ -460,11 +479,18 @@ impl ConditionProcessor {
                 return ConditionReply::Error(format!("Dependent gate {} not found", name));
             }
         }
-        self.add_condition(name, o)
+        self.add_condition(name, o, tracedb)
     }
-    fn add_cut(&mut self, name: &str, param_id: u32, low: f64, high: f64) -> ConditionReply {
+    fn add_cut(
+        &mut self,
+        name: &str,
+        param_id: u32,
+        low: f64,
+        high: f64,
+        tracedb: &trace::SharedTraceStore,
+    ) -> ConditionReply {
         let c = Cut::new(param_id, low, high);
-        self.add_condition(name, c)
+        self.add_condition(name, c, tracedb)
     }
 
     // Turn the points as tuples into Vec<Point>
@@ -483,10 +509,11 @@ impl ConditionProcessor {
         x_id: u32,
         y_id: u32,
         points: Vec<(f64, f64)>,
+        tracedb: &trace::SharedTraceStore,
     ) -> ConditionReply {
         let b = Band::new(x_id, y_id, Self::convert_points(points));
         if let Some(b) = b {
-            self.add_condition(name, b)
+            self.add_condition(name, b, tracedb)
         } else {
             ConditionReply::Error(String::from("Too few points for  band"))
         }
@@ -498,16 +525,22 @@ impl ConditionProcessor {
         x_id: u32,
         y_id: u32,
         points: Vec<(f64, f64)>,
+        tracedb: &trace::SharedTraceStore,
     ) -> ConditionReply {
         let c = Contour::new(x_id, y_id, Self::convert_points(points));
         if let Some(c) = c {
-            self.add_condition(name, c)
+            self.add_condition(name, c, tracedb)
         } else {
             ConditionReply::Error(String::from("Too few points for a contour"))
         }
     }
-    fn remove_condition(&mut self, name: &str) -> ConditionReply {
+    fn remove_condition(
+        &mut self,
+        name: &str,
+        tracedb: &trace::SharedTraceStore,
+    ) -> ConditionReply {
         if let Some(_) = self.dict.remove(&String::from(name)) {
+            tracedb.add_event(trace::TraceEvent::ConditionDeleted(String::from(name)));
             ConditionReply::Deleted
         } else {
             ConditionReply::Error(format!("No such condition {}", name))
@@ -562,32 +595,42 @@ impl ConditionProcessor {
 
     /// Process a request returning a reply:
     ///
-    pub fn process_request(&mut self, req: ConditionRequest) -> ConditionReply {
+    pub fn process_request(
+        &mut self,
+        req: ConditionRequest,
+        tracedb: &trace::SharedTraceStore,
+    ) -> ConditionReply {
         match req {
-            ConditionRequest::CreateTrue(name) => self.add_true(&name),
-            ConditionRequest::CreateFalse(name) => self.add_false(&name),
-            ConditionRequest::CreateNot { name, dependent } => self.add_not(&name, &dependent),
-            ConditionRequest::CreateAnd { name, dependents } => self.add_and(&name, dependents),
-            ConditionRequest::CreateOr { name, dependents } => self.add_or(&name, dependents),
+            ConditionRequest::CreateTrue(name) => self.add_true(&name, tracedb),
+            ConditionRequest::CreateFalse(name) => self.add_false(&name, tracedb),
+            ConditionRequest::CreateNot { name, dependent } => {
+                self.add_not(&name, &dependent, tracedb)
+            }
+            ConditionRequest::CreateAnd { name, dependents } => {
+                self.add_and(&name, dependents, tracedb)
+            }
+            ConditionRequest::CreateOr { name, dependents } => {
+                self.add_or(&name, dependents, tracedb)
+            }
             ConditionRequest::CreateCut {
                 name,
                 param_id,
                 low,
                 high,
-            } => self.add_cut(&name, param_id, low, high),
+            } => self.add_cut(&name, param_id, low, high, tracedb),
             ConditionRequest::CreateBand {
                 name,
                 x_id,
                 y_id,
                 points,
-            } => self.add_band(&name, x_id, y_id, points),
+            } => self.add_band(&name, x_id, y_id, points, tracedb),
             ConditionRequest::CreateContour {
                 name,
                 x_id,
                 y_id,
                 points,
-            } => self.add_contour(&name, x_id, y_id, points),
-            ConditionRequest::DeleteCondition(name) => self.remove_condition(&name),
+            } => self.add_contour(&name, x_id, y_id, points, tracedb),
+            ConditionRequest::DeleteCondition(name) => self.remove_condition(&name, tracedb),
             ConditionRequest::List(pattern) => self.list_conditions(&pattern),
         }
     }
@@ -755,6 +798,7 @@ mod cond_msg_tests {
 #[cfg(test)]
 mod cnd_processor_tests {
     use super::*;
+    use crate::trace;
     use std::collections::HashMap;
 
     #[test]
@@ -767,8 +811,12 @@ mod cnd_processor_tests {
     // Basic condition creation.
     #[test]
     fn make_true_1() {
+        let tracedb = trace::SharedTraceStore::new();
         let mut cp = ConditionProcessor::new();
-        let rep = cp.process_request(ConditionMessageClient::make_true_creation("true-cond"));
+        let rep = cp.process_request(
+            ConditionMessageClient::make_true_creation("true-cond"),
+            &tracedb,
+        );
         assert_eq!(ConditionReply::Created, rep);
 
         let item = cp.dict.get("true-cond");
@@ -777,8 +825,12 @@ mod cnd_processor_tests {
     }
     #[test]
     fn make_false_1() {
+        let tracedb = trace::SharedTraceStore::new();
         let mut cp = ConditionProcessor::new();
-        let rep = cp.process_request(ConditionMessageClient::make_false_creation("false-cond"));
+        let rep = cp.process_request(
+            ConditionMessageClient::make_false_creation("false-cond"),
+            &tracedb,
+        );
         assert_eq!(ConditionReply::Created, rep);
 
         let item = cp.dict.get("false-cond");
@@ -788,8 +840,15 @@ mod cnd_processor_tests {
     #[test]
     fn make_not_1() {
         let mut cp = ConditionProcessor::new();
-        cp.process_request(ConditionMessageClient::make_false_creation("false"));
-        let rep = cp.process_request(ConditionMessageClient::make_not_creation("true", "false"));
+        let tracedb = trace::SharedTraceStore::new();
+        cp.process_request(
+            ConditionMessageClient::make_false_creation("false"),
+            &tracedb,
+        );
+        let rep = cp.process_request(
+            ConditionMessageClient::make_not_creation("true", "false"),
+            &tracedb,
+        );
         assert_eq!(ConditionReply::Created, rep);
 
         let item = cp.dict.get("true");
@@ -806,12 +865,19 @@ mod cnd_processor_tests {
     #[test]
     fn make_and_1() {
         let mut cp = ConditionProcessor::new();
-        cp.process_request(ConditionMessageClient::make_true_creation("true"));
-        cp.process_request(ConditionMessageClient::make_false_creation("false"));
-        let rep = cp.process_request(ConditionMessageClient::make_and_creation(
-            "and",
-            &vec![String::from("true"), String::from("false")],
-        ));
+        let tracedb = trace::SharedTraceStore::new();
+        cp.process_request(ConditionMessageClient::make_true_creation("true"), &tracedb);
+        cp.process_request(
+            ConditionMessageClient::make_false_creation("false"),
+            &tracedb,
+        );
+        let rep = cp.process_request(
+            ConditionMessageClient::make_and_creation(
+                "and",
+                &vec![String::from("true"), String::from("false")],
+            ),
+            &tracedb,
+        );
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("and").unwrap();
@@ -831,12 +897,19 @@ mod cnd_processor_tests {
     #[test]
     fn make_or_1() {
         let mut cp = ConditionProcessor::new();
-        cp.process_request(ConditionMessageClient::make_true_creation("true"));
-        cp.process_request(ConditionMessageClient::make_false_creation("false"));
-        let rep = cp.process_request(ConditionMessageClient::make_or_creation(
-            "or",
-            &vec![String::from("true"), String::from("false")],
-        ));
+        let tracedb = trace::SharedTraceStore::new();
+        cp.process_request(ConditionMessageClient::make_true_creation("true"), &tracedb);
+        cp.process_request(
+            ConditionMessageClient::make_false_creation("false"),
+            &tracedb,
+        );
+        let rep = cp.process_request(
+            ConditionMessageClient::make_or_creation(
+                "or",
+                &vec![String::from("true"), String::from("false")],
+            ),
+            &tracedb,
+        );
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("or").unwrap();
@@ -856,9 +929,11 @@ mod cnd_processor_tests {
     #[test]
     fn make_cut_1() {
         let mut cp = ConditionProcessor::new();
-        let rep = cp.process_request(ConditionMessageClient::make_cut_creation(
-            "cut", 12, 100.0, 200.0,
-        ));
+        let tracedb = trace::SharedTraceStore::new();
+        let rep = cp.process_request(
+            ConditionMessageClient::make_cut_creation("cut", 12, 100.0, 200.0),
+            &tracedb,
+        );
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("cut").unwrap();
@@ -871,10 +946,12 @@ mod cnd_processor_tests {
     #[test]
     fn make_band_1() {
         let mut cp = ConditionProcessor::new();
+        let tracedb = trace::SharedTraceStore::new();
         let gate_pts = vec![(0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)];
-        let rep = cp.process_request(ConditionMessageClient::make_band_creation(
-            "band", 10, 15, &gate_pts,
-        ));
+        let rep = cp.process_request(
+            ConditionMessageClient::make_band_creation("band", 10, 15, &gate_pts),
+            &tracedb,
+        );
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("band").unwrap();
@@ -889,10 +966,12 @@ mod cnd_processor_tests {
     #[test]
     fn make_contour_1() {
         let mut cp = ConditionProcessor::new();
+        let tracedb = trace::SharedTraceStore::new();
         let gate_pts = vec![(0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)];
-        let rep = cp.process_request(ConditionMessageClient::make_contour_creation(
-            "contour", 10, 15, &gate_pts,
-        ));
+        let rep = cp.process_request(
+            ConditionMessageClient::make_contour_creation("contour", 10, 15, &gate_pts),
+            &tracedb,
+        );
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("contour").unwrap();
@@ -909,7 +988,11 @@ mod cnd_processor_tests {
     #[test]
     fn make_replace_1() {
         let mut cp = ConditionProcessor::new();
-        cp.process_request(ConditionMessageClient::make_true_creation("agate"));
+        let tracedb = trace::SharedTraceStore::new();
+        cp.process_request(
+            ConditionMessageClient::make_true_creation("agate"),
+            &tracedb,
+        );
 
         let cond = cp.dict.get("agate").unwrap();
         assert_eq!("True", cond.borrow().gate_type());
@@ -918,7 +1001,10 @@ mod cnd_processor_tests {
         // Replacing the gate should happen transparently
         // to our cond:
 
-        let result = cp.process_request(ConditionMessageClient::make_false_creation("agate"));
+        let result = cp.process_request(
+            ConditionMessageClient::make_false_creation("agate"),
+            &tracedb,
+        );
         assert_eq!(ConditionReply::Replaced, result);
 
         assert_eq!("False", cond.upgrade().unwrap().borrow().gate_type());
@@ -929,12 +1015,16 @@ mod cnd_processor_tests {
     #[test]
     fn delete_1() {
         let mut cp = ConditionProcessor::new();
-        cp.process_request(ConditionMessageClient::make_true_creation("true"));
-        cp.process_request(ConditionMessageClient::make_false_creation("false"));
+        let tracedb = trace::SharedTraceStore::new();
+        cp.process_request(ConditionMessageClient::make_true_creation("true"), &tracedb);
+        cp.process_request(
+            ConditionMessageClient::make_false_creation("false"),
+            &tracedb,
+        );
 
         // Delete the true gate
 
-        let reply = cp.process_request(ConditionMessageClient::make_delete("true"));
+        let reply = cp.process_request(ConditionMessageClient::make_delete("true"), &tracedb);
         assert_eq!(ConditionReply::Deleted, reply); // Success.
 
         // It's gone:
@@ -947,8 +1037,9 @@ mod cnd_processor_tests {
         // unsuccessful delete:
 
         let mut cp = ConditionProcessor::new();
-        cp.process_request(ConditionMessageClient::make_true_creation("true"));
-        let reply = cp.process_request(ConditionMessageClient::make_delete("false"));
+        let tracedb = trace::SharedTraceStore::new();
+        cp.process_request(ConditionMessageClient::make_true_creation("true"), &tracedb);
+        let reply = cp.process_request(ConditionMessageClient::make_delete("false"), &tracedb);
         if let ConditionReply::Error(_) = reply {
             assert!(true);
         } else {
@@ -957,15 +1048,23 @@ mod cnd_processor_tests {
     }
     fn make_list_conditions() -> ConditionProcessor {
         let mut cp = ConditionProcessor::new();
-        cp.process_request(ConditionMessageClient::make_true_creation("true"));
-        cp.process_request(ConditionMessageClient::make_false_creation("false"));
-        cp.process_request(ConditionMessageClient::make_cut_creation(
-            "t-cut", 12, 100.0, 200.0,
-        ));
-        cp.process_request(ConditionMessageClient::make_and_creation(
-            "fake",
-            &vec![String::from("true"), String::from("t-cut")],
-        ));
+        let tracedb = trace::SharedTraceStore::new();
+        cp.process_request(ConditionMessageClient::make_true_creation("true"), &tracedb);
+        cp.process_request(
+            ConditionMessageClient::make_false_creation("false"),
+            &tracedb,
+        );
+        cp.process_request(
+            ConditionMessageClient::make_cut_creation("t-cut", 12, 100.0, 200.0),
+            &tracedb,
+        );
+        cp.process_request(
+            ConditionMessageClient::make_and_creation(
+                "fake",
+                &vec![String::from("true"), String::from("t-cut")],
+            ),
+            &tracedb,
+        );
 
         cp
     }
@@ -973,7 +1072,8 @@ mod cnd_processor_tests {
     fn list_1() {
         // List all gates:
         let mut cp = make_list_conditions();
-        let reply = cp.process_request(ConditionMessageClient::make_list("*"));
+        let tracedb = trace::SharedTraceStore::new();
+        let reply = cp.process_request(ConditionMessageClient::make_list("*"), &tracedb);
         if let ConditionReply::Listing(list) = reply {
             assert_eq!(4, list.len());
             // we don't know the order in which these come back so
@@ -1012,7 +1112,8 @@ mod cnd_processor_tests {
         // List gates whose names start with "f"
 
         let mut cp = make_list_conditions();
-        let reply = cp.process_request(ConditionMessageClient::make_list("f*"));
+        let tracedb = trace::SharedTraceStore::new();
+        let reply = cp.process_request(ConditionMessageClient::make_list("f*"), &tracedb);
         if let ConditionReply::Listing(list) = reply {
             assert_eq!(2, list.len());
             // we don't know the order in which these come back so
@@ -1044,7 +1145,8 @@ mod cnd_processor_tests {
         // Bad glob expression gives an error:
 
         let mut cp = make_list_conditions();
-        let reply = cp.process_request(ConditionMessageClient::make_list("[Astuff"));
+        let tracedb = trace::SharedTraceStore::new();
+        let reply = cp.process_request(ConditionMessageClient::make_list("[Astuff"), &tracedb);
         if let ConditionReply::Error(_) = reply {
             assert!(true);
         } else {
@@ -1064,14 +1166,14 @@ mod cnd_api_tests {
 
     fn fake_server(reader: Receiver<Request>) {
         let mut processor = ConditionProcessor::new();
-
+        let tracedb = trace::SharedTraceStore::new();
         loop {
             let request = reader.recv().unwrap();
             match request.message {
                 MessageType::Condition(req) => {
                     request
                         .reply_channel
-                        .send(Reply::Condition(processor.process_request(req)))
+                        .send(Reply::Condition(processor.process_request(req, &tracedb)))
                         .expect("Failed to send reply message");
                 }
                 MessageType::Exit => {

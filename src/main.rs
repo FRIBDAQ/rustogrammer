@@ -60,7 +60,7 @@ fn rocket() -> _ {
     // Create the trace database and start its prune thread.
     // we will make a separate state for it.
 
-    let mut trace_store = trace::SharedTraceStore::new();
+    let trace_store = trace::SharedTraceStore::new();
     trace_store.start_prune_thread();
 
     // start the histogram server in a thread:
