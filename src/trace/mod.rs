@@ -173,7 +173,7 @@ impl SharedTraceStore {
     pub fn get_traces(&mut self, token: usize) -> Result<Vec<StampedTraceEvent>, String> {
         let mut store = self.store.lock().unwrap();
 
-        if !store.client_traces.contains_key(&token) {
+        if store.client_traces.contains_key(&token) {
             let traces = store.client_traces.get_mut(&token).unwrap();
             let result = traces.trace_store.clone();
             traces.trace_store.clear();
@@ -369,5 +369,23 @@ mod trace_store_tests {
             }
             _ => false,
         });
+    }
+    #[test]
+    fn ts_get_1() {
+        // get traces from a bad token is an error:
+
+        let mut store = SharedTraceStore::new();
+        assert!(store.get_traces(12345).is_err());
+    }
+    #[test]
+    fn ts_get_2() {
+        // Get traces from a valid token but no trces:
+
+        let mut store = SharedTraceStore::new();
+        let tok1 = store.new_client(time::Duration::from_secs(10));
+        let traces = store
+            .get_traces(tok1)
+            .expect("Unable to get traces for tok1");
+        assert_eq!(0, traces.len());
     }
 }
