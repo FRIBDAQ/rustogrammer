@@ -182,7 +182,12 @@ impl SharedTraceStore {
             Err(String::from("No such client token"))
         }
     }
-
+    /// Remove the data associated with a client token.
+    /// This includes any stored traces for that client.
+    ///
+    pub fn delete_client(&mut self, token: usize) -> Result<(), String> {
+        Err(String::from("Unimplemented"))
+    }
     /// Once a shared trace store is created, this should be called
     /// to start the prune thread.
     /// It passes a clone of self to a thread that runs every second
