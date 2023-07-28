@@ -13,6 +13,7 @@ use super::*;
 use crate::conditions;
 use crate::parameters;
 use crate::spectra;
+use crate::trace;
 use ndhistogram::axis::*;
 use ndhistogram::*;
 use std::sync::mpsc;
@@ -164,6 +165,7 @@ impl SpectrumProcessor {
         parameter: &str,
         axis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
+        tracedb: &trace::SharedTraceStore,
     ) -> SpectrumReply {
         if !self.dict.exists(name) {
             match spectra::Oned::new(
@@ -176,6 +178,7 @@ impl SpectrumProcessor {
             ) {
                 Ok(spec) => {
                     self.dict.add(Rc::new(RefCell::new(spec)));
+                    tracedb.add_event(trace::TraceEvent::SpectrumCreated(String::from(name)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -194,6 +197,7 @@ impl SpectrumProcessor {
         params: &Vec<String>,
         axis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
+        tracedb: &trace::SharedTraceStore,
     ) -> SpectrumReply {
         if !self.dict.exists(name) {
             match spectra::Multi1d::new(
@@ -206,6 +210,7 @@ impl SpectrumProcessor {
             ) {
                 Ok(spec) => {
                     self.dict.add(Rc::new(RefCell::new(spec)));
+                    tracedb.add_event(trace::TraceEvent::SpectrumCreated(String::from(name)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -225,6 +230,7 @@ impl SpectrumProcessor {
         xaxis: &AxisSpecification,
         yaxis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
+        tracedb: &trace::SharedTraceStore,
     ) -> SpectrumReply {
         if !self.dict.exists(name) {
             match spectra::Multi2d::new(
@@ -240,6 +246,7 @@ impl SpectrumProcessor {
             ) {
                 Ok(spec) => {
                     self.dict.add(Rc::new(RefCell::new(spec)));
+                    tracedb.add_event(trace::TraceEvent::SpectrumCreated(String::from(name)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -260,6 +267,7 @@ impl SpectrumProcessor {
         xaxis: &AxisSpecification,
         yaxis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
+        tracedb: &trace::SharedTraceStore,
     ) -> SpectrumReply {
         if !self.dict.exists(name) {
             match spectra::PGamma::new(
@@ -276,6 +284,7 @@ impl SpectrumProcessor {
             ) {
                 Ok(spec) => {
                     self.dict.add(Rc::new(RefCell::new(spec)));
+                    tracedb.add_event(trace::TraceEvent::SpectrumCreated(String::from(name)));
                     return SpectrumReply::Created;
                 }
                 Err(str) => {
@@ -294,6 +303,7 @@ impl SpectrumProcessor {
         params: &Vec<String>,
         xaxis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
+        tracedb: &trace::SharedTraceStore,
     ) -> SpectrumReply {
         if !self.dict.exists(name) {
             match spectra::Summary::new(
@@ -306,6 +316,7 @@ impl SpectrumProcessor {
             ) {
                 Ok(spec) => {
                     self.dict.add(Rc::new(RefCell::new(spec)));
+                    tracedb.add_event(trace::TraceEvent::SpectrumCreated(String::from(name)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -326,6 +337,7 @@ impl SpectrumProcessor {
         xaxis: &AxisSpecification,
         yaxis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
+        tracedb: &trace::SharedTraceStore,
     ) -> SpectrumReply {
         if !self.dict.exists(name) {
             match spectra::Twod::new(
@@ -342,6 +354,7 @@ impl SpectrumProcessor {
             ) {
                 Ok(spec) => {
                     self.dict.add(Rc::new(RefCell::new(spec)));
+                    tracedb.add_event(trace::TraceEvent::SpectrumCreated(String::from(name)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -362,6 +375,7 @@ impl SpectrumProcessor {
         xaxis: &AxisSpecification,
         yaxis: &AxisSpecification,
         pdict: &parameters::ParameterDictionary,
+        tracedb: &trace::SharedTraceStore,
     ) -> SpectrumReply {
         if !self.dict.exists(name) {
             if xparams.len() != yparams.len() {
@@ -387,6 +401,7 @@ impl SpectrumProcessor {
             ) {
                 Ok(spec) => {
                     self.dict.add(Rc::new(RefCell::new(spec)));
+                    tracedb.add_event(trace::TraceEvent::SpectrumCreated(String::from(name)));
                     return SpectrumReply::Created;
                 }
                 Err(msg) => {
@@ -399,8 +414,9 @@ impl SpectrumProcessor {
     }
     // Delete an existing spectrum.
 
-    fn delete_spectrum(&mut self, name: &str) -> SpectrumReply {
+    fn delete_spectrum(&mut self, name: &str, tracedb: &trace::SharedTraceStore) -> SpectrumReply {
         if let Some(_) = self.dict.remove(name) {
+            tracedb.add_event(trace::TraceEvent::SpectrumDeleted(String::from(name)));
             SpectrumReply::Deleted
         } else {
             SpectrumReply::Error(format!("Spectrum {} does not exist", name))
@@ -670,49 +686,50 @@ impl SpectrumProcessor {
         req: SpectrumRequest,
         pdict: &parameters::ParameterDictionary,
         cdict: &mut conditions::ConditionDictionary,
+        tracedb: &trace::SharedTraceStore,
     ) -> SpectrumReply {
         match req {
             SpectrumRequest::Create1D {
                 name,
                 parameter,
                 axis,
-            } => self.make_1d(&name, &parameter, &axis, &pdict),
+            } => self.make_1d(&name, &parameter, &axis, &pdict, tracedb),
             SpectrumRequest::CreateMulti1D { name, params, axis } => {
-                self.make_multi1d(&name, &params, &axis, &pdict)
+                self.make_multi1d(&name, &params, &axis, &pdict, tracedb)
             }
             SpectrumRequest::CreateMulti2D {
                 name,
                 params,
                 xaxis,
                 yaxis,
-            } => self.make_multi2d(&name, &params, &xaxis, &yaxis, &pdict),
+            } => self.make_multi2d(&name, &params, &xaxis, &yaxis, &pdict, tracedb),
             SpectrumRequest::CreatePGamma {
                 name,
                 xparams,
                 yparams,
                 xaxis,
                 yaxis,
-            } => self.make_pgamma(&name, &xparams, &yparams, &xaxis, &yaxis, &pdict),
+            } => self.make_pgamma(&name, &xparams, &yparams, &xaxis, &yaxis, &pdict, tracedb),
             SpectrumRequest::CreateSummary {
                 name,
                 params,
                 yaxis,
-            } => self.make_summary(&name, &params, &yaxis, &pdict),
+            } => self.make_summary(&name, &params, &yaxis, &pdict, tracedb),
             SpectrumRequest::Create2D {
                 name,
                 xparam,
                 yparam,
                 xaxis,
                 yaxis,
-            } => self.make_2d(&name, &xparam, &yparam, &xaxis, &yaxis, &pdict),
+            } => self.make_2d(&name, &xparam, &yparam, &xaxis, &yaxis, &pdict, tracedb),
             SpectrumRequest::Create2DSum {
                 name,
                 xparams,
                 yparams,
                 xaxis,
                 yaxis,
-            } => self.make_2dsum(&name, &xparams, &yparams, &xaxis, &yaxis, &pdict),
-            SpectrumRequest::Delete(name) => self.delete_spectrum(&name),
+            } => self.make_2dsum(&name, &xparams, &yparams, &xaxis, &yaxis, &pdict, tracedb),
+            SpectrumRequest::Delete(name) => self.delete_spectrum(&name, tracedb),
             SpectrumRequest::List(pattern) => self.list_spectra(&pattern),
             SpectrumRequest::Gate { spectrum, gate } => {
                 self.gate_spectrum(&spectrum, &gate, &cdict)
@@ -1344,6 +1361,7 @@ mod spproc_tests {
     use super::*;
     use crate::conditions::*;
     use crate::parameters::*;
+    use crate::trace;
     use std::cmp::Ordering;
 
     #[test]
@@ -1362,12 +1380,14 @@ mod spproc_tests {
         processor: SpectrumProcessor,
         parameters: ParameterDictionary,
         conditions: ConditionDictionary,
+        tracedb: trace::SharedTraceStore,
     }
     fn make_test_objs() -> TestObjects {
         TestObjects {
             processor: SpectrumProcessor::new(),
             parameters: ParameterDictionary::new(),
             conditions: ConditionDictionary::new(),
+            tracedb: trace::SharedTraceStore::new(),
         }
     }
     fn make_some_params(to: &mut TestObjects) {
@@ -1395,6 +1415,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         assert!(to.processor.dict.exists("test"));
@@ -1443,6 +1464,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         // Checking the error string is brittle so:
 
@@ -1471,6 +1493,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -1486,6 +1509,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         if let SpectrumReply::Error(_) = reply {
             assert!(true);
@@ -1520,6 +1544,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         assert!(to.processor.dict.exists("test"));
@@ -1574,6 +1599,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         if let SpectrumReply::Error(_) = reply {
             assert!(true);
@@ -1605,6 +1631,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -1620,6 +1647,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         if let SpectrumReply::Error(_) = reply {
             assert!(true);
@@ -1656,6 +1684,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         assert!(to.processor.dict.exists("test"));
@@ -1728,6 +1757,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         if let SpectrumReply::Error(_) = reply {
             assert!(true);
@@ -1763,6 +1793,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         let reply = to.processor.process_request(
@@ -1782,6 +1813,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         if let SpectrumReply::Error(_) = reply {
             assert!(true);
@@ -1824,6 +1856,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         assert!(to.processor.dict.exists("test"));
@@ -1898,6 +1931,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         // maybe is more Rusty than the earlier efforts.
         assert!(if let SpectrumReply::Error(_) = reply {
@@ -1942,6 +1976,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -1985,6 +2020,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         let reply = to.processor.process_request(
@@ -2005,6 +2041,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2034,6 +2071,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         assert!(to.processor.dict.exists("test"));
@@ -2088,6 +2126,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2119,6 +2158,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         let reply = to.processor.process_request(
@@ -2133,6 +2173,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2162,6 +2203,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         let spec = to
@@ -2232,6 +2274,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2263,6 +2306,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2293,6 +2337,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         let reply = to.processor.process_request(
@@ -2313,6 +2358,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2357,6 +2403,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -2437,6 +2484,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2483,6 +2531,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2529,6 +2578,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
         let reply = to.processor.process_request(
@@ -2549,6 +2599,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2575,6 +2626,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -2582,6 +2634,7 @@ mod spproc_tests {
             SpectrumRequest::Delete(String::from("test")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Deleted, reply);
         assert!(!to.processor.dict.exists("test"));
@@ -2610,6 +2663,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
@@ -2618,6 +2672,7 @@ mod spproc_tests {
             SpectrumRequest::Delete(String::from("test.5")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Deleted, reply);
         assert!(!to.processor.dict.exists("test.5"));
@@ -2644,6 +2699,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
@@ -2651,6 +2707,7 @@ mod spproc_tests {
             SpectrumRequest::Delete(String::from("param.1")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2680,6 +2737,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
@@ -2697,6 +2755,7 @@ mod spproc_tests {
             SpectrumRequest::Clear(String::from("*")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Cleared, reply);
         let mut sum = 0.0;
@@ -2726,6 +2785,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
@@ -2743,6 +2803,7 @@ mod spproc_tests {
             SpectrumRequest::Clear(String::from("test.2")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Cleared, reply);
         let mut sum = 0.0;
@@ -2757,6 +2818,7 @@ mod spproc_tests {
             SpectrumRequest::Clear(String::from("test.1")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Cleared, reply);
         let mut sum = 0.0;
@@ -2787,6 +2849,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
@@ -2795,6 +2858,7 @@ mod spproc_tests {
             SpectrumRequest::List(String::from("*")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
 
         if let SpectrumReply::Listing(mut l) = reply {
@@ -2857,6 +2921,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
@@ -2865,6 +2930,7 @@ mod spproc_tests {
             SpectrumRequest::List(String::from("test.9")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         if let SpectrumReply::Listing(l) = reply {
             assert_eq!(1, l.len());
@@ -2903,6 +2969,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -2913,6 +2980,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Gated, reply);
 
@@ -2920,6 +2988,7 @@ mod spproc_tests {
             SpectrumRequest::List(String::from("*")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         if let SpectrumReply::Listing(l) = reply {
             assert_eq!(1, l.len());
@@ -2950,6 +3019,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -2960,6 +3030,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -2981,6 +3052,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -3009,6 +3081,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -3019,6 +3092,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Gated, reply);
 
@@ -3026,6 +3100,7 @@ mod spproc_tests {
             SpectrumRequest::Ungate(String::from("test")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Ungated, reply);
 
@@ -3033,6 +3108,7 @@ mod spproc_tests {
             SpectrumRequest::List(String::from("test")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Listing(l) = reply {
             assert_eq!(1, l.len());
@@ -3054,6 +3130,7 @@ mod spproc_tests {
             SpectrumRequest::Ungate(String::from("test")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
@@ -3083,6 +3160,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
@@ -3118,6 +3196,7 @@ mod spproc_tests {
             SpectrumRequest::Events(events),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Processed, reply);
         let with_counts = vec![
@@ -3183,6 +3262,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
@@ -3218,6 +3298,7 @@ mod spproc_tests {
             SpectrumRequest::Events(events),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Processed, reply);
         let with_counts = vec![
@@ -3246,6 +3327,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert!(if let SpectrumReply::Contents(sc) = reply {
                 assert_eq!(1, sc.len());
@@ -3270,6 +3352,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert!(if let SpectrumReply::Contents(sc) = reply {
                 assert_eq!(0, sc.len());
@@ -3301,6 +3384,7 @@ mod spproc_tests {
                 },
                 &to.parameters,
                 &mut to.conditions,
+                &to.tracedb,
             );
             assert_eq!(SpectrumReply::Created, reply);
         }
@@ -3336,6 +3420,7 @@ mod spproc_tests {
             SpectrumRequest::Events(events),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Processed, reply);
 
@@ -3349,6 +3434,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Contents(sc) = reply {
             assert_eq!(0, sc.len());
@@ -3382,6 +3468,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -3417,6 +3504,7 @@ mod spproc_tests {
             SpectrumRequest::Events(events),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Processed, reply);
 
@@ -3433,6 +3521,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Contents(l) = reply {
             assert_eq!(1, l.len());
@@ -3470,6 +3559,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -3505,6 +3595,7 @@ mod spproc_tests {
             SpectrumRequest::Events(events),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Processed, reply);
 
@@ -3521,6 +3612,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Contents(l) = reply {
             assert_eq!(0, l.len());
@@ -3538,6 +3630,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Contents(l) = reply {
             assert_eq!(0, l.len());
@@ -3556,6 +3649,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Contents(l) = reply {
             assert_eq!(0, l.len());
@@ -3573,6 +3667,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Contents(l) = reply {
             assert_eq!(0, l.len());
@@ -3609,6 +3704,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -3616,6 +3712,7 @@ mod spproc_tests {
             SpectrumRequest::GetStats(String::from("test")),
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Statistics(s) = reply {
             assert_eq!((0, 0, 0, 0), s);
@@ -3629,7 +3726,8 @@ mod spproc_tests {
             if let SpectrumReply::Error(_) = to.processor.process_request(
                 SpectrumRequest::GetStats(String::from("none")),
                 &to.parameters,
-                &mut to.conditions
+                &mut to.conditions,
+                &to.tracedb
             ) {
                 true
             } else {
@@ -3656,6 +3754,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -3681,9 +3780,9 @@ mod spproc_tests {
             ],
         };
 
-        let reply = to
-            .processor
-            .process_request(req, &to.parameters, &mut to.conditions);
+        let reply =
+            to.processor
+                .process_request(req, &to.parameters, &mut to.conditions, &to.tracedb);
         assert_eq!(SpectrumReply::Processed, reply);
 
         // See if the contents match:
@@ -3698,6 +3797,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
 
         assert!(if let SpectrumReply::Contents(c) = reply {
@@ -3738,6 +3838,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -3765,6 +3866,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Processed, reply);
 
@@ -3778,6 +3880,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
 
         assert!(if let SpectrumReply::Contents(c) = reply {
@@ -3821,6 +3924,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
@@ -3860,6 +3964,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Processed, reply);
 
@@ -3873,6 +3978,7 @@ mod spproc_tests {
             },
             &to.parameters,
             &mut to.conditions,
+            &to.tracedb,
         );
         assert!(if let SpectrumReply::Contents(c) = reply {
             assert_eq!(4, c.len());
@@ -4128,6 +4234,7 @@ mod reqstruct_tests {
 #[cfg(test)]
 mod spectrum_api_tests {
     use super::*;
+    use crate::trace;
     use std::sync::mpsc;
     use std::thread;
 
@@ -4178,6 +4285,7 @@ mod spectrum_api_tests {
         }
         // process requests:
 
+        let tracedb = trace::SharedTraceStore::new();
         loop {
             let request = reader.recv().expect("Request read failed");
             match request.message {
@@ -4189,7 +4297,7 @@ mod spectrum_api_tests {
                     break;
                 }
                 MessageType::Spectrum(sreq) => {
-                    let reply = processor.process_request(sreq, &params, &mut cdict);
+                    let reply = processor.process_request(sreq, &params, &mut cdict, &tracedb);
                     request
                         .reply_channel
                         .send(Reply::Spectrum(reply))

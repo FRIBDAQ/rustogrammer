@@ -60,6 +60,7 @@ impl RequestProcessor {
                 req,
                 self.parameters.get_dict(),
                 self.conditions.get_dict(),
+                tracedb
             )),
             MessageType::Exit => Reply::Exiting,
         }
