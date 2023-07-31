@@ -116,7 +116,7 @@ pub struct TraceGetResponse {
 ///
 ///  * parameter - each list contains:
 ///      *  The reason for the trace "add" or "changed" (note that Rustogramer cannot
-/// delete parameters).
+/// delete parameters).  Note that changed is a new trace.
 ///      *  The name of the parameter affected.
 ///  * spectrum - Each list contains:
 ///      *  The trace reason ("add", or "delete"),
