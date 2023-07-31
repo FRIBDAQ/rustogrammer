@@ -49,6 +49,7 @@ pub mod sbind;
 pub mod shm;
 pub mod spectrum;
 pub mod spectrumio;
+pub mod traces;
 pub mod unbind;
 pub mod unimplemented;
 pub mod version;
