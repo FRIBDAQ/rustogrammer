@@ -235,6 +235,7 @@ impl ParameterProcessor {
         limits: Option<(f64, f64)>,
         units: Option<String>,
         desc: Option<String>,
+        tracedb: &trace::SharedTraceStore,
     ) -> ParameterReply {
         if let Some(p) = self.dict.lookup_mut(name) {
             if bins.is_some() {
@@ -250,6 +251,7 @@ impl ParameterProcessor {
             if desc.is_some() {
                 p.set_description(&desc.unwrap());
             }
+            tracedb.add_event(trace::TraceEvent::ParameterModified(String::from(name)));
             ParameterReply::Modified
         } else {
             ParameterReply::Error(format!("Parameter {} does not exist", name))
@@ -278,7 +280,7 @@ impl ParameterProcessor {
                 limits,
                 units,
                 description,
-            } => self.modify(&name, bins, limits, units, description),
+            } => self.modify(&name, bins, limits, units, description, &tracedb),
         }
     }
     pub fn get_dict(&mut self) -> &mut ParameterDictionary {

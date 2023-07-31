@@ -32,6 +32,7 @@ use std::time;
 #[derive(Clone)]
 pub enum TraceEvent {
     NewParameter(String),
+    ParameterModified(String),
     SpectrumCreated(String),
     SpectrumDeleted(String),
     ConditionCreated(String),
@@ -101,7 +102,7 @@ pub struct TraceStore {
 /// API instead and hide all the lock().unwrap.crap() needed to
 /// get me the trace store to operate on _and) maybe the
 /// result can be Sendable.
-///
+/// 
 
 pub struct SharedTraceStore {
     store: Arc<Mutex<TraceStore>>,
@@ -174,7 +175,7 @@ impl SharedTraceStore {
         let mut store = self.store.lock().unwrap();
 
         if store.client_traces.contains_key(&token) {
-            let traces = store.client_traces.get_mut(&token).unwrap();
+            let  mut traces = store.client_traces.get_mut(&token).unwrap();
             let result = traces.trace_store.clone();
             traces.trace_store.clear();
             Ok(result)
@@ -278,7 +279,7 @@ mod trace_store_tests {
     fn ts_add_client_1() {
         // adding a client increments the next_client field:
         // and adds the client to the hashmap:
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
         let token = store.new_client(time::Duration::from_secs(10));
         let s = store.store.lock().unwrap();
 
@@ -297,7 +298,7 @@ mod trace_store_tests {
     pub fn ts_add_event_1() {
         // Adding an event with  no clients does nothing:
 
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
         store.add_event(TraceEvent::NewParameter(String::from("george")));
 
         assert!(store.store.lock().unwrap().client_traces.is_empty());
@@ -306,7 +307,7 @@ mod trace_store_tests {
     pub fn ts_add_event_2() {
         //  adding an event adds it to all cilents:
 
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
         let tok1 = store.new_client(time::Duration::from_secs(10));
         let tok2 = store.new_client(time::Duration::from_secs(11));
         assert!(tok1 != tok2);
@@ -339,7 +340,7 @@ mod trace_store_tests {
     fn ts_prune_1() {
         // Prune things older than the expiration date.
         // THere's an assumption that the
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
         let tok1 = store.new_client(time::Duration::from_secs(10));
         let tok2 = store.new_client(time::Duration::from_secs(10));
 
@@ -389,14 +390,14 @@ mod trace_store_tests {
     fn ts_get_1() {
         // get traces from a bad token is an error:
 
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
         assert!(store.get_traces(12345).is_err());
     }
     #[test]
     fn ts_get_2() {
         // Get traces from a valid token but no trces:
 
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
         let tok1 = store.new_client(time::Duration::from_secs(10));
         let traces = store
             .get_traces(tok1)
@@ -408,7 +409,7 @@ mod trace_store_tests {
         // get traces when the exist.  Whitebox note:  The events are in the
         // vector in the order in which they were added.
 
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
         let tok1 = store.new_client(time::Duration::from_secs(10));
         store.add_event(TraceEvent::NewParameter(String::from("p1")));
 
@@ -451,14 +452,14 @@ mod trace_store_tests {
     fn ts_delete_1() {
         // Delete no such token is an errors:
 
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
         assert!(store.delete_client(124).is_err());
     }
     #[test]
     fn ts_delete_2() {
         // Deleting a client deletes it - the right one:
 
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
         let tok1 = store.new_client(time::Duration::from_secs(10));
         let _tok2 = store.new_client(time::Duration::from_secs(15));
 
@@ -478,7 +479,7 @@ mod trace_store_tests {
         // Start and stop prune thread - we're not going to test that it works
         // as the asynchronism makes that really hard.
 
-        let mut store = SharedTraceStore::new();
+        let store = SharedTraceStore::new();
 
         let jh = store.start_prune_thread();
         store.stop_prune();
