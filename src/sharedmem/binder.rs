@@ -52,7 +52,6 @@ enum RequestType {
 pub struct Request {
     reply_chan: mpsc::Sender<Reply>,
     request: RequestType,
-    
 }
 
 // Thread repies are just Result objects that are
@@ -112,7 +111,7 @@ struct BindingThread {
     spectrum_api: spectrum_messages::SpectrumMessageClient,
     timeout: u64,
     shm: super::SharedMemory,
-    trace_db : trace::SharedTraceStore
+    trace_db: trace::SharedTraceStore,
 }
 
 impl BindingThread {
@@ -134,8 +133,8 @@ impl BindingThread {
         if let Some(slot) = self.find_binding(name) {
             self.shm.unbind(slot);
             self.trace_db.add_event(trace::TraceEvent::SpectrumUnbound {
-                name : String::from(name),
-                binding_id : slot
+                name: String::from(name),
+                binding_id: slot,
             });
             Ok(())
         } else {
@@ -158,8 +157,8 @@ impl BindingThread {
                     self.shm.clear_contents(slot);
                     self.update_spectrum((slot, String::from(name)));
                     self.trace_db.add_event(trace::TraceEvent::SpectrumBound {
-                        name : String::from(name),
-                        binding_id: slot
+                        name: String::from(name),
+                        binding_id: slot,
                     });
                     Ok(())
                 }
@@ -333,9 +332,9 @@ impl BindingThread {
                 for b in self.shm.get_bindings() {
                     // Too simple to need an fn.
                     self.shm.unbind(b.0);
-                    self.trace_db.add_event(trace::TraceEvent::SpectrumUnbound{
+                    self.trace_db.add_event(trace::TraceEvent::SpectrumUnbound {
                         name: b.1,
-                        binding_id: b.0
+                        binding_id: b.0,
                     });
                 }
                 req.reply_chan
@@ -352,7 +351,6 @@ impl BindingThread {
                         ))))
                         .expect("Failed to send error result from binding thread to client");
                 } else {
-                    
                     req.reply_chan
                         .send(Reply::Generic(GenericResult::Ok(())))
                         .expect("Failed to send reply to client from binding thread");
@@ -408,7 +406,7 @@ impl BindingThread {
         req: mpsc::Receiver<Request>,
         api_chan: &mpsc::Sender<messaging::Request>,
         spec_size: usize,
-        tracer : &trace::SharedTraceStore
+        tracer: &trace::SharedTraceStore,
     ) -> BindingThread {
         BindingThread {
             request_chan: req,
@@ -416,7 +414,7 @@ impl BindingThread {
             timeout: DEFAULT_TIMEOUT,
             shm: super::SharedMemory::new(spec_size)
                 .expect("Failed to create shared memory region!!"),
-            trace_db : tracer.clone()
+            trace_db: tracer.clone(),
         }
     }
     /// Runs the thread.  See the struct comments for a reasonably
@@ -454,7 +452,7 @@ impl BindingThread {
 pub fn start_server(
     hreq_chan: &mpsc::Sender<messaging::Request>,
     spectrum_bytes: usize,
-    trace_db : &trace::SharedTraceStore
+    trace_db: &trace::SharedTraceStore,
 ) -> (mpsc::Sender<Request>, thread::JoinHandle<()>) {
     let (sender, receiver) = mpsc::channel();
     let hreq = hreq_chan.clone();
