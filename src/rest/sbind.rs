@@ -292,8 +292,7 @@ mod sbind_tests {
     fn setup() -> Rocket<Build> {
         let tracedb = trace::SharedTraceStore::new();
         let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024, &tracedb);
 
         // Construct the state:
 

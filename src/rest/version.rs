@@ -124,7 +124,7 @@ mod version_tests {
         let tracedb = trace::SharedTraceStore::new();
         let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 

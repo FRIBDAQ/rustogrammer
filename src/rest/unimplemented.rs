@@ -407,7 +407,7 @@ mod pipeline_tests {
         let tracedb = trace::SharedTraceStore::new();
         let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -681,7 +681,7 @@ mod project_tests {
         let tracedb = trace::SharedTraceStore::new();
         let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -782,7 +782,7 @@ mod pseudo_test {
         let tracedb = trace::SharedTraceStore::new();
         let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -921,7 +921,7 @@ mod roottree_tests {
         let tracedb = trace::SharedTraceStore::new();
         let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -1060,7 +1060,7 @@ mod script_tests {
         let tracedb = trace::SharedTraceStore::new();
         let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -1162,7 +1162,7 @@ mod trace_tests {
         let tracedb = trace::SharedTraceStore::new();
         let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -1304,7 +1304,7 @@ mod treevar_tests {
         let tracedb = trace::SharedTraceStore::new();
         let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
