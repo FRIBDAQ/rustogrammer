@@ -15,7 +15,7 @@ use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, getstats,
     integrate, mirror_list, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, unbind,
-    unimplemented, version,
+    unimplemented, version, traces
 };
 use sharedmem::{binder, mirror};
 use std::env;
@@ -68,7 +68,11 @@ fn rocket() -> _ {
 
     let (_, histogramer_channel) = histogramer::start_server(trace_store.clone());
     let processor = processing::ProcessingApi::new(&histogramer_channel);
-    let binder = binder::start_server(&histogramer_channel, args.shm_mbytes * 1024 * 1024, &trace_store);
+    let binder = binder::start_server(
+        &histogramer_channel,
+        args.shm_mbytes * 1024 * 1024,
+        &trace_store,
+    );
 
     let (rest_port, mirror_port, client) = get_ports(&args);
 
@@ -248,14 +252,6 @@ fn rocket() -> _ {
         )
         .mount("/spectcl/script", routes![unimplemented::script_execute])
         .mount(
-            "/spectcl/trace",
-            routes![
-                unimplemented::trace_establish,
-                unimplemented::trace_done,
-                unimplemented::trace_fetch
-            ],
-        )
-        .mount(
             "/spectcl/treevariable",
             routes![
                 unimplemented::treevariable_list,
@@ -274,6 +270,7 @@ fn rocket() -> _ {
         .mount("/spectcl/specstats", routes![getstats::get_statistics])
         .mount("/spectcl/swrite", routes![spectrumio::swrite_handler])
         .mount("/spectcl/sread", routes![spectrumio::sread_handler])
+        .mount("/spectcl/trace", routes![traces::establish_trace, traces::trace_done, traces::fetch_traces])
 }
 ///
 /// Gets the port to use for our REST service.
