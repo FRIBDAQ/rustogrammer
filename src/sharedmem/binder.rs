@@ -133,6 +133,10 @@ impl BindingThread {
     fn unbind(&mut self, name: &str) -> Result<(), String> {
         if let Some(slot) = self.find_binding(name) {
             self.shm.unbind(slot);
+            self.trace_db.add_event(trace::TraceEvent::SpectrumUnbound {
+                name : String::from(name),
+                binding_id : slot
+            });
             Ok(())
         } else {
             Err(String::from("Spectrum is not bound"))
@@ -153,6 +157,10 @@ impl BindingThread {
                 Ok((slot, _)) => {
                     self.shm.clear_contents(slot);
                     self.update_spectrum((slot, String::from(name)));
+                    self.trace_db.add_event(trace::TraceEvent::SpectrumBound {
+                        name : String::from(name),
+                        binding_id: slot
+                    });
                     Ok(())
                 }
                 Err(s) => Err(s),
@@ -325,6 +333,10 @@ impl BindingThread {
                 for b in self.shm.get_bindings() {
                     // Too simple to need an fn.
                     self.shm.unbind(b.0);
+                    self.trace_db.add_event(trace::TraceEvent::SpectrumUnbound{
+                        name: b.1,
+                        binding_id: b.0
+                    });
                 }
                 req.reply_chan
                     .send(Reply::Generic(GenericResult::Ok(())))
@@ -340,6 +352,7 @@ impl BindingThread {
                         ))))
                         .expect("Failed to send error result from binding thread to client");
                 } else {
+                    
                     req.reply_chan
                         .send(Reply::Generic(GenericResult::Ok(())))
                         .expect("Failed to send reply to client from binding thread");
