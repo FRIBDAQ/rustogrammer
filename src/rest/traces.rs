@@ -490,4 +490,42 @@ mod trace_rest_tests {
         free_token(&client, token);
         teardown(msg_chan, &papi, &binder_api);
     }
+    #[test]
+    fn get_4() {
+        // one of each type of parameter trace:
+
+        let rocket = setup();
+        let (msg_chan, papi, binder_api, tracedb) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making client");
+        let token = get_token(&client, 10); // Need this to save traces:
+
+        tracedb.add_event(trace::TraceEvent::ConditionCreated(String::from("newpar")));
+        tracedb.add_event(trace::TraceEvent::ConditionModified(String::from("newpar")));
+        tracedb.add_event(trace::TraceEvent::ConditionDeleted(String::from("newpar")));
+
+        // Now fetch our traces.
+
+        let uri = format!("/fetch?token={}", token);
+        let req = client.get(&uri);
+        let response = req
+            .dispatch()
+            .into_json::<TraceGetResponse>()
+            .expect("Parsing JSon");
+
+        assert_eq!("OK", response.status);
+        assert_eq!(0, response.detail.parameter.len());
+        assert_eq!(0, response.detail.spectrum.len());
+        assert_eq!(3, response.detail.gate.len());
+        assert_eq!(0, response.detail.binding.len());
+
+        // THe first one should have "add newpar"
+        // the second "changed newpar"
+        assert_eq!("add newpar", response.detail.gate[0]);
+        assert_eq!("changed newpar", response.detail.gate[1]);
+        assert_eq!("delete newpar", response.detail.gate[2]);
+
+        free_token(&client, token);
+        teardown(msg_chan, &papi, &binder_api);
+    }
 }
