@@ -777,3 +777,88 @@ mod pprocessor_tests {
         }
     }
 }
+// Test tracing
+
+#[cfg(test)]
+mod parameter_traces {
+    use super::*;
+    use crate::trace;
+    use std::time::Duration;
+
+    fn create_req(name: &str) -> ParameterRequest {
+        let result = ParameterMessageClient::make_create_request(name);
+        if let MessageType::Parameter(req) = result {
+            return req;
+        } else {
+            panic!("make_create_request did not make a ParameterRequest object");
+        }
+    }
+    fn modify_req(
+        name: &str,
+        bins: Option<u32>,
+        limits: Option<(f64, f64)>,
+        units: Option<String>,
+        description: Option<String>,
+    ) -> ParameterRequest {
+        let result =
+            ParameterMessageClient::make_modify_request(name, bins, limits, units, description);
+        if let MessageType::Parameter(req) = result {
+            return req;
+        } else {
+            panic!("make_mdify_request did not make a parameter request object");
+        }
+    }
+    #[test]
+    fn create_1() {
+        // making a parmeter fires a trace:
+
+        let tracedb = trace::SharedTraceStore::new();
+        let token = tracedb.new_client(Duration::from_secs(100));
+        let mut pp = ParameterProcessor::new();
+        assert_eq!(
+            ParameterReply::Created,
+            pp.process_request(create_req("Test"), &tracedb)
+        );
+
+        // Should be a trace for our token:
+
+        let traces = tracedb.get_traces(token).expect("Getting traces");
+        assert_eq!(traces.len(), 1);
+        let trace = traces[0].event();
+        assert!(if let trace::TraceEvent::NewParameter(name) = trace {
+            assert_eq!("Test", name);
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn modify_1() {
+        let tracedb = trace::SharedTraceStore::new();
+        let mut pp = ParameterProcessor::new();
+        assert_eq!(
+            ParameterReply::Created,
+            pp.process_request(create_req("Test"), &tracedb)
+        );
+
+        // Now add a trace client...the only trace it will see is
+        // the modification of Test.
+
+        let token = tracedb.new_client(Duration::from_secs(100));
+        assert_eq!(
+            ParameterReply::Modified,
+            pp.process_request(modify_req("Test", None, None, None, None), &tracedb)
+        );
+        // Even though there's not actual modification the trace should fire:
+
+        let traces = tracedb.get_traces(token).expect("Getting traces");
+        assert_eq!(traces.len(), 1);
+        let trace = traces[0].event();
+        assert!(if let trace::TraceEvent::ParameterModified(name) = trace {
+            assert_eq!("Test", name);
+            true
+        } else {
+            false
+        });
+    }
+}
