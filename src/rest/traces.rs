@@ -416,4 +416,40 @@ mod trace_rest_tests {
         free_token(&client, token);
         teardown(msg_chan, &papi, &binder_api);
     }
+    #[test]
+    fn get_2() {
+        // one of each type of parameter trace:
+
+        let rocket = setup();
+        let (msg_chan, papi, binder_api, tracedb) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making client");
+        let token = get_token(&client, 10); // Need this to save traces:
+
+        tracedb.add_event(trace::TraceEvent::NewParameter(String::from("newpar")));
+        tracedb.add_event(trace::TraceEvent::ParameterModified(String::from("newpar")));
+
+        // Now fetch our traces.
+
+        let uri = format!("/fetch?token={}", token);
+        let req = client.get(&uri);
+        let response = req
+            .dispatch()
+            .into_json::<TraceGetResponse>()
+            .expect("Parsing JSon");
+
+        assert_eq!("OK", response.status);
+        assert_eq!(2, response.detail.parameter.len());
+        assert_eq!(0, response.detail.spectrum.len());
+        assert_eq!(0, response.detail.gate.len());
+        assert_eq!(0, response.detail.binding.len());
+
+        // THe first one should have "add newpar"
+        // the second "changed newpar"
+        assert_eq!("add newpar", response.detail.parameter[0]);
+        assert_eq!("changed newpar", response.detail.parameter[1]);
+
+        free_token(&client, token);
+        teardown(msg_chan, &papi, &binder_api);
+    }
 }
