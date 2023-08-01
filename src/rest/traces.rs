@@ -278,6 +278,25 @@ mod trace_rest_tests {
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
     }
+    fn get_token(client: &Client, retention: usize) -> usize {
+        let uri = format!("/establish?retention={}", retention);
+        let req = client.get(&uri);
+        let reply = req
+            .dispatch()
+            .into_json::<EstablishResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+        reply.detail
+    }
+    fn free_token(client: &Client, token: usize) {
+        let uri = format!("/done?token={}", token);
+        let req = client.get(&uri);
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+    }
     #[test]
     fn establish_1() {
         // establish a single client - our token will be 0.
@@ -403,6 +422,37 @@ mod trace_rest_tests {
             .expect("Parsing JSON");
         assert!("OK" != free_response.status);
 
+        teardown(msg_chan, &papi, &binder_api);
+    }
+    // In the tests to get traces, the simplest way to get traces inserted
+    // initially is to just put them in the tracedb ourselves.
+    //  The roundtrip tests will interact with the various trace generators
+    //  to make traces.
+    //
+    #[test]
+    fn get_1() {
+        // Nothing to trace - so we get an empty set  of arrays:
+
+        let rocket = setup();
+        let (msg_chan, papi, binder_api, _tracedb) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making client");
+        let token = get_token(&client, 10);
+
+        let uri = format!("/fetch?token={}", token);
+        let req = client.get(&uri);
+        let response = req
+            .dispatch()
+            .into_json::<TraceGetResponse>()
+            .expect("Parsing JSon");
+
+        assert_eq!("OK", response.status);
+        assert_eq!(0, response.detail.parameter.len());
+        assert_eq!(0, response.detail.spectrum.len());
+        assert_eq!(0, response.detail.gate.len());
+        assert_eq!(0, response.detail.binding.len());
+
+        free_token(&client, token);
         teardown(msg_chan, &papi, &binder_api);
     }
 }
