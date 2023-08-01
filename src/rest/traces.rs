@@ -186,8 +186,7 @@ pub fn fetch_traces(
     Json(result)
 }
 
-// Tests for the ReST interface that, by their nature are integration tests
-// for the entire tracing subsystem.
+// Tests for the ReST interface.
 
 #[cfg(test)]
 mod trace_rest_tests {
@@ -305,14 +304,8 @@ mod trace_rest_tests {
         let (msg_chan, papi, binder_api, _tracdb) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("making rocket client");
-        let request = client.get("/establish?retention=10");
-        let response = request
-            .dispatch()
-            .into_json::<EstablishResponse>()
-            .expect("Parsing JSON");
 
-        assert_eq!("OK", response.status);
-        assert_eq!(0, response.detail);
+        assert_eq!(0, get_token(&client, 10));
 
         teardown(msg_chan, &papi, &binder_api);
     }
@@ -324,24 +317,12 @@ mod trace_rest_tests {
         let (msg_chan, papi, binder_api, _tracdb) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("making rocket client");
-        let request = client.get("/establish?retention=10");
-        let response = request
-            .dispatch()
-            .into_json::<EstablishResponse>()
-            .expect("Parsing JSON");
+        let tok1 = get_token(&client, 10);
+        assert_eq!(0, tok1);
 
-        assert_eq!("OK", response.status);
-        assert_eq!(0, response.detail);
-        let tok1 = response.detail;
-
-        let request = client.get("/establish?retention=10");
-        let response = request
-            .dispatch()
-            .into_json::<EstablishResponse>()
-            .expect("Parsing JSON");
-        assert_eq!("OK", response.status);
-        assert!(tok1 != response.detail); // This is actually the only required test.
-        assert_eq!(1, response.detail); // White box knowing how they're supposed to be allocated
+        let tok2 = get_token(&client, 10);
+        assert!(tok1 != tok2); // This is actually the only required test.
+        assert_eq!(1, tok2); // White box knowing how they're supposed to be allocated
 
         teardown(msg_chan, &papi, &binder_api);
     }
@@ -371,14 +352,8 @@ mod trace_rest_tests {
         let (msg_chan, papi, binder_api, _tracedb) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Creating client");
-        let establish = client.get("/establish?retention=10");
-        let est_response = establish
-            .dispatch()
-            .into_json::<EstablishResponse>()
-            .expect("parsing JSON");
 
-        assert_eq!("OK", est_response.status);
-        let token = est_response.detail;
+        let token = get_token(&client, 10);
 
         let free_uri = format!("/done?token={}", token);
         let free = client.get(&free_uri);
@@ -398,23 +373,11 @@ mod trace_rest_tests {
         let (msg_chan, papi, binder_api, _tracedb) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Creating client");
-        let establish = client.get("/establish?retention=10");
-        let est_response = establish
-            .dispatch()
-            .into_json::<EstablishResponse>()
-            .expect("parsing JSON");
 
-        assert_eq!("OK", est_response.status);
-        let token = est_response.detail;
+        let token = get_token(&client, 10);
+        free_token(&client, token);
 
         let free_req = format!("/done?token={}", token);
-        let free = client.get(&free_req);
-        let free_response = free
-            .dispatch()
-            .into_json::<GenericResponse>()
-            .expect("Parsing JSON");
-        assert_eq!("OK", free_response.status);
-
         let free = client.get(&free_req);
         let free_response = free
             .dispatch()
@@ -425,9 +388,7 @@ mod trace_rest_tests {
         teardown(msg_chan, &papi, &binder_api);
     }
     // In the tests to get traces, the simplest way to get traces inserted
-    // initially is to just put them in the tracedb ourselves.
-    //  The roundtrip tests will interact with the various trace generators
-    //  to make traces.
+    // initially is to just put them in the tracedb ourself.
     //
     #[test]
     fn get_1() {
