@@ -528,4 +528,46 @@ mod trace_rest_tests {
         free_token(&client, token);
         teardown(msg_chan, &papi, &binder_api);
     }
+    #[test]
+    fn get_5() {
+        //binding trace handling:
+
+        let rocket = setup();
+        let (msg_chan, papi, binder_api, tracedb) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making client");
+        let token = get_token(&client, 10); // Need this to save traces:
+
+        tracedb.add_event(trace::TraceEvent::SpectrumBound {
+            name: String::from("aspec"),
+            binding_id: 123,
+        });
+        tracedb.add_event(trace::TraceEvent::SpectrumUnbound {
+            name: String::from("aspec"),
+            binding_id: 123,
+        });
+
+        // Now fetch our traces.
+
+        let uri = format!("/fetch?token={}", token);
+        let req = client.get(&uri);
+        let response = req
+            .dispatch()
+            .into_json::<TraceGetResponse>()
+            .expect("Parsing JSon");
+
+        assert_eq!("OK", response.status);
+        assert_eq!(0, response.detail.parameter.len());
+        assert_eq!(0, response.detail.spectrum.len());
+        assert_eq!(0, response.detail.gate.len());
+        assert_eq!(2, response.detail.binding.len());
+
+        // THe first one should have "add newpar"
+        // the second "changed newpar"
+
+        assert_eq!("add aspec 123", response.detail.binding[0]);
+        assert_eq!("remove aspec 123", response.detail.binding[1]);
+
+        free_token(&client, token);
+    }
 }
