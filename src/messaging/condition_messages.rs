@@ -1461,3 +1461,111 @@ mod cnd_api_tests {
         stop_server(jh, send);
     }
 }
+// Ensure that traces fire when appropriate for conditions:
+
+#[cfg(test)]
+mod condition_trace_tests {
+    use super::*;
+    use crate::trace;
+    use std::time::Duration;
+
+    #[test]
+    fn create_1() {
+        // Creating a new condition fires a condition trace:
+
+        let tracedb = trace::SharedTraceStore::new();
+        let mut cp = ConditionProcessor::new();
+
+        let token = tracedb.new_client(Duration::from_secs(10));
+
+        let rep = cp.process_request(
+            ConditionMessageClient::make_true_creation("true-condition"),
+            &tracedb,
+        );
+        assert_eq!(ConditionReply::Created, rep);
+
+        // check for the trace:
+
+        let traces = tracedb.get_traces(token).expect("Getting traces");
+        assert_eq!(1, traces.len());
+
+        assert!(
+            if let trace::TraceEvent::ConditionCreated(name) = traces[0].event() {
+                assert_eq!("true-condition", name);
+                true
+            } else {
+                false
+            }
+        )
+    }
+    #[test]
+    fn modify_1() {
+        // Create a condition; modifying its definition results in a ConditionModified trace:
+
+        let tracedb = trace::SharedTraceStore::new();
+        let mut cp = ConditionProcessor::new();
+
+        let rep = cp.process_request(
+            ConditionMessageClient::make_true_creation("true-condition"),
+            &tracedb,
+        );
+        assert_eq!(ConditionReply::Created, rep);
+
+        // Registering the trace client here makes sure we don't get the crated trace:
+
+        let token = tracedb.new_client(Duration::from_secs(10));
+
+        let rep = cp.process_request(
+            ConditionMessageClient::make_false_creation("true-condition"),
+            &tracedb,
+        );
+        assert_eq!(ConditionReply::Replaced, rep);
+
+        let traces = tracedb.get_traces(token).expect("Getting traces");
+        assert_eq!(1, traces.len());
+
+        assert!(
+            if let trace::TraceEvent::ConditionModified(name) = traces[0].event() {
+                assert_eq!("true-condition", name);
+                true
+            } else {
+                false
+            }
+        )
+    }
+    #[test]
+    fn delete_1() {
+        // make sure that deleting a condition fires a trace:
+
+        let tracedb = trace::SharedTraceStore::new();
+        let mut cp = ConditionProcessor::new();
+
+        let rep = cp.process_request(
+            ConditionMessageClient::make_true_creation("true-condition"),
+            &tracedb,
+        );
+        assert_eq!(ConditionReply::Created, rep);
+
+        // Registering the trace client here makes sure we don't get the crated trace:
+
+        let token = tracedb.new_client(Duration::from_secs(10));
+
+        let rep = cp.process_request(
+            ConditionMessageClient::make_delete("true-condition"),
+            &tracedb,
+        );
+        assert_eq!(ConditionReply::Deleted, rep);
+
+        let traces = tracedb.get_traces(token).expect("Getting traces");
+        assert_eq!(1, traces.len());
+
+        assert!(
+            if let trace::TraceEvent::ConditionDeleted(name) = traces[0].event() {
+                assert_eq!("true-condition", name);
+                true
+            } else {
+                false
+            }
+        )
+    }
+}
