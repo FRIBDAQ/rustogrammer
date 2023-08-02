@@ -102,7 +102,7 @@ pub struct TraceStore {
 /// API instead and hide all the lock().unwrap.crap() needed to
 /// get me the trace store to operate on _and) maybe the
 /// result can be Sendable.
-/// 
+///
 
 pub struct SharedTraceStore {
     store: Arc<Mutex<TraceStore>>,
@@ -175,7 +175,7 @@ impl SharedTraceStore {
         let mut store = self.store.lock().unwrap();
 
         if store.client_traces.contains_key(&token) {
-            let  mut traces = store.client_traces.get_mut(&token).unwrap();
+            let mut traces = store.client_traces.get_mut(&token).unwrap();
             let result = traces.trace_store.clone();
             traces.trace_store.clear();
             Ok(result)

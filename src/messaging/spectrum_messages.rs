@@ -4914,3 +4914,121 @@ mod spectrum_api_tests {
         stop_server(jh, send);
     }
 }
+// Tests that spectrum traces actually happen:
+
+#[cfg(test)]
+mod spectrum_trace_tests {
+    use super::*;
+    use crate::conditions::*;
+    use crate::parameters::*;
+    use crate::trace;
+    //use std::cmp::Ordering;
+    use std::time::Duration;
+
+    // for most of the tests we need, not only a SpectrumProcessor
+    // but a condition dict, and a parameter dict:
+
+    struct TestObjects {
+        processor: SpectrumProcessor,
+        parameters: ParameterDictionary,
+        conditions: ConditionDictionary,
+        tracedb: trace::SharedTraceStore,
+    }
+    fn make_test_objs() -> TestObjects {
+        TestObjects {
+            processor: SpectrumProcessor::new(),
+            parameters: ParameterDictionary::new(),
+            conditions: ConditionDictionary::new(),
+            tracedb: trace::SharedTraceStore::new(),
+        }
+    }
+    fn make_some_params(to: &mut TestObjects) {
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            to.parameters.add(&name).unwrap();
+        }
+    }
+    #[test]
+    fn create_1() {
+        // Creating a new spectrm fires a trace event:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to); // Before registring the trace client!
+
+        let token = to.tracedb.new_client(Duration::from_secs(100));
+
+        to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        // A spectrum created trace should be ready for us:
+
+        let traces = to.tracedb.get_traces(token).expect("Fetching traces.");
+        assert_eq!(1, traces.len());
+        assert!(
+            if let trace::TraceEvent::SpectrumCreated(name) = traces[0].event() {
+                assert_eq!("test", name);
+                true
+            } else {
+                false
+            }
+        );
+    }
+    #[test]
+    fn delete_1() {
+        // deleting a spectrum makes a SpectrumDeleted event:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to); // Before registring the trace client!
+
+        // Register the client after creation so we don't get a trace for it:
+
+        to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        let token = to.tracedb.new_client(Duration::from_secs(100));
+
+        to.processor.process_request(
+            SpectrumRequest::Delete(String::from("test")),
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        // A spectrum created trace should be ready for us:
+
+        let traces = to.tracedb.get_traces(token).expect("Fetching traces.");
+        assert_eq!(1, traces.len());
+        assert!(
+            if let trace::TraceEvent::SpectrumDeleted(name) = traces[0].event() {
+                assert_eq!("test", name);
+                true
+            } else {
+                false
+            }
+        );
+    }
+}
