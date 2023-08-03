@@ -6,9 +6,9 @@
 use super::*;
 use crate::sharedmem::binder::BindingApi;
 use crate::sharedmem::XamineSharedMemory;
-use std::mem;
 use rocket::{serde::json::Json, serde::Deserialize, serde::Serialize, State};
 use std::env;
+use std::mem;
 
 //----------------------------------------------------------------
 // /spectcl/shmem domain implementation:
@@ -59,9 +59,9 @@ pub fn shmem_size(state: &State<HistogramState>) -> Json<GenericResponse> {
 
     let response = match info {
         Ok(stats) => {
-	    let spectrum_size = stats.total_size as usize - mem::size_of::<XamineSharedMemory>();
-	    GenericResponse::ok(&(spectrum_size.to_string()))
-        },
+            let spectrum_size = stats.total_size as usize - mem::size_of::<XamineSharedMemory>();
+            GenericResponse::ok(&(spectrum_size.to_string()))
+        }
         Err(reason) => GenericResponse::err("Could not get shared memory size", &reason),
     };
     Json(response)
@@ -175,7 +175,9 @@ mod shm_tests {
     use crate::messaging;
     use crate::processing;
     use crate::rest::HistogramState;
-    use crate::sharedmem::{XamineSharedMemory, binder};
+    use crate::sharedmem::{binder, XamineSharedMemory};
+    use crate::trace;
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -188,9 +190,10 @@ mod shm_tests {
     use std::time;
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -208,6 +211,7 @@ mod shm_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![shmem_name, shmem_size, get_variables])
     }
     fn getstate(
@@ -292,7 +296,7 @@ mod shm_tests {
 
         assert_eq!("OK", reply.status);
         let usage = binder_api.get_usage().expect("Getting usage via API");
-	let expected = usage.total_size - mem::size_of::<XamineSharedMemory>();
+        let expected = usage.total_size - mem::size_of::<XamineSharedMemory>();
         assert_eq!(expected.to_string(), reply.detail);
 
         teardown(chan, &papi, &binder_api);

@@ -64,6 +64,7 @@ mod integrate_tests {
     use crate::processing;
     use crate::rest::HistogramState;
     use crate::sharedmem::binder;
+    use crate::trace;
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -72,7 +73,8 @@ mod integrate_tests {
     use std::sync::{mpsc, Arc, Mutex};
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
         let (binder_req, _rx): (
             mpsc::Sender<binder::Request>,
             mpsc::Receiver<binder::Request>,
@@ -89,7 +91,10 @@ mod integrate_tests {
             mirror_port: 0,
         };
 
-        rocket::build().manage(state).mount("/", routes![integrate])
+        rocket::build()
+            .manage(state)
+            .manage(tracedb.clone())
+            .mount("/", routes![integrate])
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
         histogramer::stop_server(&c);

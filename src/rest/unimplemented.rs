@@ -21,7 +21,6 @@
 //! *   roottree - Root tree creation is something that should be done
 //! by other parts of the analysis pipeline.   Not Rustogramer.
 //! *   script - There is on command language to script.
-//! *   trace  - This is scheduled for implementation, if needed, in version 0.2
 //! I believe it might be needed for the tree GUI.
 //! *   treevariable - See pseudo for the rationale.  Treevariables are
 //! supported by the analysis pipeline.
@@ -267,60 +266,6 @@ pub fn script_execute(command: String) -> Json<GenericResponse> {
         "This is not SpecTcl",
     ))
 }
-//---------------------------------------------------------------
-// Traces - these are scheduled for a later relese
-//
-
-/// Establish a trace.
-#[allow(unused_variables)]
-#[get("/establish?<retention>")]
-pub fn trace_establish(retention: usize) -> Json<GenericResponse> {
-    Json(GenericResponse::err(
-        "Traces are not supported",
-        "This is not SpecTcl",
-    ))
-}
-/// Kill a trace
-#[allow(unused_variables)]
-#[get("/done?<token>")]
-pub fn trace_done(token: String) -> Json<GenericResponse> {
-    Json(GenericResponse::err(
-        "Traces are not supported",
-        "This is not SpecTcl",
-    ))
-}
-
-// Trace information:
-
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
-pub struct TraceInfo {
-    parameter: Vec<String>,
-    spectrum: Vec<String>,
-    gate: Vec<String>,
-    binding: Vec<String>,
-}
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
-pub struct TraceListResponse {
-    status: String,
-    detail: TraceInfo,
-}
-
-/// Get trace data
-#[allow(unused_variables)]
-#[get("/fetch?<token>")]
-pub fn trace_fetch(token: String) -> Json<TraceListResponse> {
-    Json(TraceListResponse {
-        status: String::from("Traces are not supported,  This is not SpecTcl"),
-        detail: TraceInfo {
-            parameter: vec![],
-            spectrum: vec![],
-            gate: vec![],
-            binding: vec![],
-        },
-    })
-}
 //---------------------------------------------------------------------
 // tree variables.
 
@@ -391,6 +336,7 @@ mod pipeline_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -403,9 +349,10 @@ mod pipeline_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -421,7 +368,7 @@ mod pipeline_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount(
+        rocket::build().manage(state).manage(tracedb.clone()).mount(
             "/",
             routes![
                 pman_create,
@@ -663,6 +610,7 @@ mod project_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -675,9 +623,10 @@ mod project_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -693,7 +642,10 @@ mod project_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount("/", routes![project])
+        rocket::build()
+            .manage(state)
+            .manage(tracedb.clone())
+            .mount("/", routes![project])
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -759,6 +711,7 @@ mod pseudo_test {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -771,9 +724,10 @@ mod pseudo_test {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -791,6 +745,7 @@ mod pseudo_test {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![pseudo_create, pseudo_list, pseudo_delete])
     }
     fn getstate(
@@ -894,6 +849,7 @@ mod roottree_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -907,9 +863,10 @@ mod roottree_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -925,7 +882,7 @@ mod roottree_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount(
+        rocket::build().manage(state).manage(tracedb.clone()).mount(
             "/",
             routes![roottree_create, roottree_delete, roottree_list],
         )
@@ -1031,6 +988,7 @@ mod script_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -1044,9 +1002,10 @@ mod script_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -1064,6 +1023,7 @@ mod script_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![script_execute])
     }
     fn getstate(
@@ -1126,149 +1086,11 @@ mod script_tests {
     }
 }
 #[cfg(test)]
-mod trace_tests {
-    use super::*;
-    use crate::histogramer;
-    use crate::messaging;
-
-    use rocket;
-    use rocket::local::blocking::Client;
-    use rocket::Build;
-    use rocket::Rocket;
-
-    use std::fs;
-    use std::path::Path;
-    use std::sync::mpsc;
-    use std::sync::Mutex;
-    use std::thread;
-    use std::time;
-    fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
-
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
-
-        // Construct the state:
-
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        // Note we have two domains here because of the SpecTcl
-        // divsion between tree parameters and raw parameters.
-
-        rocket::build()
-            .manage(state)
-            .mount("/", routes![trace_establish, trace_done, trace_fetch])
-    }
-    fn getstate(
-        r: &Rocket<Build>,
-    ) -> (
-        mpsc::Sender<messaging::Request>,
-        processing::ProcessingApi,
-        binder::BindingApi,
-    ) {
-        let chan = r
-            .state::<HistogramState>()
-            .expect("Valid state")
-            .histogramer
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<HistogramState>()
-            .expect("Valid State")
-            .processing
-            .lock()
-            .unwrap()
-            .clone();
-        let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
-                .expect("Valid State")
-                .binder
-                .lock()
-                .unwrap(),
-        );
-        (chan, papi, binder_api)
-    }
-    fn teardown(
-        c: mpsc::Sender<messaging::Request>,
-        p: &processing::ProcessingApi,
-        b: &binder::BindingApi,
-    ) {
-        let backing_file = b.exit().expect("Forcing binding thread to exit");
-        thread::sleep(time::Duration::from_millis(100));
-        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
-    }
-    #[test]
-    fn establish_1() {
-        let rocket = setup();
-        let (chan, papi, bapi) = getstate(&rocket);
-
-        let client = Client::untracked(rocket).expect("Making rocket client");
-        let req = client.get("/establish?retention=100");
-        let reply = req
-            .dispatch()
-            .into_json::<GenericResponse>()
-            .expect("Parsing JSON");
-
-        assert_eq!("Traces are not supported", reply.status);
-        assert_eq!("This is not SpecTcl", reply.detail);
-
-        teardown(chan, &papi, &bapi);
-    }
-    #[test]
-    fn done_1() {
-        let rocket = setup();
-        let (chan, papi, bapi) = getstate(&rocket);
-
-        let client = Client::untracked(rocket).expect("Making rocket client");
-        let req = client.get("/done?token=123456789");
-        let reply = req
-            .dispatch()
-            .into_json::<GenericResponse>()
-            .expect("Parsing JSON");
-
-        assert_eq!("Traces are not supported", reply.status);
-        assert_eq!("This is not SpecTcl", reply.detail);
-
-        teardown(chan, &papi, &bapi);
-    }
-    #[test]
-    fn fetch_1() {
-        let rocket = setup();
-        let (chan, papi, bapi) = getstate(&rocket);
-
-        let client = Client::untracked(rocket).expect("Making rocket client");
-        let req = client.get("/fetch?token=123467890");
-        let reply = req
-            .dispatch()
-            .into_json::<TraceListResponse>()
-            .expect("Parsing JSON");
-
-        assert_eq!(
-            "Traces are not supported,  This is not SpecTcl",
-            reply.status
-        );
-        assert_eq!(0, reply.detail.parameter.len());
-        assert_eq!(0, reply.detail.spectrum.len());
-        assert_eq!(0, reply.detail.gate.len());
-        assert_eq!(0, reply.detail.binding.len());
-
-        teardown(chan, &papi, &bapi);
-    }
-}
-#[cfg(test)]
 mod treevar_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -1282,9 +1104,10 @@ mod treevar_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -1300,7 +1123,7 @@ mod treevar_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount(
+        rocket::build().manage(state).manage(tracedb.clone()).mount(
             "/",
             routes![
                 treevariable_list,

@@ -13,6 +13,7 @@ use rocket::Shutdown;
 use super::*; // For generic response.
 use crate::histogramer;
 use crate::sharedmem::binder::BindingApi;
+use crate::trace;
 use std::fs;
 use std::net::TcpStream;
 use std::path::Path;
@@ -22,7 +23,16 @@ use std::time;
 /// This performs the shutdown:
 ///
 #[get["/"]]
-pub fn shutdown(shutdown: Shutdown, state: &State<HistogramState>) -> Json<GenericResponse> {
+pub fn shutdown(
+    shutdown: Shutdown,
+    state: &State<HistogramState>,
+    tracedb: &State<trace::SharedTraceStore>,
+) -> Json<GenericResponse> {
+    // Stop the trace prune thread (or rather schedule it to stop - within
+    // one second it will stop).
+
+    tracedb.inner().stop_prune();
+
     // Shutdown the processor:
 
     let prc_api = state.inner().processing.lock().unwrap();

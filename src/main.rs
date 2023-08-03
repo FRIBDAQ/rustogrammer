@@ -1,9 +1,3 @@
-//! Todo:
-//!  *  Get the port number from the commandl ine
-//!  *  Allow that port number to be 'managed' which means get it
-//!from the port manager.
-//!  *  Get the shared memory size from the command line.
-//!
 mod conditions;
 mod histogramer;
 mod messaging;
@@ -14,13 +8,14 @@ mod ring_items;
 mod sharedmem;
 mod spectclio;
 mod spectra;
+mod trace;
 
 use clap::Parser;
 use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, getstats,
     integrate, mirror_list, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, unbind,
-    unimplemented, version,
+    unimplemented, version, traces
 };
 use sharedmem::{binder, mirror};
 use std::env;
@@ -62,13 +57,22 @@ struct Args {
 fn rocket() -> _ {
     let args = Args::parse();
 
-    // For now to ensure the join handle and channel don't get
-    // dropped start the histogram server in a thread:
+    // Create the trace database and start its prune thread.
+    // we will make a separate state for it.
+
+    let trace_store = trace::SharedTraceStore::new();
+    trace_store.start_prune_thread();
+
+    // start the histogram server in a thread:
     //
 
-    let (_, histogramer_channel) = histogramer::start_server();
+    let (_, histogramer_channel) = histogramer::start_server(trace_store.clone());
     let processor = processing::ProcessingApi::new(&histogramer_channel);
-    let binder = binder::start_server(&histogramer_channel, args.shm_mbytes * 1024 * 1024);
+    let binder = binder::start_server(
+        &histogramer_channel,
+        args.shm_mbytes * 1024 * 1024,
+        &trace_store,
+    );
 
     let (rest_port, mirror_port, client) = get_ports(&args);
 
@@ -108,6 +112,7 @@ fn rocket() -> _ {
     rocket::build()
         .manage(mirror_directory.clone())
         .manage(state)
+        .manage(trace_store.clone())
         .mount(
             "/spectcl/parameter",
             routes![
@@ -247,14 +252,6 @@ fn rocket() -> _ {
         )
         .mount("/spectcl/script", routes![unimplemented::script_execute])
         .mount(
-            "/spectcl/trace",
-            routes![
-                unimplemented::trace_establish,
-                unimplemented::trace_done,
-                unimplemented::trace_fetch
-            ],
-        )
-        .mount(
             "/spectcl/treevariable",
             routes![
                 unimplemented::treevariable_list,
@@ -273,6 +270,7 @@ fn rocket() -> _ {
         .mount("/spectcl/specstats", routes![getstats::get_statistics])
         .mount("/spectcl/swrite", routes![spectrumio::swrite_handler])
         .mount("/spectcl/sread", routes![spectrumio::sread_handler])
+        .mount("/spectcl/trace", routes![traces::establish_trace, traces::trace_done, traces::fetch_traces])
 }
 ///
 /// Gets the port to use for our REST service.

@@ -20,6 +20,7 @@ use super::Request;
 use glob::Pattern;
 
 use crate::parameters::{Parameter, ParameterDictionary};
+use crate::trace;
 use std::sync::mpsc;
 
 /// ParameterRequest
@@ -203,11 +204,14 @@ impl ParameterProcessor {
 
     // Create a new parameter
 
-    fn create(&mut self, name: &str) -> ParameterReply {
+    fn create(&mut self, name: &str, tracedb: &trace::SharedTraceStore) -> ParameterReply {
         let result = self.dict.add(name);
         match result {
             Err(s) => ParameterReply::Error(s),
-            Ok(_) => ParameterReply::Created,
+            Ok(_) => {
+                tracedb.add_event(trace::TraceEvent::NewParameter(String::from(name)));
+                ParameterReply::Created
+            }
         }
     }
     fn list(&self, pattern: &str) -> ParameterReply {
@@ -231,6 +235,7 @@ impl ParameterProcessor {
         limits: Option<(f64, f64)>,
         units: Option<String>,
         desc: Option<String>,
+        tracedb: &trace::SharedTraceStore,
     ) -> ParameterReply {
         if let Some(p) = self.dict.lookup_mut(name) {
             if bins.is_some() {
@@ -246,6 +251,7 @@ impl ParameterProcessor {
             if desc.is_some() {
                 p.set_description(&desc.unwrap());
             }
+            tracedb.add_event(trace::TraceEvent::ParameterModified(String::from(name)));
             ParameterReply::Modified
         } else {
             ParameterReply::Error(format!("Parameter {} does not exist", name))
@@ -260,9 +266,13 @@ impl ParameterProcessor {
     }
     /// Process a request returning the reply.
     ///
-    pub fn process_request(&mut self, req: ParameterRequest) -> ParameterReply {
+    pub fn process_request(
+        &mut self,
+        req: ParameterRequest,
+        tracedb: &trace::SharedTraceStore,
+    ) -> ParameterReply {
         match req {
-            ParameterRequest::Create(name) => self.create(&name),
+            ParameterRequest::Create(name) => self.create(&name, &tracedb),
             ParameterRequest::List(pattern) => self.list(&pattern),
             ParameterRequest::SetMetaData {
                 name,
@@ -270,7 +280,7 @@ impl ParameterProcessor {
                 limits,
                 units,
                 description,
-            } => self.modify(&name, bins, limits, units, description),
+            } => self.modify(&name, bins, limits, units, description, &tracedb),
         }
     }
     pub fn get_dict(&mut self) -> &mut ParameterDictionary {
@@ -464,16 +474,17 @@ mod pprocessor_tests {
     //
     fn create_some_params() -> ParameterProcessor {
         let mut p = ParameterProcessor::new();
+        let tracedb = trace::SharedTraceStore::new();
         for i in 0..10 {
             let name = format!("param.{}", i);
             assert_eq!(
                 ParameterReply::Created,
-                p.process_request(create_req(&name))
+                p.process_request(create_req(&name), &tracedb)
             );
             let name = format!("others.{}", i);
             assert_eq!(
                 ParameterReply::Created,
-                p.process_request(create_req(&name))
+                p.process_request(create_req(&name), &tracedb)
             );
         }
 
@@ -491,8 +502,9 @@ mod pprocessor_tests {
         // Should return Created reply:
 
         let mut pp = ParameterProcessor::new();
+        let tracedb = trace::SharedTraceStore::new();
 
-        let result = pp.process_request(create_req("Test"));
+        let result = pp.process_request(create_req("Test"), &tracedb);
         assert_eq!(ParameterReply::Created, result);
 
         // Make sure the parameter is in the dict and properly formed:
@@ -511,8 +523,10 @@ mod pprocessor_tests {
         // Adding a duplicate fails with that reply.
 
         let mut pp = ParameterProcessor::new();
+        let tracedb = trace::SharedTraceStore::new();
+
         pp.dict.add("test").expect("Failed to add to empty dict");
-        let result = pp.process_request(create_req("test"));
+        let result = pp.process_request(create_req("test"), &tracedb);
         if let ParameterReply::Error(_) = result {
             assert!(true); // Correct result.
         } else {
@@ -524,14 +538,15 @@ mod pprocessor_tests {
         // add several parameters:
 
         let mut pp = ParameterProcessor::new();
+        let tracedb = trace::SharedTraceStore::new();
 
-        if let ParameterReply::Error(s) = pp.process_request(create_req("test.1")) {
+        if let ParameterReply::Error(s) = pp.process_request(create_req("test.1"), &tracedb) {
             panic!("{}", s);
         }
-        if let ParameterReply::Error(s) = pp.process_request(create_req("test.2")) {
+        if let ParameterReply::Error(s) = pp.process_request(create_req("test.2"), &tracedb) {
             panic!("{}", s);
         }
-        if let ParameterReply::Error(s) = pp.process_request(create_req("test.3")) {
+        if let ParameterReply::Error(s) = pp.process_request(create_req("test.3"), &tracedb) {
             panic!("{}", s);
         }
 
@@ -545,8 +560,9 @@ mod pprocessor_tests {
         // all inclusive list:
 
         let mut pp = create_some_params();
+        let tracedb = trace::SharedTraceStore::new();
 
-        if let ParameterReply::Listing(v) = pp.process_request(list_req("*")) {
+        if let ParameterReply::Listing(v) = pp.process_request(list_req("*"), &tracedb) {
             assert_eq!(20, v.len());
             // We're not gauranteed about the order of parameter names
             // so make a set with all of them.  Meanwhile we expect:
@@ -572,9 +588,9 @@ mod pprocessor_tests {
     #[test]
     fn list_2() {
         // list with pattern:
-
+        let tracedb = trace::SharedTraceStore::new();
         let mut pp = create_some_params();
-        if let ParameterReply::Listing(v) = pp.process_request(list_req("param.*")) {
+        if let ParameterReply::Listing(v) = pp.process_request(list_req("param.*"), &tracedb) {
             assert_eq!(10, v.len());
             let expected_names = vec![
                 "param.1", "param.2", "param.3", "param.4", "param.5", "param.6", "param.7",
@@ -593,9 +609,10 @@ mod pprocessor_tests {
     }
     #[test]
     fn list_3() {
+        let tracedb = trace::SharedTraceStore::new();
         // Pattern with no matches - ok but emtpy list
         let mut pp = create_some_params();
-        if let ParameterReply::Listing(v) = pp.process_request(list_req("junk*")) {
+        if let ParameterReply::Listing(v) = pp.process_request(list_req("junk*"), &tracedb) {
             assert_eq!(0, v.len());
         } else {
             panic!("process_request for list returned the wrong reply type");
@@ -605,7 +622,8 @@ mod pprocessor_tests {
     fn list_4() {
         // Glob pattern syntax errors ->Error return.
         let mut pp = create_some_params();
-        if let ParameterReply::Error(_) = pp.process_request(list_req("p[")) {
+        let tracedb = trace::SharedTraceStore::new();
+        if let ParameterReply::Error(_) = pp.process_request(list_req("p["), &tracedb) {
             assert!(true);
         } else {
             panic!("Bad glob pattern was ok.")
@@ -616,10 +634,12 @@ mod pprocessor_tests {
         // Modify bins the metadata for an existing parameter:
 
         let mut pp = create_some_params();
-        if let ParameterReply::Modified =
-            pp.process_request(modify_req("param.1", Some(1024), None, None, None))
-        {
-            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1")) {
+        let tracedb = trace::SharedTraceStore::new();
+        if let ParameterReply::Modified = pp.process_request(
+            modify_req("param.1", Some(1024), None, None, None),
+            &tracedb,
+        ) {
+            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1"), &tracedb) {
                 assert_eq!(1, v.len());
                 assert_eq!(String::from("param.1"), v[0].get_name());
                 let bins = v[0].get_bins();
@@ -636,14 +656,12 @@ mod pprocessor_tests {
     fn modify_2() {
         // modify limits for an existing parameter:
         let mut pp = create_some_params();
-        if let ParameterReply::Modified = pp.process_request(modify_req(
-            "param.1",
-            Some(1024),
-            Some((0.0, 2048.0)),
-            None,
-            None,
-        )) {
-            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1")) {
+        let tracedb = trace::SharedTraceStore::new();
+        if let ParameterReply::Modified = pp.process_request(
+            modify_req("param.1", Some(1024), Some((0.0, 2048.0)), None, None),
+            &tracedb,
+        ) {
+            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1"), &tracedb) {
                 assert_eq!(1, v.len());
                 assert_eq!(String::from("param.1"), v[0].get_name());
                 let bins = v[0].get_bins();
@@ -667,14 +685,18 @@ mod pprocessor_tests {
         // test ability to modify the units of a parameter:
 
         let mut pp = create_some_params();
-        if let ParameterReply::Modified = pp.process_request(modify_req(
-            "param.1",
-            Some(1024),
-            Some((0.0, 2048.0)),
-            Some(String::from("cm")),
-            None,
-        )) {
-            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1")) {
+        let tracedb = trace::SharedTraceStore::new();
+        if let ParameterReply::Modified = pp.process_request(
+            modify_req(
+                "param.1",
+                Some(1024),
+                Some((0.0, 2048.0)),
+                Some(String::from("cm")),
+                None,
+            ),
+            &tracedb,
+        ) {
+            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1"), &tracedb) {
                 assert_eq!(1, v.len());
                 assert_eq!(String::from("param.1"), v[0].get_name());
                 let bins = v[0].get_bins();
@@ -702,14 +724,18 @@ mod pprocessor_tests {
         // test ability to modify description
 
         let mut pp = create_some_params();
-        if let ParameterReply::Modified = pp.process_request(modify_req(
-            "param.1",
-            Some(1024),
-            Some((0.0, 2048.0)),
-            Some(String::from("cm")),
-            Some(String::from("A test parameter")),
-        )) {
-            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1")) {
+        let tracedb = trace::SharedTraceStore::new();
+        if let ParameterReply::Modified = pp.process_request(
+            modify_req(
+                "param.1",
+                Some(1024),
+                Some((0.0, 2048.0)),
+                Some(String::from("cm")),
+                Some(String::from("A test parameter")),
+            ),
+            &tracedb,
+        ) {
+            if let ParameterReply::Listing(v) = pp.process_request(list_req("param.1"), &tracedb) {
                 assert_eq!(1, v.len());
                 assert_eq!(String::from("param.1"), v[0].get_name());
                 let bins = v[0].get_bins();
@@ -740,12 +766,99 @@ mod pprocessor_tests {
         // modify of nonexisting parameter results in an error:
 
         let mut pp = create_some_params();
-        if let ParameterReply::Error(_) =
-            pp.process_request(modify_req("no.such.parameter", None, None, None, None))
-        {
+        let tracedb = trace::SharedTraceStore::new();
+        if let ParameterReply::Error(_) = pp.process_request(
+            modify_req("no.such.parameter", None, None, None, None),
+            &tracedb,
+        ) {
             assert!(true);
         } else {
             panic!("Return for modifying no such parameter is not an error!");
         }
+    }
+}
+// Test tracing
+
+#[cfg(test)]
+mod parameter_traces {
+    use super::*;
+    use crate::trace;
+    use std::time::Duration;
+
+    fn create_req(name: &str) -> ParameterRequest {
+        let result = ParameterMessageClient::make_create_request(name);
+        if let MessageType::Parameter(req) = result {
+            return req;
+        } else {
+            panic!("make_create_request did not make a ParameterRequest object");
+        }
+    }
+    fn modify_req(
+        name: &str,
+        bins: Option<u32>,
+        limits: Option<(f64, f64)>,
+        units: Option<String>,
+        description: Option<String>,
+    ) -> ParameterRequest {
+        let result =
+            ParameterMessageClient::make_modify_request(name, bins, limits, units, description);
+        if let MessageType::Parameter(req) = result {
+            return req;
+        } else {
+            panic!("make_mdify_request did not make a parameter request object");
+        }
+    }
+    #[test]
+    fn create_1() {
+        // making a parmeter fires a trace:
+
+        let tracedb = trace::SharedTraceStore::new();
+        let token = tracedb.new_client(Duration::from_secs(100));
+        let mut pp = ParameterProcessor::new();
+        assert_eq!(
+            ParameterReply::Created,
+            pp.process_request(create_req("Test"), &tracedb)
+        );
+
+        // Should be a trace for our token:
+
+        let traces = tracedb.get_traces(token).expect("Getting traces");
+        assert_eq!(traces.len(), 1);
+        let trace = traces[0].event();
+        assert!(if let trace::TraceEvent::NewParameter(name) = trace {
+            assert_eq!("Test", name);
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn modify_1() {
+        let tracedb = trace::SharedTraceStore::new();
+        let mut pp = ParameterProcessor::new();
+        assert_eq!(
+            ParameterReply::Created,
+            pp.process_request(create_req("Test"), &tracedb)
+        );
+
+        // Now add a trace client...the only trace it will see is
+        // the modification of Test.
+
+        let token = tracedb.new_client(Duration::from_secs(100));
+        assert_eq!(
+            ParameterReply::Modified,
+            pp.process_request(modify_req("Test", None, None, None, None), &tracedb)
+        );
+        // Even though there's not actual modification the trace should fire:
+
+        let traces = tracedb.get_traces(token).expect("Getting traces");
+        assert_eq!(traces.len(), 1);
+        let trace = traces[0].event();
+        assert!(if let trace::TraceEvent::ParameterModified(name) = trace {
+            assert_eq!("Test", name);
+            true
+        } else {
+            false
+        });
     }
 }

@@ -1021,6 +1021,8 @@ mod spectrum_tests {
     use crate::processing;
     use crate::rest::HistogramState;
     use crate::sharedmem::binder;
+    use crate::trace;
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -1151,9 +1153,10 @@ mod spectrum_tests {
     }
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -1174,7 +1177,7 @@ mod spectrum_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).mount(
+        rocket::build().manage(state).manage(tracedb.clone()).mount(
             "/",
             routes![
                 list_spectrum,

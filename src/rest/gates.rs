@@ -448,6 +448,7 @@ mod gate_tests {
     use crate::messaging::{condition_messages, parameter_messages};
     use crate::processing;
     use crate::sharedmem::binder;
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -458,7 +459,8 @@ mod gate_tests {
     // note these are all unimplemented URLS so...
 
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
         let (binder_req, _rx): (
             mpsc::Sender<binder::Request>,
             mpsc::Receiver<binder::Request>,
@@ -477,6 +479,7 @@ mod gate_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![list_gates, delete_gate, edit_gate])
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {

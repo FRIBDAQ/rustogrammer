@@ -12,6 +12,8 @@
 
 use crate::messaging;
 use crate::messaging::spectrum_messages;
+use crate::trace;
+
 use glob::Pattern;
 use std::sync::mpsc;
 use std::thread;
@@ -109,6 +111,7 @@ struct BindingThread {
     spectrum_api: spectrum_messages::SpectrumMessageClient,
     timeout: u64,
     shm: super::SharedMemory,
+    trace_db: trace::SharedTraceStore,
 }
 
 impl BindingThread {
@@ -129,6 +132,10 @@ impl BindingThread {
     fn unbind(&mut self, name: &str) -> Result<(), String> {
         if let Some(slot) = self.find_binding(name) {
             self.shm.unbind(slot);
+            self.trace_db.add_event(trace::TraceEvent::SpectrumUnbound {
+                name: String::from(name),
+                binding_id: slot,
+            });
             Ok(())
         } else {
             Err(String::from("Spectrum is not bound"))
@@ -149,6 +156,10 @@ impl BindingThread {
                 Ok((slot, _)) => {
                     self.shm.clear_contents(slot);
                     self.update_spectrum((slot, String::from(name)));
+                    self.trace_db.add_event(trace::TraceEvent::SpectrumBound {
+                        name: String::from(name),
+                        binding_id: slot,
+                    });
                     Ok(())
                 }
                 Err(s) => Err(s),
@@ -321,6 +332,10 @@ impl BindingThread {
                 for b in self.shm.get_bindings() {
                     // Too simple to need an fn.
                     self.shm.unbind(b.0);
+                    self.trace_db.add_event(trace::TraceEvent::SpectrumUnbound {
+                        name: b.1,
+                        binding_id: b.0,
+                    });
                 }
                 req.reply_chan
                     .send(Reply::Generic(GenericResult::Ok(())))
@@ -391,6 +406,7 @@ impl BindingThread {
         req: mpsc::Receiver<Request>,
         api_chan: &mpsc::Sender<messaging::Request>,
         spec_size: usize,
+        tracer: &trace::SharedTraceStore,
     ) -> BindingThread {
         BindingThread {
             request_chan: req,
@@ -398,6 +414,7 @@ impl BindingThread {
             timeout: DEFAULT_TIMEOUT,
             shm: super::SharedMemory::new(spec_size)
                 .expect("Failed to create shared memory region!!"),
+            trace_db: tracer.clone(),
         }
     }
     /// Runs the thread.  See the struct comments for a reasonably
@@ -435,11 +452,13 @@ impl BindingThread {
 pub fn start_server(
     hreq_chan: &mpsc::Sender<messaging::Request>,
     spectrum_bytes: usize,
+    trace_db: &trace::SharedTraceStore,
 ) -> (mpsc::Sender<Request>, thread::JoinHandle<()>) {
     let (sender, receiver) = mpsc::channel();
     let hreq = hreq_chan.clone();
+    let thread_trace_db = trace_db.clone();
     let join_handle = thread::spawn(move || {
-        let mut t = BindingThread::new(receiver, &hreq, spectrum_bytes);
+        let mut t = BindingThread::new(receiver, &hreq, spectrum_bytes, &thread_trace_db);
         t.run();
     });
     (sender, join_handle)
@@ -695,5 +714,194 @@ impl BindingApi {
             Reply::String(r) => r,
             _ => Err(String::from("Unexpected reply type from BindingServer")),
         }
+    }
+}
+
+// Test trace firing:
+
+#[cfg(test)]
+mod sbind_trace_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::trace;
+    use std::collections::HashSet;
+    use std::sync::mpsc;
+    use std::thread;
+    use std::time::Duration;
+
+    // We must create the test objects:
+    // Shared trace store.
+    // histogram server and API.
+    // Binder server and API.
+    // We'll return the Parameter and Histogram request channels,
+    // as well as the request channel for the binder
+    //  Join handles for both servers,
+    //  The shared trace store.
+    //
+
+    fn start_servers() -> (
+        mpsc::Sender<messaging::Request>,
+        mpsc::Sender<Request>, // Binder.
+        trace::SharedTraceStore,
+        thread::JoinHandle<()>, // Histogrammer thread
+        thread::JoinHandle<()>, // Binder thread
+    ) {
+        let tracedb = trace::SharedTraceStore::new();
+        let (histogram_join, histogram_request) = histogramer::start_server(tracedb.clone());
+        let (binder_req, binder_join) = start_server(&histogram_request, 1024 * 1024, &tracedb);
+
+        (
+            histogram_request,
+            binder_req,
+            tracedb,
+            histogram_join,
+            binder_join,
+        )
+    }
+    // Stop_servers
+
+    fn stop_servers(
+        hreq: mpsc::Sender<messaging::Request>,
+        hjoin: thread::JoinHandle<()>,
+        bindreq: mpsc::Sender<Request>,
+        bjoin: thread::JoinHandle<()>,
+    ) {
+        histogramer::stop_server(&hreq);
+        hjoin.join().expect("Joining histogram server");
+
+        let bind_api = BindingApi::new(&bindreq);
+        bind_api.exit().expect("Stopping binding server");
+        bjoin.join().expect("Joniing with binding server");
+    }
+
+    #[test]
+    fn bind_1() {
+        // Make a spectrum, bind it - should get a single SpectrumBound event.
+
+        let (hreq, binder_req, tracedb, hjoin, bjoin) = start_servers();
+
+        // Make a parameter and a 1d spectrum:
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        papi.create_parameter("p0").expect("making parameter");
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+        sapi.create_spectrum_1d("test", "p0", 0.0, 1024.0, 1024)
+            .expect("Making spectrum");
+
+        // Now a client to the tracedb events and bind test:
+
+        let token = tracedb.new_client(Duration::from_secs(10));
+        let bapi = BindingApi::new(&binder_req);
+        bapi.bind(&"test").expect("Binding 'test'");
+
+        // Should be a trace and it should be a SpectrumBound request with the
+        // correct name - we don't care about the binding id - as we can't really
+        // claim to predict it.
+
+        let traces = tracedb.get_traces(token).expect("Getting traces");
+        assert_eq!(1, traces.len());
+        assert!(if let trace::TraceEvent::SpectrumBound {
+            name,
+            binding_id: _binding_id,
+        } = traces[0].event()
+        {
+            assert_eq!("test", name);
+            true
+        } else {
+            false
+        });
+        stop_servers(hreq, hjoin, binder_req, bjoin);
+    }
+    #[test]
+    fn unbind_1() {
+        // Make several spectra and bind them all.  Then unbind one of them.
+        // we should get a SpectrumUnbound event for that.
+
+        let (hreq, binder_req, tracedb, hjoin, bjoin) = start_servers();
+
+        // Make a parameter and a 1d spectrum:
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        papi.create_parameter("p0").expect("making parameter");
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+        sapi.create_spectrum_1d("test", "p0", 0.0, 1024.0, 1024)
+            .expect("Making spectrum");
+
+        // Now a client to the tracedb events and bind test:
+
+        let bapi = BindingApi::new(&binder_req);
+        bapi.bind(&"test").expect("Binding 'test'");
+
+        // Be a trace client an unbind:
+
+        let token = tracedb.new_client(Duration::from_secs(10));
+        bapi.unbind("test").expect("Unbinding test");
+
+        let traces = tracedb.get_traces(token).expect("Getting traces");
+        assert_eq!(1, traces.len());
+        assert!(if let trace::TraceEvent::SpectrumUnbound {
+            name,
+            binding_id: _binding_id,
+        } = traces[0].event()
+        {
+            assert_eq!("test", name);
+            true
+        } else {
+            false
+        });
+
+        stop_servers(hreq, hjoin, binder_req, bjoin);
+    }
+    #[test]
+    fn unbind_2() {
+        // Using unbind_all allows all bound spectra to be unbound
+        // we'll make a set of spectra, bind them all and then
+        // ensure we have unbind traces for all of them.
+        let (hreq, binder_req, tracedb, hjoin, bjoin) = start_servers();
+        // Make several spectra and bind them all.  Then unbind one of them.
+        // we should get a SpectrumUnbound event for that.
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+        let bapi = BindingApi::new(&binder_req);
+        let names = vec!["eeny", "meeny", "miney", "moe", "tigers", "aaa"];
+        for n in names.iter() {
+            papi.create_parameter(n).expect("Making parameter");
+            sapi.create_spectrum_1d(n, &n, 0.0, 1024.0, 256)
+                .expect("Making spectrum");
+            bapi.bind(n).expect("Binding spectrum");
+        }
+        //  note that in all cases, the duration is meaningless since
+        // we never start the prune thread.
+
+        let token = tracedb.new_client(Duration::from_secs(10));
+        bapi.unbind_all().expect("Unbinding all spectra");
+        let traces = tracedb.get_traces(token).expect("Getting token");
+        assert_eq!(names.len(), traces.len());
+
+        // All of the traces must be unbind... put the names in hash set.
+        // We'll then ensure that all of the names in 'names' are present.
+
+        let mut traced_names = HashSet::<String>::new();
+        for trace in traces {
+            assert!(if let trace::TraceEvent::SpectrumUnbound {
+                name,
+                binding_id: _,
+            } = trace.event()
+            {
+                traced_names.insert(name.clone());
+                true
+            } else {
+                false
+            });
+        }
+        for n in names {
+            let name = String::from(n);
+            assert!(traced_names.contains(&name), "Missing {}", n);
+        }
+
+        stop_servers(hreq, hjoin, binder_req, bjoin);
     }
 }

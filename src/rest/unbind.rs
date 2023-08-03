@@ -93,6 +93,7 @@ mod unbind_tests {
     use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages}; // to interrogate.
+    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -105,9 +106,10 @@ mod unbind_tests {
     use std::thread;
     use std::time;
     fn setup() -> Rocket<Build> {
-        let (_, hg_sender) = histogramer::start_server();
+        let tracedb = trace::SharedTraceStore::new();
+        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
 
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
 
         // Construct the state:
 
@@ -125,6 +127,7 @@ mod unbind_tests {
 
         rocket::build()
             .manage(state)
+            .manage(tracedb.clone())
             .mount("/", routes![unbind_byname, unbind_byid, unbind_all])
     }
     fn getstate(
