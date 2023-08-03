@@ -70,14 +70,12 @@ impl StampedTraceEvent {
 /// * A time orderd vector of traces.
 ///
 pub struct ClientTraces {
-    token: usize,
     trace_lifetime: time::Duration,
     trace_store: Vec<StampedTraceEvent>,
 }
 impl ClientTraces {
-    pub fn new(token: usize, lifetime: time::Duration) -> ClientTraces {
+    pub fn new(lifetime: time::Duration) -> ClientTraces {
         ClientTraces {
-            token: token,
             trace_lifetime: lifetime,
             trace_store: Vec::new(),
         }
@@ -138,7 +136,7 @@ impl SharedTraceStore {
 
         store
             .client_traces
-            .insert(result, ClientTraces::new(result, lifetime));
+            .insert(result, ClientTraces::new(lifetime));
 
         result
     }
@@ -175,7 +173,7 @@ impl SharedTraceStore {
         let mut store = self.store.lock().unwrap();
 
         if store.client_traces.contains_key(&token) {
-            let mut traces = store.client_traces.get_mut(&token).unwrap();
+            let  traces = store.client_traces.get_mut(&token).unwrap();
             let result = traces.trace_store.clone();
             traces.trace_store.clear();
             Ok(result)
@@ -290,7 +288,7 @@ mod trace_store_tests {
             .client_traces
             .get(&token)
             .expect("Token not found in hashmap");
-        assert_eq!(token, c.token);
+        
         assert_eq!(time::Duration::from_secs(10), c.trace_lifetime);
         assert!(c.trace_store.is_empty());
     }

@@ -533,7 +533,7 @@ mod trace_rest_tests {
         //binding trace handling:
 
         let rocket = setup();
-        let (msg_chan, papi, binder_api, tracedb) = getstate(&rocket);
+        let (_msg_chan, _papi, _binder_api, tracedb) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("making client");
         let token = get_token(&client, 10); // Need this to save traces:
