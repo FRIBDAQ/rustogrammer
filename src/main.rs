@@ -96,7 +96,7 @@ fn rocket() -> _ {
         server.run();
     });
 
-    let state = rest::HistogramState {
+    let state = rest::MirrorState {
         mirror_exit: Arc::new(Mutex::new(mirror_send)),
         mirror_port: mirror_port,
     };

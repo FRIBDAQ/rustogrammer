@@ -25,7 +25,7 @@ use std::time;
 #[get["/"]]
 pub fn shutdown(
     shutdown: Shutdown,
-    state: &State<HistogramState>,
+    state: &State<MirrorState>,
     hg_chan: &State<SharedHistogramChannel>,
     b_chan: &State<SharedBinderChannel>,
     p_api: &State<SharedProcessingApi>,

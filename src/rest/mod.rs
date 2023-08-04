@@ -70,7 +70,7 @@ type SharedHistogramChannel = Mutex<mpsc::Sender<Request>>;
 type SharedBinderChannel = Mutex<mpsc::Sender<binder::Request>>;
 type SharedProcessingApi = Mutex<processing::ProcessingApi>;
 
-pub struct HistogramState {
+pub struct MirrorState {
     pub mirror_exit: Arc<Mutex<mpsc::Sender<bool>>>,
     pub mirror_port: u16,
 }

@@ -1,6 +1,6 @@
 //!  This module provides the REST interface to the procesing
 //!  thread.  The assumption is that he field _processing_ in the
-//!  HistogramState object contains a Mutex wrapped
+//!  MirrorState object contains a Mutex wrapped
 //!  ProcessingApi object, and the analysis thread has already
 //!  been started.
 //!  
@@ -151,7 +151,7 @@ mod processing_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };

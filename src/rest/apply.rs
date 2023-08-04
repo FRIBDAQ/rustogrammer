@@ -172,7 +172,7 @@ mod apply_tests {
             mpsc::Sender<binder::Request>,
             mpsc::Receiver<binder::Request>,
         ) = mpsc::channel();
-        let state = HistogramState {
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };

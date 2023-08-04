@@ -280,7 +280,7 @@ mod sbind_tests {
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::processing;
-    use crate::rest::HistogramState;
+    use crate::rest::MirrorState;
     use crate::sharedmem::binder;
     use crate::trace;
 
@@ -302,7 +302,7 @@ mod sbind_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };

@@ -356,7 +356,7 @@ mod pipeline_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -629,7 +629,7 @@ mod project_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -726,7 +726,7 @@ mod pseudo_test {
 
         // Construct the state:
 
-        let state = HistogramState {
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -861,7 +861,7 @@ mod roottree_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -999,7 +999,7 @@ mod script_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -1097,7 +1097,7 @@ mod treevar_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
