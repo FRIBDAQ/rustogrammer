@@ -60,7 +60,6 @@ use crate::messaging::parameter_messages::ParameterMessageClient;
 use crate::messaging::Request;
 use crate::processing;
 use crate::sharedmem::binder;
-use portman_client;
 use rocket::serde::{Deserialize, Serialize};
 use rocket::State;
 use std::sync::{mpsc, Arc, Mutex};
@@ -72,7 +71,6 @@ type SharedBinderChannel = Mutex<mpsc::Sender<binder::Request>>;
 type SharedProcessingApi = Mutex<processing::ProcessingApi>;
 
 pub struct HistogramState {
-    pub portman_client: Option<portman_client::Client>,
     pub mirror_exit: Arc<Mutex<mpsc::Sender<bool>>>,
     pub mirror_port: u16,
 }

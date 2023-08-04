@@ -74,7 +74,7 @@ fn rocket() -> _ {
         &trace_store,
     );
 
-    let (rest_port, mirror_port, client) = get_ports(&args);
+    let (rest_port, mirror_port, portman_client) = get_ports(&args);
 
     // Start the mirror server:
 
@@ -97,7 +97,6 @@ fn rocket() -> _ {
     });
 
     let state = rest::HistogramState {
-        portman_client: client,
         mirror_exit: Arc::new(Mutex::new(mirror_send)),
         mirror_port: mirror_port,
     };
@@ -113,6 +112,7 @@ fn rocket() -> _ {
         .manage(Mutex::new(binder.0.clone()))
         .manage(Mutex::new(histogramer_channel.clone()))
         .manage( Mutex::new(processor))
+        .manage(portman_client)
         .mount(
             "/spectcl/parameter",
             routes![

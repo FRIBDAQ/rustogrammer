@@ -106,7 +106,6 @@ mod fold_tests {
         // Construct the state:
 
         let state = HistogramState {
-            portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
