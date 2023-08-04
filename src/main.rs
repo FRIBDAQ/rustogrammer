@@ -97,7 +97,7 @@ fn rocket() -> _ {
     });
 
     let state = rest::HistogramState {
-        binder: Mutex::new(binder.0),
+        binder: Mutex::new(binder.0.clone()),
         processing: Mutex::new(processor),
         portman_client: client,
         mirror_exit: Arc::new(Mutex::new(mirror_send)),
@@ -112,6 +112,7 @@ fn rocket() -> _ {
         .manage(mirror_directory.clone())
         .manage(state)
         .manage(trace_store.clone())
+        .manage(Mutex::new(binder.0.clone()))
         .manage(Mutex::new(histogramer_channel.clone()))
         .mount(
             "/spectcl/parameter",
