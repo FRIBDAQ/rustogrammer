@@ -97,7 +97,6 @@ fn rocket() -> _ {
     });
 
     let state = rest::HistogramState {
-        histogramer: Mutex::new(histogramer_channel.clone()),
         binder: Mutex::new(binder.0),
         processing: Mutex::new(processor),
         portman_client: client,

@@ -26,6 +26,7 @@ use std::time;
 pub fn shutdown(
     shutdown: Shutdown,
     state: &State<HistogramState>,
+    hg_chan: &State<SharedHistogramChannel>,
     tracedb: &State<trace::SharedTraceStore>,
 ) -> Json<GenericResponse> {
     // Stop the trace prune thread (or rather schedule it to stop - within
@@ -69,7 +70,7 @@ pub fn shutdown(
 
     // Shutdown the histogrammer
 
-    let hg = state.inner().histogramer.lock().unwrap();
+    let hg = hg_chan.inner().lock().unwrap();
     histogramer::stop_server(&hg);
 
     //  Tell rocket to shutdown when processing of all requests is complete:

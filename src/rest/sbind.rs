@@ -123,9 +123,12 @@ fn bind_spectrum_list(
 /// have a chunk big enough for the spectrum).
 ///
 #[get("/all")]
-pub fn sbind_all(state: &State<HistogramState>) -> Json<GenericResponse> {
+pub fn sbind_all(
+    hg_state: &State<SharedHistogramChannel>,
+    state: &State<HistogramState>,
+) -> Json<GenericResponse> {
     let spectrum_api =
-        spectrum_messages::SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+        spectrum_messages::SpectrumMessageClient::new(&hg_state.inner().lock().unwrap());
     let binding_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
 
     // Get the spectra:
@@ -297,7 +300,6 @@ mod sbind_tests {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -313,6 +315,7 @@ mod sbind_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
             .manage(tracedb.clone())
             .mount("/", routes![sbind_all, sbind_list, sbind_bindings,])
     }
@@ -324,9 +327,8 @@ mod sbind_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();

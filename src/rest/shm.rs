@@ -198,7 +198,6 @@ mod shm_tests {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -211,6 +210,7 @@ mod shm_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
             .manage(tracedb.clone())
             .mount("/", routes![shmem_name, shmem_size, get_variables])
     }
@@ -222,9 +222,8 @@ mod shm_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();

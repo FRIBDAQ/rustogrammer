@@ -62,7 +62,7 @@ mod integrate_tests {
     use crate::histogramer;
     use crate::messaging;
     use crate::processing;
-    use crate::rest::HistogramState;
+    use crate::rest::{HistogramState, SharedHistogramChannel};
     use crate::sharedmem::binder;
     use crate::trace;
     use rocket;
@@ -83,7 +83,6 @@ mod integrate_tests {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -93,6 +92,7 @@ mod integrate_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
             .manage(tracedb.clone())
             .mount("/", routes![integrate])
     }
@@ -104,9 +104,8 @@ mod integrate_tests {
         r: &Rocket<Build>,
     ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();

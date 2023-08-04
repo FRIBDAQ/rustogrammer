@@ -152,7 +152,6 @@ mod processing_tests {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -160,17 +159,21 @@ mod processing_tests {
             mirror_port: 0,
         };
 
-        rocket::build().manage(state).manage(tracedb.clone()).mount(
-            "/",
-            routes![
-                attach_source,
-                list_source,
-                detach_source,
-                start_processing,
-                stop_processing,
-                set_event_batch
-            ],
-        )
+        rocket::build()
+            .manage(state)
+            .manage(tracedb.clone())
+            .manage(Mutex::new(hg_sender.clone()))
+            .mount(
+                "/",
+                routes![
+                    attach_source,
+                    list_source,
+                    detach_source,
+                    start_processing,
+                    stop_processing,
+                    set_event_batch
+                ],
+            )
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
         histogramer::stop_server(&c);
@@ -180,9 +183,8 @@ mod processing_tests {
         r: &Rocket<Build>,
     ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();

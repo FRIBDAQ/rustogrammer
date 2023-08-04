@@ -165,7 +165,6 @@ mod fit_tests {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -175,6 +174,7 @@ mod fit_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
             .manage(tracedb.clone())
             .mount("/", routes![create, update, delete, list, proc])
     }
@@ -186,9 +186,8 @@ mod fit_tests {
         r: &Rocket<Build>,
     ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();

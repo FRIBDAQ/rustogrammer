@@ -357,7 +357,6 @@ mod pipeline_tests {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -368,21 +367,25 @@ mod pipeline_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).manage(tracedb.clone()).mount(
-            "/",
-            routes![
-                pman_create,
-                pman_list,
-                pman_current,
-                pman_listall,
-                pman_list_event_processors,
-                pman_choose_pipeline,
-                pman_add_processor,
-                pman_rm_processor,
-                pman_clear,
-                pman_clone,
-            ],
-        )
+        rocket::build()
+            .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(tracedb.clone())
+            .mount(
+                "/",
+                routes![
+                    pman_create,
+                    pman_list,
+                    pman_current,
+                    pman_listall,
+                    pman_list_event_processors,
+                    pman_choose_pipeline,
+                    pman_add_processor,
+                    pman_rm_processor,
+                    pman_clear,
+                    pman_clone,
+                ],
+            )
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -392,9 +395,8 @@ mod pipeline_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
@@ -631,7 +633,6 @@ mod project_tests {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -644,6 +645,7 @@ mod project_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
             .manage(tracedb.clone())
             .mount("/", routes![project])
     }
@@ -655,9 +657,8 @@ mod project_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
@@ -732,7 +733,6 @@ mod pseudo_test {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -745,6 +745,7 @@ mod pseudo_test {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
             .manage(tracedb.clone())
             .mount("/", routes![pseudo_create, pseudo_list, pseudo_delete])
     }
@@ -756,9 +757,8 @@ mod pseudo_test {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
@@ -871,7 +871,6 @@ mod roottree_tests {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -882,10 +881,14 @@ mod roottree_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).manage(tracedb.clone()).mount(
-            "/",
-            routes![roottree_create, roottree_delete, roottree_list],
-        )
+        rocket::build()
+            .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(tracedb.clone())
+            .mount(
+                "/",
+                routes![roottree_create, roottree_delete, roottree_list],
+            )
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -895,9 +898,8 @@ mod roottree_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
@@ -1010,7 +1012,6 @@ mod script_tests {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -1023,6 +1024,7 @@ mod script_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
             .manage(tracedb.clone())
             .mount("/", routes![script_execute])
     }
@@ -1034,9 +1036,8 @@ mod script_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
@@ -1112,7 +1113,6 @@ mod treevar_tests {
         // Construct the state:
 
         let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
             binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
@@ -1123,16 +1123,20 @@ mod treevar_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).manage(tracedb.clone()).mount(
-            "/",
-            routes![
-                treevariable_list,
-                treevariable_set,
-                treevariable_check,
-                treevariable_set_changed,
-                treevariable_fire_traces
-            ],
-        )
+        rocket::build()
+            .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(tracedb.clone())
+            .mount(
+                "/",
+                routes![
+                    treevariable_list,
+                    treevariable_set,
+                    treevariable_check,
+                    treevariable_set_changed,
+                    treevariable_fire_traces
+                ],
+            )
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -1142,9 +1146,8 @@ mod treevar_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
