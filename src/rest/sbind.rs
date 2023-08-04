@@ -125,7 +125,7 @@ fn bind_spectrum_list(
 #[get("/all")]
 pub fn sbind_all(
     hg_state: &State<SharedHistogramChannel>,
-    b_state: &State<SharedBinderChannel>
+    b_state: &State<SharedBinderChannel>,
 ) -> Json<GenericResponse> {
     let spectrum_api =
         spectrum_messages::SpectrumMessageClient::new(&hg_state.inner().lock().unwrap());
@@ -185,7 +185,10 @@ fn remove_duplicates(in_names: Vec<String>) -> Vec<String> {
 /// the detail is the reason given by the binding api.
 ///
 #[get("/sbind?<spectrum>")]
-pub fn sbind_list(spectrum: Vec<String>, state: &State<SharedBinderChannel>) -> Json<GenericResponse> {
+pub fn sbind_list(
+    spectrum: Vec<String>,
+    state: &State<SharedBinderChannel>,
+) -> Json<GenericResponse> {
     // We need the bindings api.
 
     let api = binder::BindingApi::new(&state.inner().lock().unwrap());
@@ -300,7 +303,6 @@ mod sbind_tests {
         // Construct the state:
 
         let state = HistogramState {
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
@@ -316,6 +318,7 @@ mod sbind_tests {
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
             .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![sbind_all, sbind_list, sbind_bindings,])
     }
@@ -333,9 +336,8 @@ mod sbind_tests {
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();

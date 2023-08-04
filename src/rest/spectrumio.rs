@@ -792,7 +792,6 @@ mod read_tests {
         // Construct the state:
 
         let state = HistogramState {
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
@@ -805,6 +804,7 @@ mod read_tests {
             .manage(state)
             .manage(Mutex::new(binder_req))
             .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![sread_handler])
     }
@@ -822,9 +822,8 @@ mod read_tests {
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
@@ -1344,7 +1343,6 @@ mod swrite_tests {
         // Construct the state:
 
         let state = HistogramState {
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
@@ -1362,6 +1360,7 @@ mod swrite_tests {
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
             .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/swrite", routes![swrite_handler])
             .mount("/sread", routes![sread_handler])
@@ -1380,9 +1379,8 @@ mod swrite_tests {
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();

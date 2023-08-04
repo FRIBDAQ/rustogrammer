@@ -65,22 +65,26 @@ use rocket::serde::{Deserialize, Serialize};
 use rocket::State;
 use std::sync::{mpsc, Arc, Mutex};
 
-// State types:
+// Derived types that are stored in the Rocket State
 
 type SharedHistogramChannel = Mutex<mpsc::Sender<Request>>;
 type SharedBinderChannel = Mutex<mpsc::Sender<binder::Request>>;
+type SharedProcessingApi = Mutex<processing::ProcessingApi>;
 
 pub struct HistogramState {
-    pub processing: Mutex<processing::ProcessingApi>,
     pub portman_client: Option<portman_client::Client>,
     pub mirror_exit: Arc<Mutex<mpsc::Sender<bool>>>,
     pub mirror_port: u16,
 }
 
+// Convenience types for query parameters that are optional.
+
 pub type OptionalStringVec = Option<Vec<String>>;
 pub type OptionalString = Option<String>;
 pub type OptionalF64Vec = Option<Vec<f64>>;
 pub type OptionalFlag = Option<bool>;
+
+// Useful canned/shared response types.
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]

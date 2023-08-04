@@ -28,6 +28,7 @@ pub fn shutdown(
     state: &State<HistogramState>,
     hg_chan: &State<SharedHistogramChannel>,
     b_chan: &State<SharedBinderChannel>,
+    p_api: &State<SharedProcessingApi>,
     tracedb: &State<trace::SharedTraceStore>,
 ) -> Json<GenericResponse> {
     // Stop the trace prune thread (or rather schedule it to stop - within
@@ -37,7 +38,7 @@ pub fn shutdown(
 
     // Shutdown the processor:
 
-    let prc_api = state.inner().processing.lock().unwrap();
+    let prc_api = p_api.inner().lock().unwrap();
     if let Err(s) = prc_api.stop_thread() {
         println!(
             "Note failed to stop processing thread -might have already stopped {}",

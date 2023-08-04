@@ -134,11 +134,11 @@ const UNDEF: &str = "-undefined-";
 ///
 #[get("/variables")]
 pub fn get_variables(
-    state: &State<HistogramState>,
+    state: &State<SharedProcessingApi>,
     b_state: &State<SharedBinderChannel>,
 ) -> Json<SpectclVarResult> {
     let shmapi = BindingApi::new(&b_state.inner().lock().unwrap());
-    let prcapi = state.inner().processing.lock().unwrap();
+    let prcapi = state.inner().lock().unwrap();
     let batching = prcapi.get_batching();
     let mut vars = SpectclVariables {
         display_megabytes: 0,
@@ -201,7 +201,6 @@ mod shm_tests {
         // Construct the state:
 
         let state = HistogramState {
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
@@ -214,6 +213,7 @@ mod shm_tests {
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
             .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![shmem_name, shmem_size, get_variables])
     }
@@ -231,9 +231,8 @@ mod shm_tests {
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
