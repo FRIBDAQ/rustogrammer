@@ -173,7 +173,7 @@ impl SharedTraceStore {
         let mut store = self.store.lock().unwrap();
 
         if store.client_traces.contains_key(&token) {
-            let  traces = store.client_traces.get_mut(&token).unwrap();
+            let traces = store.client_traces.get_mut(&token).unwrap();
             let result = traces.trace_store.clone();
             traces.trace_store.clear();
             Ok(result)
@@ -288,7 +288,7 @@ mod trace_store_tests {
             .client_traces
             .get(&token)
             .expect("Token not found in hashmap");
-        
+
         assert_eq!(time::Duration::from_secs(10), c.trace_lifetime);
         assert!(c.trace_store.is_empty());
     }
