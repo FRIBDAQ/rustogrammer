@@ -214,11 +214,7 @@ mod trace_rest_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -228,6 +224,9 @@ mod trace_rest_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![establish_trace, trace_done, fetch_traces])
     }
@@ -240,23 +239,20 @@ mod trace_rest_tests {
         trace::SharedTraceStore,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -533,7 +529,7 @@ mod trace_rest_tests {
         //binding trace handling:
 
         let rocket = setup();
-        let (msg_chan, papi, binder_api, tracedb) = getstate(&rocket);
+        let (_msg_chan, _papi, _binder_api, tracedb) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("making client");
         let token = get_token(&client, 10); // Need this to save traces:

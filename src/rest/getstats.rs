@@ -46,7 +46,7 @@ pub struct SpectrumStatisticsReply {
 #[get("/?<pattern>")]
 pub fn get_statistics(
     pattern: OptionalString,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<SpectrumStatisticsReply> {
     let pat = if let Some(p) = pattern {
         p
@@ -54,8 +54,7 @@ pub fn get_statistics(
         String::from("*")
     };
 
-    let api =
-        spectrum_messages::SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = spectrum_messages::SpectrumMessageClient::new(&state.inner().lock().unwrap());
     let spectra = api.list_spectra(&pat);
     if let Err(s) = spectra {
         return Json(SpectrumStatisticsReply {
@@ -110,11 +109,7 @@ mod getstats_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -142,6 +137,9 @@ mod getstats_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![get_statistics])
     }
@@ -153,16 +151,14 @@ mod getstats_tests {
         r: &Rocket<Build>,
     ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();

@@ -60,24 +60,29 @@ use crate::messaging::parameter_messages::ParameterMessageClient;
 use crate::messaging::Request;
 use crate::processing;
 use crate::sharedmem::binder;
-use portman_client;
 use rocket::serde::{Deserialize, Serialize};
 use rocket::State;
 use std::sync::{mpsc, Arc, Mutex};
 
-pub struct HistogramState {
-    pub histogramer: Mutex<mpsc::Sender<Request>>,
-    pub binder: Mutex<mpsc::Sender<binder::Request>>,
-    pub processing: Mutex<processing::ProcessingApi>,
-    pub portman_client: Option<portman_client::Client>,
+// Derived types that are stored in the Rocket State
+
+type SharedHistogramChannel = Mutex<mpsc::Sender<Request>>;
+type SharedBinderChannel = Mutex<mpsc::Sender<binder::Request>>;
+type SharedProcessingApi = Mutex<processing::ProcessingApi>;
+
+pub struct MirrorState {
     pub mirror_exit: Arc<Mutex<mpsc::Sender<bool>>>,
     pub mirror_port: u16,
 }
+
+// Convenience types for query parameters that are optional.
 
 pub type OptionalStringVec = Option<Vec<String>>;
 pub type OptionalString = Option<String>;
 pub type OptionalF64Vec = Option<Vec<f64>>;
 pub type OptionalFlag = Option<bool>;
+
+// Useful canned/shared response types.
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -122,8 +127,8 @@ impl StringArrayResponse {
 
 // Utility method to return the name of a parameter given its id
 
-fn find_parameter_by_id(id: u32, state: &State<HistogramState>) -> Option<String> {
-    let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
+fn find_parameter_by_id(id: u32, state: &State<SharedHistogramChannel>) -> Option<String> {
+    let api = ParameterMessageClient::new(&state.inner().lock().unwrap());
     if let Ok(l) = api.list_parameters("*") {
         for p in l {
             if p.get_id() == id {
@@ -137,8 +142,8 @@ fn find_parameter_by_id(id: u32, state: &State<HistogramState>) -> Option<String
 }
 // utility to find a parameter given it's name:
 
-fn find_parameter_by_name(name: &str, state: &State<HistogramState>) -> Option<u32> {
-    let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
+fn find_parameter_by_name(name: &str, state: &State<SharedHistogramChannel>) -> Option<u32> {
+    let api = ParameterMessageClient::new(&state.inner().lock().unwrap());
     if let Ok(l) = api.list_parameters(name) {
         if l.len() > 0 {
             Some(l[0].get_id())

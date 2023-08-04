@@ -356,11 +356,7 @@ mod pipeline_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -368,21 +364,27 @@ mod pipeline_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).manage(tracedb.clone()).mount(
-            "/",
-            routes![
-                pman_create,
-                pman_list,
-                pman_current,
-                pman_listall,
-                pman_list_event_processors,
-                pman_choose_pipeline,
-                pman_add_processor,
-                pman_rm_processor,
-                pman_clear,
-                pman_clone,
-            ],
-        )
+        rocket::build()
+            .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
+            .manage(tracedb.clone())
+            .mount(
+                "/",
+                routes![
+                    pman_create,
+                    pman_list,
+                    pman_current,
+                    pman_listall,
+                    pman_list_event_processors,
+                    pman_choose_pipeline,
+                    pman_add_processor,
+                    pman_rm_processor,
+                    pman_clear,
+                    pman_clone,
+                ],
+            )
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -392,23 +394,20 @@ mod pipeline_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -630,11 +629,7 @@ mod project_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -644,6 +639,9 @@ mod project_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![project])
     }
@@ -655,23 +653,20 @@ mod project_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -731,11 +726,7 @@ mod pseudo_test {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -745,6 +736,9 @@ mod pseudo_test {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![pseudo_create, pseudo_list, pseudo_delete])
     }
@@ -756,23 +750,20 @@ mod pseudo_test {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -870,11 +861,7 @@ mod roottree_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -882,10 +869,16 @@ mod roottree_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).manage(tracedb.clone()).mount(
-            "/",
-            routes![roottree_create, roottree_delete, roottree_list],
-        )
+        rocket::build()
+            .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
+            .manage(tracedb.clone())
+            .mount(
+                "/",
+                routes![roottree_create, roottree_delete, roottree_list],
+            )
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -895,23 +888,20 @@ mod roottree_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -1009,11 +999,7 @@ mod script_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -1023,6 +1009,9 @@ mod script_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![script_execute])
     }
@@ -1034,23 +1023,20 @@ mod script_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -1111,11 +1097,7 @@ mod treevar_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -1123,16 +1105,22 @@ mod treevar_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).manage(tracedb.clone()).mount(
-            "/",
-            routes![
-                treevariable_list,
-                treevariable_set,
-                treevariable_check,
-                treevariable_set_changed,
-                treevariable_fire_traces
-            ],
-        )
+        rocket::build()
+            .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
+            .manage(tracedb.clone())
+            .mount(
+                "/",
+                routes![
+                    treevariable_list,
+                    treevariable_set,
+                    treevariable_check,
+                    treevariable_set_changed,
+                    treevariable_fire_traces
+                ],
+            )
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -1142,23 +1130,20 @@ mod treevar_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );

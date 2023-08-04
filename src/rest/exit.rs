@@ -25,7 +25,10 @@ use std::time;
 #[get["/"]]
 pub fn shutdown(
     shutdown: Shutdown,
-    state: &State<HistogramState>,
+    state: &State<MirrorState>,
+    hg_chan: &State<SharedHistogramChannel>,
+    b_chan: &State<SharedBinderChannel>,
+    p_api: &State<SharedProcessingApi>,
     tracedb: &State<trace::SharedTraceStore>,
 ) -> Json<GenericResponse> {
     // Stop the trace prune thread (or rather schedule it to stop - within
@@ -35,7 +38,7 @@ pub fn shutdown(
 
     // Shutdown the processor:
 
-    let prc_api = state.inner().processing.lock().unwrap();
+    let prc_api = p_api.inner().lock().unwrap();
     if let Err(s) = prc_api.stop_thread() {
         println!(
             "Note failed to stop processing thread -might have already stopped {}",
@@ -49,7 +52,7 @@ pub fn shutdown(
 
     // Shutdown the shared memory program.
 
-    let bind_api = BindingApi::new(&state.inner().binder.lock().unwrap());
+    let bind_api = BindingApi::new(&b_chan.inner().lock().unwrap());
 
     match bind_api.exit() {
         Ok(s) => {
@@ -69,7 +72,7 @@ pub fn shutdown(
 
     // Shutdown the histogrammer
 
-    let hg = state.inner().histogramer.lock().unwrap();
+    let hg = hg_chan.inner().lock().unwrap();
     histogramer::stop_server(&hg);
 
     //  Tell rocket to shutdown when processing of all requests is complete:

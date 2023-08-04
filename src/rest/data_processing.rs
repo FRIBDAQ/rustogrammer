@@ -1,6 +1,6 @@
 //!  This module provides the REST interface to the procesing
 //!  thread.  The assumption is that he field _processing_ in the
-//!  HistogramState object contains a Mutex wrapped
+//!  MirrorState object contains a Mutex wrapped
 //!  ProcessingApi object, and the analysis thread has already
 //!  been started.
 //!  
@@ -37,10 +37,10 @@ pub fn attach_source(
     r#type: String,
     source: String,
     size: OptionalString,
-    state: &State<HistogramState>,
+    state: &State<SharedProcessingApi>,
 ) -> Json<GenericResponse> {
     let reply = if r#type == "file" {
-        let api = state.inner().processing.lock().unwrap();
+        let api = state.inner().lock().unwrap();
         if let Err(s) = api.attach(&source) {
             GenericResponse::err("Attach failed", &s)
         } else {
@@ -60,8 +60,8 @@ pub fn attach_source(
 ///  On success, detail contains the data source.
 ///  on failure, the error from the api.
 #[get("/list")]
-pub fn list_source(state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = state.inner().processing.lock().unwrap();
+pub fn list_source(state: &State<SharedProcessingApi>) -> Json<GenericResponse> {
+    let api = state.inner().lock().unwrap();
     Json(match api.list() {
         Ok(s) => GenericResponse::ok(&s),
         Err(s) => GenericResponse::err("Failed to get data source", &s),
@@ -71,8 +71,8 @@ pub fn list_source(state: &State<HistogramState>) -> Json<GenericResponse> {
 ///  This is specific to Rustogramer.
 ///
 #[get("/detach")]
-pub fn detach_source(state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = state.inner().processing.lock().unwrap();
+pub fn detach_source(state: &State<SharedProcessingApi>) -> Json<GenericResponse> {
+    let api = state.inner().lock().unwrap();
     Json(match api.detach() {
         Ok(s) => GenericResponse::ok(&s),
         Err(s) => GenericResponse::err("Failed to detach", &s),
@@ -86,8 +86,8 @@ pub fn detach_source(state: &State<HistogramState>) -> Json<GenericResponse> {
 /// start - starts analyzing data on the currently attached
 /// data source.  No query parameters are required/accepted.
 #[get("/start")]
-pub fn start_processing(state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = state.inner().processing.lock().unwrap();
+pub fn start_processing(state: &State<SharedProcessingApi>) -> Json<GenericResponse> {
+    let api = state.inner().lock().unwrap();
     Json(match api.start_analysis() {
         Ok(_) => GenericResponse::ok(""),
         Err(s) => GenericResponse::err("Failed to start analysis", &s),
@@ -98,8 +98,8 @@ pub fn start_processing(state: &State<HistogramState>) -> Json<GenericResponse> 
 /// No query parameters are required.
 ///
 #[get("/stop")]
-pub fn stop_processing(state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = state.inner().processing.lock().unwrap();
+pub fn stop_processing(state: &State<SharedProcessingApi>) -> Json<GenericResponse> {
+    let api = state.inner().lock().unwrap();
     Json(match api.stop_analysis() {
         Ok(_) => GenericResponse::ok(""),
         Err(s) => GenericResponse::err("Failed to stop analysis", &s),
@@ -111,8 +111,8 @@ pub fn stop_processing(state: &State<HistogramState>) -> Json<GenericResponse> {
 /// The query parameter _events_ must be the number of events.
 ///
 #[get("/size?<events>")]
-pub fn set_event_batch(events: usize, state: &State<HistogramState>) -> Json<GenericResponse> {
-    let mut api = state.inner().processing.lock().unwrap();
+pub fn set_event_batch(events: usize, state: &State<SharedProcessingApi>) -> Json<GenericResponse> {
+    let mut api = state.inner().lock().unwrap();
     Json(match api.set_batching(events) {
         Ok(_) => GenericResponse::ok(""),
         Err(s) => GenericResponse::err("Failed to set event processing batch size", &s),
@@ -151,26 +151,28 @@ mod processing_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
 
-        rocket::build().manage(state).manage(tracedb.clone()).mount(
-            "/",
-            routes![
-                attach_source,
-                list_source,
-                detach_source,
-                start_processing,
-                stop_processing,
-                set_event_batch
-            ],
-        )
+        rocket::build()
+            .manage(state)
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
+            .manage(tracedb.clone())
+            .manage(Mutex::new(hg_sender.clone()))
+            .mount(
+                "/",
+                routes![
+                    attach_source,
+                    list_source,
+                    detach_source,
+                    start_processing,
+                    stop_processing,
+                    set_event_batch
+                ],
+            )
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
         histogramer::stop_server(&c);
@@ -180,16 +182,14 @@ mod processing_tests {
         r: &Rocket<Build>,
     ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();

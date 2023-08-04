@@ -171,14 +171,17 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
 ///
 /// Future enhancement:
 #[get("/list?<filter>")]
-pub fn list_spectrum(filter: OptionalString, state: &State<HistogramState>) -> Json<ListResponse> {
+pub fn list_spectrum(
+    filter: OptionalString,
+    state: &State<SharedHistogramChannel>,
+) -> Json<ListResponse> {
     let pattern = if let Some(p) = filter {
         p
     } else {
         String::from("*")
     };
 
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
 
     let response = match api.list_spectra(&pattern) {
         Ok(l) => ListResponse {
@@ -206,8 +209,11 @@ pub fn list_spectrum(filter: OptionalString, state: &State<HistogramState>) -> J
 /// _Spectrum does not exist_
 ///
 #[get("/delete?<name>")]
-pub fn delete_spectrum(name: String, state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+pub fn delete_spectrum(
+    name: String,
+    state: &State<SharedHistogramChannel>,
+) -> Json<GenericResponse> {
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
 
     let response = match api.delete_spectrum(&name) {
         Ok(()) => GenericResponse::ok(""),
@@ -384,7 +390,7 @@ fn make_1d(
     name: &str,
     parameters: &str,
     axes: &str,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     let parsed_params = parse_simple_list(parameters);
     if parsed_params.is_err() {
@@ -408,7 +414,7 @@ fn make_1d(
         return GenericResponse::err("Invalid axis specification", &parsed_axes.unwrap_err());
     }
     let (low, high, bins) = parsed_axes.unwrap();
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
 
     if let Err(s) = api.create_spectrum_1d(name, &parameter, low, high, bins) {
         GenericResponse::err("Failed to create 1d spectrum", &s)
@@ -421,7 +427,7 @@ fn make_2d(
     name: &str,
     parameters: &str,
     axes: &str,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     // need exactly two parameters:
 
@@ -450,7 +456,7 @@ fn make_2d(
 
     // Now we can try to make the spectrum:
 
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     if let Err(s) = api.create_spectrum_2d(name, &xp, &yp, xlow, xhigh, xbins, ylow, yhigh, ybins) {
         GenericResponse::err("Failed to create 2d spectrum", &s)
     } else {
@@ -463,7 +469,7 @@ fn make_gamma1(
     name: &str,
     parameters: &str,
     axes: &str,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     let parameters = parse_simple_list(parameters);
     if parameters.is_err() {
@@ -477,7 +483,7 @@ fn make_gamma1(
     }
     let (low, high, bins) = axis.unwrap();
 
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     if let Err(s) = api.create_spectrum_multi1d(name, &parameters, low, high, bins) {
         GenericResponse::err("Failed to make multi1d spectrum", &s)
     } else {
@@ -490,7 +496,7 @@ fn make_gamma2(
     name: &str,
     parameters: &str,
     axes: &str,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     let parameters = parse_simple_list(parameters);
     if parameters.is_err() {
@@ -504,7 +510,7 @@ fn make_gamma2(
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     if let Err(s) =
         api.create_spectrum_multi2d(name, &parameters, xlow, xhigh, xbins, ylow, yhigh, ybins)
     {
@@ -521,7 +527,7 @@ fn make_pgamma(
     name: &str,
     parameters: &str,
     axes: &str,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     // Get the two parameter vectors:
 
@@ -542,7 +548,7 @@ fn make_pgamma(
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     if let Err(s) = api.create_spectrum_pgamma(
         name, &xparams, &yparams, xlow, xhigh, xbins, ylow, yhigh, ybins,
     ) {
@@ -558,7 +564,7 @@ fn make_summary(
     name: &str,
     parameters: &str,
     axes: &str,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     let parameters = parse_simple_list(parameters);
     if parameters.is_err() {
@@ -575,7 +581,7 @@ fn make_summary(
     }
     let (low, high, bins) = axes.unwrap();
 
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     if let Err(s) = api.create_spectrum_summary(name, &parameters, low, high, bins) {
         GenericResponse::err("Failed to create spectrum", &s)
     } else {
@@ -589,7 +595,7 @@ fn make_2dsum(
     name: &str,
     parameters: &str,
     axes: &str,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     let parameters = parse_two_element_list(parameters);
     if parameters.is_err() {
@@ -606,7 +612,7 @@ fn make_2dsum(
     }
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     if let Err(s) =
         api.create_spectrum_2dsum(name, &xpars, &ypars, xlow, xhigh, xbins, ylow, yhigh, ybins)
     {
@@ -654,7 +660,7 @@ pub fn create_spectrum(
     r#type: String,
     parameters: String,
     axes: String,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<GenericResponse> {
     let type_name = r#type; // Don't want raw names like that.
     Json(match type_name.as_str() {
@@ -725,12 +731,12 @@ pub fn get_contents(
     xhigh: Option<f64>,
     ylow: Option<f64>,
     yhigh: Option<f64>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<ContentsResponse> {
     // First get the description of the spectrum to set the
     // default ROI to the entire spectrum:
 
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     let list = api.list_spectra(&name);
     if let Err(s) = list {
         return Json(ContentsResponse {
@@ -818,20 +824,21 @@ pub fn get_contents(
 #[get("/clear?<pattern>")]
 pub fn clear_spectra(
     pattern: Option<String>,
-    state: &State<HistogramState>,
+    hg: &State<SharedHistogramChannel>,
+    state: &State<SharedBinderChannel>,
 ) -> Json<GenericResponse> {
     let mut pat = String::from("*");
     if let Some(p) = pattern {
         pat = p;
     }
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&hg.inner().lock().unwrap());
     let reply = if let Err(s) = api.clear_spectra(&pat) {
         GenericResponse::err(&format!("Failed to clear spectra matching '{}'", pat), &s)
     } else {
         // also need to clear the shared memory copies of the bound
         // spectra:
 
-        let bind_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+        let bind_api = binder::BindingApi::new(&state.inner().lock().unwrap());
         if let Err(s) = bind_api.clear_spectra(&pat) {
             GenericResponse::err("Failed to clear bound spectra: ", &s)
         } else {
@@ -1019,7 +1026,7 @@ mod spectrum_tests {
     use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
     use crate::parameters::EventParameter;
     use crate::processing;
-    use crate::rest::HistogramState;
+    use crate::rest::MirrorState;
     use crate::sharedmem::binder;
     use crate::trace;
 
@@ -1160,11 +1167,7 @@ mod spectrum_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -1177,16 +1180,22 @@ mod spectrum_tests {
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build().manage(state).manage(tracedb.clone()).mount(
-            "/",
-            routes![
-                list_spectrum,
-                delete_spectrum,
-                create_spectrum,
-                get_contents,
-                clear_spectra,
-            ],
-        )
+        rocket::build()
+            .manage(state)
+            .manage(tracedb.clone())
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
+            .mount(
+                "/",
+                routes![
+                    list_spectrum,
+                    delete_spectrum,
+                    create_spectrum,
+                    get_contents,
+                    clear_spectra,
+                ],
+            )
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -1196,23 +1205,20 @@ mod spectrum_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );

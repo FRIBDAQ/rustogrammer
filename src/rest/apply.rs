@@ -43,13 +43,13 @@ pub struct GateApplicationResponse {
 pub fn apply_gate(
     gate: String,
     spectrum: Vec<String>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<GateApplicationResponse> {
     let mut response = GateApplicationResponse {
         status: String::from("OK"),
         detail: Vec::new(),
     };
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     for name in spectrum {
         if let Err(s) = api.gate_spectrum(&name, &gate) {
             response.status = format!("Failed to apply {} to some spectra", gate);
@@ -77,14 +77,14 @@ pub struct ApplicationListing {
 #[get("/list?<pattern>")]
 pub fn apply_list(
     pattern: OptionalString,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<ApplicationListing> {
     let mut pat = String::from("*"); // Default pattern
     if let Some(s) = pattern {
         pat = s; // User supplied pattern.
     }
 
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     let listing = api.list_spectra(&pat);
     if listing.is_err() {
         return Json(ApplicationListing {
@@ -131,9 +131,9 @@ pub fn apply_list(
 #[get("/?<name>")]
 pub fn ungate_spectrum(
     name: Vec<String>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<GateApplicationResponse> {
-    let api = SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     let mut result = GateApplicationResponse {
         status: String::from("OK"),
         detail: Vec::new(),
@@ -172,16 +172,17 @@ mod apply_tests {
             mpsc::Sender<binder::Request>,
             mpsc::Receiver<binder::Request>,
         ) = mpsc::channel();
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender.clone())),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(
+                &hg_sender.clone(),
+            )))
             .manage(tracedb.clone())
             .mount("/", routes![apply_gate, apply_list, ungate_spectrum])
     }
@@ -193,16 +194,14 @@ mod apply_tests {
         r: &Rocket<Build>,
     ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();

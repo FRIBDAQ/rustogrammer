@@ -75,7 +75,7 @@ pub struct ListReply {
 // a vector of parameter string names.
 // The ids should all be valid.
 
-fn marshall_parameter_names(ids: &Vec<u32>, state: &State<HistogramState>) -> Vec<String> {
+fn marshall_parameter_names(ids: &Vec<u32>, state: &State<SharedHistogramChannel>) -> Vec<String> {
     let mut result = Vec::<String>::new();
     for id in ids {
         result.push(
@@ -130,7 +130,10 @@ fn marshall_points(p: &mut GateProperties, raw_pts: &Vec<(f64, f64)>) {
 /// be filled in for _c_ and _b_ conditions.
 ///
 #[get("/list?<pattern>")]
-pub fn list_gates(pattern: Option<String>, state: &State<HistogramState>) -> Json<ListReply> {
+pub fn list_gates(
+    pattern: Option<String>,
+    state: &State<SharedHistogramChannel>,
+) -> Json<ListReply> {
     // figure out the pattern:
 
     let pat = if let Some(p) = pattern {
@@ -139,7 +142,7 @@ pub fn list_gates(pattern: Option<String>, state: &State<HistogramState>) -> Jso
         String::from("*")
     };
 
-    let api = ConditionMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = ConditionMessageClient::new(&state.inner().lock().unwrap());
     let reply = match api.list_conditions(&pat) {
         ConditionReply::Listing(l) => {
             let mut r = ListReply {
@@ -187,8 +190,8 @@ pub fn list_gates(pattern: Option<String>, state: &State<HistogramState>) -> Jso
 /// with the detail the actual messagse from the internal Histogram server.
 ///
 #[get("/delete?<name>")]
-pub fn delete_gate(name: String, state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = ConditionMessageClient::new(&state.inner().histogramer.lock().unwrap());
+pub fn delete_gate(name: String, state: &State<SharedHistogramChannel>) -> Json<GenericResponse> {
+    let api = ConditionMessageClient::new(&state.inner().lock().unwrap());
     let response = match api.delete_condition(&name) {
         ConditionReply::Deleted => GenericResponse::ok(""),
         ConditionReply::Error(s) => {
@@ -210,7 +213,7 @@ fn validate_slice_parameters(
     parameter: OptionalString,
     low: Option<f64>,
     high: Option<f64>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Result<(u32, f64, f64), String> {
     if parameter.is_none() {
         return Err(String::from(
@@ -238,7 +241,7 @@ fn validate_2d_parameters(
     ypname: OptionalString,
     xcoord: OptionalF64Vec,
     ycoord: OptionalF64Vec,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Result<(u32, u32, Vec<(f64, f64)>), String> {
     if xpname.is_none() {
         return Err(String::from(
@@ -348,9 +351,9 @@ pub fn edit_gate(
     ycoord: OptionalF64Vec,
     low: Option<f64>,
     high: Option<f64>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<GenericResponse> {
-    let api = ConditionMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = ConditionMessageClient::new(&state.inner().lock().unwrap());
 
     let raw_result = match r#type.as_str() {
         "T" => api.create_true_condition(&name),
@@ -468,17 +471,16 @@ mod gate_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![list_gates, delete_gate, edit_gate])
     }
@@ -490,16 +492,14 @@ mod gate_tests {
         r: &Rocket<Build>,
     ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();

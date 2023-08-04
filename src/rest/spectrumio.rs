@@ -265,10 +265,9 @@ pub fn swrite_handler(
     file: String,
     format: String,
     spectrum: Vec<String>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<GenericResponse> {
-    let api =
-        spectrum_messages::SpectrumMessageClient::new(&(state.inner().histogramer.lock().unwrap()));
+    let api = spectrum_messages::SpectrumMessageClient::new(&(state.inner().lock().unwrap()));
 
     // Get the spectrum properties for the spectra:
 
@@ -594,21 +593,21 @@ fn enter_spectra(
     as_snapshot: bool,
     replace: bool,
     to_shm: bool,
-    state: &State<HistogramState>,
+    hg_chan: &State<SharedHistogramChannel>,
+    state: &State<SharedBinderChannel>,
 ) -> Result<(), String> {
     // We need the API:
 
     let spectrum_api =
-        spectrum_messages::SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
+        spectrum_messages::SpectrumMessageClient::new(&hg_chan.inner().lock().unwrap());
     let parameter_api =
-        parameter_messages::ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
+        parameter_messages::ParameterMessageClient::new(&hg_chan.inner().lock().unwrap());
     let mut parameters = make_parameter_set(&parameter_api)?;
     // snapshots require a _snapshot_condition_ gate.  No harm to
     // make it again so just undonditionally make it:
     if as_snapshot {
-        let condition_api = condition_messages::ConditionMessageClient::new(
-            &state.inner().histogramer.lock().unwrap(),
-        );
+        let condition_api =
+            condition_messages::ConditionMessageClient::new(&hg_chan.inner().lock().unwrap());
         condition_api.create_false_condition("_snapshot_condition_");
     }
     for s in spectra {
@@ -636,7 +635,7 @@ fn enter_spectra(
         // Bind the spectrum if it's supposed to be in shared memory.
 
         if to_shm {
-            let bind_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+            let bind_api = binder::BindingApi::new(&state.inner().lock().unwrap());
             bind_api.bind(&actual_name)?;
         }
     }
@@ -713,7 +712,8 @@ pub fn sread_handler(
     snapshot: OptionalFlag,
     replace: OptionalFlag,
     bind: OptionalFlag,
-    state: &State<HistogramState>,
+    hg_chan: &State<SharedHistogramChannel>,
+    state: &State<SharedBinderChannel>,
 ) -> Json<GenericResponse> {
     // Figure out the flag states:
 
@@ -755,7 +755,7 @@ pub fn sread_handler(
     }
     let spectra = spectra.as_ref().unwrap();
 
-    let response = if let Err(e) = enter_spectra(spectra, snap, repl, toshm, state) {
+    let response = if let Err(e) = enter_spectra(spectra, snap, repl, toshm, hg_chan, state) {
         GenericResponse::err("Unable to enter spectra in histogram thread: ", &e)
     } else {
         GenericResponse::ok("")
@@ -791,11 +791,7 @@ mod read_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -805,6 +801,9 @@ mod read_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![sread_handler])
     }
@@ -816,23 +815,20 @@ mod read_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -1345,11 +1341,7 @@ mod swrite_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -1364,6 +1356,9 @@ mod swrite_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/swrite", routes![swrite_handler])
             .mount("/sread", routes![sread_handler])
@@ -1376,23 +1371,20 @@ mod swrite_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );

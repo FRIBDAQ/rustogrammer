@@ -25,8 +25,8 @@ use crate::ring_items::RingVersion;
 /// detail is the reason for the failure.
 ///
 #[get("/?<major>")]
-pub fn ringversion_set(major: String, state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = state.inner().processing.lock().unwrap();
+pub fn ringversion_set(major: String, state: &State<SharedProcessingApi>) -> Json<GenericResponse> {
+    let api = state.inner().lock().unwrap();
 
     let result = major.parse::<RingVersion>();
     if let Err(r) = result {
@@ -72,8 +72,8 @@ pub struct VersionResponse {
 /// when major versions change.
 ///
 #[get("/get")]
-pub fn ringversion_get(state: &State<HistogramState>) -> Json<VersionResponse> {
-    let api = state.inner().processing.lock().unwrap();
+pub fn ringversion_get(state: &State<SharedProcessingApi>) -> Json<VersionResponse> {
+    let api = state.inner().lock().unwrap();
     let result = api.get_ring_version();
 
     let mut response = VersionResponse {
@@ -97,7 +97,7 @@ mod ringversion_tests {
     use crate::histogramer;
     use crate::messaging;
     use crate::processing;
-    use crate::rest::HistogramState;
+    use crate::rest::MirrorState;
     use crate::sharedmem::binder;
     use crate::trace;
     use rocket;
@@ -117,11 +117,7 @@ mod ringversion_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -130,6 +126,9 @@ mod ringversion_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![ringversion_set, ringversion_get])
     }
@@ -141,16 +140,14 @@ mod ringversion_tests {
         r: &Rocket<Build>,
     ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();

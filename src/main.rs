@@ -14,8 +14,8 @@ use clap::Parser;
 use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, getstats,
-    integrate, mirror_list, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, unbind,
-    unimplemented, version, traces
+    integrate, mirror_list, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, traces,
+    unbind, unimplemented, version,
 };
 use sharedmem::{binder, mirror};
 use std::env;
@@ -74,7 +74,7 @@ fn rocket() -> _ {
         &trace_store,
     );
 
-    let (rest_port, mirror_port, client) = get_ports(&args);
+    let (rest_port, mirror_port, portman_client) = get_ports(&args);
 
     // Start the mirror server:
 
@@ -96,11 +96,7 @@ fn rocket() -> _ {
         server.run();
     });
 
-    let state = rest::HistogramState {
-        histogramer: Mutex::new(histogramer_channel),
-        binder: Mutex::new(binder.0),
-        processing: Mutex::new(processor),
-        portman_client: client,
+    let state = rest::MirrorState {
         mirror_exit: Arc::new(Mutex::new(mirror_send)),
         mirror_port: mirror_port,
     };
@@ -113,6 +109,10 @@ fn rocket() -> _ {
         .manage(mirror_directory.clone())
         .manage(state)
         .manage(trace_store.clone())
+        .manage(Mutex::new(binder.0.clone()))
+        .manage(Mutex::new(histogramer_channel.clone()))
+        .manage( Mutex::new(processor))
+        .manage(portman_client)
         .mount(
             "/spectcl/parameter",
             routes![
@@ -270,7 +270,14 @@ fn rocket() -> _ {
         .mount("/spectcl/specstats", routes![getstats::get_statistics])
         .mount("/spectcl/swrite", routes![spectrumio::swrite_handler])
         .mount("/spectcl/sread", routes![spectrumio::sread_handler])
-        .mount("/spectcl/trace", routes![traces::establish_trace, traces::trace_done, traces::fetch_traces])
+        .mount(
+            "/spectcl/trace",
+            routes![
+                traces::establish_trace,
+                traces::trace_done,
+                traces::fetch_traces
+            ],
+        )
 }
 ///
 /// Gets the port to use for our REST service.

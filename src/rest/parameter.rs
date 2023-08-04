@@ -60,12 +60,15 @@ pub struct Parameters {
 /// ParameterDefinition values JSON encoded.
 ///
 #[get("/list?<filter>")]
-pub fn list_parameters(filter: Option<String>, state: &State<HistogramState>) -> Json<Parameters> {
+pub fn list_parameters(
+    filter: Option<String>,
+    state: &State<SharedHistogramChannel>,
+) -> Json<Parameters> {
     let mut result = Parameters {
         status: String::from("OK"),
         detail: Vec::<ParameterDefinition>::new(),
     };
-    let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = ParameterMessageClient::new(&state.inner().lock().unwrap());
 
     let pattern = if let Some(p) = filter {
         p
@@ -147,7 +150,7 @@ pub fn create_parameter(
     bins: Option<u32>,
     units: Option<String>,
     description: Option<String>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<GenericResponse> {
     let mut response = GenericResponse {
         status: String::from("OK"),
@@ -171,7 +174,7 @@ pub fn create_parameter(
         // Make the API so we can create and, if needed,
         // modify the metadata:
 
-        let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
+        let api = ParameterMessageClient::new(&state.inner().lock().unwrap());
         let reply = api.create_parameter(&name);
         match reply {
             Ok(_) => {
@@ -219,7 +222,7 @@ pub fn edit_parameter(
     high: Option<f64>,
     units: Option<String>,
     description: Option<String>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<GenericResponse> {
     let mut response = GenericResponse::ok("");
 
@@ -238,7 +241,7 @@ pub fn edit_parameter(
         // Make the API so we can create and, if needed,
         // modify the metadata:
 
-        let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
+        let api = ParameterMessageClient::new(&state.inner().lock().unwrap());
         if let Err(s) = api.modify_parameter_metadata(&name, bins, limits, units, description) {
             response.status = String::from("Could not modify metadata");
             response.detail = s;
@@ -260,7 +263,7 @@ pub fn promote_parameter(
     high: Option<f64>,
     units: Option<String>,
     description: Option<String>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<GenericResponse> {
     edit_parameter(name, bins, low, high, units, description, state)
 }
@@ -276,12 +279,12 @@ pub struct CheckResponse {
 // This method is used by check and uncheck to factor out their
 // mostly similar code:
 
-fn check_uncheck_common_code(name: &str, state: &State<HistogramState>) -> CheckResponse {
+fn check_uncheck_common_code(name: &str, state: &State<SharedHistogramChannel>) -> CheckResponse {
     let mut response = CheckResponse {
         status: String::from("OK"),
         detail: Some(0),
     };
-    let api = ParameterMessageClient::new(&state.inner().histogramer.lock().unwrap());
+    let api = ParameterMessageClient::new(&state.inner().lock().unwrap());
     let result = api.list_parameters(name);
     match result {
         Ok(listing) => {
@@ -313,7 +316,7 @@ fn check_uncheck_common_code(name: &str, state: &State<HistogramState>) -> Check
 /// Failure:  Status is a top level error message and
 /// Empty.
 #[get("/check?<name>")]
-pub fn check_parameter(name: String, state: &State<HistogramState>) -> Json<CheckResponse> {
+pub fn check_parameter(name: String, state: &State<SharedHistogramChannel>) -> Json<CheckResponse> {
     let response = check_uncheck_common_code(&name, state);
     Json(response)
 }
@@ -330,7 +333,10 @@ pub fn check_parameter(name: String, state: &State<HistogramState>) -> Json<Chec
 /// Failed repsly:  Status is a detailed error message detail is null.
 ///
 #[get("/uncheck?<name>")]
-pub fn uncheck_parameter(name: String, state: &State<HistogramState>) -> Json<CheckResponse> {
+pub fn uncheck_parameter(
+    name: String,
+    state: &State<SharedHistogramChannel>,
+) -> Json<CheckResponse> {
     let mut response = check_uncheck_common_code(&name, state);
     response.detail = None; // Fix up resposne.
 
@@ -354,7 +360,7 @@ pub fn new_rawparameter(
     bins: Option<u32>,
     units: Option<String>,
     description: Option<String>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<GenericResponse> {
     create_parameter(name, low, high, bins, units, description, state)
 }
@@ -375,7 +381,7 @@ pub fn new_rawparameter(
 pub fn list_rawparameter(
     pattern: Option<String>,
     id: Option<u32>,
-    state: &State<HistogramState>,
+    state: &State<SharedHistogramChannel>,
 ) -> Json<Parameters> {
     if pattern.is_some() && id.is_some() {
         Json(Parameters {
@@ -421,7 +427,7 @@ mod parameter_tests {
     use crate::messaging;
     use crate::messaging::parameter_messages;
     use crate::processing;
-    use crate::rest::HistogramState;
+    use crate::rest::MirrorState;
     use crate::sharedmem::binder;
     use crate::trace;
     use rocket;
@@ -441,11 +447,7 @@ mod parameter_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -454,7 +456,10 @@ mod parameter_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
             .manage(tracedb.clone())
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .mount("/par", routes![list_parameters, parameter_version,])
             .mount(
                 "/tree",
@@ -478,16 +483,14 @@ mod parameter_tests {
         r: &Rocket<Build>,
     ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();

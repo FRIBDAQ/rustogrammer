@@ -35,8 +35,8 @@ use crate::sharedmem::binder;
 /// reason given for the failure.
 ///
 #[get("/byname?<name>")]
-pub fn unbind_byname(name: String, state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+pub fn unbind_byname(name: String, state: &State<SharedBinderChannel>) -> Json<GenericResponse> {
+    let api = binder::BindingApi::new(&state.inner().lock().unwrap());
 
     let response = if let Err(s) = api.unbind(&name) {
         GenericResponse::err(&format!("Failed to unbind {}", name), &s)
@@ -77,8 +77,8 @@ pub fn unbind_byid() -> Json<GenericResponse> {
 /// specific error message returned by the server.
 ///
 #[get("/all")]
-pub fn unbind_all(state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+pub fn unbind_all(state: &State<SharedBinderChannel>) -> Json<GenericResponse> {
+    let api = binder::BindingApi::new(&state.inner().lock().unwrap());
 
     let response = if let Err(s) = api.unbind_all() {
         GenericResponse::err("Failed to unbind all spectra", &s)
@@ -113,11 +113,7 @@ mod unbind_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -127,6 +123,9 @@ mod unbind_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![unbind_byname, unbind_byid, unbind_all])
     }
@@ -138,23 +137,20 @@ mod unbind_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );

@@ -123,10 +123,13 @@ fn bind_spectrum_list(
 /// have a chunk big enough for the spectrum).
 ///
 #[get("/all")]
-pub fn sbind_all(state: &State<HistogramState>) -> Json<GenericResponse> {
+pub fn sbind_all(
+    hg_state: &State<SharedHistogramChannel>,
+    b_state: &State<SharedBinderChannel>,
+) -> Json<GenericResponse> {
     let spectrum_api =
-        spectrum_messages::SpectrumMessageClient::new(&state.inner().histogramer.lock().unwrap());
-    let binding_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+        spectrum_messages::SpectrumMessageClient::new(&hg_state.inner().lock().unwrap());
+    let binding_api = binder::BindingApi::new(&b_state.inner().lock().unwrap());
 
     // Get the spectra:
 
@@ -182,10 +185,13 @@ fn remove_duplicates(in_names: Vec<String>) -> Vec<String> {
 /// the detail is the reason given by the binding api.
 ///
 #[get("/sbind?<spectrum>")]
-pub fn sbind_list(spectrum: Vec<String>, state: &State<HistogramState>) -> Json<GenericResponse> {
+pub fn sbind_list(
+    spectrum: Vec<String>,
+    state: &State<SharedBinderChannel>,
+) -> Json<GenericResponse> {
     // We need the bindings api.
 
-    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+    let api = binder::BindingApi::new(&state.inner().lock().unwrap());
     let binding_list = match api.list_bindings("*") {
         Ok(l) => l,
         Err(s) => {
@@ -237,9 +243,9 @@ pub struct BindingsResponse {
 #[get("/list?<pattern>")]
 pub fn sbind_bindings(
     pattern: OptionalString,
-    state: &State<HistogramState>,
+    state: &State<SharedBinderChannel>,
 ) -> Json<BindingsResponse> {
-    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+    let api = binder::BindingApi::new(&state.inner().lock().unwrap());
     let p = if let Some(pat) = pattern {
         pat
     } else {
@@ -274,7 +280,7 @@ mod sbind_tests {
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::processing;
-    use crate::rest::HistogramState;
+    use crate::rest::MirrorState;
     use crate::sharedmem::binder;
     use crate::trace;
 
@@ -296,11 +302,7 @@ mod sbind_tests {
 
         // Construct the state:
 
-        let state = HistogramState {
-            histogramer: Mutex::new(hg_sender.clone()),
-            binder: Mutex::new(binder_req),
-            processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
-            portman_client: None,
+        let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
             mirror_port: 0,
         };
@@ -313,6 +315,9 @@ mod sbind_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
+            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
             .manage(tracedb.clone())
             .mount("/", routes![sbind_all, sbind_list, sbind_bindings,])
     }
@@ -324,23 +329,20 @@ mod sbind_tests {
         binder::BindingApi,
     ) {
         let chan = r
-            .state::<HistogramState>()
+            .state::<SharedHistogramChannel>()
             .expect("Valid state")
-            .histogramer
             .lock()
             .unwrap()
             .clone();
         let papi = r
-            .state::<HistogramState>()
+            .state::<SharedProcessingApi>()
             .expect("Valid State")
-            .processing
             .lock()
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
