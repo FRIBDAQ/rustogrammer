@@ -594,7 +594,7 @@ fn enter_spectra(
     replace: bool,
     to_shm: bool,
     hg_chan: &State<SharedHistogramChannel>,
-    state: &State<HistogramState>,
+    state: &State<SharedBinderChannel>,
 ) -> Result<(), String> {
     // We need the API:
 
@@ -635,7 +635,7 @@ fn enter_spectra(
         // Bind the spectrum if it's supposed to be in shared memory.
 
         if to_shm {
-            let bind_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+            let bind_api = binder::BindingApi::new(&state.inner().lock().unwrap());
             bind_api.bind(&actual_name)?;
         }
     }
@@ -713,7 +713,7 @@ pub fn sread_handler(
     replace: OptionalFlag,
     bind: OptionalFlag,
     hg_chan: &State<SharedHistogramChannel>,
-    state: &State<HistogramState>,
+    state: &State<SharedBinderChannel>,
 ) -> Json<GenericResponse> {
     // Figure out the flag states:
 
@@ -792,7 +792,6 @@ mod read_tests {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -804,6 +803,7 @@ mod read_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(binder_req))
             .manage(Mutex::new(hg_sender.clone()))
             .manage(tracedb.clone())
             .mount("/", routes![sread_handler])
@@ -829,9 +829,8 @@ mod read_tests {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -1345,7 +1344,6 @@ mod swrite_tests {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -1363,6 +1361,7 @@ mod swrite_tests {
         rocket::build()
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
             .manage(tracedb.clone())
             .mount("/swrite", routes![swrite_handler])
             .mount("/sread", routes![sread_handler])
@@ -1388,9 +1387,8 @@ mod swrite_tests {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );

@@ -125,11 +125,11 @@ fn bind_spectrum_list(
 #[get("/all")]
 pub fn sbind_all(
     hg_state: &State<SharedHistogramChannel>,
-    state: &State<HistogramState>,
+    b_state: &State<SharedBinderChannel>
 ) -> Json<GenericResponse> {
     let spectrum_api =
         spectrum_messages::SpectrumMessageClient::new(&hg_state.inner().lock().unwrap());
-    let binding_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+    let binding_api = binder::BindingApi::new(&b_state.inner().lock().unwrap());
 
     // Get the spectra:
 
@@ -185,10 +185,10 @@ fn remove_duplicates(in_names: Vec<String>) -> Vec<String> {
 /// the detail is the reason given by the binding api.
 ///
 #[get("/sbind?<spectrum>")]
-pub fn sbind_list(spectrum: Vec<String>, state: &State<HistogramState>) -> Json<GenericResponse> {
+pub fn sbind_list(spectrum: Vec<String>, state: &State<SharedBinderChannel>) -> Json<GenericResponse> {
     // We need the bindings api.
 
-    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+    let api = binder::BindingApi::new(&state.inner().lock().unwrap());
     let binding_list = match api.list_bindings("*") {
         Ok(l) => l,
         Err(s) => {
@@ -240,9 +240,9 @@ pub struct BindingsResponse {
 #[get("/list?<pattern>")]
 pub fn sbind_bindings(
     pattern: OptionalString,
-    state: &State<HistogramState>,
+    state: &State<SharedBinderChannel>,
 ) -> Json<BindingsResponse> {
-    let api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+    let api = binder::BindingApi::new(&state.inner().lock().unwrap());
     let p = if let Some(pat) = pattern {
         pat
     } else {
@@ -300,7 +300,6 @@ mod sbind_tests {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -316,6 +315,7 @@ mod sbind_tests {
         rocket::build()
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
             .manage(tracedb.clone())
             .mount("/", routes![sbind_all, sbind_list, sbind_bindings,])
     }
@@ -340,9 +340,8 @@ mod sbind_tests {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );

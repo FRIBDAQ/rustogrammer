@@ -357,7 +357,6 @@ mod pipeline_tests {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -370,6 +369,7 @@ mod pipeline_tests {
         rocket::build()
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
             .manage(tracedb.clone())
             .mount(
                 "/",
@@ -408,9 +408,8 @@ mod pipeline_tests {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -633,7 +632,6 @@ mod project_tests {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -645,6 +643,7 @@ mod project_tests {
 
         rocket::build()
             .manage(state)
+            .manage(Mutex::new(binder_req))
             .manage(Mutex::new(hg_sender.clone()))
             .manage(tracedb.clone())
             .mount("/", routes![project])
@@ -670,9 +669,8 @@ mod project_tests {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -733,7 +731,6 @@ mod pseudo_test {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -746,6 +743,7 @@ mod pseudo_test {
         rocket::build()
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
             .manage(tracedb.clone())
             .mount("/", routes![pseudo_create, pseudo_list, pseudo_delete])
     }
@@ -770,9 +768,8 @@ mod pseudo_test {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -871,7 +868,6 @@ mod roottree_tests {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -884,6 +880,7 @@ mod roottree_tests {
         rocket::build()
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
             .manage(tracedb.clone())
             .mount(
                 "/",
@@ -911,9 +908,8 @@ mod roottree_tests {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -1012,7 +1008,6 @@ mod script_tests {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -1025,6 +1020,7 @@ mod script_tests {
         rocket::build()
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
             .manage(tracedb.clone())
             .mount("/", routes![script_execute])
     }
@@ -1049,9 +1045,8 @@ mod script_tests {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
@@ -1113,7 +1108,6 @@ mod treevar_tests {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -1126,6 +1120,7 @@ mod treevar_tests {
         rocket::build()
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
             .manage(tracedb.clone())
             .mount(
                 "/",
@@ -1159,9 +1154,8 @@ mod treevar_tests {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );

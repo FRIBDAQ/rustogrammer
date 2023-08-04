@@ -68,9 +68,9 @@ use std::sync::{mpsc, Arc, Mutex};
 // State types:
 
 type SharedHistogramChannel = Mutex<mpsc::Sender<Request>>;
+type SharedBinderChannel = Mutex<mpsc::Sender<binder::Request>>;
 
 pub struct HistogramState {
-    pub binder: Mutex<mpsc::Sender<binder::Request>>,
     pub processing: Mutex<processing::ProcessingApi>,
     pub portman_client: Option<portman_client::Client>,
     pub mirror_exit: Arc<Mutex<mpsc::Sender<bool>>>,

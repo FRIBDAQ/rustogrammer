@@ -30,8 +30,8 @@ use std::mem;
 /// is the name of the region and on error, the reason for faiure.
 ///
 #[get("/key")]
-pub fn shmem_name(state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = BindingApi::new(&state.inner().binder.lock().unwrap());
+pub fn shmem_name(state: &State<SharedBinderChannel>) -> Json<GenericResponse> {
+    let api = BindingApi::new(&state.inner().lock().unwrap());
     Json(match api.get_shname() {
         Ok(name) => GenericResponse::ok(&name),
         Err(reason) => GenericResponse::err("Failed to get shared memory name", &reason),
@@ -53,8 +53,8 @@ pub fn shmem_name(state: &State<HistogramState>) -> Json<GenericResponse> {
 /// why the request failed.
 ///
 #[get("/size")]
-pub fn shmem_size(state: &State<HistogramState>) -> Json<GenericResponse> {
-    let api = BindingApi::new(&state.inner().binder.lock().unwrap());
+pub fn shmem_size(state: &State<SharedBinderChannel>) -> Json<GenericResponse> {
+    let api = BindingApi::new(&state.inner().lock().unwrap());
     let info = api.get_usage();
 
     let response = match info {
@@ -133,8 +133,11 @@ const UNDEF: &str = "-undefined-";
 /// ignored.
 ///
 #[get("/variables")]
-pub fn get_variables(state: &State<HistogramState>) -> Json<SpectclVarResult> {
-    let shmapi = BindingApi::new(&state.inner().binder.lock().unwrap());
+pub fn get_variables(
+    state: &State<HistogramState>,
+    b_state: &State<SharedBinderChannel>,
+) -> Json<SpectclVarResult> {
+    let shmapi = BindingApi::new(&b_state.inner().lock().unwrap());
     let prcapi = state.inner().processing.lock().unwrap();
     let batching = prcapi.get_batching();
     let mut vars = SpectclVariables {
@@ -198,7 +201,6 @@ mod shm_tests {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -211,6 +213,7 @@ mod shm_tests {
         rocket::build()
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
             .manage(tracedb.clone())
             .mount("/", routes![shmem_name, shmem_size, get_variables])
     }
@@ -235,9 +238,8 @@ mod shm_tests {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );

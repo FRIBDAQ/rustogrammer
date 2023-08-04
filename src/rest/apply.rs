@@ -173,7 +173,6 @@ mod apply_tests {
             mpsc::Receiver<binder::Request>,
         ) = mpsc::channel();
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender.clone())),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -182,6 +181,7 @@ mod apply_tests {
         rocket::build()
             .manage(state)
             .manage(Mutex::new(hg_sender.clone()))
+            .manage(Mutex::new(binder_req))
             .manage(tracedb.clone())
             .mount("/", routes![apply_gate, apply_list, ungate_spectrum])
     }

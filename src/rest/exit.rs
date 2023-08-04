@@ -27,6 +27,7 @@ pub fn shutdown(
     shutdown: Shutdown,
     state: &State<HistogramState>,
     hg_chan: &State<SharedHistogramChannel>,
+    b_chan: &State<SharedBinderChannel>,
     tracedb: &State<trace::SharedTraceStore>,
 ) -> Json<GenericResponse> {
     // Stop the trace prune thread (or rather schedule it to stop - within
@@ -50,7 +51,7 @@ pub fn shutdown(
 
     // Shutdown the shared memory program.
 
-    let bind_api = BindingApi::new(&state.inner().binder.lock().unwrap());
+    let bind_api = BindingApi::new(&b_chan.inner().lock().unwrap());
 
     match bind_api.exit() {
         Ok(s) => {

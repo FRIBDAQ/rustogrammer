@@ -97,7 +97,6 @@ fn rocket() -> _ {
     });
 
     let state = rest::HistogramState {
-        binder: Mutex::new(binder.0.clone()),
         processing: Mutex::new(processor),
         portman_client: client,
         mirror_exit: Arc::new(Mutex::new(mirror_send)),

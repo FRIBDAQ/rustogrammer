@@ -825,7 +825,7 @@ pub fn get_contents(
 pub fn clear_spectra(
     pattern: Option<String>,
     hg: &State<SharedHistogramChannel>,
-    state: &State<HistogramState>,
+    state: &State<SharedBinderChannel>,
 ) -> Json<GenericResponse> {
     let mut pat = String::from("*");
     if let Some(p) = pattern {
@@ -838,7 +838,7 @@ pub fn clear_spectra(
         // also need to clear the shared memory copies of the bound
         // spectra:
 
-        let bind_api = binder::BindingApi::new(&state.inner().binder.lock().unwrap());
+        let bind_api = binder::BindingApi::new(&state.inner().lock().unwrap());
         if let Err(s) = bind_api.clear_spectra(&pat) {
             GenericResponse::err("Failed to clear bound spectra: ", &s)
         } else {
@@ -1168,7 +1168,6 @@ mod spectrum_tests {
         // Construct the state:
 
         let state = HistogramState {
-            binder: Mutex::new(binder_req),
             processing: Mutex::new(processing::ProcessingApi::new(&hg_sender)),
             portman_client: None,
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
@@ -1186,6 +1185,7 @@ mod spectrum_tests {
         rocket::build()
             .manage(state)
             .manage(tracedb.clone())
+            .manage(Mutex::new(binder_req))
             .manage(Mutex::new(hg_sender.clone()))
             .mount(
                 "/",
@@ -1219,9 +1219,8 @@ mod spectrum_tests {
             .unwrap()
             .clone();
         let binder_api = binder::BindingApi::new(
-            &r.state::<HistogramState>()
+            &r.state::<SharedBinderChannel>()
                 .expect("Valid State")
-                .binder
                 .lock()
                 .unwrap(),
         );
