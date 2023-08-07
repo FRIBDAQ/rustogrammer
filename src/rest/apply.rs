@@ -156,6 +156,7 @@ mod apply_tests {
     use crate::messaging::spectrum_messages;
     use crate::processing;
     use crate::sharedmem::binder;
+    use crate::test::rest_common;
     use crate::trace;
 
     use rocket;
@@ -166,29 +167,10 @@ mod apply_tests {
     use std::sync::{mpsc, Arc, Mutex};
 
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-        let (binder_req, _rx): (
-            mpsc::Sender<binder::Request>,
-            mpsc::Receiver<binder::Request>,
-        ) = mpsc::channel();
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(
-                &hg_sender.clone(),
-            )))
-            .manage(tracedb.clone())
-            .mount("/", routes![apply_gate, apply_list, ungate_spectrum])
+        rest_common::setup().mount("/", routes![apply_gate, apply_list, ungate_spectrum])
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+        rest_common::teardown(c, p);
     }
     fn get_state(
         r: &Rocket<Build>,
