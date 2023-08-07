@@ -149,22 +149,19 @@ pub fn ungate_spectrum(
 #[cfg(test)]
 mod apply_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::messaging::condition_messages;
     use crate::messaging::parameter_messages;
     use crate::messaging::spectrum_messages;
     use crate::processing;
-    use crate::sharedmem::binder;
     use crate::test::rest_common;
-    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::sync::{mpsc, Arc, Mutex};
+    use std::sync::mpsc;
 
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount("/", routes![apply_gate, apply_list, ungate_spectrum])

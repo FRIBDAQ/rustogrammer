@@ -4,7 +4,6 @@
 //!  modules becomes too distracting, the tests themselves
 //!  will become submodules here.
 
-use crate::histogramer;
 #[cfg(test)]
 
 pub mod rest_common {
