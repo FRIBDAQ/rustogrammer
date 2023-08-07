@@ -413,7 +413,7 @@ mod processing_tests {
 
         // Stop analysis before teardown:
 
-        let _status = papi.stop_analysis();   // We can ignore failure as processing might be done.
+        let _status = papi.stop_analysis(); // We can ignore failure as processing might be done.
 
         teardown(chan, &papi);
     }
