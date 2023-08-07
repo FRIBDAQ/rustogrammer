@@ -2,7 +2,7 @@ name: Rust
 
 on:
   push:
-    branches: [ "main", "rfoxkendo/issue90" ]
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
