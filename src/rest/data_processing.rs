@@ -175,8 +175,8 @@ mod processing_tests {
             )
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
+        histogramer::stop_server(&c);
     }
     fn get_state(
         r: &Rocket<Build>,
@@ -382,6 +382,7 @@ mod processing_tests {
             .expect("Bad JSON");
         assert_eq!("OK", reply.status.as_str());
         assert_eq!(String::from("").as_str(), reply.detail.as_str());
+        let _status = papi.stop_analysis();
 
         teardown(chan, &papi);
     }
@@ -390,7 +391,6 @@ mod processing_tests {
     // environment (linux) hangs... so for now...
     // maybe need to stop analysis before teardown?
 
-    #[cfg(not(target_os = "linux"))]
     #[test]
     fn start_3() {
         // attached - but started already
@@ -410,6 +410,10 @@ mod processing_tests {
 
         assert_eq!("Failed to start analysis", reply.status.as_str());
         assert_eq!("Already processing run-0000-00.par", reply.detail.as_str());
+
+        // Stop analysis before teardown:
+
+        let _status = papi.stop_analysis();   // We can ignore failure as processing might be done.
 
         teardown(chan, &papi);
     }
