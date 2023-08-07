@@ -119,6 +119,28 @@ pub fn parameter_version() -> Json<GenericResponse> {
 // We're going to allow low, high and bis all to be
 // optional..only requiring name.
 
+// This function is common between the /edit and /create methods:
+// It sets the metadata associated with the parameter:
+
+fn set_metadata(
+    name: &str,
+    bins: Option<u32>,
+    limits: Option<(f64, f64)>,
+    units: Option<String>,
+    description: Option<String>,
+    state: &State<SharedHistogramChannel>,
+) -> GenericResponse {
+    let mut response = GenericResponse::ok("");
+
+    let api = ParameterMessageClient::new(&state.inner().lock().unwrap());
+    if let Err(s) = api.modify_parameter_metadata(name, bins, limits, units, description) {
+        response.status = String::from("Could not modify metadata");
+        response.detail = s;
+    }
+
+    response
+}
+
 ///
 /// Implement the create operations for parameters.
 ///  The url in general is of the form:
@@ -152,10 +174,7 @@ pub fn create_parameter(
     description: Option<String>,
     state: &State<SharedHistogramChannel>,
 ) -> Json<GenericResponse> {
-    let mut response = GenericResponse {
-        status: String::from("OK"),
-        detail: String::new(),
-    };
+    let mut response = GenericResponse::ok("");
 
     // Both low and high must be supplied, not just one:
 
@@ -179,12 +198,7 @@ pub fn create_parameter(
         match reply {
             Ok(_) => {
                 // Attempt to set the metadata:
-
-                let status = api.modify_parameter_metadata(&name, bins, limits, units, description);
-                if let Err(s) = status {
-                    response.status = String::from("Failed set parameter metadata: ");
-                    response.detail = s;
-                }
+                response = set_metadata(&name, bins, limits, units, description, state);
             }
             Err(s) => {
                 response.status = String::from("'treeparameter -create' failed: ");
@@ -241,11 +255,7 @@ pub fn edit_parameter(
         // Make the API so we can create and, if needed,
         // modify the metadata:
 
-        let api = ParameterMessageClient::new(&state.inner().lock().unwrap());
-        if let Err(s) = api.modify_parameter_metadata(&name, bins, limits, units, description) {
-            response.status = String::from("Could not modify metadata");
-            response.detail = s;
-        }
+        response = set_metadata(&name, bins, limits, units, description, state);
     }
     Json(response)
 }
