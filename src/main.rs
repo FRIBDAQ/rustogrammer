@@ -111,7 +111,7 @@ fn rocket() -> _ {
         .manage(trace_store.clone())
         .manage(Mutex::new(binder.0.clone()))
         .manage(Mutex::new(histogramer_channel.clone()))
-        .manage( Mutex::new(processor))
+        .manage(Mutex::new(processor))
         .manage(portman_client)
         .mount(
             "/spectcl/parameter",
