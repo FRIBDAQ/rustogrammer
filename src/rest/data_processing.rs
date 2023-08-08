@@ -121,20 +121,16 @@ pub fn set_event_batch(events: usize, state: &State<SharedProcessingApi>) -> Jso
 #[cfg(test)]
 mod processing_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::processing;
-    use crate::sharedmem::binder;
-    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
+    use crate::test::rest_common;
     use std::sync::mpsc;
-    use std::sync::Mutex;
-
     // Setup needs to set a state for Rocket that includes valid
     // histogramer request channel and thread.
     // binder channel (no need for thread).
@@ -142,59 +138,25 @@ mod processing_tests {
     // No port manager instance.
 
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-        let (binder_req, _rx): (
-            mpsc::Sender<binder::Request>,
-            mpsc::Receiver<binder::Request>,
-        ) = mpsc::channel();
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .manage(Mutex::new(hg_sender.clone()))
-            .mount(
-                "/",
-                routes![
-                    attach_source,
-                    list_source,
-                    detach_source,
-                    start_processing,
-                    stop_processing,
-                    set_event_batch
-                ],
-            )
+        rest_common::setup().mount(
+            "/",
+            routes![
+                attach_source,
+                list_source,
+                detach_source,
+                start_processing,
+                stop_processing,
+                set_event_batch
+            ],
+        )
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        p.stop_thread().expect("Stopping processing thread");
-        histogramer::stop_server(&c);
+        rest_common::teardown(c, p);
     }
     fn get_state(
         r: &Rocket<Build>,
     ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-
-        (chan, papi)
+        rest_common::get_state(r)
     }
     #[test]
     fn attach_1() {

@@ -44,8 +44,9 @@ pub mod rest_common {
     /// Teardown the infrastructure that was created by the
     /// setup function:
     pub fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
+        histogramer::stop_server(&c);
+        
     }
     pub fn get_state(
         r: &Rocket<Build>,
