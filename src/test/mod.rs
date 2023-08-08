@@ -17,6 +17,7 @@ pub mod rest_common {
     use rocket::Build;
     use rocket::Rocket;
     use std::sync::{mpsc, Arc, Mutex};
+
     /// Sets up the state and rocket.
     /// The caller must still mount the appropriate set of
     /// routes.

@@ -41,7 +41,8 @@ mod mirror_list_tests {
     // Note that we can test without actually setting up the
     // whole infrastructure...we can make test data directly into the
     // mirror directory we pass into the test server.
-    //
+    //   The scaled down setup means it's simplest not to use the
+    // rest_common module to setup as then we'd also have to teardown.
     use super::*;
     use crate::sharedmem::mirror;
     use rocket;
