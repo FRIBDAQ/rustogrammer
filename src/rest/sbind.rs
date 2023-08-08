@@ -280,10 +280,8 @@ mod sbind_tests {
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::processing;
-    use crate::rest::MirrorState;
     use crate::sharedmem::binder;
     use crate::test::rest_common;
-    use crate::trace;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -292,12 +290,11 @@ mod sbind_tests {
 
     use std::fs;
     use std::path::Path;
-    use std::sync::{mpsc, Arc, Mutex};
+    use std::sync::mpsc;
     use std::thread;
     use std::time;
 
     fn setup() -> Rocket<Build> {
-        
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
