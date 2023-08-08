@@ -150,8 +150,9 @@ mod filter_tests {
     use super::*;
     use crate::messaging;
     use crate::processing;
-
+    use crate::sharedmem::binder;
     use crate::test::rest_common;
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -163,19 +164,19 @@ mod filter_tests {
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount("/", routes![new, delete, enable, disable, regate, file])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        rest_common::teardown(c, p);
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi, b: &binder::BindingApi) {
+        rest_common::teardown(c, p, b);
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi, binder::BindingApi) {
         rest_common::get_state(r)
     }
 
     #[test]
     fn new_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/new");
@@ -190,12 +191,12 @@ mod filter_tests {
         );
         assert_eq!("This is not SpecTcl", reply.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn delete_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/delete");
@@ -210,12 +211,12 @@ mod filter_tests {
         );
         assert_eq!("This is not SpecTcl", reply.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn enable_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/enable");
@@ -230,12 +231,12 @@ mod filter_tests {
         );
         assert_eq!("This is not SpecTcl", reply.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn disable_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/disable");
@@ -250,12 +251,12 @@ mod filter_tests {
         );
         assert_eq!("This is not SpecTcl", reply.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn regate_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/regate");
@@ -270,12 +271,12 @@ mod filter_tests {
         );
         assert_eq!("This is not SpecTcl", reply.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn file_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/file");
@@ -290,6 +291,6 @@ mod filter_tests {
         );
         assert_eq!("This is not SpecTcl", reply.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
 }

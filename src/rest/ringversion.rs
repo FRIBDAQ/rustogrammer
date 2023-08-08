@@ -97,6 +97,7 @@ mod ringversion_tests {
     use crate::messaging;
     use crate::processing;
     use crate::test::rest_common;
+    use crate::sharedmem::binder;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -108,12 +109,12 @@ mod ringversion_tests {
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount("/", routes![ringversion_set, ringversion_get])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        rest_common::teardown(c, p);
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi, b: &binder::BindingApi) {
+        rest_common::teardown(c, p, b);
     }
     fn getstate(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi, binder::BindingApi) {
         rest_common::get_state(r)
     }
 
@@ -122,7 +123,7 @@ mod ringversion_tests {
         // Legal version:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/?major=12");
@@ -133,14 +134,14 @@ mod ringversion_tests {
 
         assert_eq!("OK", reply.status);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn set_2() {
         // in valid version:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Making client");
         let req = client.get("/?major=xyzzy");
@@ -151,14 +152,14 @@ mod ringversion_tests {
 
         assert_eq!("Unable to set ring format version", reply.status);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn get_1() {
         // get 11.0:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         // Set it to 11:
 
@@ -176,14 +177,14 @@ mod ringversion_tests {
         assert_eq!(11, reply.detail.major);
         assert_eq!(0, reply.detail.minor);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn get_2() {
         // get 12.0:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         // Set it to 11:
 
@@ -201,6 +202,6 @@ mod ringversion_tests {
         assert_eq!(12, reply.detail.major);
         assert_eq!(0, reply.detail.minor);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
 }

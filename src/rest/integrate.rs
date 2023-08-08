@@ -62,6 +62,7 @@ mod integrate_tests {
     use crate::messaging;
     use crate::processing;
     use crate::test::rest_common;
+    use crate::sharedmem::binder;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -73,12 +74,12 @@ mod integrate_tests {
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount("/", routes![integrate])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        rest_common::teardown(c, p);
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi, b: &binder::BindingApi) {
+        rest_common::teardown(c, p, b);
     }
     fn getstate(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi, binder::BindingApi) {
         rest_common::get_state(r)
     }
     #[test]
@@ -86,7 +87,7 @@ mod integrate_tests {
         // Make the request...
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let request = client.get("/");
@@ -100,6 +101,6 @@ mod integrate_tests {
             response.status
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
 }

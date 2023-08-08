@@ -74,6 +74,7 @@ mod evb_unpack_tests {
     use super::*;
     use crate::messaging;
     use crate::processing;
+    use crate::sharedmem::binder;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -91,19 +92,19 @@ mod evb_unpack_tests {
             routes![create_evbunpack, add_evbunpack, list_evbunpack],
         )
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        rest_common::teardown(c, p);
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi, b: &binder::BindingApi) {
+        rest_common::teardown(c, p, b);
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi, binder::BindingApi) {
         rest_common::get_state(r)
     }
 
     #[test]
     fn create_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/create");
@@ -118,12 +119,12 @@ mod evb_unpack_tests {
         );
         assert_eq!("This is not SpecTcl", reply.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn add_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/add");
@@ -138,12 +139,12 @@ mod evb_unpack_tests {
         );
         assert_eq!("This is not SpecTcl", reply.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn list_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/list");
@@ -158,6 +159,6 @@ mod evb_unpack_tests {
         );
         assert_eq!(0, reply.detail.len());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
 }

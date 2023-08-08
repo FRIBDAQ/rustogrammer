@@ -123,6 +123,7 @@ mod processing_tests {
     use super::*;
     use crate::messaging;
     use crate::processing;
+    use crate::sharedmem::binder;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -150,12 +151,20 @@ mod processing_tests {
             ],
         )
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        rest_common::teardown(c, p);
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        rest_common::teardown(c, p, b);
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
         rest_common::get_state(r)
     }
     #[test]
@@ -163,7 +172,7 @@ mod processing_tests {
         // fail attach because the type is bad:
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/attach?type=pipe&source=ring2stdout");
@@ -178,14 +187,14 @@ mod processing_tests {
             json.status.as_str()
         );
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn attach_2() {
         // fail attach b/c no such file:
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/attach?type=file&source=no-such_file.par");
@@ -194,14 +203,14 @@ mod processing_tests {
         let json = reply.into_json::<GenericResponse>().expect("Bad JSON");
         assert_eq!("Attach failed", json.status.as_str());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn attach_3() {
         // success
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/attach?type=file&source=run-0000-00.par");
@@ -218,14 +227,14 @@ mod processing_tests {
         let reply = papi.list().expect("Getting attchment");
         assert_eq!("file:run-0000-00.par", reply);
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn list_1() {
         // not attached:
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating clent");
         let req = client.get("/list");
@@ -237,13 +246,13 @@ mod processing_tests {
         assert_eq!("OK", reply.status.as_str());
         assert_eq!("Not Attached", reply.detail.as_str());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn list_2() {
         // attached
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         papi.attach("run-0000-00.par").expect("attaching file"); // attach the easy way
 
@@ -257,14 +266,14 @@ mod processing_tests {
         assert_eq!("OK", reply.status.as_str());
         assert_eq!("file:run-0000-00.par", reply.detail.as_str());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn detach_1() {
         // Test detach with nothing attached.
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/detach");
@@ -276,14 +285,14 @@ mod processing_tests {
         assert_eq!("Failed to detach", reply.status.as_str());
         assert_eq!("Not attached to a data source", reply.detail.as_str());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn detach_2() {
         // test detach with something attached.
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         papi.attach("run-0000-00.par").expect("attaching file"); // attach the easy way
 
@@ -296,13 +305,13 @@ mod processing_tests {
 
         assert_eq!("OK", reply.status.as_str());
         assert_eq!(String::from("").as_str(), reply.detail.as_str());
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn start_1() {
-        // nothing attached.
+        // nothing attached. 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/start");
@@ -314,7 +323,7 @@ mod processing_tests {
         assert_eq!("Failed to start analysis", reply.status.as_str());
         assert_eq!("No file is attached", reply.detail.as_str());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     // I truly don't understand this but this test claims that
     // the histogramer thread probably exited when the processing
@@ -332,7 +341,7 @@ mod processing_tests {
         // attached - ok.
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         papi.attach("run-0000-00.par").expect("attaching file"); // attach the easy way
 
@@ -346,7 +355,7 @@ mod processing_tests {
         assert_eq!(String::from("").as_str(), reply.detail.as_str());
         let _status = papi.stop_analysis();
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     // This cfg - well for some reason, this test works fine
     // on NSCLDAQ container linuxes but on the git hub test
@@ -357,7 +366,7 @@ mod processing_tests {
     fn start_3() {
         // attached - but started already
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         papi.attach("run-0000-00.par").expect("attaching file"); // attach the easy way
 
@@ -377,14 +386,14 @@ mod processing_tests {
 
         let _status = papi.stop_analysis(); // We can ignore failure as processing might be done.
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn stop_1() {
         // Stopped but not started.
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         papi.attach("run-0000-00.par").expect("attaching file"); // attach the easy way
 
@@ -398,14 +407,14 @@ mod processing_tests {
         assert_eq!("Failed to stop analysis", reply.status.as_str());
         assert_eq!("Not processing data", reply.detail.as_str());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn stop_2() {
         // Stopped and is started.
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         papi.attach("run-0000-00.par").expect("attaching file"); // attach the easy way
 
@@ -420,7 +429,7 @@ mod processing_tests {
         assert_eq!("OK", reply.status.as_str());
         assert_eq!(String::from("").as_str(), reply.detail.as_str());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn batching_1() {
@@ -428,7 +437,7 @@ mod processing_tests {
         // This has no faiure as long as everything is still running:
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("creating client");
         let req = client.get("/size?events=12345");
@@ -445,6 +454,6 @@ mod processing_tests {
         // check the value:
         assert_eq!(12345, papi.get_batching());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
 }

@@ -129,12 +129,20 @@ mod getstats_tests {
 
         result
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        rest_common::teardown(c, p);
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        rest_common::teardown(c, p, b);
     }
     fn getstate(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
         rest_common::get_state(r)
     }
     fn sortdetail(inp: &Vec<SpectrumStatistics>) -> Vec<SpectrumStatistics> {
@@ -168,7 +176,7 @@ mod getstats_tests {
         // neither under nor overflows.
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let request = client.get("/");
@@ -191,14 +199,14 @@ mod getstats_tests {
         assert_eq!(vec![0, 0], detail[1].underflows);
         assert_eq!(vec![0, 0], detail[1].overflows);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn getstats_2() {
         // No counts but a filter pattern:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let request = client.get("/?pattern=p*"); // gets p1
@@ -215,7 +223,7 @@ mod getstats_tests {
         assert_eq!(vec![0, 0], detail.underflows);
         assert_eq!(vec![0, 0], detail.overflows);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn getstats_3() {
@@ -223,7 +231,7 @@ mod getstats_tests {
         // 1 under and 2 overs, filtered to p1:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
         let events = make_events();
         let api = spectrum_messages::SpectrumMessageClient::new(&c);
         assert!(api.process_events(&events).is_ok());
@@ -244,14 +252,14 @@ mod getstats_tests {
         assert_eq!(vec![1, 0], stats.underflows);
         assert_eq!(vec![2, 0], stats.overflows);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn getstats_4() {
         // same as 3 but get 2:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
         let events = make_events();
         let api = spectrum_messages::SpectrumMessageClient::new(&c);
         assert!(api.process_events(&events).is_ok());
@@ -273,14 +281,14 @@ mod getstats_tests {
         assert_eq!(vec![1, 2], stats.underflows);
         assert_eq!(vec![2, 1], stats.overflows);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn getstats_5() {
         // get both stats:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
         let events = make_events();
         let api = spectrum_messages::SpectrumMessageClient::new(&c);
         assert!(api.process_events(&events).is_ok());
@@ -312,6 +320,6 @@ mod getstats_tests {
         assert_eq!(vec![1, 0], stats.underflows);
         assert_eq!(vec![2, 0], stats.overflows);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
 }

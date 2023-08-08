@@ -462,12 +462,20 @@ mod parameter_tests {
             )
             .mount("/par", routes![list_parameters, parameter_version,])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        rest_common::teardown(c, p);
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        rest_common::teardown(c, p, b);
     }
     fn getstate(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
         rest_common::get_state(r)
     }
     #[test]
@@ -475,7 +483,7 @@ mod parameter_tests {
         // list_parameters - none existing and no filter.
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Making client");
         let req = client.get("/par/list");
@@ -487,7 +495,7 @@ mod parameter_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(0, reply.detail.len());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn listp_2() {
@@ -495,7 +503,7 @@ mod parameter_tests {
         // no metadata:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
@@ -520,14 +528,14 @@ mod parameter_tests {
         assert!(pinfo.units.is_none());
         assert!(pinfo.description.is_none());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn listp_3() {
         // Filter only lists the paramters that match:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api.create_parameter("param1").expect("making param1");
@@ -545,14 +553,14 @@ mod parameter_tests {
         assert_eq!("param2", reply.detail[0].name);
         assert_eq!(2, reply.detail[0].id);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn listp_4() {
         // List parameter that has metadata:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
 
@@ -610,12 +618,12 @@ mod parameter_tests {
             false
         });
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn version_1() {
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/par/version");
@@ -627,14 +635,14 @@ mod parameter_tests {
         assert_eq!("OK", reply.status);
         assert_eq!("2.0", reply.detail);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn pcreate_1() {
         // create a parameter with no metadata:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/tree/create?name=param1");
@@ -661,14 +669,14 @@ mod parameter_tests {
         assert!(info.get_units().is_none());
         assert!(info.get_description().is_none());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn pcreate_2() {
         // Making a duplicate parameter is an error:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
             .create_parameter("p1")
@@ -683,14 +691,14 @@ mod parameter_tests {
 
         assert_eq!("'treeparameter -create' failed: ", reply.status);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn pcreate_3() {
         // Make aparameter with limits
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/tree/create?name=p1&low=0.0&high=1024.0");
@@ -720,14 +728,14 @@ mod parameter_tests {
         assert!(info.get_units().is_none());
         assert!(info.get_description().is_none());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn pcreate_4() {
         // If we're giving limits we need both of them:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/tree/create?name=p1&low=0.0");
@@ -754,13 +762,13 @@ mod parameter_tests {
             reply.detail
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn pcreate_5() {
         // Set bins:
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/tree/create?name=p1&low=0.0&high=1024.0&bins=512");
@@ -791,13 +799,13 @@ mod parameter_tests {
         assert!(info.get_units().is_none());
         assert!(info.get_description().is_none());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn pcreate_6() {
         // Set the units of measure:
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/tree/create?name=p1&low=0.0&high=1024.0&bins=512&units=cm");
@@ -829,7 +837,7 @@ mod parameter_tests {
         assert_eq!("cm", info.get_units().unwrap());
         assert!(info.get_description().is_none());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn pcreate_7() {
@@ -837,7 +845,7 @@ mod parameter_tests {
 
         // Set the units of measure:
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/tree/create?name=p1&low=0.0&high=1024.0&bins=512&units=cm&description=This%20is%20a%20parameter");
@@ -870,7 +878,7 @@ mod parameter_tests {
         assert!(info.get_description().is_some());
         assert_eq!("This is a parameter", info.get_description().unwrap());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // Tests to edit the metadata for an existing parameter.
 
@@ -879,7 +887,7 @@ mod parameter_tests {
         // Parameter must exist. Else an error
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/tree/edit?name=p1");
@@ -890,14 +898,14 @@ mod parameter_tests {
 
         assert_eq!("Could not modify metadata", reply.status);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_2() {
         // Set bins:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
@@ -920,14 +928,14 @@ mod parameter_tests {
         let bins = info.get_bins().expect("should be bins");
         assert_eq!(1024, bins);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_3() {
         // set low and high:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
@@ -953,14 +961,14 @@ mod parameter_tests {
         assert_eq!(0.0, limits.0.expect("Low not here"));
         assert_eq!(512.0, limits.1.expect("HIgh not here"));
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_4() {
         // both low and high must be present if either is:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
@@ -990,14 +998,14 @@ mod parameter_tests {
             reply.detail
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_5() {
         // Set units of measure:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
@@ -1025,14 +1033,14 @@ mod parameter_tests {
         let units = info.get_units().expect("No units!");
         assert_eq!("furlongs", units);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_6() {
         // set the description:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
@@ -1062,7 +1070,7 @@ mod parameter_tests {
         let desc = info.get_description().expect("No description");
         assert_eq!("This is a description", desc);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // Note that the 'check' flag does not exit in rustogramer
     // so return values are fixed -- if there are matching parameters.
@@ -1072,7 +1080,7 @@ mod parameter_tests {
         // Parameter does not exist:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/tree/check?name=p1");
@@ -1084,14 +1092,14 @@ mod parameter_tests {
         assert_eq!("No such parameter p1", reply.status);
         assert!(reply.detail.is_none());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn check_2() {
         // Parameter does exist:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
@@ -1109,14 +1117,14 @@ mod parameter_tests {
         assert!(reply.detail.is_some());
         assert_eq!(0, reply.detail.unwrap());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn uncheck_1() {
         // Parameter does not exist:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/tree/uncheck?name=p1");
@@ -1128,14 +1136,14 @@ mod parameter_tests {
         assert_eq!("No such parameter p1", reply.status);
         assert!(reply.detail.is_none());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn uncheck_2() {
         // Parameter does exist:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
@@ -1152,7 +1160,7 @@ mod parameter_tests {
         assert_eq!("OK", reply.status);
         assert!(reply.detail.is_none());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // list_rawparameters is mostly a front end to list cases to test:
     //
@@ -1165,7 +1173,7 @@ mod parameter_tests {
     fn rawlist_1() {
         // Name _and_ id missing.
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/tree/list");
@@ -1180,12 +1188,12 @@ mod parameter_tests {
         );
         assert_eq!(0, reply.detail.len());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn rawlist_2() {
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Making client");
         let req = client.get("/tree/list?pattern=*&id=12");
@@ -1197,12 +1205,12 @@ mod parameter_tests {
         assert_eq!("Only id or pattern can be supplied, not both", reply.status);
         assert_eq!(0, reply.detail.len());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn rawlist_3() {
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
@@ -1227,14 +1235,14 @@ mod parameter_tests {
         assert!(info.units.is_none());
         assert!(info.description.is_none());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn rawlist_4() {
         // id supplied and not found.
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let param_api = parameter_messages::ParameterMessageClient::new(&c);
         param_api
@@ -1251,14 +1259,14 @@ mod parameter_tests {
         assert_eq!("No parameter with id 2 exists", reply.status);
         assert_eq!(0, reply.detail.len());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn delete_1() {
         // parameters can't be deleted:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/tree/delete");
@@ -1270,6 +1278,6 @@ mod parameter_tests {
         assert_eq!("Deletion of parameters is not supported", reply.status);
         assert_eq!("This is rustogrammer not SpecTcl", reply.detail);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
 }

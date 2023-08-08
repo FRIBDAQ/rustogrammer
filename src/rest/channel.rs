@@ -62,6 +62,8 @@ mod channels_tests {
     use crate::messaging;
     use crate::processing;
     use crate::test::rest_common;
+    use crate::sharedmem::binder;
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -72,16 +74,16 @@ mod channels_tests {
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi, binder::BindingApi) {
         rest_common::get_state(r)
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        rest_common::teardown(c, p);
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi, b: &binder::BindingApi) {
+        rest_common::teardown(c, p, b);
     }
     #[test]
     fn set_1() {
         let r = setup();
-        let (hg, p) = get_state(&r);
+        let (hg, p, b) = get_state(&r);
 
         let c = Client::tracked(r).expect("Failed to make client");
         let request = c.get("/set");
@@ -92,13 +94,13 @@ mod channels_tests {
         assert_eq!("Unsupported /spectcl/channel/set", json.status.as_str());
         assert_eq!("This is not SpecTcl", json.detail.as_str());
 
-        teardown(hg, &p);
+        teardown(hg, &p, &b);
     }
 
     #[test]
     fn get_1() {
         let r = setup();
-        let (hg, p) = get_state(&r);
+        let (hg, p, b) = get_state(&r);
 
         let c = Client::tracked(r).expect("Failed to make client");
         let request = c.get("/get");
@@ -109,6 +111,6 @@ mod channels_tests {
         assert_eq!("Unsupported /spectcl/channel/get", json.status.as_str());
         assert_eq!("This is not SpecTcl", json.detail.as_str());
 
-        teardown(hg, &p);
+        teardown(hg, &p, &b);
     }
 }

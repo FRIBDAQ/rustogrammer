@@ -94,15 +94,22 @@ mod fold_tests {
     // note these are all unimplemented URLS so...
 
     fn setup() -> Rocket<Build> {
-        rest_common::setup()
-            .mount("/", routes![crate::fold::apply, list, remove])
+        rest_common::setup().mount("/", routes![crate::fold::apply, list, remove])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        rest_common::teardown(c, p);
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        rest_common::teardown(c, p, b);
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
         rest_common::get_state(r)
     }
     // Note none of thes URIS are implemented so the tests are
@@ -113,7 +120,7 @@ mod fold_tests {
     #[test]
     fn apply_1() {
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/apply");
@@ -129,12 +136,12 @@ mod fold_tests {
         );
         assert_eq!("This is not SpecTcl", response.detail.as_str());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn list_1() {
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/list");
@@ -149,12 +156,12 @@ mod fold_tests {
         );
         assert_eq!(0, response.detail.len());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn remove_1() {
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/remove");
@@ -170,6 +177,6 @@ mod fold_tests {
         );
         assert_eq!("This is not SpecTcl", response.detail.as_str());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
 }

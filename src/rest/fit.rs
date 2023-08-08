@@ -155,18 +155,18 @@ mod fit_tests {
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount("/", routes![create, update, delete, list, proc])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        rest_common::teardown(c, p);
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi, b: &binder::BindingApi) {
+        rest_common::teardown(c, p, b);
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi, binder::BindingApi) {
         rest_common::get_state(r)
     }
     #[test]
     fn create_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/create");
@@ -181,12 +181,12 @@ mod fit_tests {
         );
         assert_eq!("This is not Spectcl", response.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn update_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/update");
@@ -201,12 +201,12 @@ mod fit_tests {
         );
         assert_eq!("This is not Spectcl", response.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn delete_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/delete");
@@ -221,12 +221,12 @@ mod fit_tests {
         );
         assert_eq!("This is not Spectcl", response.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn list_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/list");
@@ -241,12 +241,12 @@ mod fit_tests {
         );
         assert_eq!(0, response.detail.len());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn proc_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/proc");
@@ -261,6 +261,6 @@ mod fit_tests {
         );
         assert_eq!("This is not Spectcl", response.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
 }
