@@ -94,12 +94,8 @@ pub fn ringversion_get(state: &State<SharedProcessingApi>) -> Json<VersionRespon
 #[cfg(test)]
 mod ringversion_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::processing;
-    use crate::rest::MirrorState;
-    use crate::sharedmem::binder;
-    use crate::trace;
     use crate::test::rest_common;
 
     use rocket;
@@ -107,11 +103,10 @@ mod ringversion_tests {
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::sync::{mpsc, Arc, Mutex};
+    use std::sync::mpsc;
 
     fn setup() -> Rocket<Build> {
-        rest_common::setup()
-            .mount("/", routes![ringversion_set, ringversion_get])
+        rest_common::setup().mount("/", routes![ringversion_set, ringversion_get])
     }
     fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
         rest_common::teardown(c, p);
