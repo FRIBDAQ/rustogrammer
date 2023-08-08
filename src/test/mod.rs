@@ -10,7 +10,7 @@ pub mod rest_common {
     use crate::histogramer;
     use crate::messaging;
     use crate::processing;
-    use crate::rest::MirrorState;
+    use crate::rest::{SharedHistogramChannel, MirrorState, SharedProcessingApi};
     use crate::sharedmem::binder;
     use crate::trace;
     use rocket;
@@ -46,5 +46,23 @@ pub mod rest_common {
     pub fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
         histogramer::stop_server(&c);
         p.stop_thread().expect("Stopping processing thread");
+    }
+    pub fn get_state(
+        r: &Rocket<Build>,
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
+        let chan = r
+            .state::<SharedHistogramChannel>()
+            .expect("Valid state")
+            .lock()
+            .unwrap()
+            .clone();
+        let papi = r
+            .state::<SharedProcessingApi>()
+            .expect("Valid State")
+            .lock()
+            .unwrap()
+            .clone();
+
+        (chan, papi)
     }
 }
