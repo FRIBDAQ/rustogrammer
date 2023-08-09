@@ -174,47 +174,22 @@ pub fn get_variables(
 #[cfg(test)]
 mod shm_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::processing;
-    use crate::rest::MirrorState;
     use crate::sharedmem::{binder, XamineSharedMemory};
-    use crate::trace;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::fs;
-    use std::path::Path;
-    use std::sync::{mpsc, Arc, Mutex};
-    use std::thread;
-    use std::time;
+    
+    use std::sync::mpsc;
+   
 
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024, &tracedb);
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        // Note we have two domains here because of the SpecTcl
-        // divsion between tree parameters and raw parameters.
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount("/", routes![shmem_name, shmem_size, get_variables])
+        rest_common::setup().mount("/", routes![shmem_name, shmem_size, get_variables])
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -223,36 +198,14 @@ mod shm_tests {
         processing::ProcessingApi,
         binder::BindingApi,
     ) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-        let binder_api = binder::BindingApi::new(
-            &r.state::<SharedBinderChannel>()
-                .expect("Valid State")
-                .lock()
-                .unwrap(),
-        );
-        (chan, papi, binder_api)
+        rest_common::get_state(r)
     }
     fn teardown(
         c: mpsc::Sender<messaging::Request>,
         p: &processing::ProcessingApi,
         b: &binder::BindingApi,
     ) {
-        let backing_file = b.exit().expect("Forcing binding thread to exit");
-        thread::sleep(time::Duration::from_millis(100));
-        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+        rest_common::teardown(c, p, b);
     }
     #[test]
     fn key_1() {

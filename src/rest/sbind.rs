@@ -295,9 +295,7 @@ mod sbind_tests {
     use std::time;
 
     fn setup() -> Rocket<Build> {
-        // Note we have two domains here because of the SpecTcl
-        // divsion between tree parameters and raw parameters.
-
+        
         let result =
             rest_common::setup().mount("/", routes![sbind_all, sbind_list, sbind_bindings,]);
 
