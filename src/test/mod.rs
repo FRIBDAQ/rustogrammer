@@ -33,7 +33,7 @@ pub mod rest_common {
     pub fn setup() -> Rocket<Build> {
         let tracedb = trace::SharedTraceStore::new();
         let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024, &tracedb);
+        let (binder_req, _jh) = binder::start_server(&hg_sender, 32*1024 * 1024, &tracedb);
 
         let state = MirrorState {
             mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
