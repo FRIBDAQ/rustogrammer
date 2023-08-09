@@ -334,57 +334,32 @@ pub fn treevariable_fire_traces(pattern: OptionalString) -> Json<GenericResponse
 #[cfg(test)]
 mod pipeline_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
-    use crate::trace;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::fs;
-    use std::path::Path;
-    use std::sync::{mpsc, Arc, Mutex};
-    use std::thread;
-    use std::time;
+    use std::sync::mpsc;
+
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        // Note we have two domains here because of the SpecTcl
-        // divsion between tree parameters and raw parameters.
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount(
-                "/",
-                routes![
-                    pman_create,
-                    pman_list,
-                    pman_current,
-                    pman_listall,
-                    pman_list_event_processors,
-                    pman_choose_pipeline,
-                    pman_add_processor,
-                    pman_rm_processor,
-                    pman_clear,
-                    pman_clone,
-                ],
-            )
+        rest_common::setup().mount(
+            "/",
+            routes![
+                pman_create,
+                pman_list,
+                pman_current,
+                pman_listall,
+                pman_list_event_processors,
+                pman_choose_pipeline,
+                pman_add_processor,
+                pman_rm_processor,
+                pman_clear,
+                pman_clone,
+            ],
+        )
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -393,36 +368,14 @@ mod pipeline_tests {
         processing::ProcessingApi,
         binder::BindingApi,
     ) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-        let binder_api = binder::BindingApi::new(
-            &r.state::<SharedBinderChannel>()
-                .expect("Valid State")
-                .lock()
-                .unwrap(),
-        );
-        (chan, papi, binder_api)
+        rest_common::get_state(r)
     }
     fn teardown(
         c: mpsc::Sender<messaging::Request>,
         p: &processing::ProcessingApi,
         b: &binder::BindingApi,
     ) {
-        let backing_file = b.exit().expect("Forcing binding thread to exit");
-        thread::sleep(time::Duration::from_millis(100));
-        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+        rest_common::teardown(c, p, b);
     }
     #[test]
     fn create_1() {
@@ -607,43 +560,18 @@ mod pipeline_tests {
 #[cfg(test)]
 mod project_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
-    use crate::trace;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::fs;
-    use std::path::Path;
-    use std::sync::{mpsc, Arc, Mutex};
-    use std::thread;
-    use std::time;
+    use std::sync::mpsc;
+    
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        // Note we have two domains here because of the SpecTcl
-        // divsion between tree parameters and raw parameters.
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount("/", routes![project])
+        rest_common::setup().mount("/", routes![project])
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -652,36 +580,14 @@ mod project_tests {
         processing::ProcessingApi,
         binder::BindingApi,
     ) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-        let binder_api = binder::BindingApi::new(
-            &r.state::<SharedBinderChannel>()
-                .expect("Valid State")
-                .lock()
-                .unwrap(),
-        );
-        (chan, papi, binder_api)
+        rest_common::get_state(r)
     }
     fn teardown(
         c: mpsc::Sender<messaging::Request>,
         p: &processing::ProcessingApi,
         b: &binder::BindingApi,
     ) {
-        let backing_file = b.exit().expect("Forcing binding thread to exit");
-        thread::sleep(time::Duration::from_millis(100));
-        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+        rest_common::teardown(c, p, b);
     }
     #[test]
     fn project_1() {
@@ -704,43 +610,18 @@ mod project_tests {
 #[cfg(test)]
 mod pseudo_test {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
-    use crate::trace;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::fs;
-    use std::path::Path;
-    use std::sync::{mpsc, Arc, Mutex};
-    use std::thread;
-    use std::time;
+    use std::sync::mpsc;
+    
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        // Note we have two domains here because of the SpecTcl
-        // divsion between tree parameters and raw parameters.
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount("/", routes![pseudo_create, pseudo_list, pseudo_delete])
+        rest_common::setup().mount("/", routes![pseudo_create, pseudo_list, pseudo_delete])
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -749,36 +630,14 @@ mod pseudo_test {
         processing::ProcessingApi,
         binder::BindingApi,
     ) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-        let binder_api = binder::BindingApi::new(
-            &r.state::<SharedBinderChannel>()
-                .expect("Valid State")
-                .lock()
-                .unwrap(),
-        );
-        (chan, papi, binder_api)
+        rest_common::get_state(r)
     }
     fn teardown(
         c: mpsc::Sender<messaging::Request>,
         p: &processing::ProcessingApi,
         b: &binder::BindingApi,
     ) {
-        let backing_file = b.exit().expect("Forcing binding thread to exit");
-        thread::sleep(time::Duration::from_millis(100));
-        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+        rest_common::teardown(c, p, b);
     }
     #[test]
     fn create_1() {
@@ -838,47 +697,21 @@ mod pseudo_test {
 #[cfg(test)]
 mod roottree_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
-    use crate::trace;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::fs;
-    use std::path::Path;
-
-    use std::sync::{mpsc, Arc, Mutex};
-    use std::thread;
-    use std::time;
+    use std::sync::mpsc;
+    
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        // Note we have two domains here because of the SpecTcl
-        // divsion between tree parameters and raw parameters.
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount(
-                "/",
-                routes![roottree_create, roottree_delete, roottree_list],
-            )
+        rest_common::setup().mount(
+            "/",
+            routes![roottree_create, roottree_delete, roottree_list],
+        )
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -887,36 +720,14 @@ mod roottree_tests {
         processing::ProcessingApi,
         binder::BindingApi,
     ) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-        let binder_api = binder::BindingApi::new(
-            &r.state::<SharedBinderChannel>()
-                .expect("Valid State")
-                .lock()
-                .unwrap(),
-        );
-        (chan, papi, binder_api)
+        rest_common::get_state(r)
     }
     fn teardown(
         c: mpsc::Sender<messaging::Request>,
         p: &processing::ProcessingApi,
         b: &binder::BindingApi,
     ) {
-        let backing_file = b.exit().expect("Forcing binding thread to exit");
-        thread::sleep(time::Duration::from_millis(100));
-        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+        rest_common::teardown(c, p, b);
     }
     #[test]
     fn create_1() {
@@ -976,44 +787,16 @@ mod roottree_tests {
 #[cfg(test)]
 mod script_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
-    use crate::trace;
-
+    use crate::test::rest_common;
+    
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::fs;
-    use std::path::Path;
-    use std::sync::mpsc;
-    use std::sync::Mutex;
-    use std::thread;
-    use std::time;
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        // Note we have two domains here because of the SpecTcl
-        // divsion between tree parameters and raw parameters.
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount("/", routes![script_execute])
+        rest_common::setup().mount("/", routes![script_execute])
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -1022,36 +805,14 @@ mod script_tests {
         processing::ProcessingApi,
         binder::BindingApi,
     ) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-        let binder_api = binder::BindingApi::new(
-            &r.state::<SharedBinderChannel>()
-                .expect("Valid State")
-                .lock()
-                .unwrap(),
-        );
-        (chan, papi, binder_api)
+        rest_common::get_state(r)
     }
     fn teardown(
         c: mpsc::Sender<messaging::Request>,
         p: &processing::ProcessingApi,
         b: &binder::BindingApi,
     ) {
-        let backing_file = b.exit().expect("Forcing binding thread to exit");
-        thread::sleep(time::Duration::from_millis(100));
-        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+        rest_common::teardown(c, p, b);
     }
     #[test]
     fn execute_1() {
@@ -1074,53 +835,25 @@ mod script_tests {
 #[cfg(test)]
 mod treevar_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
-    use crate::trace;
-
+    use crate::test::rest_common;
+    
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::fs;
-    use std::path::Path;
-    use std::sync::mpsc;
-    use std::sync::Mutex;
-    use std::thread;
-    use std::time;
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 8 * 1024 * 1024, &tracedb);
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        // Note we have two domains here because of the SpecTcl
-        // divsion between tree parameters and raw parameters.
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount(
-                "/",
-                routes![
-                    treevariable_list,
-                    treevariable_set,
-                    treevariable_check,
-                    treevariable_set_changed,
-                    treevariable_fire_traces
-                ],
-            )
+        rest_common::setup().mount(
+            "/",
+            routes![
+                treevariable_list,
+                treevariable_set,
+                treevariable_check,
+                treevariable_set_changed,
+                treevariable_fire_traces
+            ],
+        )
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -1129,36 +862,14 @@ mod treevar_tests {
         processing::ProcessingApi,
         binder::BindingApi,
     ) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-        let binder_api = binder::BindingApi::new(
-            &r.state::<SharedBinderChannel>()
-                .expect("Valid State")
-                .lock()
-                .unwrap(),
-        );
-        (chan, papi, binder_api)
+        rest_common::get_state(r)
     }
     fn teardown(
         c: mpsc::Sender<messaging::Request>,
         p: &processing::ProcessingApi,
         b: &binder::BindingApi,
     ) {
-        let backing_file = b.exit().expect("Forcing binding thread to exit");
-        thread::sleep(time::Duration::from_millis(100));
-        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+        rest_common::teardown(c, p, b);
     }
     #[test]
     fn list_1() {

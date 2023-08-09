@@ -90,10 +90,8 @@ pub fn unbind_all(state: &State<SharedBinderChannel>) -> Json<GenericResponse> {
 #[cfg(test)]
 mod unbind_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages}; // to interrogate.
-    use crate::trace;
     use crate::test::rest_common;
 
     use rocket;
@@ -101,11 +99,8 @@ mod unbind_tests {
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::fs;
-    use std::path::Path;
-    use std::sync::{mpsc, Arc, Mutex};
-    use std::thread;
-    use std::time;
+    use std::sync::mpsc;
+    
     fn setup() -> Rocket<Build> {
         rest_common::setup()
             .mount("/", routes![unbind_byname, unbind_byid, unbind_all])
