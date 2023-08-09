@@ -446,65 +446,29 @@ pub fn edit_gate(
 #[cfg(test)]
 mod gate_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{condition_messages, parameter_messages};
     use crate::processing;
-    use crate::sharedmem::binder;
-    use crate::trace;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::sync::{mpsc, Arc, Mutex};
+    use std::sync::mpsc;
     // note these are all unimplemented URLS so...
 
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-        let (binder_req, _rx): (
-            mpsc::Sender<binder::Request>,
-            mpsc::Receiver<binder::Request>,
-        ) = mpsc::channel();
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount("/", routes![list_gates, delete_gate, edit_gate])
+        rest_common::setup().mount("/", routes![list_gates, delete_gate, edit_gate])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi, b: &binder::BindingApi) {
+        rest_common::teardown(c, p, b);
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-
-        (chan, papi)
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi, binder::BindingApi) {
+        rest_common::get_state(r)
     }
     // Create parameters p1, p2
     // which will be used to create gates that need parameters.
@@ -520,7 +484,7 @@ mod gate_tests {
         // empty list:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/list");
@@ -533,14 +497,14 @@ mod gate_tests {
         assert_eq!("OK", reply.status.as_str());
         assert_eq!(0, reply.detail.len());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn list_2() {
         // Make a T gate and make sure the right properties are present.
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
@@ -564,14 +528,14 @@ mod gate_tests {
 
         // low/high are unimportant.
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn list_3() {
         // Make an F gate ...
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
@@ -595,14 +559,14 @@ mod gate_tests {
 
         // low/high are unimportant.
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn list_4() {
         // Not condition:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
@@ -628,14 +592,14 @@ mod gate_tests {
         assert_eq!("FALSE", l.gates[0]);
         assert_eq!(0, l.points.len());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn list_5() {
         // and condtion:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
@@ -661,13 +625,13 @@ mod gate_tests {
         assert_eq!("TRUE", l.gates[1]);
         assert_eq!(0, l.points.len());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn list_6() {
         // list or condition:
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
@@ -693,14 +657,14 @@ mod gate_tests {
         assert_eq!("TRUE", l.gates[1]);
         assert_eq!(0, l.points.len());
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn list_7() {
         // Cut condition:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
@@ -728,14 +692,14 @@ mod gate_tests {
         assert_eq!(10.0, l.low);
         assert_eq!(20.0, l.high);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn list_8() {
         // Band condition:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
@@ -768,14 +732,14 @@ mod gate_tests {
         assert_eq!(GatePoint { x: 15.0, y: 20.0 }, l.points[1]);
         assert_eq!(GatePoint { x: 100.0, y: 15.0 }, l.points[2]);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn list_9() {
         // contour conditions:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
@@ -808,7 +772,7 @@ mod gate_tests {
         assert_eq!(GatePoint { x: 15.0, y: 20.0 }, l.points[1]);
         assert_eq!(GatePoint { x: 100.0, y: 15.0 }, l.points[2]);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // Gate deletion:
 
@@ -817,7 +781,7 @@ mod gate_tests {
         // Delete a nonexistent gate:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/delete?name=george");
@@ -828,12 +792,12 @@ mod gate_tests {
 
         assert_eq!("Failed to delete condition george", response.status);
         assert_eq!("No such condition george", response.detail);
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn delete_2() {
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         // Make a condition to delete:
 
@@ -849,7 +813,7 @@ mod gate_tests {
         assert_eq!("OK", response.status);
         assert_eq!("", response.detail);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
 
     // Note that edit is used to both create and modify gates.
@@ -861,7 +825,7 @@ mod gate_tests {
         // Create True gate:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/edit?name=true&type=T");
@@ -887,14 +851,14 @@ mod gate_tests {
             false
         });
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_2() {
         // create a False gate:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/edit?name=false&type=F");
@@ -921,7 +885,7 @@ mod gate_tests {
             false
         });
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // Test not gates and error scenarios.  Note we assume that
     // dependent gate existence is checked by the tests in condition_messages.
@@ -931,7 +895,7 @@ mod gate_tests {
         // make  a not gate:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
         api.create_true_condition("true"); // dependent gate:
@@ -962,14 +926,14 @@ mod gate_tests {
             false
         });
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_4() {
         // fail creation of not gate -- need a dependent gate:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/edit?name=not&type=-");
         let reply = req
@@ -983,14 +947,14 @@ mod gate_tests {
             reply.detail
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_5() {
         // Fail creation of not gate - must have only 1 dependent gate:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/edit?name=not&type=-&gate=g1&gate=g2");
         let reply = req
@@ -1004,7 +968,7 @@ mod gate_tests {
             reply.detail
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // Test and gates and error scenarios.
 
@@ -1013,7 +977,7 @@ mod gate_tests {
         // Good creation.
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         // Make dependent gates:
 
@@ -1045,14 +1009,14 @@ mod gate_tests {
             false
         });
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_7() {
         // no dependent gates provided.
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/edit?name=and&type=*");
@@ -1067,7 +1031,7 @@ mod gate_tests {
             reply.detail
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // Tests for Or gates. Note the literal + is a stand-in for
     // ' ' so we need to use the escap %2B instead.
@@ -1077,7 +1041,7 @@ mod gate_tests {
         // Good creation
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         // Make dependent gates:
 
@@ -1109,14 +1073,14 @@ mod gate_tests {
             false
         });
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_9() {
         // failed for missing dependent gates;
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/edit?name=or&type=%2B");
@@ -1128,7 +1092,7 @@ mod gate_tests {
         assert_eq!("Could not create/edit gate or", reply.status);
         assert_eq!("Or gates require the 'gate' query parameters", reply.detail);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // Slice gate tests:
 
@@ -1137,7 +1101,7 @@ mod gate_tests {
         // Test success.
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let client = Client::tracked(rocket).expect("Creating client");
@@ -1168,12 +1132,12 @@ mod gate_tests {
         } else {
             false
         });
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_11() {
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/edit?name=slice&type=s&low=10&high=100");
@@ -1187,14 +1151,14 @@ mod gate_tests {
             "The parameter query parameter is required for slice gates",
             reply.detail
         );
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_12() {
         // missing low:
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/edit?name=slice&type=s&parameter=p1&high=100");
@@ -1208,12 +1172,12 @@ mod gate_tests {
             "Both the low and high query parameters are requried for slice gates",
             reply.detail
         );
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_13() {
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/edit?name=slice&type=s&parameter=p1&low=100");
@@ -1227,7 +1191,7 @@ mod gate_tests {
             "Both the low and high query parameters are requried for slice gates",
             reply.detail
         );
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // Tests for making new Bands.
 
@@ -1235,7 +1199,7 @@ mod gate_tests {
     fn edit_14() {
         // good creation.
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let client = Client::tracked(rocket).expect("Making client.");
@@ -1266,14 +1230,14 @@ mod gate_tests {
             false
         });
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_15() {
         // missing x parameter
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let client = Client::tracked(rocket).expect("Making client.");
@@ -1290,13 +1254,13 @@ mod gate_tests {
             reply.detail
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_16() {
         // missing y parameter.
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let client = Client::tracked(rocket).expect("Making client.");
@@ -1313,14 +1277,14 @@ mod gate_tests {
             reply.detail
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_17() {
         // xcoords
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let client = Client::tracked(rocket).expect("Making client.");
@@ -1337,14 +1301,14 @@ mod gate_tests {
             reply.detail
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_18() {
         // No ycoords
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let client = Client::tracked(rocket).expect("Making client.");
@@ -1361,14 +1325,14 @@ mod gate_tests {
             reply.detail
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_19() {
         // differing lengths of xcoord/ycoords.
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let client = Client::tracked(rocket).expect("Making client.");
@@ -1386,14 +1350,14 @@ mod gate_tests {
             reply.detail
         );
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_20() {
         // only one point.
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let client = Client::tracked(rocket).expect("Making client.");
@@ -1406,7 +1370,7 @@ mod gate_tests {
 
         assert_eq!("Could not create/edit gate band", reply.status);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // Tests for contours.
     // A bit of white box-ness.  The same parameter validation is
@@ -1418,7 +1382,7 @@ mod gate_tests {
         // Good contour creation.
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let client = Client::tracked(rocket).expect("Making client");
@@ -1451,14 +1415,14 @@ mod gate_tests {
             false
         });
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn edit_22() {
         // Not enough points for a contour.
 
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         let client = Client::tracked(rocket).expect("Making client");
@@ -1470,14 +1434,14 @@ mod gate_tests {
 
         assert_eq!("Could not create/edit gate contour", reply.status);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     // Edit can modify an existing condition:
 
     #[test]
     fn edit_23() {
         let rocket = setup();
-        let (c, papi) = get_state(&rocket);
+        let (c, papi, bapi) = get_state(&rocket);
         make_test_objects(&c);
 
         // Create a true condition:
@@ -1510,6 +1474,6 @@ mod gate_tests {
         } else {
             false
         });
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
 }

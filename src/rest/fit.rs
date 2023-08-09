@@ -140,69 +140,33 @@ pub fn proc() -> Json<GenericResponse> {
 #[cfg(test)]
 mod fit_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::processing;
-    use crate::sharedmem::binder;
-    use crate::trace;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::sync::{mpsc, Arc, Mutex};
+    use std::sync::mpsc;
     // note these are all unimplemented URLS so...
 
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-        let (binder_req, _rx): (
-            mpsc::Sender<binder::Request>,
-            mpsc::Receiver<binder::Request>,
-        ) = mpsc::channel();
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount("/", routes![create, update, delete, list, proc])
+        rest_common::setup().mount("/", routes![create, update, delete, list, proc])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi, b: &binder::BindingApi) {
+        rest_common::teardown(c, p, b);
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-
-        (chan, papi)
+    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi, binder::BindingApi) {
+        rest_common::get_state(r)
     }
     #[test]
     fn create_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/create");
@@ -217,12 +181,12 @@ mod fit_tests {
         );
         assert_eq!("This is not Spectcl", response.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn update_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/update");
@@ -237,12 +201,12 @@ mod fit_tests {
         );
         assert_eq!("This is not Spectcl", response.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn delete_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/delete");
@@ -257,12 +221,12 @@ mod fit_tests {
         );
         assert_eq!("This is not Spectcl", response.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn list_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/list");
@@ -277,12 +241,12 @@ mod fit_tests {
         );
         assert_eq!(0, response.detail.len());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
     #[test]
     fn proc_1() {
         let rocket = setup();
-        let (r, papi) = get_state(&rocket);
+        let (r, papi, bapi) = get_state(&rocket);
 
         let client = Client::tracked(rocket).expect("Failed to make client");
         let req = client.get("/proc");
@@ -297,6 +261,6 @@ mod fit_tests {
         );
         assert_eq!("This is not Spectcl", response.detail.as_str());
 
-        teardown(r, &papi);
+        teardown(r, &papi, &bapi);
     }
 }

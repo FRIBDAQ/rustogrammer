@@ -149,70 +149,45 @@ pub fn ungate_spectrum(
 #[cfg(test)]
 mod apply_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::messaging::condition_messages;
     use crate::messaging::parameter_messages;
     use crate::messaging::spectrum_messages;
     use crate::processing;
     use crate::sharedmem::binder;
-    use crate::trace;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::sync::{mpsc, Arc, Mutex};
+    use std::sync::mpsc;
 
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-        let (binder_req, _rx): (
-            mpsc::Sender<binder::Request>,
-            mpsc::Receiver<binder::Request>,
-        ) = mpsc::channel();
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(
-                &hg_sender.clone(),
-            )))
-            .manage(tracedb.clone())
-            .mount("/", routes![apply_gate, apply_list, ungate_spectrum])
+        rest_common::setup().mount("/", routes![apply_gate, apply_list, ungate_spectrum])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        rest_common::teardown(c, p, b);
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-
-        (chan, papi)
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        rest_common::get_state(r)
     }
 
     #[test]
     fn apply_gate_1() {
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         // No spectra so applying a gate will fail:
 
@@ -230,7 +205,7 @@ mod apply_tests {
         assert_eq!(1, json.detail.len());
         assert_eq!(String::from("spec"), json.detail[0].0);
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn apply_gate_2() {
@@ -240,7 +215,7 @@ mod apply_tests {
         let rocket = setup();
         //
 
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         // Use the channel to make a parameter, spectrum  and
         // condition api which we'll use to create what we need to test
@@ -285,14 +260,14 @@ mod apply_tests {
         let gate = spectra[0].clone().gate.expect("Gated").clone();
         assert_eq!("True", gate.as_str());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn apply_list_1() {
         // Empty list:
 
         let rocket = setup();
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         // No spectra so applying a gate will fail:
 
@@ -306,7 +281,7 @@ mod apply_tests {
         assert_eq!("OK", json.status.as_str());
         assert_eq!(0, json.detail.len());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn apply_list_2() {
@@ -318,7 +293,7 @@ mod apply_tests {
         let rocket = setup();
         //
 
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         // Use the channel to make a parameter, spectrum  and
         // condition api which we'll use to create what we need to test
@@ -362,7 +337,7 @@ mod apply_tests {
         assert_eq!("test_spec", json.detail[0].spectrum.as_str());
         assert_eq!("True", json.detail[0].gate.as_str());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn apply_list_3() {
@@ -374,7 +349,7 @@ mod apply_tests {
         let rocket = setup();
         //
 
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         // Use the channel to make a parameter, spectrum  and
         // condition api which we'll use to create what we need to test
@@ -416,7 +391,7 @@ mod apply_tests {
         assert_eq!("OK", json.status.as_str());
         assert_eq!(0, json.detail.len());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn apply_list_4() {
@@ -428,7 +403,7 @@ mod apply_tests {
         let rocket = setup();
         //
 
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         // Use the channel to make a parameter, spectrum  and
         // condition api which we'll use to create what we need to test
@@ -471,7 +446,7 @@ mod apply_tests {
         assert_eq!(1, json.detail.len());
         assert_eq!("test_spec", json.detail[0].spectrum.as_str());
         assert_eq!("True", json.detail[0].gate.as_str());
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn ungate_1() {
@@ -479,7 +454,7 @@ mod apply_tests {
         let rocket = setup();
         //
 
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         let c = Client::tracked(rocket).unwrap();
         let r = c.get("/?name=george");
@@ -495,7 +470,7 @@ mod apply_tests {
         assert_eq!(1, json.detail.len());
         assert_eq!("george", json.detail[0].0.as_str());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
     #[test]
     fn ungate_2() {
@@ -505,7 +480,7 @@ mod apply_tests {
         let rocket = setup();
         //
 
-        let (chan, papi) = get_state(&rocket);
+        let (chan, papi, bapi) = get_state(&rocket);
 
         // Use the channel to make a parameter, spectrum  and
         // condition api which we'll use to create what we need to test
@@ -553,6 +528,6 @@ mod apply_tests {
         assert_eq!(1, listing.len());
         assert!(listing[0].gate.is_none());
 
-        teardown(chan, &papi);
+        teardown(chan, &papi, &bapi);
     }
 }

@@ -1021,25 +1021,21 @@ mod list_parse_tests {
 #[cfg(test)]
 mod spectrum_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
     use crate::parameters::EventParameter;
     use crate::processing;
-    use crate::rest::MirrorState;
     use crate::sharedmem::binder;
-    use crate::trace;
-
+    use crate::test::rest_common;
+    
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::fs;
-    use std::path::Path;
-    use std::sync::{mpsc, Arc, Mutex};
-    use std::thread;
-    use std::time;
+    
+    use std::sync::mpsc;
+    
     fn make_some_test_objects(
         sapi: &spectrum_messages::SpectrumMessageClient,
         papi: &parameter_messages::ParameterMessageClient,
@@ -1160,42 +1156,44 @@ mod spectrum_tests {
     }
 
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024, &tracedb);
-
-        // Construct the state:
-
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-
-        let sapi = spectrum_messages::SpectrumMessageClient::new(&hg_sender);
-        let papi = parameter_messages::ParameterMessageClient::new(&hg_sender);
-
-        make_some_test_objects(&sapi, &papi);
-
         // Note we have two domains here because of the SpecTcl
         // divsion between tree parameters and raw parameters.
 
-        rocket::build()
-            .manage(state)
-            .manage(tracedb.clone())
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .mount(
-                "/",
-                routes![
-                    list_spectrum,
-                    delete_spectrum,
-                    create_spectrum,
-                    get_contents,
-                    clear_spectra,
-                ],
-            )
+        let rocket = rest_common::setup().mount(
+            "/",
+            routes![
+                list_spectrum,
+                delete_spectrum,
+                create_spectrum,
+                get_contents,
+                clear_spectra,
+            ],
+        );
+        //  Get the histogram sender channel from the state, instantiate
+        // a parameter and histogram api and invoke make_some_test_objects
+        // to set up the common test environment specific to these tests:
+
+        let hg_api = spectrum_messages::SpectrumMessageClient::new(
+            &rocket
+                .state::<SharedHistogramChannel>()
+                .expect("getting State")
+                .lock()
+                .unwrap()
+                .clone(),
+        );
+        let par_api = parameter_messages::ParameterMessageClient::new(
+            &rocket
+                .state::<SharedHistogramChannel>()
+                .expect("Getting state")
+                .lock()
+                .unwrap()
+                .clone(),
+        );
+        make_some_test_objects(&hg_api, &par_api);
+
+        //
+
+        rocket
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -1204,36 +1202,14 @@ mod spectrum_tests {
         processing::ProcessingApi,
         binder::BindingApi,
     ) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-        let binder_api = binder::BindingApi::new(
-            &r.state::<SharedBinderChannel>()
-                .expect("Valid State")
-                .lock()
-                .unwrap(),
-        );
-        (chan, papi, binder_api)
+        rest_common::get_state(r)
     }
     fn teardown(
         c: mpsc::Sender<messaging::Request>,
         p: &processing::ProcessingApi,
         b: &binder::BindingApi,
     ) {
-        let backing_file = b.exit().expect("Forcing binding thread to exit");
-        thread::sleep(time::Duration::from_millis(100));
-        let _ = fs::remove_file(Path::new(&backing_file)); // faliure is ok.
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+        rest_common::teardown(c, p, b);
     }
     #[test]
     fn list_1() {

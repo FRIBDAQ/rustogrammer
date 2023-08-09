@@ -66,9 +66,9 @@ use std::sync::{mpsc, Arc, Mutex};
 
 // Derived types that are stored in the Rocket State
 
-type SharedHistogramChannel = Mutex<mpsc::Sender<Request>>;
-type SharedBinderChannel = Mutex<mpsc::Sender<binder::Request>>;
-type SharedProcessingApi = Mutex<processing::ProcessingApi>;
+pub type SharedHistogramChannel = Mutex<mpsc::Sender<Request>>;
+pub type SharedBinderChannel = Mutex<mpsc::Sender<binder::Request>>;
+pub type SharedProcessingApi = Mutex<processing::ProcessingApi>;
 
 pub struct MirrorState {
     pub mirror_exit: Arc<Mutex<mpsc::Sender<bool>>>,

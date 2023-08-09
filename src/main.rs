@@ -326,3 +326,6 @@ fn get_ports(args: &Args) -> (u16, u16, Option<portman_client::Client>) {
     }
     result
 }
+// Pull inthe modules needed in tests:
+#[cfg(test)]
+mod test;

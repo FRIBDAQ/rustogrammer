@@ -280,9 +280,8 @@ mod sbind_tests {
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::processing;
-    use crate::rest::MirrorState;
     use crate::sharedmem::binder;
-    use crate::trace;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -291,35 +290,21 @@ mod sbind_tests {
 
     use std::fs;
     use std::path::Path;
-    use std::sync::{mpsc, Arc, Mutex};
+    use std::sync::mpsc;
     use std::thread;
     use std::time;
 
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-        let (binder_req, _jh) = binder::start_server(&hg_sender, 1024 * 1024, &tracedb);
+        
+        let result =
+            rest_common::setup().mount("/", routes![sbind_all, sbind_list, sbind_bindings,]);
 
-        // Construct the state:
+        let hg_sender = result
+            .state::<SharedHistogramChannel>()
+            .expect("getting state");
+        make_test_objects(&hg_sender.lock().unwrap());
 
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
-        // We need histograms regardless:
-
-        make_test_objects(&hg_sender);
-
-        // Note we have two domains here because of the SpecTcl
-        // divsion between tree parameters and raw parameters.
-
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount("/", routes![sbind_all, sbind_list, sbind_bindings,])
+        result
     }
     fn getstate(
         r: &Rocket<Build>,

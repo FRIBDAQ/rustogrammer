@@ -84,40 +84,33 @@ pub fn get_statistics(
 #[cfg(test)]
 mod getstats_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::parameters::{Event, EventParameter};
     use crate::processing;
-    use crate::sharedmem::binder;
-    use crate::trace;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    use std::sync::{mpsc, Arc, Mutex};
+    use std::sync::mpsc;
 
     fn setup() -> Rocket<Build> {
-        let tracedb = trace::SharedTraceStore::new();
-        let (_, hg_sender) = histogramer::start_server(tracedb.clone());
-        let (binder_req, _rx): (
-            mpsc::Sender<binder::Request>,
-            mpsc::Receiver<binder::Request>,
-        ) = mpsc::channel();
+        let result = rest_common::setup().mount("/", routes![get_statistics]);
 
-        // Construct the state:
+        // Get the shared histogram channel so we can create a
+        // histogram and parameter api to create the initial test objects:
 
-        let state = MirrorState {
-            mirror_exit: Arc::new(Mutex::new(mpsc::channel::<bool>().0)),
-            mirror_port: 0,
-        };
+        let h_chan = result
+            .state::<SharedHistogramChannel>()
+            .expect("valid state");
+        let param_api =
+            parameter_messages::ParameterMessageClient::new(&(h_chan.lock().unwrap().clone()));
+        let hist_api =
+            spectrum_messages::SpectrumMessageClient::new(&(h_chan.lock().unwrap().clone()));
 
-        // Create a pair of parmaeters, p1, p2 and a pair of histograms
-        // we can play with in the tests:
-
-        let param_api = parameter_messages::ParameterMessageClient::new(&hg_sender);
         param_api
             .create_parameter("p1")
             .expect("Creating parameter p1"); // id 1
@@ -125,7 +118,6 @@ mod getstats_tests {
             .create_parameter("p2")
             .expect("Creating parameter p2"); // id 2
 
-        let hist_api = spectrum_messages::SpectrumMessageClient::new(&hg_sender);
         hist_api
             .create_spectrum_1d("p1", "p1", 0.0, 1024.0, 1024)
             .expect("Creating spectrum p1");
@@ -133,37 +125,25 @@ mod getstats_tests {
             .create_spectrum_2d("2", "p1", "p2", 0.0, 1024.0, 1024, 0.0, 1024.0, 1024)
             .expect("Creating spectrum 2");
 
-        // finally start rocket:
+        // Return the rocket instnance.
 
-        rocket::build()
-            .manage(state)
-            .manage(Mutex::new(hg_sender.clone()))
-            .manage(Mutex::new(binder_req))
-            .manage(Mutex::new(processing::ProcessingApi::new(&hg_sender)))
-            .manage(tracedb.clone())
-            .mount("/", routes![get_statistics])
+        result
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi) {
-        histogramer::stop_server(&c);
-        p.stop_thread().expect("Stopping processing thread");
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        rest_common::teardown(c, p, b);
     }
     fn getstate(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi) {
-        let chan = r
-            .state::<SharedHistogramChannel>()
-            .expect("Valid state")
-            .lock()
-            .unwrap()
-            .clone();
-        let papi = r
-            .state::<SharedProcessingApi>()
-            .expect("Valid State")
-            .lock()
-            .unwrap()
-            .clone();
-
-        (chan, papi)
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        rest_common::get_state(r)
     }
     fn sortdetail(inp: &Vec<SpectrumStatistics>) -> Vec<SpectrumStatistics> {
         let mut result = inp.clone();
@@ -196,7 +176,7 @@ mod getstats_tests {
         // neither under nor overflows.
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let request = client.get("/");
@@ -219,14 +199,14 @@ mod getstats_tests {
         assert_eq!(vec![0, 0], detail[1].underflows);
         assert_eq!(vec![0, 0], detail[1].overflows);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn getstats_2() {
         // No counts but a filter pattern:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
         let request = client.get("/?pattern=p*"); // gets p1
@@ -243,7 +223,7 @@ mod getstats_tests {
         assert_eq!(vec![0, 0], detail.underflows);
         assert_eq!(vec![0, 0], detail.overflows);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn getstats_3() {
@@ -251,7 +231,7 @@ mod getstats_tests {
         // 1 under and 2 overs, filtered to p1:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
         let events = make_events();
         let api = spectrum_messages::SpectrumMessageClient::new(&c);
         assert!(api.process_events(&events).is_ok());
@@ -272,14 +252,14 @@ mod getstats_tests {
         assert_eq!(vec![1, 0], stats.underflows);
         assert_eq!(vec![2, 0], stats.overflows);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn getstats_4() {
         // same as 3 but get 2:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
         let events = make_events();
         let api = spectrum_messages::SpectrumMessageClient::new(&c);
         assert!(api.process_events(&events).is_ok());
@@ -301,14 +281,14 @@ mod getstats_tests {
         assert_eq!(vec![1, 2], stats.underflows);
         assert_eq!(vec![2, 1], stats.overflows);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn getstats_5() {
         // get both stats:
 
         let rocket = setup();
-        let (c, papi) = getstate(&rocket);
+        let (c, papi, bapi) = getstate(&rocket);
         let events = make_events();
         let api = spectrum_messages::SpectrumMessageClient::new(&c);
         assert!(api.process_events(&events).is_ok());
@@ -340,6 +320,6 @@ mod getstats_tests {
         assert_eq!(vec![1, 0], stats.underflows);
         assert_eq!(vec![2, 0], stats.overflows);
 
-        teardown(c, &papi);
+        teardown(c, &papi, &bapi);
     }
 }
