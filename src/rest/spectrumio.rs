@@ -740,7 +740,7 @@ pub fn sread_handler(
 
     let spectra = match fmt.as_str() {
         "json" => read_json(&mut fd),
-        "ascii" => Ok(spectclio::read_spectra(&mut fd)),
+        "ascii" => spectclio::read_spectra(&mut fd),
         _ => {
             return Json(GenericResponse::err("Unsupported format", &format));
         }
@@ -1229,7 +1229,7 @@ mod read_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("OK", reply.status);
+        assert_eq!("Unable to deserialize from file", reply.status);
 
         let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
         let l = sapi.list_spectra("*").expect("listing spectra");
