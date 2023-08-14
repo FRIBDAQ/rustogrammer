@@ -302,18 +302,21 @@ fn reorganize_params(
 }
 // Read a channel line:
 
-fn read_channel<T: Read>(l: &mut Lines<BufReader<T>>) -> Option<SpectrumChannel> {
+fn read_channel<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<Option<SpectrumChannel>, String> {
     let line = read_line(l);
-    if let Err(_) = line {
-        return None;
+    if let Err(e) = line {
+        return Err(format!("Error Reading channel line: {}", e));
     }
     let mut line = line.unwrap();
 
     // The coordinates can be gotten from the parse_paren_list
 
     let bins = parse_paren_list(&line);
-    if let Err(_) = bins {
-        return None;
+    if let Err(e) = bins {
+        return Err(format!(
+            "Error decoding parenthesized list: {} ; {}",
+            line, e
+        ));
     }
     let bins = bins.unwrap();
     let bins = bins.0;
@@ -321,22 +324,31 @@ fn read_channel<T: Read>(l: &mut Lines<BufReader<T>>) -> Option<SpectrumChannel>
     // There must be at least 1 bin:
 
     if bins.len() == 0 {
-        return None;
+        return Err(format!(
+            "Parenthesized channel coordinate list is empty: {}",
+            line,
+        ));
     }
 
     let xbin = bins[0].parse::<i32>();
     if let Err(_) = xbin {
-        return None;
+        return Err(format!(
+            "Unable to parse x bin number as an integer {}",
+            line
+        ));
     }
     let xbin = xbin.unwrap();
     if xbin == -1 {
-        return None; // end sentinel.
+        return Ok(None); // end sentinel.
     }
     let mut ybin = 0; // a default value since - bins are not options.
     if bins.len() > 1 {
         let ybinstr = bins[1].parse::<i32>();
         if let Err(_) = ybinstr {
-            return None;
+            return Err(format!(
+                "Unable to decode y bin as an integer from {}",
+                line
+            ));
         }
         ybin = ybinstr.unwrap();
     }
@@ -349,22 +361,22 @@ fn read_channel<T: Read>(l: &mut Lines<BufReader<T>>) -> Option<SpectrumChannel>
     let remainder: String = line.drain(close + 1..).collect();
     let remainder = remainder.trim();
     if remainder.len() == 0 {
-        return None;
+        return Err(format!("Unable to locate the channel value in : {}", line));
     }
     let height = remainder.parse::<u64>();
     if let Err(_) = height {
-        return None;
+        return Err(format!("Unable to parse channel counts in : {}", line));
     }
     let height = height.unwrap();
 
-    Some(SpectrumChannel {
+    Ok(Some(SpectrumChannel {
         chan_type: ChannelType::Bin,
         x_coord: 0.0,
         y_coord: 0.0,
         x_bin: xbin as usize,
         y_bin: ybin as usize,
         value: height,
-    })
+    }))
 }
 
 // Remove quotes from vector of string the quotes are leading and trailing chars:
@@ -381,11 +393,15 @@ fn unquote(strings: &mut Vec<String>) -> Vec<String> {
 }
 
 // Read the header from the data:
-
-fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumProperties, String> {
+// The Err side of the result includes a bool:
+// If the bool is false - there was a true error reading or parsing the header.
+// if the bool is true, there was an error _reading_ the first line of the header which we
+// take as an end file condition.
+//
+fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumProperties, (bool, String)> {
     let hdr1 = read_line(l);
     if let Err(s) = hdr1 {
-        return Err(format!("Failed to read first header line: {}", s));
+        return Err((true, format!("Failed to read first header line: {}", s)));
     }
     let hdr1 = hdr1.unwrap();
 
@@ -400,7 +416,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
 
         let result = scan_fmt!(&hdr1, "\"{}\" ({})", String, u32);
         if let Err(s) = result {
-            return Err(format!("Unable to decode header1: {}", s));
+            return Err((false, format!("Unable to decode header1: {}", s)));
         }
         (name, xbins) = result.unwrap();
     } else {
@@ -410,9 +426,9 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
 
     let date_time = read_line(l);
     if let Err(s) = date_time {
-        return Err(format!(
-            "Failed to read to read date/time header line: {}",
-            s
+        return Err((
+            false,
+            format!("Failed to read to read date/time header line: {}", s),
         ));
     }
 
@@ -420,20 +436,26 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
 
     let _version_line = read_line(l);
     if let Err(s) = date_time {
-        return Err(format!("Failed to read version header line: {}", s));
+        return Err((false, format!("Failed to read version header line: {}", s)));
     }
     // Next there's the spectrum type and data type...
 
     let types = read_line(l);
     if let Err(s) = types {
-        return Err(format!("Error reading the spectrum and data type: {}", s));
+        return Err((
+            false,
+            format!("Error reading the spectrum and data type: {}", s),
+        ));
     }
     let types = types.unwrap();
     let types_result = scan_fmt!(&types, "{} {}", String, String);
     if types_result.is_err() {
-        return Err(format!(
-            "Unable to decode spectrum and channel type from '{}'",
-            types
+        return Err((
+            false,
+            format!(
+                "Unable to decode spectrum and channel type from '{}'",
+                types
+            ),
         ));
     }
 
@@ -442,9 +464,12 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
 
     let native_type = spectrum::spectcl_sptype_to_rustogramer(&spectrum_type);
     if let Err(s) = native_type {
-        return Err(format!(
-            "Failed to convert spectrum type '{}' to native type: {}",
-            spectrum_type, s
+        return Err((
+            false,
+            format!(
+                "Failed to convert spectrum type '{}' to native type: {}",
+                spectrum_type, s
+            ),
         ));
     }
 
@@ -453,14 +478,14 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
     let param_line = read_line(l);
 
     if let Err(s) = param_line {
-        return Err(format!("Error reading parameters line: {}", s));
+        return Err((false, format!("Error reading parameters line: {}", s)));
     }
     let param_line = param_line.unwrap();
     let parameters = parse_paren_list(&param_line);
     if let Err(s) = parameters {
-        return Err(format!(
-            "Unable to parse parameters from '{}': {}",
-            param_line, s
+        return Err((
+            false,
+            format!("Unable to parse parameters from '{}': {}", param_line, s),
         ));
     }
     let (mut xparams, mut yparams) = parameters.unwrap();
@@ -479,14 +504,14 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
 
     let axis = read_line(l);
     if let Err(s) = axis {
-        return Err(format!("Failed to read axis definition line: {}", s));
+        return Err((false, format!("Failed to read axis definition line: {}", s)));
     }
     let axis = axis.unwrap();
     let axes = parse_paren_list(&axis);
     if let Err(s) = axes {
-        return Err(format!(
-            "Failed to parse axis definition line {} : {}",
-            axis, s
+        return Err((
+            false,
+            format!("Failed to parse axis definition line {} : {}", axis, s),
         ));
     }
     let (xaxis_str, yaxis_str) = axes.unwrap();
@@ -495,7 +520,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
 
     let xaxis = parse_axis(&xaxis_str);
     if let Err(s) = xaxis {
-        return Err(format!("Failed to parse x axis: {}", s));
+        return Err((false, format!("Failed to parse x axis: {}", s)));
     }
     let xaxis = xaxis.unwrap();
 
@@ -504,7 +529,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
         yaxis = parse_axis(&yaxis_str);
     }
     if let Err(s) = yaxis {
-        return Err(format!("Failed to parse y axis: {}", s));
+        return Err((false, format!("Failed to parse y axis: {}", s)));
     }
     let yaxis = yaxis.unwrap();
 
@@ -512,7 +537,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
 
     let ignore = read_line(l);
     if let Err(s) = ignore {
-        return Err(format!("Failed to read/skip marker line: {}", s));
+        return Err((false, format!("Failed to read/skip marker line: {}", s)));
     }
     // Marshall the stuff we got into a SpectrumProperties that can be
     // returned:
@@ -556,11 +581,12 @@ fn compute_coords(c: &mut SpectrumChannel, def: &SpectrumProperties) {
 }
 
 // Read one spectrum from a bytes iterator:
-
-fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileData, String> {
+// Again, a bool, String err is used to know the difference between a true error and just
+// an EOF.
+fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileData, (bool, String)> {
     let definition = read_header(l);
-    if let Err(s) = definition {
-        return Err(format!("Failed to read header: {}", s));
+    if let Err((ok, s)) = definition {
+        return Err((ok, format!("Failed to read header: {}", s)));
     }
     let definition = definition.unwrap();
 
@@ -582,13 +608,17 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
     let mut contents = Vec::<SpectrumChannel>::new();
     loop {
         let channel = read_channel(l);
-        if channel.is_none() {
-            break;
+        if let Err(s) = channel {
+            return Err((false, s));
         }
-        let mut channel = channel.unwrap();
-        compute_coords(&mut channel, &def);
+        let channel = channel.unwrap();
+        if let Some(mut c) = channel {
+            compute_coords(&mut c, &def);
 
-        contents.push(channel);
+            contents.push(c);
+        } else {
+            break; // End of channels sentinnel.
+        }
     }
     Ok(SpectrumFileData {
         definition: definition,
@@ -612,7 +642,7 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
 ///  A non-empty vector may still indicate an error parsing the file where
 ///  the vector will contain as many spectra as were properly read.
 ///
-pub fn read_spectra<T>(f: &mut T) -> Vec<SpectrumFileData>
+pub fn read_spectra<T>(f: &mut T) -> Result<Vec<SpectrumFileData>, String>
 where
     T: Read,
 {
@@ -621,12 +651,18 @@ where
     let mut result: Vec<SpectrumFileData> = vec![];
     loop {
         let try_spec = read_spectrum(&mut lines);
-        if try_spec.is_err() {
-            break;
+        if let Err((ok, e)) = try_spec {
+            // If ok is true, just return.  Otherwise it's an error:
+
+            if ok {
+                break;
+            } else {
+                return Err(format!("Unable to read all the spectra: {}", e));
+            }
         } else {
             result.push(try_spec.unwrap());
         }
     }
 
-    result
+    Ok(result)
 }
