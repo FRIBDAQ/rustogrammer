@@ -717,6 +717,53 @@ impl BindingApi {
     }
 }
 
+// Tests for the sbind server:
+
+#[cfg(test)]
+mod sbind_server_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging::Request;
+    use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::trace;
+    use std::sync::{mpsc, Arc, Mutex};
+    use std::thread;
+
+    // Make a binding thread object but don't start it.
+    // we can directly call process process_request/
+    // We do need a histogram thread.
+    fn setup() -> (
+        thread::JoinHandle<()>,
+        mpsc::Sender<Request>,
+        BindingThread,
+    ) {
+        let tracedb = trace::SharedTraceStore::new();
+        let (jh, hreq) = histogramer::start_server(tracedb.clone());
+
+        let (_, rcv) = mpsc::channel();
+        let binder = BindingThread::new(rcv, &hreq, 1024 * 1024, &tracedb);
+
+        (jh, hreq.clone(), binder)
+    }
+    fn teardown(hreq: mpsc::Sender<Request>, jh: thread::JoinHandle<()>) {
+        histogramer::stop_server(&hreq);
+        jh.join().unwrap();
+    }
+
+    #[test]
+    fn bind_1() {
+        let (jh, hreq, mut binder) = setup();
+
+        let list = binder.get_bindings("*");
+        assert!(list.is_ok());
+        assert_eq!(0, list.unwrap().len());
+
+        teardown(hreq, jh);
+    }
+}
+#[cfg(test)]
+mod sbind_client_tests {}
+
 // Test trace firing:
 
 #[cfg(test)]
