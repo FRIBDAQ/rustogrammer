@@ -824,7 +824,7 @@ mod sbind_server_tests {
         teardown(hreq, jh);
     }
     #[test]
-    fn get_stats() {
+    fn get_stats_1() {
         // at first the stats are for a totally free shm:
 
         let (jh, hreq, mut binder) = setup();
@@ -835,6 +835,41 @@ mod sbind_server_tests {
         assert_eq!(0, stats.used_bytes);
         assert_eq!(0, stats.largest_used_bytes);
         assert_eq!(0, stats.bound_indices);
+        assert_eq!(sharedmem::XAMINE_MAXSPEC, stats.total_indices);
+        assert_eq!(
+            1024 * 1024 + mem::size_of::<sharedmem::XamineSharedMemory>(),
+            stats.total_size
+        );
+
+        teardown(hreq, jh);
+    }
+    #[test]
+    fn get_stats_2() {
+        let (jh, hreq, mut binder) = setup();
+
+        // add a spectrum. Should appear in the statistics:
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+
+        papi.create_parameter("george").expect("making parameter");
+        sapi.create_spectrum_1d("george", "george", 0.0, 1024.0, 512)
+            .expect("maing spectrum");
+
+        binder.bind("george").expect("binding george");
+
+        // Uses a slot and 1024*sizeof u32:
+        // Spectrum is 514 channes not 512 due to the automatic over/underlow
+        // extra chans.
+        let stats = binder.get_statistics();
+        assert_eq!(1024 * 1024 - 514 * mem::size_of::<u32>(), stats.free_bytes);
+        assert_eq!(
+            1024 * 1024 - 514 * mem::size_of::<u32>(),
+            stats.largest_free_bytes
+        );
+        assert_eq!(514 * mem::size_of::<u32>(), stats.used_bytes);
+        assert_eq!(514 * mem::size_of::<u32>(), stats.largest_used_bytes);
+        assert_eq!(1, stats.bound_indices);
         assert_eq!(sharedmem::XAMINE_MAXSPEC, stats.total_indices);
         assert_eq!(
             1024 * 1024 + mem::size_of::<sharedmem::XamineSharedMemory>(),
