@@ -184,9 +184,7 @@ mod shm_tests {
     use rocket::Build;
     use rocket::Rocket;
 
-    
     use std::sync::mpsc;
-   
 
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount("/", routes![shmem_name, shmem_size, get_variables])

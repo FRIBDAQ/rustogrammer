@@ -1027,15 +1027,14 @@ mod spectrum_tests {
     use crate::processing;
     use crate::sharedmem::binder;
     use crate::test::rest_common;
-    
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
     use rocket::Rocket;
 
-    
     use std::sync::mpsc;
-    
+
     fn make_some_test_objects(
         sapi: &spectrum_messages::SpectrumMessageClient,
         papi: &parameter_messages::ParameterMessageClient,

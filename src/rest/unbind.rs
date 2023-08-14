@@ -100,10 +100,9 @@ mod unbind_tests {
     use rocket::Rocket;
 
     use std::sync::mpsc;
-    
+
     fn setup() -> Rocket<Build> {
-        rest_common::setup()
-            .mount("/", routes![unbind_byname, unbind_byid, unbind_all])
+        rest_common::setup().mount("/", routes![unbind_byname, unbind_byid, unbind_all])
     }
     fn getstate(
         r: &Rocket<Build>,

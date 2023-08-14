@@ -295,7 +295,6 @@ mod sbind_tests {
     use std::time;
 
     fn setup() -> Rocket<Build> {
-        
         let result =
             rest_common::setup().mount("/", routes![sbind_all, sbind_list, sbind_bindings,]);
 

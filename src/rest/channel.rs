@@ -61,8 +61,8 @@ mod channels_tests {
 
     use crate::messaging;
     use crate::processing;
-    use crate::test::rest_common;
     use crate::sharedmem::binder;
+    use crate::test::rest_common;
 
     use rocket;
     use rocket::local::blocking::Client;
@@ -74,10 +74,18 @@ mod channels_tests {
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi, binder::BindingApi) {
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
         rest_common::get_state(r)
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi, b: &binder::BindingApi) {
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
         rest_common::teardown(c, p, b);
     }
     #[test]

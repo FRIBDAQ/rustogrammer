@@ -569,7 +569,7 @@ mod project_tests {
     use rocket::Rocket;
 
     use std::sync::mpsc;
-    
+
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount("/", routes![project])
     }
@@ -619,7 +619,7 @@ mod pseudo_test {
     use rocket::Rocket;
 
     use std::sync::mpsc;
-    
+
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount("/", routes![pseudo_create, pseudo_list, pseudo_delete])
     }
@@ -706,7 +706,7 @@ mod roottree_tests {
     use rocket::Rocket;
 
     use std::sync::mpsc;
-    
+
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount(
             "/",
@@ -789,7 +789,7 @@ mod script_tests {
     use super::*;
     use crate::messaging;
     use crate::test::rest_common;
-    
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
@@ -837,7 +837,7 @@ mod treevar_tests {
     use super::*;
     use crate::messaging;
     use crate::test::rest_common;
-    
+
     use rocket;
     use rocket::local::blocking::Client;
     use rocket::Build;
