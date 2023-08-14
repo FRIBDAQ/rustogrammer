@@ -115,10 +115,9 @@ mod version_tests {
 
     use std::env;
     use std::sync::mpsc;
-    
+
     fn setup() -> Rocket<Build> {
-        rest_common::setup()
-            .mount("/", routes![get_version])
+        rest_common::setup().mount("/", routes![get_version])
     }
     fn getstate(
         r: &Rocket<Build>,

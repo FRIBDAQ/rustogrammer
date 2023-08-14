@@ -164,12 +164,20 @@ mod filter_tests {
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount("/", routes![new, delete, enable, disable, regate, file])
     }
-    fn teardown(c: mpsc::Sender<messaging::Request>, p: &processing::ProcessingApi, b: &binder::BindingApi) {
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
         rest_common::teardown(c, p, b);
     }
     fn get_state(
         r: &Rocket<Build>,
-    ) -> (mpsc::Sender<messaging::Request>, processing::ProcessingApi, binder::BindingApi) {
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
         rest_common::get_state(r)
     }
 

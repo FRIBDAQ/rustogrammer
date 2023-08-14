@@ -201,7 +201,7 @@ mod trace_rest_tests {
     use rocket::Rocket;
 
     use std::sync::mpsc;
- 
+
     fn setup() -> Rocket<Build> {
         rest_common::setup().mount("/", routes![establish_trace, trace_done, fetch_traces])
     }
@@ -214,7 +214,10 @@ mod trace_rest_tests {
         trace::SharedTraceStore,
     ) {
         let common_state = rest_common::get_state(r);
-        let tracedb = r.state::<trace::SharedTraceStore>().expect("Getting state").clone();
+        let tracedb = r
+            .state::<trace::SharedTraceStore>()
+            .expect("Getting state")
+            .clone();
         (common_state.0, common_state.1, common_state.2, tracedb)
     }
     fn teardown(

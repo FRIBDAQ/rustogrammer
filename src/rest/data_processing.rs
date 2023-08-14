@@ -309,7 +309,7 @@ mod processing_tests {
     }
     #[test]
     fn start_1() {
-        // nothing attached. 
+        // nothing attached.
         let rocket = setup();
         let (chan, papi, bapi) = get_state(&rocket);
 
