@@ -965,6 +965,61 @@ mod sbind_client_tests {
 
         teardown(hreq, hjh, bapi, bjh);
     }
+    #[test]
+    fn unbind_1() {
+        // no such spectrum is an error:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        assert!(bapi.unbind("junk").is_err());
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn unbind_2() {
+        // binding an existing bind gets rid of it:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+
+        papi.create_parameter("junk").expect("Creating a parameter");
+        sapi.create_spectrum_1d("george", "junk", 0.0, 1024.0, 1024)
+            .expect("Making a spectrum");
+
+    
+        bapi.bind("george").expect("Unable to bind existing spectrum");
+        bapi.unbind("george").expect("UNable to remove binding");
+
+        // List should be empty:
+
+        let list = bapi.list_bindings("*").expect("Getting bindings list");
+        assert_eq!(0, list.len());
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn unbind_all_1() {
+        // Make a bunch of bindings and use unbind all - should be none left:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+        for i in 0..10 {
+            let name= format!("par.{}", i);
+            papi.create_parameter(&name).expect(&format!("Could not create param {}", name));
+            sapi.create_spectrum_1d(&name, &name, 0.0, 1024.0, 1024).expect(&format!("Could not create spectrum {}", name));
+            bapi.bind(&name).expect(&format!("could not bind spectrum {}", name));
+        }
+        bapi.unbind_all().expect("Could not unbind all");
+        let listing = bapi.list_bindings("*").expect("failed to list bindings");
+        assert_eq!(0, listing.len());
+
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
 }
 
 // Test trace firing:
