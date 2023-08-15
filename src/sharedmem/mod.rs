@@ -345,10 +345,7 @@ impl SharedMemory {
                 .expect("Failed to get shared memory path"),
             total_size
         );
-        // All is good -- all our spectra are u32's so we
-        // make the allocator work on u32's as well
-        // that way we automatically get the right offsets too.
-
+        //
         let mut result = SharedMemory {
             bindings: vec![],
             backing_store: file,
