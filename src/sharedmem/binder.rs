@@ -954,8 +954,8 @@ mod sbind_client_tests {
         sapi.create_spectrum_1d("george", "junk", 0.0, 1024.0, 1024)
             .expect("Making a spectrum");
 
-    
-        bapi.bind("george").expect("Unable to bind existing spectrum");
+        bapi.bind("george")
+            .expect("Unable to bind existing spectrum");
 
         // See if its in the listing:
 
@@ -988,8 +988,8 @@ mod sbind_client_tests {
         sapi.create_spectrum_1d("george", "junk", 0.0, 1024.0, 1024)
             .expect("Making a spectrum");
 
-    
-        bapi.bind("george").expect("Unable to bind existing spectrum");
+        bapi.bind("george")
+            .expect("Unable to bind existing spectrum");
         bapi.unbind("george").expect("UNable to remove binding");
 
         // List should be empty:
@@ -1008,15 +1008,75 @@ mod sbind_client_tests {
         let papi = parameter_messages::ParameterMessageClient::new(&hreq);
         let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
         for i in 0..10 {
-            let name= format!("par.{}", i);
-            papi.create_parameter(&name).expect(&format!("Could not create param {}", name));
-            sapi.create_spectrum_1d(&name, &name, 0.0, 1024.0, 1024).expect(&format!("Could not create spectrum {}", name));
-            bapi.bind(&name).expect(&format!("could not bind spectrum {}", name));
+            let name = format!("par.{}", i);
+            papi.create_parameter(&name)
+                .expect(&format!("Could not create param {}", name));
+            sapi.create_spectrum_1d(&name, &name, 0.0, 1024.0, 1024)
+                .expect(&format!("Could not create spectrum {}", name));
+            bapi.bind(&name)
+                .expect(&format!("could not bind spectrum {}", name));
         }
         bapi.unbind_all().expect("Could not unbind all");
         let listing = bapi.list_bindings("*").expect("failed to list bindings");
         assert_eq!(0, listing.len());
 
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn usage_1() {
+        // No usage:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let usage = bapi.get_usage().expect("Can't get usage");
+        let spec_size = 1024 * 1024;
+        assert_eq!(spec_size, usage.free_bytes);
+        assert_eq!(spec_size, usage.largest_free_bytes);
+        assert_eq!(0, usage.used_bytes);
+        assert_eq!(0, usage.largest_used_bytes);
+        assert_eq!(0, usage.bound_indices);
+        assert_eq!(sharedmem::XAMINE_MAXSPEC, usage.total_indices);
+        assert_eq!(
+            spec_size + mem::size_of::<sharedmem::XamineSharedMemory>(),
+            usage.total_size
+        );
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn usage_2() {
+        // Bind a spectrum - usage should show that - remember there are
+        // 2 extra channels in a spectrum for under and overflow:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+
+        papi.create_parameter("junk").expect("Creating a parameter");
+        sapi.create_spectrum_1d("george", "junk", 0.0, 1024.0, 1024)
+            .expect("Making a spectrum");
+
+        bapi.bind("george")
+            .expect("Unable to bind existing spectrum");
+
+        //
+
+        let usage = bapi.get_usage().expect("could not get usage");
+        let spec_size = 1024 * 1024;
+        let used_size = 1026 * mem::size_of::<u32>();
+
+        assert_eq!(spec_size - used_size, usage.free_bytes);
+        assert_eq!(spec_size - used_size, usage.largest_free_bytes);
+        assert_eq!(used_size, usage.used_bytes);
+        assert_eq!(used_size, usage.largest_used_bytes);
+        assert_eq!(1, usage.bound_indices);
+        assert_eq!(sharedmem::XAMINE_MAXSPEC, usage.total_indices);
+        assert_eq!(
+            spec_size + mem::size_of::<sharedmem::XamineSharedMemory>(),
+            usage.total_size
+        );
+        //
 
         teardown(hreq, hjh, bapi, bjh);
     }
