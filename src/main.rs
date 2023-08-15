@@ -211,7 +211,8 @@ fn rocket() -> _ {
                 sbind::sbind_all,
                 sbind::sbind_list,
                 sbind::sbind_bindings,
-                sbind::set_update
+                sbind::set_update,
+                sbind::get_update
             ],
         )
         .mount(

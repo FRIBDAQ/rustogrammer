@@ -125,6 +125,22 @@ impl StringArrayResponse {
     }
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct UnsignedResponse {
+    status: String,
+    detail: u64,
+}
+
+impl UnsignedResponse {
+    pub fn new(status: &str, value: u64) -> UnsignedResponse {
+        UnsignedResponse {
+            status: String::from(status),
+            detail: value,
+        }
+    }
+}
+
 // Utility method to return the name of a parameter given its id
 
 fn find_parameter_by_id(id: u32, state: &State<SharedHistogramChannel>) -> Option<String> {

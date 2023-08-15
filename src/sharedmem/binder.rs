@@ -87,7 +87,7 @@ enum Reply {
 /// The default number of seconds to allow the receive on
 /// requests to dwell:
 /// The actual timeout can be set via the API.
-const DEFAULT_TIMEOUT: u64 = 2;
+pub const DEFAULT_TIMEOUT: u64 = 2;
 
 /// This struct contains the state associated with the BindingThread
 /// See the implementation for more information.

@@ -287,6 +287,18 @@ pub fn set_update(seconds: u64, state: &State<SharedBinderChannel>) -> Json<Gene
     };
     Json(response)
 }
+/// Retrieve the update rate for the shared memory:
+#[get("/get_update")]
+pub fn get_update(state: &State<SharedBinderChannel>) -> Json<UnsignedResponse> {
+    let bapi = binder::BindingApi::new(&state.inner().lock().unwrap());
+
+    let response = match bapi.get_update_period() {
+        Ok(i) => UnsignedResponse::new("OK", i),
+        Err(s) => UnsignedResponse::new(&format!("Failed to get update rate: {}", s), 0),
+    };
+    Json(response)
+}
+
 #[cfg(test)]
 mod sbind_tests {
     use super::*;
@@ -311,7 +323,13 @@ mod sbind_tests {
     fn setup() -> Rocket<Build> {
         let result = rest_common::setup().mount(
             "/",
-            routes![sbind_all, sbind_list, sbind_bindings, set_update],
+            routes![
+                sbind_all,
+                sbind_list,
+                sbind_bindings,
+                set_update,
+                get_update
+            ],
         );
 
         let hg_sender = result
@@ -391,6 +409,22 @@ mod sbind_tests {
         assert_eq!("OK", reply.status);
         let period = bapi.get_update_period().expect("Could not get period");
         assert_eq!(12, period);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn get_update_1() {
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Failed ot make client");
+        let req = client.get("/get_update");
+        let response = req
+            .dispatch()
+            .into_json::<UnsignedResponse>()
+            .expect("Failed to parse JSON");
+        assert_eq!("OK", response.status);
+        assert_eq!(binder::DEFAULT_TIMEOUT, response.detail);
 
         teardown(c, &papi, &bapi);
     }
