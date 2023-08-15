@@ -717,6 +717,371 @@ impl BindingApi {
     }
 }
 
+// Tests for the sbind server:
+
+#[cfg(test)]
+mod sbind_server_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging::Request;
+    use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::sharedmem;
+    use crate::trace;
+    use std::mem;
+    use std::sync::mpsc;
+    use std::thread;
+
+    // Make a binding thread object but don't start it.
+    // we can directly call process process_request/
+    // We do need a histogram thread.
+    fn setup() -> (thread::JoinHandle<()>, mpsc::Sender<Request>, BindingThread) {
+        let tracedb = trace::SharedTraceStore::new();
+        let (jh, hreq) = histogramer::start_server(tracedb.clone());
+
+        let (_, rcv) = mpsc::channel();
+        let binder = BindingThread::new(rcv, &hreq, 1024 * 1024, &tracedb);
+
+        (jh, hreq.clone(), binder)
+    }
+    fn teardown(hreq: mpsc::Sender<Request>, jh: thread::JoinHandle<()>) {
+        histogramer::stop_server(&hreq);
+        jh.join().unwrap();
+    }
+
+    #[test]
+    fn bind_1() {
+        // bind nonexisting spectrum is an error:
+
+        let (jh, hreq, mut binder) = setup();
+
+        assert!(binder.bind("test").is_err());
+
+        teardown(hreq, jh);
+    }
+    #[test]
+    fn bind_2() {
+        // Make a spectrum and bind it - should be success. and listable.
+        //
+
+        let (jh, hreq, mut binder) = setup();
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+
+        papi.create_parameter("george")
+            .expect("Failed to make parameter");
+        sapi.create_spectrum_1d("george", "george", 0.0, 1024.0, 512)
+            .expect("Failed to make a spectrum");
+
+        assert!(binder.bind("george").is_ok());
+
+        let list = binder.get_bindings("*").expect("Getting bindings list");
+        assert_eq!(1, list.len());
+        assert_eq!("george", list[0].1);
+
+        teardown(hreq, jh);
+    }
+
+    #[test]
+    fn list_1() {
+        let (jh, hreq, mut binder) = setup();
+
+        let list = binder.get_bindings("*");
+        assert!(list.is_ok());
+        assert_eq!(0, list.unwrap().len());
+
+        teardown(hreq, jh);
+    }
+    #[test]
+    fn unbind_1() {
+        // unbind an unbound is an error:
+
+        let (jh, hreq, mut binder) = setup();
+
+        assert!(binder.unbind("test").is_err());
+
+        teardown(hreq, jh);
+    }
+    #[test]
+    fn unbind_2() {
+        // Make a spectrum bind/unbind - should be unbound:
+
+        let (jh, hreq, mut binder) = setup();
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+
+        papi.create_parameter("george").expect("making parameter");
+        sapi.create_spectrum_1d("george", "george", 0.0, 1024.0, 512)
+            .expect("maing spectrum");
+
+        binder.bind("george").expect("binding george");
+        binder.unbind("george").expect("unbinding george");
+
+        let list = binder.get_bindings("*").expect("listing");
+        assert_eq!(0, list.len());
+
+        teardown(hreq, jh);
+    }
+    #[test]
+    fn get_stats_1() {
+        // at first the stats are for a totally free shm:
+
+        let (jh, hreq, mut binder) = setup();
+
+        let stats = binder.get_statistics();
+        assert_eq!(1024 * 1024, stats.free_bytes);
+        assert_eq!(1024 * 1024, stats.largest_free_bytes);
+        assert_eq!(0, stats.used_bytes);
+        assert_eq!(0, stats.largest_used_bytes);
+        assert_eq!(0, stats.bound_indices);
+        assert_eq!(sharedmem::XAMINE_MAXSPEC, stats.total_indices);
+        assert_eq!(
+            1024 * 1024 + mem::size_of::<sharedmem::XamineSharedMemory>(),
+            stats.total_size
+        );
+
+        teardown(hreq, jh);
+    }
+    #[test]
+    fn get_stats_2() {
+        let (jh, hreq, mut binder) = setup();
+
+        // add a spectrum. Should appear in the statistics:
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+
+        papi.create_parameter("george").expect("making parameter");
+        sapi.create_spectrum_1d("george", "george", 0.0, 1024.0, 512)
+            .expect("maing spectrum");
+
+        binder.bind("george").expect("binding george");
+
+        // Uses a slot and 1024*sizeof u32:
+        // Spectrum is 514 channes not 512 due to the automatic over/underlow
+        // extra chans.
+        let stats = binder.get_statistics();
+        assert_eq!(1024 * 1024 - 514 * mem::size_of::<u32>(), stats.free_bytes);
+        assert_eq!(
+            1024 * 1024 - 514 * mem::size_of::<u32>(),
+            stats.largest_free_bytes
+        );
+        assert_eq!(514 * mem::size_of::<u32>(), stats.used_bytes);
+        assert_eq!(514 * mem::size_of::<u32>(), stats.largest_used_bytes);
+        assert_eq!(1, stats.bound_indices);
+        assert_eq!(sharedmem::XAMINE_MAXSPEC, stats.total_indices);
+        assert_eq!(
+            1024 * 1024 + mem::size_of::<sharedmem::XamineSharedMemory>(),
+            stats.total_size
+        );
+
+        teardown(hreq, jh);
+    }
+}
+#[cfg(test)]
+mod sbind_client_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging::Request;
+    use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::sharedmem;
+    use crate::trace;
+    use std::mem;
+    use std::sync::mpsc;
+    use std::thread;
+
+    // THis is just like for sbind_server except that we
+    // *  Do start the bind server thread.
+    // *  We return a client api for the bind server.
+    // *
+    fn setup() -> (
+        thread::JoinHandle<()>,
+        mpsc::Sender<Request>,
+        thread::JoinHandle<()>,
+        BindingApi,
+    ) {
+        let tracedb = trace::SharedTraceStore::new();
+        let (jh, hreq) = histogramer::start_server(tracedb.clone());
+        let (breq, bjh) = start_server(&hreq, 1024 * 1024, &tracedb);
+        let bapi = BindingApi::new(&breq);
+
+        (jh, hreq, bjh, bapi)
+    }
+    fn teardown(
+        hreq: mpsc::Sender<Request>,
+        jh: thread::JoinHandle<()>,
+        bapi: BindingApi,
+        bjh: thread::JoinHandle<()>,
+    ) {
+        bapi.exit().expect("Requesting server stop");
+        bjh.join().unwrap();
+
+        histogramer::stop_server(&hreq);
+        jh.join().unwrap();
+    }
+
+    #[test]
+    fn list_1() {
+        // No bindings means an empty list:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let bindings = bapi.list_bindings("*").expect("Could not get bindings");
+        assert_eq!(0, bindings.len());
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn bind_1() {
+        // Binding a nonexistent spectrum is an error:
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        assert!(bapi.bind("junk").is_err());
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn bind_2() {
+        // Make a spectrum and bind it  - should be listable:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+
+        papi.create_parameter("junk").expect("Creating a parameter");
+        sapi.create_spectrum_1d("george", "junk", 0.0, 1024.0, 1024)
+            .expect("Making a spectrum");
+
+        bapi.bind("george")
+            .expect("Unable to bind existing spectrum");
+
+        // See if its in the listing:
+
+        let list = bapi.list_bindings("*").expect("Getting bindings list");
+        assert_eq!(1, list.len());
+        assert_eq!("george", list[0].1);
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn unbind_1() {
+        // no such spectrum is an error:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        assert!(bapi.unbind("junk").is_err());
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn unbind_2() {
+        // binding an existing bind gets rid of it:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+
+        papi.create_parameter("junk").expect("Creating a parameter");
+        sapi.create_spectrum_1d("george", "junk", 0.0, 1024.0, 1024)
+            .expect("Making a spectrum");
+
+        bapi.bind("george")
+            .expect("Unable to bind existing spectrum");
+        bapi.unbind("george").expect("UNable to remove binding");
+
+        // List should be empty:
+
+        let list = bapi.list_bindings("*").expect("Getting bindings list");
+        assert_eq!(0, list.len());
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn unbind_all_1() {
+        // Make a bunch of bindings and use unbind all - should be none left:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+        for i in 0..10 {
+            let name = format!("par.{}", i);
+            papi.create_parameter(&name)
+                .expect(&format!("Could not create param {}", name));
+            sapi.create_spectrum_1d(&name, &name, 0.0, 1024.0, 1024)
+                .expect(&format!("Could not create spectrum {}", name));
+            bapi.bind(&name)
+                .expect(&format!("could not bind spectrum {}", name));
+        }
+        bapi.unbind_all().expect("Could not unbind all");
+        let listing = bapi.list_bindings("*").expect("failed to list bindings");
+        assert_eq!(0, listing.len());
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn usage_1() {
+        // No usage:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let usage = bapi.get_usage().expect("Can't get usage");
+        let spec_size = 1024 * 1024;
+        assert_eq!(spec_size, usage.free_bytes);
+        assert_eq!(spec_size, usage.largest_free_bytes);
+        assert_eq!(0, usage.used_bytes);
+        assert_eq!(0, usage.largest_used_bytes);
+        assert_eq!(0, usage.bound_indices);
+        assert_eq!(sharedmem::XAMINE_MAXSPEC, usage.total_indices);
+        assert_eq!(
+            spec_size + mem::size_of::<sharedmem::XamineSharedMemory>(),
+            usage.total_size
+        );
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn usage_2() {
+        // Bind a spectrum - usage should show that - remember there are
+        // 2 extra channels in a spectrum for under and overflow:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+
+        papi.create_parameter("junk").expect("Creating a parameter");
+        sapi.create_spectrum_1d("george", "junk", 0.0, 1024.0, 1024)
+            .expect("Making a spectrum");
+
+        bapi.bind("george")
+            .expect("Unable to bind existing spectrum");
+
+        //
+
+        let usage = bapi.get_usage().expect("could not get usage");
+        let spec_size = 1024 * 1024;
+        let used_size = 1026 * mem::size_of::<u32>();
+
+        assert_eq!(spec_size - used_size, usage.free_bytes);
+        assert_eq!(spec_size - used_size, usage.largest_free_bytes);
+        assert_eq!(used_size, usage.used_bytes);
+        assert_eq!(used_size, usage.largest_used_bytes);
+        assert_eq!(1, usage.bound_indices);
+        assert_eq!(sharedmem::XAMINE_MAXSPEC, usage.total_indices);
+        assert_eq!(
+            spec_size + mem::size_of::<sharedmem::XamineSharedMemory>(),
+            usage.total_size
+        );
+        //
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+}
+
 // Test trace firing:
 
 #[cfg(test)]

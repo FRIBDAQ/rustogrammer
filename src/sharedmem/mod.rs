@@ -353,7 +353,7 @@ impl SharedMemory {
             bindings: vec![],
             backing_store: file,
             map: map,
-            allocator: StorageAllocator::new(specsize / mem::size_of::<u32>()),
+            allocator: StorageAllocator::new(specsize),
             total_size: total_size,
         };
         Self::init_bindings(&mut result);
@@ -373,7 +373,7 @@ impl SharedMemory {
     /// Allocate a free spectrum pointer that
     /// points to sufficient storage for a spectrum _size_ bytes long.
     ///
-    /// On success returns doublet containing the byte offset in the
+    /// On success returns doublet containing the long offset in the
     /// spectrum storage area and the pointer to that stroage.
     pub fn get_free_spectrum_pointer(&mut self, size: usize) -> Option<(usize, *mut u8)> {
         // See if we have any that fit:
