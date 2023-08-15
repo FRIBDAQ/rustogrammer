@@ -894,22 +894,26 @@ mod sbind_client_tests {
     // THis is just like for sbind_server except that we
     // *  Do start the bind server thread.
     // *  We return a client api for the bind server.
-    // * 
+    // *
     fn setup() -> (
-        thread::JoinHandle<()>, mpsc::Sender<Request>,
-        thread::JoinHandle<()>, BindingApi) {
+        thread::JoinHandle<()>,
+        mpsc::Sender<Request>,
+        thread::JoinHandle<()>,
+        BindingApi,
+    ) {
         let tracedb = trace::SharedTraceStore::new();
         let (jh, hreq) = histogramer::start_server(tracedb.clone());
-        let (breq, bjh) = start_server(&hreq, 1024*1024, &tracedb);
+        let (breq, bjh) = start_server(&hreq, 1024 * 1024, &tracedb);
         let bapi = BindingApi::new(&breq);
 
         (jh, hreq, bjh, bapi)
-        
     }
     fn teardown(
-        hreq : mpsc::Sender<Request>, jh: thread::JoinHandle<()>, 
-        bapi: BindingApi, bjh: thread::JoinHandle<()>) {
-        
+        hreq: mpsc::Sender<Request>,
+        jh: thread::JoinHandle<()>,
+        bapi: BindingApi,
+        bjh: thread::JoinHandle<()>,
+    ) {
         bapi.exit().expect("Requesting server stop");
         bjh.join().unwrap();
 
@@ -918,8 +922,46 @@ mod sbind_client_tests {
     }
 
     #[test]
-    fn junk() {
+    fn list_1() {
+        // No bindings means an empty list:
+
         let (hjh, hreq, bjh, bapi) = setup();
+
+        let bindings = bapi.list_bindings("*").expect("Could not get bindings");
+        assert_eq!(0, bindings.len());
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn bind_1() {
+        // Binding a nonexistent spectrum is an error:
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        assert!(bapi.bind("junk").is_err());
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn bind_2() {
+        // Make a spectrum and bind it  - should be listable:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hreq);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hreq);
+
+        papi.create_parameter("junk").expect("Creating a parameter");
+        sapi.create_spectrum_1d("george", "junk", 0.0, 1024.0, 1024)
+            .expect("Making a spectrum");
+
+    
+        bapi.bind("george").expect("Unable to bind existing spectrum");
+
+        // See if its in the listing:
+
+        let list = bapi.list_bindings("*").expect("Getting bindings list");
+        assert_eq!(1, list.len());
+        assert_eq!("george", list[0].1);
 
         teardown(hreq, hjh, bapi, bjh);
     }
