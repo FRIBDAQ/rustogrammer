@@ -628,6 +628,16 @@ class rustogramer:
         """ list bindings"""
 
         return self._transaction("sbind/list", {"pattern":pattern})
+
+    # -- sbind only supported by rustogramer:
+
+    def sbind_set_update_period(self, seconds):
+        """ Sets the update period for the shared memory."""
+
+        return self._transaction("sbind/set_update", {"seconds": seconds})
+    
+    def sbind_get_update_period(self) :
+        return self._transaction("sbind/get_update", {})
         
     #---------- Shared memory information:
 

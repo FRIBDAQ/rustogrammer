@@ -273,6 +273,32 @@ pub fn sbind_bindings(
 
     Json(response)
 }
+/// Set the upate rate. In SpecTcl the shared memory region directly
+/// contains the contents of bound spectra.  In rustoramer, the data are
+/// a copy that must be periodically updated.  This ReST method
+/// sets that update period in seconds
+#[get("/set_update?<seconds>")]
+pub fn set_update(seconds: u64, state: &State<SharedBinderChannel>) -> Json<GenericResponse> {
+    let bapi = binder::BindingApi::new(&state.inner().lock().unwrap());
+    let response = if let Err(s) = bapi.set_update_period(seconds) {
+        GenericResponse::err("Could not set update rate", &s)
+    } else {
+        GenericResponse::ok("")
+    };
+    Json(response)
+}
+/// Retrieve the update rate for the shared memory:
+#[get("/get_update")]
+pub fn get_update(state: &State<SharedBinderChannel>) -> Json<UnsignedResponse> {
+    let bapi = binder::BindingApi::new(&state.inner().lock().unwrap());
+
+    let response = match bapi.get_update_period() {
+        Ok(i) => UnsignedResponse::new("OK", i),
+        Err(s) => UnsignedResponse::new(&format!("Failed to get update rate: {}", s), 0),
+    };
+    Json(response)
+}
+
 #[cfg(test)]
 mod sbind_tests {
     use super::*;
@@ -295,8 +321,16 @@ mod sbind_tests {
     use std::time;
 
     fn setup() -> Rocket<Build> {
-        let result =
-            rest_common::setup().mount("/", routes![sbind_all, sbind_list, sbind_bindings,]);
+        let result = rest_common::setup().mount(
+            "/",
+            routes![
+                sbind_all,
+                sbind_list,
+                sbind_bindings,
+                set_update,
+                get_update
+            ],
+        );
 
         let hg_sender = result
             .state::<SharedHistogramChannel>()
@@ -359,6 +393,40 @@ mod sbind_tests {
         spec_api
             .create_spectrum_2d("twod", "p1", "p2", -1.0, 1.0, 100, -2.0, 4.0, 100)
             .expect("Making 2d specttrum");
+    }
+    #[test]
+    fn set_update_1() {
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("making client");
+        let req = client.get("/set_update?seconds=12");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSONG");
+
+        assert_eq!("OK", reply.status);
+        let period = bapi.get_update_period().expect("Could not get period");
+        assert_eq!(12, period);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn get_update_1() {
+        let rocket = setup();
+        let (c, papi, bapi) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Failed ot make client");
+        let req = client.get("/get_update");
+        let response = req
+            .dispatch()
+            .into_json::<UnsignedResponse>()
+            .expect("Failed to parse JSON");
+        assert_eq!("OK", response.status);
+        assert_eq!(binder::DEFAULT_TIMEOUT, response.detail);
+
+        teardown(c, &papi, &bapi);
     }
     #[test]
     fn sbindall_1() {
