@@ -880,7 +880,50 @@ mod sbind_server_tests {
     }
 }
 #[cfg(test)]
-mod sbind_client_tests {}
+mod sbind_client_tests {
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging::Request;
+    use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::sharedmem;
+    use crate::trace;
+    use std::mem;
+    use std::sync::mpsc;
+    use std::thread;
+
+    // THis is just like for sbind_server except that we
+    // *  Do start the bind server thread.
+    // *  We return a client api for the bind server.
+    // * 
+    fn setup() -> (
+        thread::JoinHandle<()>, mpsc::Sender<Request>,
+        thread::JoinHandle<()>, BindingApi) {
+        let tracedb = trace::SharedTraceStore::new();
+        let (jh, hreq) = histogramer::start_server(tracedb.clone());
+        let (breq, bjh) = start_server(&hreq, 1024*1024, &tracedb);
+        let bapi = BindingApi::new(&breq);
+
+        (jh, hreq, bjh, bapi)
+        
+    }
+    fn teardown(
+        hreq : mpsc::Sender<Request>, jh: thread::JoinHandle<()>, 
+        bapi: BindingApi, bjh: thread::JoinHandle<()>) {
+        
+        bapi.exit().expect("Requesting server stop");
+        bjh.join().unwrap();
+
+        histogramer::stop_server(&hreq);
+        jh.join().unwrap();
+    }
+
+    #[test]
+    fn junk() {
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+}
 
 // Test trace firing:
 
