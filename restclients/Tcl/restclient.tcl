@@ -123,6 +123,9 @@ package require json
 #   shmemkey
 #   shmemsize
 #
+#   shmupdate_set
+#   shmupdate_get
+#
 #   spectrumList
 #   spectrumDelete
 #   spectrumCreate
@@ -1271,6 +1274,24 @@ snit::type SpecTclRestClient {
         set info [$self _request [$self _makeUrl shmem/size [dict create]]]
         return [dict get $info detail]
                   
+    }
+    ##
+    #  shmupdate_set
+    #     Set the update rate for the shared memory.  This is rustogramer only.
+    #
+    #  @param seconds - number of seconds between updates.
+
+    method shmupdate_set seconds {
+        set info [$self _request [$self _makeUrl sbind/set_update [dict create seconds $seconds]]]
+        
+    }
+    ##
+    #  shmupdate_get
+    #    Retrieve the number of seconds between shared memory updates:
+    #
+    method shmupdate_get {} {
+        set info [$self _request [$self _makeUrl sbind/get_update [dict create]]]
+        return [dict get $info detail]
     }
     #---------------------------------------------------------------------------
     # spectrum command jackets.
