@@ -897,7 +897,6 @@ mod sbind_server_tests {
 
         teardown(hreq, jh);
     }
-    
 }
 #[cfg(test)]
 mod sbind_client_tests {
@@ -1106,7 +1105,9 @@ mod sbind_client_tests {
 
         let (hjh, hreq, bjh, bapi) = setup();
 
-        let update = bapi.get_update_period().expect("Failed to get update period");
+        let update = bapi
+            .get_update_period()
+            .expect("Failed to get update period");
         assert_eq!(DEFAULT_TIMEOUT, update);
 
         teardown(hreq, hjh, bapi, bjh);
@@ -1114,13 +1115,15 @@ mod sbind_client_tests {
     #[test]
     fn set_update_1() {
         let (hjh, hreq, bjh, bapi) = setup();
-        bapi.set_update_period(DEFAULT_TIMEOUT*2).expect("Failed to set update rate");
-        let update = bapi.get_update_period().expect("Failed to get update period");
-        assert_eq!(DEFAULT_TIMEOUT*2, update);
+        bapi.set_update_period(DEFAULT_TIMEOUT * 2)
+            .expect("Failed to set update rate");
+        let update = bapi
+            .get_update_period()
+            .expect("Failed to get update period");
+        assert_eq!(DEFAULT_TIMEOUT * 2, update);
 
         teardown(hreq, hjh, bapi, bjh);
     }
-    
 }
 
 // Test trace firing:
