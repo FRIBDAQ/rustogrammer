@@ -45,6 +45,7 @@ enum RequestType {
     List(String),
     Clear(String),
     SetUpdate(u64),
+    GetUpdate,
     Statistics,
     ShmName,
     Exit,
@@ -69,13 +70,18 @@ pub type ListResult = Result<Vec<(usize, String)>, String>;
 /// What we get back from statisitcs requests:
 pub type StatisticsResult = Result<MemoryStatistics, String>;
 /// When replies just need a string:'
+
 pub type StringResult = Result<String, String>;
+/// when replies are unsigned:
+
+pub type UnsignedResult = Result<u64, String>;
 
 enum Reply {
     Generic(GenericResult),
     List(ListResult),
     Statistics(StatisticsResult),
     String(StringResult),
+    Unsigned(UnsignedResult),
 }
 
 /// The default number of seconds to allow the receive on
@@ -377,6 +383,12 @@ impl BindingThread {
                     .expect("Failed to send reply to client from binding thread");
                 true
             }
+            RequestType::GetUpdate => {
+                req.reply_chan
+                    .send(Reply::Unsigned(Ok(self.timeout)))
+                    .expect("Failed to send reply to client from binding thread");
+                true
+            }
             RequestType::Statistics => {
                 req.reply_chan
                     .send(Reply::Statistics(Ok(self.get_statistics())))
@@ -650,11 +662,18 @@ impl BindingApi {
     /// ### Returns:
     /// *   GenericResult instance.
     ///
-    #[allow(dead_code)]
     pub fn set_update_period(&self, period_secs: u64) -> GenericResult {
         match self.transaction(RequestType::SetUpdate(period_secs)) {
             Reply::Generic(r) => r,
             _ => Err(String::from("Unexpected reply type from BindingServer")),
+        }
+    }
+    /// Return the update rate
+    ///
+    pub fn get_update_period(&self) -> UnsignedResult {
+        match self.transaction(RequestType::GetUpdate) {
+            Reply::Unsigned(r) => r,
+            _ => Err(String::from("Unexepcted reply type from binding server")),
         }
     }
     /// Obtains the usage statistics for the shared memory region.
@@ -878,6 +897,7 @@ mod sbind_server_tests {
 
         teardown(hreq, jh);
     }
+    
 }
 #[cfg(test)]
 mod sbind_client_tests {
@@ -1080,6 +1100,27 @@ mod sbind_client_tests {
 
         teardown(hreq, hjh, bapi, bjh);
     }
+    #[test]
+    fn get_update_1() {
+        // Initially the default update rate:
+
+        let (hjh, hreq, bjh, bapi) = setup();
+
+        let update = bapi.get_update_period().expect("Failed to get update period");
+        assert_eq!(DEFAULT_TIMEOUT, update);
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    #[test]
+    fn set_update_1() {
+        let (hjh, hreq, bjh, bapi) = setup();
+        bapi.set_update_period(DEFAULT_TIMEOUT*2).expect("Failed to set update rate");
+        let update = bapi.get_update_period().expect("Failed to get update period");
+        assert_eq!(DEFAULT_TIMEOUT*2, update);
+
+        teardown(hreq, hjh, bapi, bjh);
+    }
+    
 }
 
 // Test trace firing:
