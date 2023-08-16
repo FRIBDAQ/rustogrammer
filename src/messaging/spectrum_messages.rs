@@ -128,15 +128,15 @@ pub enum SpectrumRequest {
     },
     GetChan {
         name: String,
-        xchan: u32,
-        ychan: Option<u32>
+        xchan: i32,
+        ychan: Option<i32>,
     },
     SetChan {
         name: String,
-        xchan: u32,
-        ychan: Option<u32>,
-        value: f64
-    }
+        xchan: i32,
+        ychan: Option<i32>,
+        value: f64,
+    },
 }
 
 /// Defines the replies the spectrum par tof the histogram
@@ -154,7 +154,7 @@ pub enum SpectrumReply {
     Processed,                        // Events processed.
     Statistics(SpectrumStatistics),   // Spectrum statistics.
     ChannelValue(f64),                // GetChan
-    ChannelSet                        // SetChan
+    ChannelSet,                       // SetChan
 }
 
 ///
@@ -684,6 +684,70 @@ impl SpectrumProcessor {
         }
     }
 
+    fn get_channel_value(&self, name: &str, xchan: i32, ychan: Option<i32>) -> SpectrumReply {
+        // Find the spectrum:
+        // If it does not exist, then error:
+
+        let xchan = (xchan + 1) as usize; // X Index.
+        if let Some(spec) = self.dict.get(name) {
+            // What we do next depends on the spectrum  dimensionality:
+
+            if spec.borrow().is_1d() {
+                if let Some(f) = spec
+                    .borrow()
+                    .get_histogram_1d()
+                    .unwrap()
+                    .borrow()
+                    .value_at_index(xchan)
+                {
+                    SpectrumReply::ChannelValue(f.get())
+                } else {
+                    SpectrumReply::Error(String::from("X index is out of range"))
+                }
+            } else {
+                // Must be a y channel:
+
+                if let Some(ybin) = ychan {
+                    // Have o turn the x/y channel into an index:
+
+                    let ybin = (ybin + 1) as usize; // Underflow offset.
+
+                    let xaxis = spec
+                        .borrow()
+                        .get_histogram_2d()
+                        .unwrap()
+                        .borrow()
+                        .axes()
+                        .as_tuple()
+                        .0
+                        .clone();
+
+                    if xchan >= xaxis.num_bins() {
+                        return SpectrumReply::Error(String::from(
+                            "X channel index is out of range",
+                        ));
+                    }
+                    let index = xchan + (ybin * xaxis.num_bins());
+                    if let Some(f) = spec
+                        .borrow()
+                        .get_histogram_2d()
+                        .unwrap()
+                        .borrow()
+                        .value_at_index(index)
+                    {
+                        SpectrumReply::ChannelValue(f.get())
+                    } else {
+                        SpectrumReply::Error(String::from("Y channel index is out of range"))
+                    }
+                } else {
+                    SpectrumReply::Error(String::from("Must have  a ybin for a 2d spectrum"))
+                }
+            }
+        } else {
+            SpectrumReply::Error(format!("No such spectrum '{}'", name))
+        }
+    }
+
     // Public methods
     /// Construction
 
@@ -759,8 +823,15 @@ impl SpectrumProcessor {
             SpectrumRequest::Events(events) => self.process_events(&events, cdict),
             SpectrumRequest::GetStats(name) => self.get_statistics(&name),
             SpectrumRequest::SetContents { name, contents } => self.set_contents(&name, &contents),
-            SpectrumRequest::GetChan {name, xchan, ychan} => SpectrumReply::ChannelValue(0.0),
-            SpectrumRequest::SetChan {name, xchan, ychan, value} => SpectrumReply::ChannelSet
+            SpectrumRequest::GetChan { name, xchan, ychan } => {
+                self.get_channel_value(&name, xchan, ychan)
+            }
+            SpectrumRequest::SetChan {
+                name,
+                xchan,
+                ychan,
+                value,
+            } => SpectrumReply::ChannelSet,
         }
     }
 }
@@ -784,6 +855,10 @@ pub type SpectrumServerContentsResult = Result<SpectrumContents, String>;
 /// Result for spectrum statistics request:
 
 pub type SpectrumServerStatisticsResult = Result<SpectrumStatistics, String>;
+
+/// Result from the GetChan:
+
+pub type SpectrumChannelResult = Result<f64, String>;
 
 ///
 /// This struct provides a container for the channel used to
@@ -1366,6 +1441,77 @@ impl SpectrumMessageClient {
             SpectrumReply::Processed => Ok(()),
             SpectrumReply::Error(s) => Err(s),
             _ => Err(String::from("Unexpected reply type in fill_spectrum")),
+        }
+    }
+    /// Get the value of a single channel of a spectrum.
+    ///
+    /// ### Parameters:
+    /// *  name - name of the spectrum.
+    /// *  xchan - xchannel number (always required).
+    /// *  ychan - optional y channel, required for 2d spectra.
+    ///
+    ///  ### Returns:
+    ///     SpectrumChannelResult - which, on Ok encapsulates the f64 value of
+    ///  the requested channel.
+    ///
+    ///  ### Notes:
+    ///   * -1 is the channel value for underflows and n+1 where n is the
+    /// number of 'data' bins on that axis gets to the overflows.
+    ///   *  If the bins are out of range the results are an error (checked in
+    /// the server not the ndhistogram package as I'm not 100% sure what it does
+    /// when presented with that case).
+    ///
+    pub fn get_channel_value(
+        &self,
+        name: &str,
+        xchan: i32,
+        ychan: Option<i32>,
+    ) -> SpectrumChannelResult {
+        let request = SpectrumRequest::GetChan {
+            name: String::from(name),
+            xchan: xchan,
+            ychan: ychan,
+        };
+        match self.transact(request) {
+            SpectrumReply::ChannelValue(value) => Ok(value),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("Unexpected reply type in get_channel_value")),
+        }
+    }
+    /// Set the value of a singl,e channel of a spectrum.
+    ///
+    /// ### Parameters:
+    /// *  name - name of the spectrum.
+    /// *  xchan - xchannel number (always required).
+    /// *  ychan - optional y channel, required for 2d spectra.
+    /// *  value - New value for the channel (f64).
+    ///
+    /// Returns: SpectrumServerEmptyResult.
+    ///
+    ///  ### Notes:
+    ///   * -1 is the channel value for underflows and n+1 where n is the
+    /// number of 'data' bins on that axis gets to the overflows.
+    ///   *  If the bins are out of range the results are an error (checked in
+    /// the server not the ndhistogram package as I'm not 100% sure what it does
+    /// when presented with that case).
+    ///
+    pub fn set_channel_value(
+        &self,
+        name: &str,
+        xchan: i32,
+        ychan: Option<i32>,
+        value: f64,
+    ) -> SpectrumServerEmptyResult {
+        let request = SpectrumRequest::SetChan {
+            name: String::from(name),
+            xchan: xchan,
+            ychan: ychan,
+            value: value,
+        };
+        match self.transact(request) {
+            SpectrumReply::ChannelSet => Ok(()),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("Unexpected reply type in set_channel_value")),
         }
     }
 }
