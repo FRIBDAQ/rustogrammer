@@ -126,6 +126,17 @@ pub enum SpectrumRequest {
         name: String,
         contents: SpectrumContents,
     },
+    GetChan {
+        name: String,
+        xchan: u32,
+        ychan: Option<u32>
+    },
+    SetChan {
+        name: String,
+        xchan: u32,
+        ychan: Option<u32>,
+        value: f64
+    }
 }
 
 /// Defines the replies the spectrum par tof the histogram
@@ -142,6 +153,8 @@ pub enum SpectrumReply {
     Listing(Vec<SpectrumProperties>), // List of spectrum props.
     Processed,                        // Events processed.
     Statistics(SpectrumStatistics),   // Spectrum statistics.
+    ChannelValue(f64),                // GetChan
+    ChannelSet                        // SetChan
 }
 
 ///
@@ -746,6 +759,8 @@ impl SpectrumProcessor {
             SpectrumRequest::Events(events) => self.process_events(&events, cdict),
             SpectrumRequest::GetStats(name) => self.get_statistics(&name),
             SpectrumRequest::SetContents { name, contents } => self.set_contents(&name, &contents),
+            SpectrumRequest::GetChan {name, xchan, ychan} => SpectrumReply::ChannelValue(0.0),
+            SpectrumRequest::SetChan {name, xchan, ychan, value} => SpectrumReply::ChannelSet
         }
     }
 }
