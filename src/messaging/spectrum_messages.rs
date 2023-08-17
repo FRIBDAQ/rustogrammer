@@ -4364,6 +4364,250 @@ mod spproc_tests {
 
         assert_eq!(SpectrumReply::ChannelValue(1234.0), reply);
     }
+    #[test]
+    fn getchan2_1() {
+        // X/Y in range.
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+    }
+    #[test]
+    fn getchan2_2() {
+        // x too small
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+    }
+    #[test]
+    fn getchan2_3() {
+        // x too big.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+    }
+    #[test]
+    fn getchan2_4() {
+        // y too small.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+    }
+    #[test]
+    fn getchan2_5() {
+        // y too big.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+    }
+    #[test]
+    fn getchan2_6() {
+        // an x underflow
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+    }
+    #[test]
+    fn getchan2_7() {
+        // an x overflow
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+    }
+    #[test]
+    fn getchan2_8() {
+        // a y underflow
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+    }
+    #[test]
+    fn getchan2_9() {
+        // a y overflow.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+    }
 }
 #[cfg(test)]
 mod reqstruct_tests {
