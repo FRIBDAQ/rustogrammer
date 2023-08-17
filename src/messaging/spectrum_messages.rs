@@ -4337,6 +4337,32 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
+
+        // We do this in a block to drop the borrow at the end
+        // otherwise I don't think the processor can then borrow
+        // the spectrum to give us the value.
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+
+            spc.get_histogram_1d()
+                .unwrap()
+                .borrow_mut()
+                .value_at_index_mut(1025) // overflow channel
+                .unwrap()
+                .fill_with(1234.0);
+        }
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 1024, // underflow channel.
+                ychan: None,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert_eq!(SpectrumReply::ChannelValue(1234.0), reply);
     }
 }
 #[cfg(test)]
