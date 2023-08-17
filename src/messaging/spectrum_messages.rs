@@ -4608,6 +4608,34 @@ mod spproc_tests {
         );
         assert_eq!(SpectrumReply::Created, reply);
     }
+    #[test]
+    fn getchan2_10() {
+        // ybin cannot be None
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+    }
 }
 #[cfg(test)]
 mod reqstruct_tests {
