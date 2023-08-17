@@ -4163,6 +4163,25 @@ mod spproc_tests {
             },
         }, &to.parameters, &mut to.conditions, &to.tracedb);
         assert_eq!(SpectrumReply::Created, reply);
+
+        // Put a value in bin 512 (exclusive of 0 which is the underflow):
+        // Block so that the borrow is given back:
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+
+            spc.get_histogram_1d().unwrap().borrow_mut().value_at_index_mut(512).unwrap().fill_with(1234.0);
+        }
+
+        // Now ask for the value of bin 512:
+
+        let reply = to.processor.process_request(SpectrumRequest::GetChan {
+            name: String::from("test"),
+            xchan: 511,
+            ychan: None
+        },  &to.parameters, &mut to.conditions, &to.tracedb);
+        assert_eq!(SpectrumReply::ChannelValue(1234.0), reply);
+
+
     }
     #[test]
     fn getchan1_2() {
