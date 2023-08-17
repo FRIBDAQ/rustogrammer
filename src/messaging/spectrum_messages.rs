@@ -4422,31 +4422,21 @@ mod spproc_tests {
         // Set bin 256+256*514 - to 1234.0 - that's 255,255 in external
         // bin coords:
 
-        // We do this in a block to drop the borrow at the end
-        // otherwise I don't think the processor can then borrow
-        // the spectrum to give us the value.
-        {
-            let spc = to.processor.dict.get("test").unwrap().borrow();
-
-            spc.get_histogram_2d()
-                .unwrap()
-                .borrow_mut()
-                .value_at_index_mut(256 + 256 * 514) // overflow channel
-                .unwrap()
-                .fill_with(1234.0);
-        }
-
-        let result = to.processor.process_request(
+        let reply = to.processor.process_request(
             SpectrumRequest::GetChan {
                 name: String::from("test"),
-                xchan: 255,
+                xchan: -2, // -1 is underflow.
                 ychan: Some(255),
             },
             &to.parameters,
             &mut to.conditions,
             &to.tracedb,
         );
-        assert_eq!(SpectrumReply::ChannelValue(1234.0), result);
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        })
     }
     #[test]
     fn getchan2_3() {
