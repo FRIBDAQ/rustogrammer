@@ -727,6 +727,24 @@ impl SpectrumProcessor {
                             "X channel index is out of range",
                         ));
                     }
+
+                    let yaxis = spec
+                        .borrow()
+                        .get_histogram_2d()
+                        .unwrap()
+                        .borrow()
+                        .axes()
+                        .as_tuple()
+                        .1
+                        .clone();
+
+                    if ybin >= yaxis.num_bins() {
+                        // what was negative looks huge.
+                        return SpectrumReply::Error(String::from(
+                            "Y channel index is out of range",
+                        ));
+                    }
+
                     let index = xchan + (ybin * xaxis.num_bins());
                     if let Some(f) = spec
                         .borrow()
@@ -737,6 +755,7 @@ impl SpectrumProcessor {
                     {
                         SpectrumReply::ChannelValue(f.get())
                     } else {
+                        // Should not get here but...
                         SpectrumReply::Error(String::from("Y channel index is out of range"))
                     }
                 } else {
@@ -4436,7 +4455,7 @@ mod spproc_tests {
             true
         } else {
             false
-        })
+        });
     }
     #[test]
     fn getchan2_3() {
@@ -4464,6 +4483,22 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 0,
+                ychan: Some(513), // 512 is overflow.
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
     }
     #[test]
     fn getchan2_4() {
@@ -4491,6 +4526,22 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 512,
+                ychan: Some(-2),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
     }
     #[test]
     fn getchan2_5() {
