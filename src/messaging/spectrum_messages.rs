@@ -4834,9 +4834,9 @@ mod spproc_tests {
 
         let reply = to.processor.process_request(
             SpectrumRequest::GetChan {
-                name : String::from("test"),
+                name: String::from("test"),
                 xchan: 256,
-                ychan: None
+                ychan: None,
             },
             &to.parameters,
             &mut to.conditions,
@@ -4844,7 +4844,9 @@ mod spproc_tests {
         );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
-        } else { false });
+        } else {
+            false
+        });
     }
 }
 #[cfg(test)]
