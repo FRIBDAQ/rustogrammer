@@ -4410,6 +4410,26 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
+        // increment 512.0, 512.0 (bin 256, 256)
+        // in a block so the borrow is released
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+            spc.get_histogram_2d()
+                .unwrap()
+                .borrow_mut()
+                .fill(&(512.0, 512.0));
+        }
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 256,
+                ychan: Some(256),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::ChannelValue(1.0), reply);
     }
     #[test]
     fn getchan2_2() {
@@ -4612,6 +4632,8 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
+
+        // increment coordinate (-1.0, 512.0) that's an x underflow...get it.
     }
     #[test]
     fn getchan2_7() {
