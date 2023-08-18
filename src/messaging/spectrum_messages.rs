@@ -4487,8 +4487,8 @@ mod spproc_tests {
         let reply = to.processor.process_request(
             SpectrumRequest::GetChan {
                 name: String::from("test"),
-                xchan: 0,
-                ychan: Some(513), // 512 is overflow.
+                xchan: 513,
+                ychan: Some(0), // 512 is overflow.
             },
             &to.parameters,
             &mut to.conditions,
@@ -4569,6 +4569,22 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 0,
+                ychan: Some(513),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
     }
     #[test]
     fn getchan2_6() {
