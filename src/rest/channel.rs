@@ -12,8 +12,10 @@
 //!
 
 use rocket::serde::json::Json;
+use rocket::State;
 
 use super::*;
+use crate::messaging::spectrum_messages;
 
 /// We don't even bother with query parameters.
 /// If we implement this the query parameters would be:
@@ -32,8 +34,16 @@ pub fn set_chan() -> Json<GenericResponse> {
         "This is not SpecTcl",
     ))
 }
-/// If this were implemented,
-/// the query paramters would be:
+// Stuff needed for getchan:
+
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct ChannelValueResponse {
+    status: String,
+    detail: f64,
+}
+
+/// Implement the channel get functionality:
 ///
 /// *   spectrum (mandatory) - name of the spectrum being queried.
 /// *   xchannel (mandatory) - X channel to get
@@ -47,12 +57,26 @@ pub fn set_chan() -> Json<GenericResponse> {
 /// Note that channels out of range would, unlike SpecTcl likely
 /// fetch the over/underflow value depending.
 ///
-#[get("/get")]
-pub fn get_chan() -> Json<GenericResponse> {
-    Json(GenericResponse::err(
-        "Unsupported /spectcl/channel/get",
-        "This is not SpecTcl",
-    ))
+#[get("/get?<spectrum>&<xchannel>&<ychannel>")]
+pub fn get_chan(
+    spectrum: &str,
+    xchannel: i32,
+    ychannel: Option<i32>,
+    api_chan: &State<SharedHistogramChannel>,
+) -> Json<ChannelValueResponse> {
+    let api = spectrum_messages::SpectrumMessageClient::new(&api_chan.lock().unwrap());
+
+    let reply = match api.get_channel_value(spectrum, xchannel, ychannel) {
+        Ok(value) => ChannelValueResponse {
+            status: String::from("OK"),
+            detail: value,
+        },
+        Err(s) => ChannelValueResponse {
+            status: format!("Could not get channel: {}", s),
+            detail: 0.0,
+        },
+    };
+    Json(reply)
 }
 
 #[cfg(test)]
@@ -60,6 +84,7 @@ mod channels_tests {
     use super::*;
 
     use crate::messaging;
+    use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::processing;
     use crate::sharedmem::binder;
     use crate::test::rest_common;
@@ -107,17 +132,57 @@ mod channels_tests {
 
     #[test]
     fn get_1() {
+        // Get from 1d:
+
         let r = setup();
         let (hg, p, b) = get_state(&r);
 
-        let c = Client::tracked(r).expect("Failed to make client");
-        let request = c.get("/get");
-        let reply = request.dispatch();
-        let json = reply
-            .into_json::<GenericResponse>()
-            .expect("bad JSON parse");
-        assert_eq!("Unsupported /spectcl/channel/get", json.status.as_str());
-        assert_eq!("This is not SpecTcl", json.detail.as_str());
+        // Make a 1d spectrum - means making a parameter:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&hg);
+        param_api.create_parameter("p0").expect("Making p0");
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&hg);
+        spec_api
+            .create_spectrum_1d("Test", "p0", 0.0, 1024.0, 1024)
+            .expect("Making spectrum");
+
+        let client = Client::untracked(r).expect("Making client");
+        let req = client.get("/get?spectrum=Test&xchannel=512");
+        let reply = req
+            .dispatch()
+            .into_json::<ChannelValueResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(0.0, reply.detail);
+
+        teardown(hg, &p, &b);
+    }
+    #[test]
+    fn get_2() {
+        // get from 2d:
+
+        let r = setup();
+        let (hg, p, b) = get_state(&r);
+
+        // Make a 1d spectrum - means making a parameter:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&hg);
+        param_api.create_parameter("p0").expect("Making p0");
+        param_api.create_parameter("p1").expect("Making p1");
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&hg);
+        spec_api.create_spectrum_2d("test", "p0", "p1", 0.0, 512.0, 512, 0.0, 512.0, 512).expect("Making spectrum");
+
+        
+        let client = Client::untracked(r).expect("Making client");
+        let req = client.get("/get?spectrum=test&xchannel=100&ychannel=100");
+        let reply = req
+            .dispatch()
+            .into_json::<ChannelValueResponse>()
+            .expect("Parsing json");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(0.0, reply.detail);
 
         teardown(hg, &p, &b);
     }
