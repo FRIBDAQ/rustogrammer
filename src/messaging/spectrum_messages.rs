@@ -683,16 +683,50 @@ impl SpectrumProcessor {
             SpectrumReply::Error(format!("Spectrum {} does not exist", name))
         }
     }
+    fn channels2d_to_index(
+        spec: &spectra::H2DContainer,
+        xbin: i32,
+        ybin: i32,
+    ) -> Result<usize, String> {
+        // Offset x and y bins to allow for the overflow:
 
+        let xbin = (xbin + 1) as usize;
+        let ybin = (ybin + 1) as usize;
+
+        // Get the x/y axes from the histogram range check them:
+
+        let xaxis = spec.borrow().axes().as_tuple().0.clone();
+        let yaxis = spec.borrow().axes().as_tuple().1.clone();
+
+        println!("Xbin: {} bins: {}", xbin, xaxis.num_bins());
+
+        if xbin >= xaxis.num_bins() {
+            return Err(format!(
+                "Xbin: {} is larger than the number of bins: {}",
+                xbin,
+                xaxis.num_bins()
+            ));
+        }
+        if ybin >= yaxis.num_bins() {
+            return Err(format!(
+                "Ybin: {} is larger than the number of bins: {}",
+                ybin,
+                yaxis.num_bins()
+            ));
+        }
+        // we have good range so:
+
+        Ok(xbin + ybin * xaxis.num_bins())
+    }
     fn get_channel_value(&self, name: &str, xchan: i32, ychan: Option<i32>) -> SpectrumReply {
         // Find the spectrum:
         // If it does not exist, then error:
 
-        let xchan = (xchan + 1) as usize; // X Index.
         if let Some(spec) = self.dict.get(name) {
             // What we do next depends on the spectrum  dimensionality:
 
             if spec.borrow().is_1d() {
+                let xchan = (xchan + 1) as usize;
                 if let Some(f) = spec
                     .borrow()
                     .get_histogram_1d()
@@ -710,53 +744,16 @@ impl SpectrumProcessor {
                 if let Some(ybin) = ychan {
                     // Have o turn the x/y channel into an index:
 
-                    let ybin = (ybin + 1) as usize; // Underflow offset.
-
-                    let xaxis = spec
-                        .borrow()
-                        .get_histogram_2d()
-                        .unwrap()
-                        .borrow()
-                        .axes()
-                        .as_tuple()
-                        .0
-                        .clone();
-
-                    if xchan >= xaxis.num_bins() {
-                        return SpectrumReply::Error(String::from(
-                            "X channel index is out of range",
-                        ));
-                    }
-
-                    let yaxis = spec
-                        .borrow()
-                        .get_histogram_2d()
-                        .unwrap()
-                        .borrow()
-                        .axes()
-                        .as_tuple()
-                        .1
-                        .clone();
-
-                    if ybin >= yaxis.num_bins() {
-                        // what was negative looks huge.
-                        return SpectrumReply::Error(String::from(
-                            "Y channel index is out of range",
-                        ));
-                    }
-
-                    let index = xchan + (ybin * xaxis.num_bins());
-                    if let Some(f) = spec
-                        .borrow()
-                        .get_histogram_2d()
-                        .unwrap()
-                        .borrow()
-                        .value_at_index(index)
-                    {
-                        SpectrumReply::ChannelValue(f.get())
-                    } else {
-                        // Should not get here but...
-                        SpectrumReply::Error(String::from("Y channel index is out of range"))
+                    let spec = spec.borrow().get_histogram_2d().unwrap();
+                    match Self::channels2d_to_index(&spec, xchan, ybin) {
+                        Ok(index) => {
+                            if let Some(f) = spec.borrow().value_at_index(index) {
+                                SpectrumReply::ChannelValue(f.get())
+                            } else {
+                                SpectrumReply::Error(String::from("Bins are out of range"))
+                            }
+                        }
+                        Err(s) => SpectrumReply::Error(s),
                     }
                 } else {
                     SpectrumReply::Error(String::from("Must have  a ybin for a 2d spectrum"))
