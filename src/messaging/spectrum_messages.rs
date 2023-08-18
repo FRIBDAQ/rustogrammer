@@ -4633,7 +4633,28 @@ mod spproc_tests {
         );
         assert_eq!(SpectrumReply::Created, reply);
 
-        // increment coordinate (-1.0, 512.0) that's an x underflow...get it.
+        // increment coordinate (-1.0, 512.0) that's an x underflow
+        // on the 256 line.
+
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+            spc.get_histogram_2d()
+                .unwrap()
+                .borrow_mut()
+                .fill(&(-1.0, 512.0));
+        }
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: -1,
+                ychan: Some(256),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert_eq!(SpectrumReply::ChannelValue(1.0), reply);
     }
     #[test]
     fn getchan2_7() {
@@ -4661,6 +4682,27 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
+
+        // Set increment x channel at coordinate 1025.0 and y 512.0  that should
+        // be an overflow an the y bin 256
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+            spc.get_histogram_2d()
+                .unwrap()
+                .borrow_mut()
+                .fill(&(1025.0, 512.0));
+        }
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 512,
+                ychan: Some(256),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::ChannelValue(1.0), reply);
     }
     #[test]
     fn getchan2_8() {
@@ -4688,6 +4730,29 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
+
+        // Y underflow:  set coordinate 512.0, -2.0  that's
+        // bin (256, -1) in our coords for underflow
+
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+            spc.get_histogram_2d()
+                .unwrap()
+                .borrow_mut()
+                .fill(&(512.0, -2.0));
+        }
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 256,
+                ychan: Some(-1),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::ChannelValue(1.0), reply);
     }
     #[test]
     fn getchan2_9() {
@@ -4715,6 +4780,29 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
+
+        // Increment coordinate 512, 1025.0
+        // This will be 256, 512 in bin space.
+
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+            spc.get_histogram_2d()
+                .unwrap()
+                .borrow_mut()
+                .fill(&(512.0, 1025.0));
+        }
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 256,
+                ychan: Some(512),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::ChannelValue(1.0), reply);
     }
     #[test]
     fn getchan2_10() {
@@ -4743,6 +4831,20 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name : String::from("test"),
+                xchan: 256,
+                ychan: None
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else { false });
     }
 }
 #[cfg(test)]
