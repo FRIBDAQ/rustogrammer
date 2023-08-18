@@ -767,6 +767,18 @@ impl SpectrumProcessor {
         }
     }
 
+    // set the value of a channel:
+
+    fn set_channel_value(
+        &mut self,
+        name: &str,
+        xchan: i32,
+        ychan: Option<i32>,
+        value: f64,
+    ) -> SpectrumReply {
+        SpectrumReply::ChannelSet
+    }
+
     // Public methods
     /// Construction
 
@@ -850,7 +862,7 @@ impl SpectrumProcessor {
                 xchan,
                 ychan,
                 value,
-            } => SpectrumReply::ChannelSet,
+            } => self.set_channel_value(&name, xchan, ychan, value),
         }
     }
 }
