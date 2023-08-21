@@ -5694,8 +5694,6 @@ mod spproc_tests {
             )
         );
 
-        
-
         let reply = to.processor.process_request(
             SpectrumRequest::SetChan {
                 name: String::from("test"),
@@ -6637,6 +6635,47 @@ mod spectrum_api_tests {
         } else {
             false
         });
+
+        stop_server(jh, send);
+    }
+    // set/get channel values for a spectrum:
+
+    #[test]
+    fn get_set_chan1() {
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to make spectrum");
+
+        api.set_channel_value("test", 512, None, 12345.0)
+            .expect("Setting value");
+        assert_eq!(
+            12345.0,
+            api.get_channel_value("test", 512, None)
+                .expect("Getting value")
+        );
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn get_set_chan2() {
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+
+        api.create_spectrum_2d(
+            "test", "param.1", "param.2", 0.0, 1024.0, 256, 0.0, 1024.0, 256,
+        )
+        .expect("Making spectrum");
+
+        api.set_channel_value("test", 128, Some(128), 1245.0)
+            .expect("Setting value");
+
+        assert_eq!(
+            1245.0,
+            api.get_channel_value("test", 128, Some(128))
+                .expect("Getting value")
+        );
 
         stop_server(jh, send);
     }
