@@ -6679,6 +6679,23 @@ mod spectrum_api_tests {
 
         stop_server(jh, send);
     }
+    #[test]
+    fn get_set_chan3() {
+        // ensure that errors propagate back
+
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+
+        api.create_spectrum_2d(
+            "test", "param.1", "param.2", 0.0, 1024.0, 256, 0.0, 1024.0, 256,
+        )
+        .expect("Making spectrum");
+        // 2d spectra need y channel value:
+        assert!(api.set_channel_value("test", 128, None, 1245.0).is_err());
+        assert!(api.get_channel_value("test", 128, None).is_err());
+
+        stop_server(jh, send);
+    }
 }
 // Tests that spectrum traces actually happen:
 
