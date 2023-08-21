@@ -4898,6 +4898,329 @@ mod spproc_tests {
             false
         });
     }
+    // Channel setting --
+    #[test]
+    fn setchan1_1() {
+        // Good set of 1d channnel:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: String::from("test"),
+                    parameter: String::from("param.1"),
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Set channel 512 to 1234.0:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: 512,
+                    ychan: None,
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Get the value --
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: 512,
+                    ychan: None
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan1_2() {
+        // 1d spectrum - underflow channel:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: String::from("test"),
+                    parameter: String::from("param.1"),
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Set channel -1 to 1234.0:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: -1,
+                    ychan: None,
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Get the value --
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: -1,
+                    ychan: None
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan1_3() {
+        // Overflow channel:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: String::from("test"),
+                    parameter: String::from("param.1"),
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Set channel 1024 to 1234.0:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: 1024,
+                    ychan: None,
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Get the value --
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: 1024,
+                    ychan: None
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan1_4() {
+        // channel number is too small
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: String::from("test"),
+                    parameter: String::from("param.1"),
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Set channel -2 (too small)
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetChan {
+                name: String::from("test"),
+                xchan: -2,
+                ychan: None,
+                value: 12345.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn setchan1_5() {
+        // Channel too big:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: String::from("test"),
+                    parameter: String::from("param.1"),
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Set channel 1025 (too small)
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetChan {
+                name: String::from("test"),
+                xchan: 1025,
+                ychan: None,
+                value: 12345.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    // Setchan for 2-d spectra:
+
+    #[test]
+    fn setchan2_1() {
+        // Middle of a 2-d spectrum:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Set channel 128,128 to 12345:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: 128,
+                    ychan: Some(128),
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Ensure it got set:
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: 128,
+                    ychan: Some(128)
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
 }
 #[cfg(test)]
 mod reqstruct_tests {
