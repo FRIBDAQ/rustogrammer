@@ -5221,6 +5221,42 @@ mod spproc_tests {
             )
         );
     }
+    #[test]
+    fn setchan2_2() {
+        // X underflow.
+    }
+    #[test]
+    fn setchan2_3() {
+        // x overflow
+    }
+    #[test]
+    fn setchan2_4() {
+        // y underflow
+    }
+    #[test]
+    fn setchan2_5() {
+        // y overflow
+    }
+    #[test]
+    fn setchan2_6() {
+        // xchannel too small
+    }
+    #[test]
+    fn setchan2_7() {
+        // xchannel too big.
+    }
+    #[test]
+    fn setchan2_8() {
+        // ychannel too small.
+    }
+    #[test]
+    fn setchan2_9() {
+        // ychannel too big.
+    }
+    #[test]
+    fn setchan2_10() {
+        // ychannel is required.
+    }
 }
 #[cfg(test)]
 mod reqstruct_tests {
