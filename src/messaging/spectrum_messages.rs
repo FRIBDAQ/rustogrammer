@@ -773,7 +773,48 @@ impl SpectrumProcessor {
         ychan: Option<i32>,
         value: f64,
     ) -> SpectrumReply {
-        SpectrumReply::ChannelSet
+        // The spectru must exist:
+
+        if let Some(spec) = self.dict.get(name) {
+            // How we figure out the index etc. depends on the dimensionality:
+
+            if spec.borrow().is_1d() {
+                let xchan = (xchan + 1) as usize; // -1 is overflow so..
+                if let Some(c) = spec
+                    .borrow()
+                    .get_histogram_1d()
+                    .unwrap()
+                    .borrow_mut()
+                    .value_at_index_mut(xchan)
+                {
+                    c.fill_with(value);
+                    SpectrumReply::ChannelSet
+                } else {
+                    SpectrumReply::Error(String::from("X index is out of range"))
+                }
+            } else {
+                // 2d spectrum:
+
+                if let Some(ybin) = ychan {
+                    let spec = spec.borrow().get_histogram_2d().unwrap();
+                    match Self::channels2d_to_index(&spec, xchan, ybin) {
+                        Ok(index) => {
+                            if let Some(c) = spec.borrow_mut().value_at_index_mut(index) {
+                                c.fill_with(value);
+                                SpectrumReply::ChannelSet
+                            } else {
+                                SpectrumReply::Error(String::from("Bins are out of range"))
+                            }
+                        }
+                        Err(s) => SpectrumReply::Error(s),
+                    }
+                } else {
+                    SpectrumReply::Error(String::from("2d spectra need a y bin"))
+                }
+            }
+        } else {
+            SpectrumReply::Error(format!("No such spectrum: {}", name))
+        }
     }
 
     // Public methods
