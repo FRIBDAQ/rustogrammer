@@ -27,12 +27,21 @@ use crate::messaging::spectrum_messages;
 /// if not supplied.
 /// * value - value to set the selected channel to.
 ///
-#[get("/set")]
-pub fn set_chan() -> Json<GenericResponse> {
-    Json(GenericResponse::err(
-        "Unsupported /spectcl/channel/set",
-        "This is not SpecTcl",
-    ))
+#[get("/set?<spectrum>&<xchannel>&<ychannel>&<value>")]
+pub fn set_chan(
+    spectrum: &str,
+    xchannel: i32,
+    ychannel: Option<i32>,
+    value: f64,
+    api_chan: &State<SharedHistogramChannel>,
+) -> Json<GenericResponse> {
+    let api = spectrum_messages::SpectrumMessageClient::new(&api_chan.lock().unwrap());
+
+    let reply = match api.set_channel_value(spectrum, xchannel, ychannel, value) {
+        Ok(()) => GenericResponse::ok(""),
+        Err(s) => GenericResponse::err("Unable to set channel: ", &s),
+    };
+    Json(reply)
 }
 // Stuff needed for getchan:
 
@@ -171,9 +180,10 @@ mod channels_tests {
         param_api.create_parameter("p0").expect("Making p0");
         param_api.create_parameter("p1").expect("Making p1");
         let spec_api = spectrum_messages::SpectrumMessageClient::new(&hg);
-        spec_api.create_spectrum_2d("test", "p0", "p1", 0.0, 512.0, 512, 0.0, 512.0, 512).expect("Making spectrum");
+        spec_api
+            .create_spectrum_2d("test", "p0", "p1", 0.0, 512.0, 512, 0.0, 512.0, 512)
+            .expect("Making spectrum");
 
-        
         let client = Client::untracked(r).expect("Making client");
         let req = client.get("/get?spectrum=test&xchannel=100&ychannel=100");
         let reply = req
