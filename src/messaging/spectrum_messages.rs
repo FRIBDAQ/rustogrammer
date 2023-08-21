@@ -126,6 +126,17 @@ pub enum SpectrumRequest {
         name: String,
         contents: SpectrumContents,
     },
+    GetChan {
+        name: String,
+        xchan: i32,
+        ychan: Option<i32>,
+    },
+    SetChan {
+        name: String,
+        xchan: i32,
+        ychan: Option<i32>,
+        value: f64,
+    },
 }
 
 /// Defines the replies the spectrum par tof the histogram
@@ -142,6 +153,8 @@ pub enum SpectrumReply {
     Listing(Vec<SpectrumProperties>), // List of spectrum props.
     Processed,                        // Events processed.
     Statistics(SpectrumStatistics),   // Spectrum statistics.
+    ChannelValue(f64),                // GetChan
+    ChannelSet,                       // SetChan
 }
 
 ///
@@ -670,6 +683,139 @@ impl SpectrumProcessor {
             SpectrumReply::Error(format!("Spectrum {} does not exist", name))
         }
     }
+    fn channels2d_to_index(
+        spec: &spectra::H2DContainer,
+        xbin: i32,
+        ybin: i32,
+    ) -> Result<usize, String> {
+        // Offset x and y bins to allow for the overflow:
+
+        let xbin = (xbin + 1) as usize;
+        let ybin = (ybin + 1) as usize;
+
+        // Get the x/y axes from the histogram range check them:
+
+        let xaxis = spec.borrow().axes().as_tuple().0.clone();
+        let yaxis = spec.borrow().axes().as_tuple().1.clone();
+
+        println!("Xbin: {} bins: {}", xbin, xaxis.num_bins());
+
+        if xbin >= xaxis.num_bins() {
+            return Err(format!(
+                "Xbin: {} is larger than the number of bins: {}",
+                xbin,
+                xaxis.num_bins()
+            ));
+        }
+        if ybin >= yaxis.num_bins() {
+            return Err(format!(
+                "Ybin: {} is larger than the number of bins: {}",
+                ybin,
+                yaxis.num_bins()
+            ));
+        }
+        // we have good range so:
+
+        Ok(xbin + ybin * xaxis.num_bins())
+    }
+    fn get_channel_value(&self, name: &str, xchan: i32, ychan: Option<i32>) -> SpectrumReply {
+        // Find the spectrum:
+        // If it does not exist, then error:
+
+        if let Some(spec) = self.dict.get(name) {
+            // What we do next depends on the spectrum  dimensionality:
+
+            if spec.borrow().is_1d() {
+                let xchan = (xchan + 1) as usize;
+                if let Some(f) = spec
+                    .borrow()
+                    .get_histogram_1d()
+                    .unwrap()
+                    .borrow()
+                    .value_at_index(xchan)
+                {
+                    SpectrumReply::ChannelValue(f.get())
+                } else {
+                    SpectrumReply::Error(String::from("X index is out of range"))
+                }
+            } else {
+                // Must be a y channel:
+
+                if let Some(ybin) = ychan {
+                    // Have o turn the x/y channel into an index:
+
+                    let spec = spec.borrow().get_histogram_2d().unwrap();
+                    match Self::channels2d_to_index(&spec, xchan, ybin) {
+                        Ok(index) => {
+                            if let Some(f) = spec.borrow().value_at_index(index) {
+                                SpectrumReply::ChannelValue(f.get())
+                            } else {
+                                SpectrumReply::Error(String::from("Bins are out of range"))
+                            }
+                        }
+                        Err(s) => SpectrumReply::Error(s),
+                    }
+                } else {
+                    SpectrumReply::Error(String::from("Must have  a ybin for a 2d spectrum"))
+                }
+            }
+        } else {
+            SpectrumReply::Error(format!("No such spectrum '{}'", name))
+        }
+    }
+
+    // set the value of a channel:
+
+    fn set_channel_value(
+        &mut self,
+        name: &str,
+        xchan: i32,
+        ychan: Option<i32>,
+        value: f64,
+    ) -> SpectrumReply {
+        // The spectru must exist:
+
+        if let Some(spec) = self.dict.get(name) {
+            // How we figure out the index etc. depends on the dimensionality:
+
+            if spec.borrow().is_1d() {
+                let xchan = (xchan + 1) as usize; // -1 is overflow so..
+                if let Some(c) = spec
+                    .borrow()
+                    .get_histogram_1d()
+                    .unwrap()
+                    .borrow_mut()
+                    .value_at_index_mut(xchan)
+                {
+                    c.fill_with(value);
+                    SpectrumReply::ChannelSet
+                } else {
+                    SpectrumReply::Error(String::from("X index is out of range"))
+                }
+            } else {
+                // 2d spectrum:
+
+                if let Some(ybin) = ychan {
+                    let spec = spec.borrow().get_histogram_2d().unwrap();
+                    match Self::channels2d_to_index(&spec, xchan, ybin) {
+                        Ok(index) => {
+                            if let Some(c) = spec.borrow_mut().value_at_index_mut(index) {
+                                c.fill_with(value);
+                                SpectrumReply::ChannelSet
+                            } else {
+                                SpectrumReply::Error(String::from("Bins are out of range"))
+                            }
+                        }
+                        Err(s) => SpectrumReply::Error(s),
+                    }
+                } else {
+                    SpectrumReply::Error(String::from("2d spectra need a y bin"))
+                }
+            }
+        } else {
+            SpectrumReply::Error(format!("No such spectrum: {}", name))
+        }
+    }
 
     // Public methods
     /// Construction
@@ -746,6 +892,15 @@ impl SpectrumProcessor {
             SpectrumRequest::Events(events) => self.process_events(&events, cdict),
             SpectrumRequest::GetStats(name) => self.get_statistics(&name),
             SpectrumRequest::SetContents { name, contents } => self.set_contents(&name, &contents),
+            SpectrumRequest::GetChan { name, xchan, ychan } => {
+                self.get_channel_value(&name, xchan, ychan)
+            }
+            SpectrumRequest::SetChan {
+                name,
+                xchan,
+                ychan,
+                value,
+            } => self.set_channel_value(&name, xchan, ychan, value),
         }
     }
 }
@@ -769,6 +924,10 @@ pub type SpectrumServerContentsResult = Result<SpectrumContents, String>;
 /// Result for spectrum statistics request:
 
 pub type SpectrumServerStatisticsResult = Result<SpectrumStatistics, String>;
+
+/// Result from the GetChan:
+
+pub type SpectrumChannelResult = Result<f64, String>;
 
 ///
 /// This struct provides a container for the channel used to
@@ -1351,6 +1510,77 @@ impl SpectrumMessageClient {
             SpectrumReply::Processed => Ok(()),
             SpectrumReply::Error(s) => Err(s),
             _ => Err(String::from("Unexpected reply type in fill_spectrum")),
+        }
+    }
+    /// Get the value of a single channel of a spectrum.
+    ///
+    /// ### Parameters:
+    /// *  name - name of the spectrum.
+    /// *  xchan - xchannel number (always required).
+    /// *  ychan - optional y channel, required for 2d spectra.
+    ///
+    ///  ### Returns:
+    ///     SpectrumChannelResult - which, on Ok encapsulates the f64 value of
+    ///  the requested channel.
+    ///
+    ///  ### Notes:
+    ///   * -1 is the channel value for underflows and n+1 where n is the
+    /// number of 'data' bins on that axis gets to the overflows.
+    ///   *  If the bins are out of range the results are an error (checked in
+    /// the server not the ndhistogram package as I'm not 100% sure what it does
+    /// when presented with that case).
+    ///
+    pub fn get_channel_value(
+        &self,
+        name: &str,
+        xchan: i32,
+        ychan: Option<i32>,
+    ) -> SpectrumChannelResult {
+        let request = SpectrumRequest::GetChan {
+            name: String::from(name),
+            xchan: xchan,
+            ychan: ychan,
+        };
+        match self.transact(request) {
+            SpectrumReply::ChannelValue(value) => Ok(value),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("Unexpected reply type in get_channel_value")),
+        }
+    }
+    /// Set the value of a singl,e channel of a spectrum.
+    ///
+    /// ### Parameters:
+    /// *  name - name of the spectrum.
+    /// *  xchan - xchannel number (always required).
+    /// *  ychan - optional y channel, required for 2d spectra.
+    /// *  value - New value for the channel (f64).
+    ///
+    /// Returns: SpectrumServerEmptyResult.
+    ///
+    ///  ### Notes:
+    ///   * -1 is the channel value for underflows and n+1 where n is the
+    /// number of 'data' bins on that axis gets to the overflows.
+    ///   *  If the bins are out of range the results are an error (checked in
+    /// the server not the ndhistogram package as I'm not 100% sure what it does
+    /// when presented with that case).
+    ///
+    pub fn set_channel_value(
+        &self,
+        name: &str,
+        xchan: i32,
+        ychan: Option<i32>,
+        value: f64,
+    ) -> SpectrumServerEmptyResult {
+        let request = SpectrumRequest::SetChan {
+            name: String::from(name),
+            xchan: xchan,
+            ychan: ychan,
+            value: value,
+        };
+        match self.transact(request) {
+            SpectrumReply::ChannelSet => Ok(()),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("Unexpected reply type in set_channel_value")),
         }
     }
 }
@@ -3987,6 +4217,1501 @@ mod spproc_tests {
             false
         });
     }
+    #[test]
+    fn getchan1_1() {
+        // Get channel from 1d spectrum -  in range.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // Put a value in bin 512 (exclusive of 0 which is the underflow):
+        // Block so that the borrow is given back:
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+
+            spc.get_histogram_1d()
+                .unwrap()
+                .borrow_mut()
+                .value_at_index_mut(512)
+                .unwrap()
+                .fill_with(1234.0);
+        }
+
+        // Now ask for the value of bin 512:
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 511,
+                ychan: None,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::ChannelValue(1234.0), reply);
+    }
+    #[test]
+    fn getchan1_2() {
+        // get channel from 1d spectrum - index too small.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: -2, // -1 is underflow.
+                ychan: None,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn getchan1_3() {
+        // get channel from 1d spectum index too big.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 1026, // 1025 is overflows.
+                ychan: None,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn getchan1_4() {
+        // Get undeflow channel
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        // We do this in a block to drop the borrow at the end
+        // otherwise I don't think the processor can then borrow
+        // the spectrum to give us the value.
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+
+            spc.get_histogram_1d()
+                .unwrap()
+                .borrow_mut()
+                .value_at_index_mut(0) // underflow channel
+                .unwrap()
+                .fill_with(1234.0);
+        }
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: -1, // underflow channel.
+                ychan: None,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert_eq!(SpectrumReply::ChannelValue(1234.0), reply);
+    }
+    #[test]
+    fn getchan1_5() {
+        // Get overflow channel.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.1"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // We do this in a block to drop the borrow at the end
+        // otherwise I don't think the processor can then borrow
+        // the spectrum to give us the value.
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+
+            spc.get_histogram_1d()
+                .unwrap()
+                .borrow_mut()
+                .value_at_index_mut(1025) // overflow channel
+                .unwrap()
+                .fill_with(1234.0);
+        }
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 1024, // underflow channel.
+                ychan: None,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert_eq!(SpectrumReply::ChannelValue(1234.0), reply);
+    }
+    #[test]
+    fn getchan2_1() {
+        // X/Y in range.
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        // increment 512.0, 512.0 (bin 256, 256)
+        // in a block so the borrow is released
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+            spc.get_histogram_2d()
+                .unwrap()
+                .borrow_mut()
+                .fill(&(512.0, 512.0));
+        }
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 256,
+                ychan: Some(256),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::ChannelValue(1.0), reply);
+    }
+    #[test]
+    fn getchan2_2() {
+        // x too small
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // Set bin 256+256*514 - to 1234.0 - that's 255,255 in external
+        // bin coords:
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: -2, // -1 is underflow.
+                ychan: Some(255),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn getchan2_3() {
+        // x too big.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 513,
+                ychan: Some(0), // 512 is overflow.
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn getchan2_4() {
+        // y too small.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 512,
+                ychan: Some(-2),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn getchan2_5() {
+        // y too big.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 0,
+                ychan: Some(513),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn getchan2_6() {
+        // an x underflow
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // increment coordinate (-1.0, 512.0) that's an x underflow
+        // on the 256 line.
+
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+            spc.get_histogram_2d()
+                .unwrap()
+                .borrow_mut()
+                .fill(&(-1.0, 512.0));
+        }
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: -1,
+                ychan: Some(256),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert_eq!(SpectrumReply::ChannelValue(1.0), reply);
+    }
+    #[test]
+    fn getchan2_7() {
+        // an x overflow
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // Set increment x channel at coordinate 1025.0 and y 512.0  that should
+        // be an overflow an the y bin 256
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+            spc.get_histogram_2d()
+                .unwrap()
+                .borrow_mut()
+                .fill(&(1025.0, 512.0));
+        }
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 512,
+                ychan: Some(256),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::ChannelValue(1.0), reply);
+    }
+    #[test]
+    fn getchan2_8() {
+        // a y underflow
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // Y underflow:  set coordinate 512.0, -2.0  that's
+        // bin (256, -1) in our coords for underflow
+
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+            spc.get_histogram_2d()
+                .unwrap()
+                .borrow_mut()
+                .fill(&(512.0, -2.0));
+        }
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 256,
+                ychan: Some(-1),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::ChannelValue(1.0), reply);
+    }
+    #[test]
+    fn getchan2_9() {
+        // a y overflow.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // Increment coordinate 512, 1025.0
+        // This will be 256, 512 in bin space.
+
+        {
+            let spc = to.processor.dict.get("test").unwrap().borrow();
+            spc.get_histogram_2d()
+                .unwrap()
+                .borrow_mut()
+                .fill(&(512.0, 1025.0));
+        }
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 256,
+                ychan: Some(512),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::ChannelValue(1.0), reply);
+    }
+    #[test]
+    fn getchan2_10() {
+        // ybin cannot be None
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create2D {
+                name: String::from("test"),
+                xparam: String::from("param.1"),
+                yparam: String::from("param.2"),
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 512,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::GetChan {
+                name: String::from("test"),
+                xchan: 256,
+                ychan: None,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    // Channel setting --
+    #[test]
+    fn setchan1_1() {
+        // Good set of 1d channnel:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: String::from("test"),
+                    parameter: String::from("param.1"),
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Set channel 512 to 1234.0:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: 512,
+                    ychan: None,
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Get the value --
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: 512,
+                    ychan: None
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan1_2() {
+        // 1d spectrum - underflow channel:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: String::from("test"),
+                    parameter: String::from("param.1"),
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Set channel -1 to 1234.0:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: -1,
+                    ychan: None,
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Get the value --
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: -1,
+                    ychan: None
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan1_3() {
+        // Overflow channel:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: String::from("test"),
+                    parameter: String::from("param.1"),
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Set channel 1024 to 1234.0:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: 1024,
+                    ychan: None,
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Get the value --
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: 1024,
+                    ychan: None
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan1_4() {
+        // channel number is too small
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: String::from("test"),
+                    parameter: String::from("param.1"),
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Set channel -2 (too small)
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetChan {
+                name: String::from("test"),
+                xchan: -2,
+                ychan: None,
+                value: 12345.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn setchan1_5() {
+        // Channel too big:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create1D {
+                    name: String::from("test"),
+                    parameter: String::from("param.1"),
+                    axis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 1024
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Set channel 1025 (too small)
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetChan {
+                name: String::from("test"),
+                xchan: 1025,
+                ychan: None,
+                value: 12345.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    // Setchan for 2-d spectra:
+
+    #[test]
+    fn setchan2_1() {
+        // Middle of a 2-d spectrum:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Set channel 128,128 to 12345:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: 128,
+                    ychan: Some(128),
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Ensure it got set:
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: 128,
+                    ychan: Some(128)
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan2_2() {
+        // X underflow.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Set channel -1,128 to 12345:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: -1,
+                    ychan: Some(128),
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Ensure it got set:
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: -1,
+                    ychan: Some(128)
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan2_3() {
+        // x overflow
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Set channel 256,128 to 12345:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: 256,
+                    ychan: Some(128),
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Ensure it got set:
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: 256,
+                    ychan: Some(128)
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan2_4() {
+        // y underflow
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Set channel 128,-1 to 12345:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: 128,
+                    ychan: Some(-1),
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Ensure it got set:
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: 128,
+                    ychan: Some(-1)
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan2_5() {
+        // y overflow
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        // Set channel 128,256 to 12345:
+
+        assert_eq!(
+            SpectrumReply::ChannelSet,
+            to.processor.process_request(
+                SpectrumRequest::SetChan {
+                    name: String::from("test"),
+                    xchan: 128,
+                    ychan: Some(256),
+                    value: 12345.0
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+        // Ensure it got set:
+
+        assert_eq!(
+            SpectrumReply::ChannelValue(12345.0),
+            to.processor.process_request(
+                SpectrumRequest::GetChan {
+                    name: String::from("test"),
+                    xchan: 128,
+                    ychan: Some(256)
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+    }
+    #[test]
+    fn setchan2_6() {
+        // xchannel too small
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetChan {
+                name: String::from("test"),
+                xchan: -2,
+                ychan: Some(128),
+                value: 12345.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn setchan2_7() {
+        // xchannel too big.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetChan {
+                name: String::from("test"),
+                xchan: 257,
+                ychan: Some(128),
+                value: 12345.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn setchan2_8() {
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetChan {
+                name: String::from("test"),
+                xchan: 129,
+                ychan: Some(-2),
+                value: 12345.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn setchan2_9() {
+        // ychannel too big.
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetChan {
+                name: String::from("test"),
+                xchan: 129,
+                ychan: Some(257),
+                value: 12345.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn setchan2_10() {
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        assert_eq!(
+            SpectrumReply::Created,
+            to.processor.process_request(
+                SpectrumRequest::Create2D {
+                    name: String::from("test"),
+                    xparam: String::from("param.1"),
+                    yparam: String::from("param.2"),
+                    xaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    },
+                    yaxis: AxisSpecification {
+                        low: 0.0,
+                        high: 1024.0,
+                        bins: 256
+                    }
+                },
+                &to.parameters,
+                &mut to.conditions,
+                &to.tracedb,
+            )
+        );
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::SetChan {
+                name: String::from("test"),
+                xchan: 129,
+                ychan: None,
+                value: 12345.0,
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
 }
 #[cfg(test)]
 mod reqstruct_tests {
@@ -4910,6 +6635,64 @@ mod spectrum_api_tests {
         } else {
             false
         });
+
+        stop_server(jh, send);
+    }
+    // set/get channel values for a spectrum:
+
+    #[test]
+    fn get_set_chan1() {
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+
+        api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024)
+            .expect("Failed to make spectrum");
+
+        api.set_channel_value("test", 512, None, 12345.0)
+            .expect("Setting value");
+        assert_eq!(
+            12345.0,
+            api.get_channel_value("test", 512, None)
+                .expect("Getting value")
+        );
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn get_set_chan2() {
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+
+        api.create_spectrum_2d(
+            "test", "param.1", "param.2", 0.0, 1024.0, 256, 0.0, 1024.0, 256,
+        )
+        .expect("Making spectrum");
+
+        api.set_channel_value("test", 128, Some(128), 1245.0)
+            .expect("Setting value");
+
+        assert_eq!(
+            1245.0,
+            api.get_channel_value("test", 128, Some(128))
+                .expect("Getting value")
+        );
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn get_set_chan3() {
+        // ensure that errors propagate back
+
+        let (jh, send) = start_server();
+        let api = SpectrumMessageClient::new(&send);
+
+        api.create_spectrum_2d(
+            "test", "param.1", "param.2", 0.0, 1024.0, 256, 0.0, 1024.0, 256,
+        )
+        .expect("Making spectrum");
+        // 2d spectra need y channel value:
+        assert!(api.set_channel_value("test", 128, None, 1245.0).is_err());
+        assert!(api.get_channel_value("test", 128, None).is_err());
 
         stop_server(jh, send);
     }

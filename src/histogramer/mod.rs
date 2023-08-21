@@ -300,7 +300,7 @@ mod hgrammer_tests {
         jh.join().unwrap();
     }
     #[test]
-    fn spectra_() {
+    fn spectra_1() {
         // Test interactions with spectrum API.
 
         let (jh, ch) = start_server();
@@ -311,6 +311,56 @@ mod hgrammer_tests {
 
         let l = client.list_spectra("*").expect("Failed to list spectra");
         assert_eq!(0, l.len());
+
+        stop_server(ch);
+        jh.join().unwrap();
+    }
+    #[test]
+    fn getchan_1() {
+        // Get a channel from a spectrum...don't bother to load data
+        // just see that the round trip request/response works:
+
+        let (jh, ch) = start_server();
+        let client = messaging::spectrum_messages::SpectrumMessageClient::new(&ch);
+        let params = messaging::parameter_messages::ParameterMessageClient::new(&ch);
+
+        // Make a 1d histogram:
+
+        params
+            .create_parameter("test")
+            .expect("Making a parameters");
+        client
+            .create_spectrum_1d("test", "test", 0.0, 1024.0, 1024)
+            .expect("Making a spectrum");
+
+        let result = client
+            .get_channel_value("test", 512, None)
+            .expect("Getting channel value");
+        assert_eq!(0.0, result);
+
+        stop_server(ch);
+        jh.join().unwrap();
+    }
+    #[test]
+    fn getchan_2() {
+        // Same as above but for a 2d spectrum:
+
+        let (jh, ch) = start_server();
+        let client = messaging::spectrum_messages::SpectrumMessageClient::new(&ch);
+        let params = messaging::parameter_messages::ParameterMessageClient::new(&ch);
+
+        // Make a 1d histogram:
+
+        params.create_parameter("p1").expect("Making a parameters");
+        params.create_parameter("p2").expect("Making a parameter");
+        client
+            .create_spectrum_2d("test", "p1", "p2", 0.0, 1024.0, 512, 0.0, 1024.0, 512)
+            .expect("Making the spectrum");
+
+        let result = client
+            .get_channel_value("test", 256, Some(256))
+            .expect("Getting channel value");
+        assert_eq!(0.0, result);
 
         stop_server(ch);
         jh.join().unwrap();
