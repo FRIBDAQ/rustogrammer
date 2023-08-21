@@ -122,22 +122,6 @@ mod channels_tests {
     ) {
         rest_common::teardown(c, p, b);
     }
-    #[test]
-    fn set_1() {
-        let r = setup();
-        let (hg, p, b) = get_state(&r);
-
-        let c = Client::tracked(r).expect("Failed to make client");
-        let request = c.get("/set");
-        let reply = request.dispatch();
-        let json = reply
-            .into_json::<GenericResponse>()
-            .expect("bad JSON parse");
-        assert_eq!("Unsupported /spectcl/channel/set", json.status.as_str());
-        assert_eq!("This is not SpecTcl", json.detail.as_str());
-
-        teardown(hg, &p, &b);
-    }
 
     #[test]
     fn get_1() {
@@ -193,6 +177,77 @@ mod channels_tests {
 
         assert_eq!("OK", reply.status);
         assert_eq!(0.0, reply.detail);
+
+        teardown(hg, &p, &b);
+    }
+    #[test]
+    fn set_1() {
+        // Set a good 1d channel:
+
+        let r = setup();
+        let (hg, p, b) = get_state(&r);
+
+        // make a 1d spectrum:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&hg);
+        param_api.create_parameter("p1").expect("Making parameter");
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&hg);
+        spec_api
+            .create_spectrum_1d("test", "p1", 0.0, 1024.0, 1024)
+            .expect("Making spectrum");
+
+        let client = Client::untracked(r).expect("Making client");
+        let req = client.get("/set?spectrum=test&xchannel=512&value=100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        // Check the value:
+
+        assert_eq!(
+            100.0,
+            spec_api
+                .get_channel_value("test", 512, None)
+                .expect("Getting value")
+        );
+
+        teardown(hg, &p, &b);
+    }
+    #[test]
+    fn set_2() {
+        // From 2d spectrum:
+
+        let r = setup();
+        let (hg, p, b) = get_state(&r);
+
+        // Make a 1d spectrum - means making a parameter:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&hg);
+        param_api.create_parameter("p0").expect("Making p0");
+        param_api.create_parameter("p1").expect("Making p1");
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&hg);
+        spec_api
+            .create_spectrum_2d("test", "p0", "p1", 0.0, 512.0, 512, 0.0, 512.0, 512)
+            .expect("Making spectrum");
+
+        let client = Client::untracked(r).expect("Making client");
+        let req = client.get("/set?spectrum=test&xchannel=256&ychannel=256&value=200");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+
+        assert_eq!(
+            200.0,
+            spec_api
+                .get_channel_value("test", 256, Some(256))
+                .expect("getting value")
+        );
 
         teardown(hg, &p, &b);
     }
