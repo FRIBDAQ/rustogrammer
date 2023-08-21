@@ -44,6 +44,7 @@ pub mod getstats;
 pub mod integrate;
 pub mod mirror_list;
 pub mod parameter;
+pub mod project;
 pub mod ringversion;
 pub mod sbind;
 pub mod shm;

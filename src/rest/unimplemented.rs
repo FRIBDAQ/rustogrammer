@@ -135,22 +135,7 @@ pub fn pman_clone(source: String, new: String) -> Json<GenericResponse> {
         "This is not SpecTcl",
     ))
 }
-//------------------------------------------------------------------
-// project:
-#[allow(unused_variables)]
-#[get("/?<snapshot>&<source>&<newname>&<direction>&<contour>")]
-pub fn project(
-    snapshot: String,
-    source: String,
-    newname: String,
-    direction: String,
-    contour: OptionalString,
-) -> Json<GenericResponse> {
-    Json(GenericResponse::err(
-        "Projections are not implemented",
-        "This is not SpecTcl",
-    ))
-}
+
 //-----------------------------------------------------------------
 // Pseudo parameters.
 
@@ -555,56 +540,6 @@ mod pipeline_tests {
         assert_eq!("This is not SpecTcl", reply.detail);
 
         teardown(chan, &papi, &bind_api);
-    }
-}
-#[cfg(test)]
-mod project_tests {
-    use super::*;
-    use crate::messaging;
-    use crate::test::rest_common;
-
-    use rocket;
-    use rocket::local::blocking::Client;
-    use rocket::Build;
-    use rocket::Rocket;
-
-    use std::sync::mpsc;
-
-    fn setup() -> Rocket<Build> {
-        rest_common::setup().mount("/", routes![project])
-    }
-    fn getstate(
-        r: &Rocket<Build>,
-    ) -> (
-        mpsc::Sender<messaging::Request>,
-        processing::ProcessingApi,
-        binder::BindingApi,
-    ) {
-        rest_common::get_state(r)
-    }
-    fn teardown(
-        c: mpsc::Sender<messaging::Request>,
-        p: &processing::ProcessingApi,
-        b: &binder::BindingApi,
-    ) {
-        rest_common::teardown(c, p, b);
-    }
-    #[test]
-    fn project_1() {
-        let rocket = setup();
-        let (chan, papi, bapi) = getstate(&rocket);
-
-        let client = Client::untracked(rocket).expect("Making client");
-        let req = client.get("/?snapshot=yes&source=dummy&newname=newspec&direction=x");
-        let reply = req
-            .dispatch()
-            .into_json::<GenericResponse>()
-            .expect("Parsing JSON");
-
-        assert_eq!("Projections are not implemented", reply.status);
-        assert_eq!("This is not SpecTcl", reply.detail);
-
-        teardown(chan, &papi, &bapi)
     }
 }
 #[cfg(test)]
