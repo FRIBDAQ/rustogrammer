@@ -139,4 +139,52 @@ mod make_sum_tests {
         assert!(make_sum_vector(&props, ProjectionDirection::X).is_ok());
         assert!(make_sum_vector(&props, ProjectionDirection::Y).is_ok());
     }
+    #[test]
+    fn ok_2() {
+        // Ensure x projections get the size right:
+
+        let props = spectrum_messages::SpectrumProperties {
+            name: String::from("test"),
+            type_name: String::from("1d"),
+            xparams: vec![], // Parameters are ignored.
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 512,
+            }),
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            gate: None,
+        };
+        let v = make_sum_vector(&props, ProjectionDirection::X)
+            .expect("could not make x projection vector");
+        assert_eq!(props.xaxis.unwrap().bins as usize, v.len());
+    }
+    #[test]
+    fn ok_3() {
+        let props = spectrum_messages::SpectrumProperties {
+            name: String::from("test"),
+            type_name: String::from("1d"),
+            xparams: vec![], // Parameters are ignored.
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 512,
+            }),
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            gate: None,
+        };
+        let v = make_sum_vector(&props, ProjectionDirection::Y)
+            .expect("could not make x projection vector");
+        assert_eq!(props.yaxis.unwrap().bins as usize, v.len());
+    }
 }
