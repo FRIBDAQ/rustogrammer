@@ -72,7 +72,7 @@ fn make_sum_vector(
 ///    Result<Vec<f64>, String> where on success the vector is the projection
 /// while on failure it is a diagnostic string describing the reason for failure.
 ///
-fn project_spectrum<F>(
+pub fn project_spectrum<F>(
     desc: &spectrum_messages::SpectrumProperties,
     contents: &spectrum_messages::SpectrumContents,
     direction: ProjectionDirection,
