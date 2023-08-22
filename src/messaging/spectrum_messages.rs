@@ -156,6 +156,27 @@ pub enum SpectrumReply {
     ChannelValue(f64),                // GetChan
     ChannelSet,                       // SetChan
 }
+/// Convert a coordinate to a bin:
+/// 
+/// ### Parameters:
+///   *  c  - a coordinate.
+///   *  a  - an axis definition.
+///
+/// ### Returns
+///    u32 - note that if c is beyond the axis the appropriate over/underflow
+/// bin is returned
+///
+pub fn coord_to_bin(c : f64, a: AxisSpecification) -> u32 {
+    if c < a.low {
+        0
+    } else if c >= a.high {
+        a.bins
+    } else {
+        // The 1.0 reflects that bin 0 is underflow.
+        let result = 1.0 + (c * ((a.bins -2) as f64)/(a.high - a.low));
+        result as u32
+    }
+}
 
 ///
 /// SpectrumProcessor is the struct that processes

@@ -81,7 +81,28 @@ fn project_spectrum<F>(
 where
     F: FnOnce(f64, f64) -> bool,
 {
-    Err(String::from("Unimplemented"))
+    match make_sum_vector(&desc, direction) {
+        Ok(mut v) => {
+            // Get the axis specification:
+
+            let axis = if let ProjectionDirection::X = direction {
+                desc.xaxis.unwrap()
+            } else {
+                desc.yaxis.unwrap()
+            };
+            for c in contents {
+                let coord = if let ProjectionDirection::X = direction {
+                    c.x
+                } else {
+                    c.y
+                };
+                let bin = spectrum_messages::coord_to_bin(coord, axis);
+                v[bin as usize] += c.value;
+            }
+            Ok(v)
+        }
+        Err(s) => Err(s),
+    }
 }
 
 // Tests for make_sum_vector
@@ -251,7 +272,7 @@ mod project_tests {
     fn err_2() {
         // No X axis:
 
-         let props = spectrum_messages::SpectrumProperties {
+        let props = spectrum_messages::SpectrumProperties {
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -267,6 +288,141 @@ mod project_tests {
         let contents = vec![];
         assert!(project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| true).is_err());
         assert!(project_spectrum(&props, &contents, ProjectionDirection::Y, |_, _| true).is_err());
+    }
+    #[test]
+    fn ok_1() {
+        // x/y axis allows projection - no contents so zeroes for sums:
 
+        let props = spectrum_messages::SpectrumProperties {
+            name: String::from("test"),
+            type_name: String::from("1d"),
+            xparams: vec![], // Parameters are ignored.
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 512,
+            }),
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            gate: None,
+        };
+        let contents = vec![];
+
+        assert!(project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| true).is_ok());
+        assert!(project_spectrum(&props, &contents, ProjectionDirection::Y, |_, _| true).is_ok());
+    }
+    #[test]
+    fn ok_2() {
+        // Sizes should be correct:
+
+        let props = spectrum_messages::SpectrumProperties {
+            name: String::from("test"),
+            type_name: String::from("1d"),
+            xparams: vec![], // Parameters are ignored.
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 512,
+            }),
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            gate: None,
+        };
+        let contents = vec![];
+
+        assert_eq!(
+            props.xaxis.unwrap().bins as usize,
+            project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| true)
+                .expect("Projecting x")
+                .len()
+        );
+        assert_eq!(
+            props.yaxis.unwrap().bins as usize,
+            project_spectrum(&props, &contents, ProjectionDirection::Y, |_, _| true)
+                .expect("Projecting y")
+                .len()
+        );
+    }
+    #[test]
+    fn ok_3() {
+        // in these cases the sums should be zero:
+
+        let props = spectrum_messages::SpectrumProperties {
+            name: String::from("test"),
+            type_name: String::from("1d"),
+            xparams: vec![], // Parameters are ignored.
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 512,
+            }),
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            gate: None,
+        };
+        let contents = vec![];
+        for (i, n) in project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| true)
+            .expect("Projecting x")
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(0.0, *n, "xprojection Bin {} nonzero", i);
+        }
+        for (i, n) in project_spectrum(&props, &contents, ProjectionDirection::Y, |_, _| true)
+            .expect("Projecting Y")
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(0.0, *n, "yprojection Bin {} nonzero", i);
+        }
+    }
+    #[test]
+    fn ok_4() {
+        // If there is a single channel with non-zero data this shouild
+        // result in a non-zero projection:
+
+        let props = spectrum_messages::SpectrumProperties {
+            name: String::from("test"),
+            type_name: String::from("1d"),
+            xparams: vec![], // Parameters are ignored.
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 512,
+            }),
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            gate: None,
+        };
+        let contents = vec![spectrum_messages::Channel {
+            chan_type: spectrum_messages::ChannelType::Bin,
+            x: 256.0,
+            y: 256.0,
+            bin: 0,
+            value: 1234.0,
+        }];
+        let xproj = project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| true)
+            .expect("X Projection");
+        assert_eq!(1234.0, xproj[128]); // due to 2:1 binning.
+
+        let yproj = project_spectrum(&props, &contents, ProjectionDirection::Y, |_, _| true)
+            .expect("Y Projection");
+        assert_eq!(1234.0, yproj[256]); // 1:1 binning
     }
 }
