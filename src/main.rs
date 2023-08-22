@@ -1,3 +1,7 @@
+// Rust is a bit wonky.  It's not enough to create module source code
+// for it to be visible.. you also have to indicate the a desire for the
+// module if it's not 'used' in main for it to be visible elsewhere hence:
+
 mod conditions;
 mod histogramer;
 mod messaging;
@@ -9,6 +13,7 @@ mod sharedmem;
 mod spectclio;
 mod spectra;
 mod trace;
+mod projections;
 
 use clap::Parser;
 use portman_client;
