@@ -15,7 +15,7 @@ use crate::messaging::{condition_messages, spectrum_messages};
 ///
 
 #[derive(Copy, Clone, PartialEq)]
-enum ProjectionDirection {
+pub enum ProjectionDirection {
     X,
     Y,
 }
