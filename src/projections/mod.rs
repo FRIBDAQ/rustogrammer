@@ -52,6 +52,38 @@ fn make_sum_vector(
     }
 }
 
+///
+/// Projection is summing in either the X or y direction into a vector
+/// created by make_sum_vector with a function used to determine if
+/// a specific channel shouild be included in the sum.  The
+/// function supports projection only within some region of interest
+/// such as a contour -- but is much more general than a contour.
+///
+/// ### Parameters:
+///  *  desc - references SpectrumProperties that define the spectrum being projected.
+///  *  contents - References SpectrumContents that contain the non-zero
+/// spectrum channels.
+///  *  direction - ProjectionDirection that describes which axis the projection
+/// is onto.
+///  * f a function that takes the x/y values of a channel and returns true
+/// if that channel should be inlcuded in the sum.
+///
+///  ### Returns:
+///    Result<Vec<f64>, String> where on success the vector is the projection
+/// while on failure it is a diagnostic string describing the reason for failure.
+///
+fn project_spectrum<F>(
+    desc: &spectrum_messages::SpectrumProperties,
+    contents: &spectrum_messages::SpectrumContents,
+    direction: ProjectionDirection,
+    f: F,
+) -> Result<Vec<f64>, String>
+where
+    F: FnOnce(f64, f64) -> bool,
+{
+    Err(String::from("Unimplemented"))
+}
+
 // Tests for make_sum_vector
 #[cfg(test)]
 mod make_sum_tests {
@@ -186,5 +218,55 @@ mod make_sum_tests {
         let v = make_sum_vector(&props, ProjectionDirection::Y)
             .expect("could not make x projection vector");
         assert_eq!(props.yaxis.unwrap().bins as usize, v.len());
+    }
+}
+#[cfg(test)]
+mod project_tests {
+    use super::*;
+    use crate::messaging::spectrum_messages;
+
+    #[test]
+    fn err_1() {
+        // Spectra can only be projected if they have x and y axes:
+        // No y axis:
+        //
+        let props = spectrum_messages::SpectrumProperties {
+            name: String::from("test"),
+            type_name: String::from("1d"),
+            xparams: vec![], // Parameters are ignored.
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            yaxis: None,
+            gate: None,
+        };
+        let contents = vec![];
+        assert!(project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| true).is_err());
+        assert!(project_spectrum(&props, &contents, ProjectionDirection::Y, |_, _| true).is_err());
+    }
+    #[test]
+    fn err_2() {
+        // No X axis:
+
+         let props = spectrum_messages::SpectrumProperties {
+            name: String::from("test"),
+            type_name: String::from("1d"),
+            xparams: vec![], // Parameters are ignored.
+            yparams: vec![],
+            xaxis: None,
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            gate: None,
+        };
+        let contents = vec![];
+        assert!(project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| true).is_err());
+        assert!(project_spectrum(&props, &contents, ProjectionDirection::Y, |_, _| true).is_err());
+
     }
 }
