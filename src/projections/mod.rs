@@ -145,6 +145,118 @@ fn reconstitute_contour(
     }
 }
 
+///
+/// Make projection spectrum
+///   Given an input spectrum description, produces the output spectrum for
+/// a projection (in the histogram server) and stuffs it with the
+/// the contents of the projection.
+///
+///  ### Parameters:
+/// *   api - the spectrum messaging API used to request the creation of the
+/// spectrum.
+/// *   new_name - name for the projected spectrum.
+/// *   desc - the input spectrum description.
+/// *   direction -the projection direction.
+/// *   data  - Results of the project_spectrum function.
+///
+/// ### Returns:
+///   Result<(), String>
+/// * Err - encapsulates an error message.
+/// * Ok - encapsulates nothing.
+///
+/// ### Note:
+///  Consumes the data
+///
+pub fn make_projection_spectrum(
+    api: &spectrum_messages::SpectrumMessageClient,
+    new_name: &str,
+    desc: &spectrum_messages::SpectrumProperties,
+    direction: ProjectionDirection,
+    data: Vec<f64>,
+) -> Result<(), String> {
+    // in general the axis is the axis of the projection direction:
+
+    let resulting_axis = match direction {
+        ProjectionDirection::X => {
+            if let Some(a) = desc.xaxis {
+                a
+            } else {
+                return Err(String::from("Required X axis missing from source spectrum"));
+            }
+        }
+        ProjectionDirection::Y => {
+            if let Some(a) = desc.yaxis {
+                a
+            } else {
+                return Err(String::from("Required Y axis missing from source spectrum"));
+            }
+        }
+    };
+
+    // For most cases this is true:
+
+    let params = match direction {
+        ProjectionDirection::X => desc.xparams.clone(),
+        ProjectionDirection::Y => desc.yparams.clone(),
+    };
+
+    // What we do depends on both the spectrum type and direction.
+    // Would be nice figure that out all in one swoop but sadly not
+
+    match desc.type_name.as_str() {
+        "Multi2D" => {
+            // Multi-1d spectrum for all parameters:
+            let mut params = desc.xparams.clone();
+            params.append(&mut desc.yparams.clone()); // Clone since append consumers.
+            api.create_spectrum_multi1d(
+                new_name,
+                &params,
+                resulting_axis.low,
+                resulting_axis.high,
+                resulting_axis.bins,
+            )
+        }
+        "PGamma" => {
+            // pgamma spectra, to continue to faithfully increment
+            // need to build a parameter array that is n copies of the
+            // input array where n is the number of elements in the other axis:
+
+            let (base_params, n) = match direction {
+                ProjectionDirection::X => (desc.xparams.clone(), desc.yparams.len()),
+                ProjectionDirection::Y => (desc.yparams.clone(), desc.xparams.len()),
+            };
+            let mut params = vec![];
+            for i in 0..n {
+                params.append(&mut base_params.clone());
+            }
+
+            api.create_spectrum_multi1d(
+                new_name,
+                &params,
+                resulting_axis.low,
+                resulting_axis.high,
+                resulting_axis.bins,
+            )
+        }
+        "2D" => api.create_spectrum_1d(
+            new_name,
+            &params[0],
+            resulting_axis.low,
+            resulting_axis.high,
+            resulting_axis.bins,
+        ),
+        "2DSum" => api.create_spectrum_multi1d(
+            new_name,
+            &params,
+            resulting_axis.low,
+            resulting_axis.high,
+            resulting_axis.bins,
+        ),
+        _ => Err(format!("{} spectra cannot be projected", desc.type_name)),
+    }
+    // Still need to fill the spectrum....
+}
+
 // Tests for make_sum_vector
 #[cfg(test)]
 mod make_sum_tests {
