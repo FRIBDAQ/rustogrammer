@@ -79,7 +79,7 @@ pub fn project_spectrum<F>(
     f: F,
 ) -> Result<Vec<f64>, String>
 where
-    F: FnOnce(f64, f64) -> bool,
+    F: Fn(f64, f64) -> bool,
 {
     match make_sum_vector(&desc, direction) {
         Ok(mut v) => {
@@ -91,13 +91,15 @@ where
                 desc.yaxis.unwrap()
             };
             for c in contents {
-                let coord = if let ProjectionDirection::X = direction {
-                    c.x
-                } else {
-                    c.y
-                };
-                let bin = spectrum_messages::coord_to_bin(coord, axis);
-                v[bin as usize] += c.value;
+                if f(c.x, c.y) {
+                    let coord = if let ProjectionDirection::X = direction {
+                        c.x
+                    } else {
+                        c.y
+                    };
+                    let bin = spectrum_messages::coord_to_bin(coord, axis);
+                    v[bin as usize] += c.value;
+                }
             }
             Ok(v)
         }
@@ -424,5 +426,44 @@ mod project_tests {
         let yproj = project_spectrum(&props, &contents, ProjectionDirection::Y, |_, _| true)
             .expect("Y Projection");
         assert_eq!(1234.0, yproj[256]); // 1:1 binning
+    }
+    #[test]
+    fn ok_5() {
+        // Using a closure that always returns false gives zeros in the  projection:
+
+        let props = spectrum_messages::SpectrumProperties {
+            name: String::from("test"),
+            type_name: String::from("1d"),
+            xparams: vec![], // Parameters are ignored.
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 512,
+            }),
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            gate: None,
+        };
+        let contents = vec![spectrum_messages::Channel {
+            chan_type: spectrum_messages::ChannelType::Bin,
+            x: 256.0,
+            y: 256.0,
+            bin: 0,
+            value: 1234.0,
+        }];
+        let xproj = project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| false)
+            .expect("X Projection");
+        for (i,x) in xproj.iter().enumerate() { 
+            assert_eq!(0.0, *x, "Nonzero value in X chanel {}", i)
+        }
+        let yproj = project_spectrum(&props, &contents, ProjectionDirection::Y, |_, _| false)
+            .expect("Y Projection");
+        for (i,x) in yproj.iter().enumerate() { 
+            assert_eq!(0.0, *x, "Nonzero value in Y chanel {}", i)
+        }
     }
 }
