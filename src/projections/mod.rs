@@ -520,8 +520,29 @@ mod recons_contour_tests {
             type_name: String::from("Not a contour"),
             points: vec![],
             gates: vec![],
-            parameters: vec![]
+            parameters: vec![],
         };
         assert!(recconstitute_contour(desc).is_err());
+    }
+    #[test]
+    fn ok_1() {
+        let pts = vec![(100.0, 100.0), (200.0, 100.0), (150.0, 150.0)]; // needed for later assertion:
+        let desc = condition_messages::ConditionProperties {
+            cond_name: String::from("junk"),
+            type_name: String::from("Contour"),
+            points: pts.clone(),
+            gates: vec![],
+            parameters: vec![],
+        };
+        let result = recconstitute_contour(desc);
+        assert!(result.is_ok());
+        let contour = result.unwrap();
+
+        let contour_points = contour.get_points();
+        assert_eq!(pts.len(), contour_points.len());
+        for (i, p) in pts.iter().enumerate() {
+            assert_eq!(p.0, contour_points[i].x, "X mismatch on point {}", i);
+            assert_eq!(p.1, contour_points[i].y, "Y mismatch on point {}", i);
+        }
     }
 }
