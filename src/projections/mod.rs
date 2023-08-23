@@ -8,6 +8,7 @@
 //!
 //!  
 
+use crate::conditions::twod;
 use crate::messaging::{condition_messages, spectrum_messages};
 
 ///
@@ -104,6 +105,42 @@ where
             Ok(v)
         }
         Err(s) => Err(s),
+    }
+}
+///
+/// This function reconstructs a contour in terms of the information
+/// that is passed to it by the condition_messaging API.  This is needed
+/// in order to construct a closure that can properly work for project_spectrum
+/// when the projection is inside s contour.
+///
+/// ### Parameters:
+///   *  props - the condition properties. Note these are consumed.
+/// ### Returns:
+///   Result<conditions::twod::Contour, String>  - where:
+///   *  Ok encapsulates the reconstituted contour
+///   *  Err encapsulates an error string (normally if props are not a
+/// contour).
+///
+/// ### NOTE:
+///   Dummy parameter numbers 0 and 1 are used for the parameter ids.
+///
+fn recconstitute_contour(
+    props: condition_messages::ConditionProperties,
+) -> Result<twod::Contour, String> {
+    if props.type_name == "Contour" {
+        let mut pts = Vec::<twod::Point>::new();
+        for (x, y) in props.points {
+            pts.push(twod::Point::new(x, y));
+        }
+        match twod::Contour::new(0,1, pts) {
+            Some(c) => Ok(c),
+            None => Err(String::from("Failed to reconstitute contour in constructor - maybe too few points?"))
+        }
+        
+    } else {
+        Err(String::from(
+            "Error reconstituting a contour - input is not a contour",
+        ))
     }
 }
 
