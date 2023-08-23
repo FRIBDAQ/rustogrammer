@@ -326,27 +326,27 @@ impl Contour {
     pub fn inside(&self, x: f64, y: f64) -> bool {
         // Outside of the circumscribing rectangle
 
-            if (x < self.ll.x) || (y < self.ll.y) || (x > self.ur.x) || (y > self.ur.y) {
-                false
-            } else {
-                // Inside  rectangle so count edge crossings:
+        if (x < self.ll.x) || (y < self.ll.y) || (x > self.ur.x) || (y > self.ur.y) {
+            false
+        } else {
+            // Inside  rectangle so count edge crossings:
 
-                let mut c = 0;
-                for e in &self.edges {
-                    // If x/y are the same as  one of the edge points, wer're in:
+            let mut c = 0;
+            for e in &self.edges {
+                // If x/y are the same as  one of the edge points, wer're in:
 
-                    if (x == e.p1.x && y == e.p1.y) || (x == e.p2.x && y == e.p2.y) {
-                        c = 1; // Forces true
-                        break;
-                    }
-
-                    // Else see if we cross the edge:
-                    if Self::crosses(x, y, e) {
-                        c += 1;
-                    }
+                if (x == e.p1.x && y == e.p1.y) || (x == e.p2.x && y == e.p2.y) {
+                    c = 1; // Forces true
+                    break;
                 }
-                (c % 2) == 1
+
+                // Else see if we cross the edge:
+                if Self::crosses(x, y, e) {
+                    c += 1;
+                }
             }
+            (c % 2) == 1
+        }
     }
 }
 impl Condition for Contour {

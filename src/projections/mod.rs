@@ -132,11 +132,12 @@ fn recconstitute_contour(
         for (x, y) in props.points {
             pts.push(twod::Point::new(x, y));
         }
-        match twod::Contour::new(0,1, pts) {
+        match twod::Contour::new(0, 1, pts) {
             Some(c) => Ok(c),
-            None => Err(String::from("Failed to reconstitute contour in constructor - maybe too few points?"))
+            None => Err(String::from(
+                "Failed to reconstitute contour in constructor - maybe too few points?",
+            )),
         }
-        
     } else {
         Err(String::from(
             "Error reconstituting a contour - input is not a contour",
@@ -502,5 +503,25 @@ mod project_tests {
         for (i, x) in yproj.iter().enumerate() {
             assert_eq!(0.0, *x, "Nonzero value in Y chanel {}", i)
         }
+    }
+}
+#[cfg(test)]
+mod recons_contour_tests {
+    use super::*;
+    use crate::conditions::twod;
+    use crate::messaging::condition_messages;
+
+    #[test]
+    fn err_1() {
+        // Contour described is not actually a contour:
+
+        let desc = condition_messages::ConditionProperties {
+            cond_name: String::from("junk"),
+            type_name: String::from("Not a contour"),
+            points: vec![],
+            gates: vec![],
+            parameters: vec![]
+        };
+        assert!(recconstitute_contour(desc).is_err());
     }
 }
