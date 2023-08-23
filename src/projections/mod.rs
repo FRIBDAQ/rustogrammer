@@ -457,12 +457,12 @@ mod project_tests {
         }];
         let xproj = project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| false)
             .expect("X Projection");
-        for (i,x) in xproj.iter().enumerate() { 
+        for (i, x) in xproj.iter().enumerate() {
             assert_eq!(0.0, *x, "Nonzero value in X chanel {}", i)
         }
         let yproj = project_spectrum(&props, &contents, ProjectionDirection::Y, |_, _| false)
             .expect("Y Projection");
-        for (i,x) in yproj.iter().enumerate() { 
+        for (i, x) in yproj.iter().enumerate() {
             assert_eq!(0.0, *x, "Nonzero value in Y chanel {}", i)
         }
     }

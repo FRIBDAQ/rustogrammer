@@ -318,16 +318,13 @@ impl Contour {
     pub fn get_points(&self) -> Points {
         self.pts.clone()
     }
-}
-impl Condition for Contour {
-    fn evaluate(&mut self, event: &FlatEvent) -> bool {
-        let result = if event[self.p1].is_none() || event[self.p2].is_none() {
-            false
-        } else {
-            let x = event[self.p1].unwrap();
-            let y = event[self.p2].unwrap();
-
-            // Outside of the circumscribing rectangle
+    ///
+    /// Given a point return true if it is insde the contour figure.
+    /// this can be used when the contour is used for something other
+    /// that gating (e.g. projections of summing).
+    ///
+    pub fn inside(&self, x: f64, y: f64) -> bool {
+        // Outside of the circumscribing rectangle
 
             if (x < self.ll.x) || (y < self.ll.y) || (x > self.ur.x) || (y > self.ur.y) {
                 false
@@ -350,6 +347,17 @@ impl Condition for Contour {
                 }
                 (c % 2) == 1
             }
+    }
+}
+impl Condition for Contour {
+    fn evaluate(&mut self, event: &FlatEvent) -> bool {
+        let result = if event[self.p1].is_none() || event[self.p2].is_none() {
+            false
+        } else {
+            let x = event[self.p1].unwrap();
+            let y = event[self.p2].unwrap();
+
+            self.inside(x, y)
         };
         self.cache = Some(result);
         result
