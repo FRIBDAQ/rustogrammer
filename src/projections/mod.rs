@@ -124,7 +124,7 @@ where
 /// ### NOTE:
 ///   Dummy parameter numbers 0 and 1 are used for the parameter ids.
 ///
-fn recconstitute_contour(
+fn reconstitute_contour(
     props: condition_messages::ConditionProperties,
 ) -> Result<twod::Contour, String> {
     if props.type_name == "Contour" {
@@ -522,7 +522,20 @@ mod recons_contour_tests {
             gates: vec![],
             parameters: vec![],
         };
-        assert!(recconstitute_contour(desc).is_err());
+        assert!(reconstitute_contour(desc).is_err());
+    }
+    #[test]
+    fn err_2() {
+        // Some how too few points in a thing that claims to be a contour
+
+        let desc = condition_messages::ConditionProperties {
+            cond_name: String::from("junk"),
+            type_name: String::from("Contour"),
+            points: vec![(100.0, 100.0), (200.0, 100.0)],
+            gates: vec![],
+            parameters: vec![],
+        };
+        assert!(reconstitute_contour(desc).is_err());
     }
     #[test]
     fn ok_1() {
@@ -534,7 +547,7 @@ mod recons_contour_tests {
             gates: vec![],
             parameters: vec![],
         };
-        let result = recconstitute_contour(desc);
+        let result = reconstitute_contour(desc);
         assert!(result.is_ok());
         let contour = result.unwrap();
 
