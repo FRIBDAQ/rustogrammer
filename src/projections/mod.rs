@@ -715,8 +715,72 @@ mod make_spectrum_tests {
     }
 
     #[test]
-    fn dummy() {
-        let (s,j) = setup();
-        teardown(s, j);
+    fn error_1() {
+        // The input spectrum is of the wrong type.
+
+        let (ch, jh) = setup();
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let data = vec![];
+        let desc = spectrum_messages::SpectrumProperties {
+            name: String::from("dummy"),
+            type_name: String::from("1D"),   // not projectable.
+            xparams: vec![],
+            yparams: vec![],
+            xaxis: None,
+            yaxis: None,
+            gate: None
+        };
+        // Either direction is bad:
+        assert!(make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::X, data).is_err());
+        assert!(make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::Y, vec![]).is_err());
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn error_2() {
+        // Need xaxis spec in description but it's missing (valid type)
+
+        let (ch, jh) = setup();
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let desc = spectrum_messages::SpectrumProperties {
+            name: String::from("dummy"),
+            type_name: String::from("2D"),   // valid.
+            xparams: vec![],
+            yparams: vec![],
+            xaxis: None,                    // must not be none to project x
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024
+            }),
+            gate: None
+        };
+        assert!(make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::X, vec![]).is_err());
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn error_3() {
+        // Need y axis specification to project in y:
+
+        let (ch, jh) = setup();
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let desc = spectrum_messages::SpectrumProperties {
+            name: String::from("dummy"),
+            type_name: String::from("2D"),   // valid.
+            xparams: vec![],
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024
+            }),
+            yaxis: None,                    // must not be none to project y
+            gate: None
+        };
+        assert!(make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::Y, vec![]).is_err());
+
+        teardown(ch, jh);
     }
 }
