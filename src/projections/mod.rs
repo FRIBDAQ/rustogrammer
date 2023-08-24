@@ -816,8 +816,8 @@ mod make_spectrum_tests {
             }),
             yaxis: Some(spectrum_messages::AxisSpecification {
                 low: 0.0,
-                high: 1024.0,
-                bins: 1024,
+                high: 512.0,
+                bins: 512,
             }),
             gate: None,
         }
@@ -905,6 +905,53 @@ mod make_spectrum_tests {
     #[test]
     fn multi2_3() {
         // creatd in server with correct properties y projection.
+
+        let (ch, jh) = setup();
+
+        let properties = make_multi2_properties(&ch);
+        let spectrum_api = spectrum_messages::SpectrumMessageClient::new(&ch);
+
+        assert!(make_projection_spectrum(
+            &spectrum_api,
+            "test1",
+            &properties,
+            ProjectionDirection::Y,
+            vec![]
+        )
+        .is_ok());
+
+        // Get the properties of the created spectruM:
+
+        let created_props = spectrum_api.list_spectra("test1");
+        assert!(created_props.is_ok()); // Server must say ok.
+        let created_props = created_props.unwrap();
+        assert_eq!(1, created_props.len()); // There can be exactly one
+        let created_props = created_props[0].clone(); // Extract it's properties
+
+        assert_eq!("test1", created_props.name);
+        assert_eq!("Multi1d", created_props.type_name);
+        assert_eq!(3, created_props.xparams.len());
+        for (i, expected) in vec!["p1", "p2", "p3"].iter().enumerate() {
+            assert_eq!(
+                *expected, created_props.xparams[i],
+                "Param name mismatch: {} {:?}",
+                i, created_props.xparams
+            );
+        }
+        assert_eq!(0, created_props.yparams.len());
+        assert!(created_props.xaxis.is_some());
+        assert_eq!(
+            spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 512.0,
+                bins: 512                   // Over/underflow.
+            },
+            created_props.xaxis.unwrap()
+        );
+        assert!(created_props.yaxis.is_none());
+        assert!(created_props.gate.is_none());
+
+        teardown(ch, jh);
     }
     #[test]
     fn multi2_4() {
