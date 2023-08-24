@@ -201,7 +201,7 @@ pub fn bin_to_coord(bin: u32, a: AxisSpecification) -> f64 {
     }
     // The rest maps [0, bins-2] -> [low, high]
 
-    let b = bin as f64;
+    let b = (bin - 1) as f64;
     let bin_range = (a.bins - 2) as f64;
 
     b * (a.high - a.low) / bin_range // Simple linear scaling.

@@ -1165,6 +1165,32 @@ mod make_spectrum_tests {
     #[test]
     fn pgamm_4() {
         // X has correct data.
+
+        let (ch, jh) = setup();
+        let props = make_pgamma_properties(&ch);
+        // Some data:
+
+        let mut data = vec![];
+        for i in 0..props.xaxis.clone().unwrap().bins {
+            data.push((i+10) as f64);
+        }
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        assert!(
+            make_projection_spectrum(&sapi, "test1", &props, ProjectionDirection::X, data.clone())
+                .is_ok()
+        );
+
+        let contents = sapi.get_contents("test1", -2048.0, 2048.0, -2048.0, 2048.0).expect("Getting spectrum contents");
+        // No zeroes so
+        assert_eq!(data.len(), contents.len());
+
+        for (i,x) in data.iter().enumerate() {
+            assert_eq!(*x, contents[i].value, "Data mismatch at index {}", i)
+        }
+
+        teardown(ch, jh);
+
     }
     #[test]
     fn pgamm_5() {
