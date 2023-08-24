@@ -177,7 +177,36 @@ pub fn coord_to_bin(c: f64, a: AxisSpecification) -> u32 {
         result as u32
     }
 }
+/// Convert a bin to a coordinate:
+///
+/// ### Parameters:
+///    bin - bin  number along an axis.
+///    a   - Axis specification.
+///
+/// ### Returns
+///   f64 - note that there are some special cases:
+///  *  bin == 0 is an underflow and translates to low-1.0
+///  *  bin >= bins-1 - is an overflow and translates to high+1.0
+/// All others map to the range [low, high)
+///
+///
+pub fn bin_to_coord(bin: u32, a: AxisSpecification) -> f64 {
+    // Special case handling:
 
+    if bin == 0 {
+        return a.low - 1.0; // Underflow
+    }
+    if bin >= (a.bins - 1) {
+        return a.high + 1.0; // overflow.
+    }
+    // The rest maps [0, bins-2] -> [low, high]
+
+    let b = bin as f64;
+    let bin_range = (a.bins - 2) as f64;
+
+    b * (a.high - a.low) / bin_range // Simple linear scaling.
+}
+///  
 ///
 /// SpectrumProcessor is the struct that processes
 /// spectrum requests.  Some requests will need
