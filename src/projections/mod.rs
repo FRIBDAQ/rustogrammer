@@ -176,7 +176,7 @@ pub fn make_projection_spectrum(
 ) -> Result<(), String> {
     // in general the axis is the axis of the projection direction:
 
-    let resulting_axis = match direction {
+    let mut resulting_axis = match direction {
         ProjectionDirection::X => {
             if let Some(a) = desc.xaxis {
                 a
@@ -192,7 +192,7 @@ pub fn make_projection_spectrum(
             }
         }
     };
-
+    resulting_axis.bins -= 2;    // they'll get added back when the ndhistogram is created.
     // For most cases this is true:
 
     let params = match direction {
@@ -205,9 +205,9 @@ pub fn make_projection_spectrum(
 
     let status = match desc.type_name.as_str() {
         "Multi2D" => {
-            // Multi-1d spectrum for all parameters:
-            let mut params = desc.xparams.clone();
-            params.append(&mut desc.yparams.clone()); // Clone since append consumers.
+            // Multi-1d spectrum
+
+            let params = desc.xparams.clone();
             api.create_spectrum_multi1d(
                 new_name,
                 &params,
@@ -226,7 +226,7 @@ pub fn make_projection_spectrum(
                 ProjectionDirection::Y => (desc.yparams.clone(), desc.xparams.len()),
             };
             let mut params = vec![];
-            for i in 0..n {
+            for _ in 0..n {
                 params.append(&mut base_params.clone());
             }
 
@@ -642,7 +642,6 @@ mod project_tests {
 #[cfg(test)]
 mod recons_contour_tests {
     use super::*;
-    use crate::conditions::twod;
     use crate::messaging::condition_messages;
 
     #[test]
@@ -694,13 +693,13 @@ mod recons_contour_tests {
     }
 }
 // Tests for make_projection_spectrum  Note these will need a
-// server to work properly.  
+// server to work properly.
 #[cfg(test)]
 mod make_spectrum_tests {
     use super::*;
     use crate::histogramer;
     use crate::messaging;
-    use crate::messaging::spectrum_messages;
+    use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::trace;
     use std::sync::mpsc;
     use std::thread;
@@ -724,16 +723,20 @@ mod make_spectrum_tests {
         let data = vec![];
         let desc = spectrum_messages::SpectrumProperties {
             name: String::from("dummy"),
-            type_name: String::from("1D"),   // not projectable.
+            type_name: String::from("1D"), // not projectable.
             xparams: vec![],
             yparams: vec![],
             xaxis: None,
             yaxis: None,
-            gate: None
+            gate: None,
         };
         // Either direction is bad:
-        assert!(make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::X, data).is_err());
-        assert!(make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::Y, vec![]).is_err());
+        assert!(
+            make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::X, data).is_err()
+        );
+        assert!(
+            make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::Y, vec![]).is_err()
+        );
 
         teardown(ch, jh);
     }
@@ -745,18 +748,20 @@ mod make_spectrum_tests {
         let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
         let desc = spectrum_messages::SpectrumProperties {
             name: String::from("dummy"),
-            type_name: String::from("2D"),   // valid.
+            type_name: String::from("2D"), // valid.
             xparams: vec![],
             yparams: vec![],
-            xaxis: None,                    // must not be none to project x
+            xaxis: None, // must not be none to project x
             yaxis: Some(spectrum_messages::AxisSpecification {
                 low: 0.0,
                 high: 1024.0,
-                bins: 1024
+                bins: 1024,
             }),
-            gate: None
+            gate: None,
         };
-        assert!(make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::X, vec![]).is_err());
+        assert!(
+            make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::X, vec![]).is_err()
+        );
 
         teardown(ch, jh);
     }
@@ -768,19 +773,145 @@ mod make_spectrum_tests {
         let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
         let desc = spectrum_messages::SpectrumProperties {
             name: String::from("dummy"),
-            type_name: String::from("2D"),   // valid.
+            type_name: String::from("2D"), // valid.
             xparams: vec![],
             yparams: vec![],
             xaxis: Some(spectrum_messages::AxisSpecification {
                 low: 0.0,
                 high: 1024.0,
-                bins: 1024
+                bins: 1024,
             }),
-            yaxis: None,                    // must not be none to project y
-            gate: None
+            yaxis: None, // must not be none to project y
+            gate: None,
         };
-        assert!(make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::Y, vec![]).is_err());
+        assert!(
+            make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::Y, vec![]).is_err()
+        );
 
         teardown(ch, jh);
+    }
+    // Tests when the input spectrum is Multi2D tests::
+    // - spectrum can be created.
+    // - it has the right properties:
+    // - It can be loaded with the right stuff.
+
+    // Makes the properties and the parameters
+    //
+    fn make_multi2_properties(
+        chan: &mpsc::Sender<messaging::Request>,
+    ) -> spectrum_messages::SpectrumProperties {
+        let api = parameter_messages::ParameterMessageClient::new(chan);
+        for name in vec!["p1", "p2", "p3"] {
+            api.create_parameter(name).expect("making parameters");
+        }
+        spectrum_messages::SpectrumProperties {
+            name: String::from("input"),
+            type_name: String::from("Multi2D"),
+            xparams: vec![String::from("p1"), String::from("p2"), String::from("p3")],
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024,
+            }),
+            gate: None,
+        }
+    }
+
+    #[test]
+    fn multi2_1() {
+        // No error for multi2 spectrum with valid properties.
+
+        let (ch, jh) = setup();
+
+        let properties = make_multi2_properties(&ch);
+        let spectrum_api = spectrum_messages::SpectrumMessageClient::new(&ch);
+
+        assert!(make_projection_spectrum(
+            &spectrum_api,
+            "test1",
+            &properties,
+            ProjectionDirection::X,
+            vec![]
+        )
+        .is_ok());
+        assert!(make_projection_spectrum(
+            &spectrum_api,
+            "test2",
+            &properties,
+            ProjectionDirection::Y,
+            vec![]
+        )
+        .is_ok());
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn multi2_2() {
+        // created in server with correct properties x projection.
+
+        let (ch, jh) = setup();
+
+        let properties = make_multi2_properties(&ch);
+        let spectrum_api = spectrum_messages::SpectrumMessageClient::new(&ch);
+
+        assert!(make_projection_spectrum(
+            &spectrum_api,
+            "test1",
+            &properties,
+            ProjectionDirection::X,
+            vec![]
+        )
+        .is_ok());
+
+        // Get the properties of the created spectruM:
+
+        let created_props = spectrum_api.list_spectra("test1");
+        assert!(created_props.is_ok()); // Server must say ok.
+        let created_props = created_props.unwrap();
+        assert_eq!(1, created_props.len()); // There can be exactly one
+        let created_props = created_props[0].clone(); // Extract it's properties
+
+        assert_eq!("test1", created_props.name);
+        assert_eq!("Multi1d", created_props.type_name);
+        assert_eq!(3, created_props.xparams.len());
+        for (i, expected) in vec!["p1", "p2", "p3"].iter().enumerate() {
+            assert_eq!(
+                *expected, created_props.xparams[i],
+                "Param name mismatch: {} {:?}",
+                i, created_props.xparams
+            );
+        }
+        assert_eq!(0, created_props.yparams.len());
+        assert!(created_props.xaxis.is_some());
+        assert_eq!(
+            spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1024                   // Over/underflow.
+            },
+            created_props.xaxis.unwrap()
+        );
+        assert!(created_props.yaxis.is_none());
+        assert!(created_props.gate.is_none());
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn multi2_3() {
+        // creatd in server with correct properties y projection.
+    }
+    #[test]
+    fn multi2_4() {
+        // correct data in x projection
+    }
+    #[test]
+    fn multi2_5() {
+        // correct data in y projection
     }
 }
