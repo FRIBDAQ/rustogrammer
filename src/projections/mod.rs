@@ -1056,7 +1056,7 @@ mod make_spectrum_tests {
             yaxis: Some(spectrum_messages::AxisSpecification {
                 low: 0.0,
                 high: 512.0,
-                bins: 5124,
+                bins: 514,
             }),
             gate: None,
         }
@@ -1083,10 +1083,84 @@ mod make_spectrum_tests {
     #[test]
     fn pgamm_2() {
         // X has correct properties.
+
+        let (ch, jh) = setup();
+        let props = make_pgamma_properties(&ch);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        assert!(
+            make_projection_spectrum(&sapi, "test1", &props, ProjectionDirection::X, vec![])
+                .is_ok()
+        );
+        let props = sapi
+            .list_spectra("test1")
+            .expect("Getting spectrum properties");
+        assert_eq!(1, props.len());
+        let props = props[0].clone();
+
+        // CHeck the wonkiness is that the parameters will be the xparameters
+        // repeted once to get the incrementing right:
+
+        assert_eq!("test1", props.name);
+        assert_eq!("Multi1d", props.type_name);
+        assert_eq!(6, props.xparams.len());
+        let expected_xparams = vec!["xp1", "xp2", "xp3", "xp1", "xp2", "xp3"];
+        for (i, p) in expected_xparams.iter().enumerate() {
+            assert_eq!(*p, props.xparams[i].clone(), "Mismatch on parm {}", i);
+        }
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1026,
+            },
+            props.xaxis.expect("No x axis specification")
+        );
+        assert!(props.yaxis.is_none());
+        assert!(props.gate.is_none());
+
+        teardown(ch, jh);
     }
     #[test]
     fn pgamm_3() {
         // Y has correct props.
+
+        let (ch, jh) = setup();
+        let props = make_pgamma_properties(&ch);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        assert!(
+            make_projection_spectrum(&sapi, "test1", &props, ProjectionDirection::Y, vec![])
+                .is_ok()
+        );
+        let props = sapi
+            .list_spectra("test1")
+            .expect("Getting spectrum properties");
+        assert_eq!(1, props.len());
+        let props = props[0].clone();
+
+        // CHeck the wonkiness is that the parameters will be the xparameters
+        // repeted once to get the incrementing right:
+
+        assert_eq!("test1", props.name);
+        assert_eq!("Multi1d", props.type_name);
+        assert_eq!(6, props.xparams.len());
+        let expected_xparams = vec!["yp1", "yp2", "yp1", "yp2", "yp1", "yp2"];
+        for (i, p) in expected_xparams.iter().enumerate() {
+            assert_eq!(*p, props.xparams[i].clone(), "Mismatch on parm {}", i);
+        }
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 512.0,
+                bins: 514,
+            },
+            props.xaxis.expect("No y axis specification")
+        );
+        assert!(props.yaxis.is_none());
+        assert!(props.gate.is_none());
+
+        teardown(ch, jh);
     }
     #[test]
     fn pgamm_4() {
