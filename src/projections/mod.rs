@@ -192,8 +192,8 @@ pub fn make_projection_spectrum(
             }
         }
     };
-    resulting_axis.bins -= 2;    // they'll get added back when the ndhistogram is created.
-    // For most cases this is true:
+    resulting_axis.bins -= 2; // they'll get added back when the ndhistogram is created.
+                              // For most cases this is true:
 
     let params = match direction {
         ProjectionDirection::X => desc.xparams.clone(),
@@ -259,6 +259,7 @@ pub fn make_projection_spectrum(
     // Build a vector of channels (SpectrumContents)
     if let Ok(()) = status {
         let mut s_contents = Vec::<spectrum_messages::Channel>::new();
+        resulting_axis.bins += 2; // Need the under/overflow channels back
         for (i, value) in data.iter().enumerate() {
             // Only add channels for non-zero values:
             // note that set_contents ignore the channel type:
@@ -812,12 +813,12 @@ mod make_spectrum_tests {
             xaxis: Some(spectrum_messages::AxisSpecification {
                 low: 0.0,
                 high: 1024.0,
-                bins: 1024,
+                bins: 1026,
             }),
             yaxis: Some(spectrum_messages::AxisSpecification {
                 low: 0.0,
                 high: 512.0,
-                bins: 512,
+                bins: 514,
             }),
             gate: None,
         }
@@ -893,7 +894,7 @@ mod make_spectrum_tests {
             spectrum_messages::AxisSpecification {
                 low: 0.0,
                 high: 1024.0,
-                bins: 1024                   // Over/underflow.
+                bins: 1026 // Over/underflow.
             },
             created_props.xaxis.unwrap()
         );
@@ -944,7 +945,7 @@ mod make_spectrum_tests {
             spectrum_messages::AxisSpecification {
                 low: 0.0,
                 high: 512.0,
-                bins: 512                   // Over/underflow.
+                bins: 514 // Over/underflow.
             },
             created_props.xaxis.unwrap()
         );
@@ -955,10 +956,70 @@ mod make_spectrum_tests {
     }
     #[test]
     fn multi2_4() {
-        // correct data in x projection
+        let (ch, jh) = setup();
+
+        let properties = make_multi2_properties(&ch);
+        let spectrum_api = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let mut data = vec![];
+        for i in 0..properties.xaxis.unwrap().bins - 1 {
+            // +2 for under/overflow.
+            data.push(i as f64);
+        }
+        assert!(make_projection_spectrum(
+            &spectrum_api,
+            "test1",
+            &properties,
+            ProjectionDirection::X,
+            data.clone()
+        )
+        .is_ok());
+
+        // The wonky limits get the over/underflow channels.
+
+        let contents = spectrum_api
+            .get_contents("test1", -1024.0, 1026.0, -1024.0, 1026.0)
+            .expect("Getting spectrum contents");
+
+        // Looks like stuff comes out in order.
+        assert_eq!(properties.xaxis.unwrap().bins - 2, contents.len() as u32);
+        for i in 0..contents.len() {
+            assert_eq!((i + 1) as f64, contents[i].value);
+        }
+        teardown(ch, jh);
     }
     #[test]
     fn multi2_5() {
         // correct data in y projection
+
+        let (ch, jh) = setup();
+
+        let properties = make_multi2_properties(&ch);
+        let spectrum_api = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let mut data = vec![];
+        for i in 0..properties.yaxis.unwrap().bins - 1 {
+            // +2 for under/overflow.
+            data.push(i as f64);
+        }
+        assert!(make_projection_spectrum(
+            &spectrum_api,
+            "test1",
+            &properties,
+            ProjectionDirection::X,
+            data.clone()
+        )
+        .is_ok());
+
+        // The wonky limits get the over/underflow channels.
+
+        let contents = spectrum_api
+            .get_contents("test1", -1024.0, 1026.0, -1024.0, 1026.0)
+            .expect("Getting spectrum contents");
+
+        // Looks like stuff comes out in order.
+        assert_eq!(properties.yaxis.unwrap().bins - 2, contents.len() as u32);
+        for i in 0..contents.len() {
+            assert_eq!((i + 1) as f64, contents[i].value);
+        }
+        teardown(ch, jh);
     }
 }
