@@ -1022,4 +1022,78 @@ mod make_spectrum_tests {
         }
         teardown(ch, jh);
     }
+    // Tests for projecting a particle gamma spectrum.
+
+    fn make_pgamma_properties(
+        chan: &mpsc::Sender<messaging::Request>,
+    ) -> spectrum_messages::SpectrumProperties {
+        // Make the parameters
+        let xparams = vec![
+            String::from("xp1"),
+            String::from("xp2"),
+            String::from("xp3"),
+        ];
+        let yparams = vec![String::from("yp1"), String::from("yp2")];
+
+        let papi = parameter_messages::ParameterMessageClient::new(&chan);
+        for xp in xparams.iter() {
+            papi.create_parameter(xp).expect("Making x param");
+        }
+        for yp in yparams.iter() {
+            papi.create_parameter(yp).expect("Making y param");
+        }
+        // THis must be as gotten back from list_spectra so bins inluce over/under.
+        spectrum_messages::SpectrumProperties {
+            name: String::from("input"),
+            type_name: String::from("PGamma"),
+            xparams: xparams.clone(),
+            yparams: yparams.clone(),
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1026,
+            }),
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 512.0,
+                bins: 5124,
+            }),
+            gate: None,
+        }
+    }
+
+    #[test]
+    fn pgamm_1() {
+        // NO error x/y if valid properties.
+
+        let (ch, jh) = setup();
+        let props = make_pgamma_properties(&ch);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        assert!(
+            make_projection_spectrum(&sapi, "test1", &props, ProjectionDirection::X, vec![])
+                .is_ok()
+        );
+        assert!(
+            make_projection_spectrum(&sapi, "test2", &props, ProjectionDirection::Y, vec![])
+                .is_ok()
+        );
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn pgamm_2() {
+        // X has correct properties.
+    }
+    #[test]
+    fn pgamm_3() {
+        // Y has correct props.
+    }
+    #[test]
+    fn pgamm_4() {
+        // X has correct data.
+    }
+    #[test]
+    fn pgamm_5() {
+        // y has correct data
+    }
 }
