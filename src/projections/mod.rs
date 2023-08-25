@@ -1234,7 +1234,9 @@ mod make_spectrum_tests {
     }
     // Tests for regular 2d spectra.
 
-    fn make_2d_properties(ch : &mpsc::Sender<messaging::Request>) -> spectrum_messages::SpectrumProperties {
+    fn make_2d_properties(
+        ch: &mpsc::Sender<messaging::Request>,
+    ) -> spectrum_messages::SpectrumProperties {
         // Make p1, p2 parameters so the new spectrum can be made:
 
         let api = parameter_messages::ParameterMessageClient::new(ch);
@@ -1246,20 +1248,32 @@ mod make_spectrum_tests {
             type_name: String::from("2D"),
             xparams: vec![String::from("p1")],
             yparams: vec![String::from("p2")],
-            xaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 1024.0, bins: 1026}),
-            yaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 512.0, bins: 514}),
-            gate: None
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1026,
+            }),
+            yaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 512.0,
+                bins: 514,
+            }),
+            gate: None,
         }
     }
     #[test]
     fn twod_1() {
         // NO error from attemt to project
-        let(ch, jh) = setup();
+        let (ch, jh) = setup();
         let props = make_2d_properties(&ch);
         let api = spectrum_messages::SpectrumMessageClient::new(&ch);
 
-        assert!(make_projection_spectrum(&api, "test1", &props, ProjectionDirection::X, vec![]).is_ok());
-        assert!(make_projection_spectrum(&api, "test2", &props, ProjectionDirection::Y, vec![]).is_ok());
+        assert!(
+            make_projection_spectrum(&api, "test1", &props, ProjectionDirection::X, vec![]).is_ok()
+        );
+        assert!(
+            make_projection_spectrum(&api, "test2", &props, ProjectionDirection::Y, vec![]).is_ok()
+        );
 
         teardown(ch, jh);
     }
@@ -1267,25 +1281,36 @@ mod make_spectrum_tests {
     fn twod_2() {
         // Got x projection properties right.
 
-        let(ch, jh) = setup();
+        let (ch, jh) = setup();
         let props = make_2d_properties(&ch);
         let api = spectrum_messages::SpectrumMessageClient::new(&ch);
 
-        assert!(make_projection_spectrum(&api, "test1", &props, ProjectionDirection::X, vec![]).is_ok());
+        assert!(
+            make_projection_spectrum(&api, "test1", &props, ProjectionDirection::X, vec![]).is_ok()
+        );
 
-        let props = api.list_spectra("test1").expect("unable to get spectrum list");
+        let props = api
+            .list_spectra("test1")
+            .expect("unable to get spectrum list");
         assert_eq!(1, props.len());
         let props = props[0].clone();
 
-        assert_eq!(spectrum_messages::SpectrumProperties {
-            name: String::from("test1"),
-            type_name: String::from("1D"),
-            xparams: vec![String::from("p1")],
-            yparams: vec![],
-            xaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 1024.0, bins: 1026}),
-            yaxis: None,
-            gate: None
-        }, props);
+        assert_eq!(
+            spectrum_messages::SpectrumProperties {
+                name: String::from("test1"),
+                type_name: String::from("1D"),
+                xparams: vec![String::from("p1")],
+                yparams: vec![],
+                xaxis: Some(spectrum_messages::AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1026
+                }),
+                yaxis: None,
+                gate: None
+            },
+            props
+        );
 
         teardown(ch, jh);
     }
@@ -1293,36 +1318,101 @@ mod make_spectrum_tests {
     fn twod_3() {
         // got y projection properties right.
 
-        let(ch, jh) = setup();
+        let (ch, jh) = setup();
         let props = make_2d_properties(&ch);
         let api = spectrum_messages::SpectrumMessageClient::new(&ch);
 
-        assert!(make_projection_spectrum(&api, "test1", &props, ProjectionDirection::Y, vec![]).is_ok());
+        assert!(
+            make_projection_spectrum(&api, "test1", &props, ProjectionDirection::Y, vec![]).is_ok()
+        );
 
-        let props = api.list_spectra("test1").expect("unable to get spectrum list");
+        let props = api
+            .list_spectra("test1")
+            .expect("unable to get spectrum list");
         assert_eq!(1, props.len());
         let props = props[0].clone();
 
-        assert_eq!(spectrum_messages::SpectrumProperties {
-            name: String::from("test1"),
-            type_name: String::from("1D"),
-            xparams: vec![String::from("p2")],
-            yparams: vec![],
-            xaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 512.0, bins: 514}),
-            yaxis: None,
-            gate: None
-        }, props);
+        assert_eq!(
+            spectrum_messages::SpectrumProperties {
+                name: String::from("test1"),
+                type_name: String::from("1D"),
+                xparams: vec![String::from("p2")],
+                yparams: vec![],
+                xaxis: Some(spectrum_messages::AxisSpecification {
+                    low: 0.0,
+                    high: 512.0,
+                    bins: 514
+                }),
+                yaxis: None,
+                gate: None
+            },
+            props
+        );
 
         teardown(ch, jh);
-
     }
     #[test]
     fn twod_4() {
         // got x projection contents right
+
+        let (ch, jh) = setup();
+        let props = make_2d_properties(&ch);
+        let api = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let mut data = vec![];
+        for i in 0..props.xaxis.unwrap().bins {
+            data.push((i + 10) as f64); // So all bins have data.
+        }
+
+        make_projection_spectrum(&api, "test", &props, ProjectionDirection::X, data.clone())
+            .expect("Making x projection");
+
+        // Get the contents and compare:
+
+        let projection = api
+            .get_contents("test", -2048.0, 2048.0, -2048.0, 2048.0)
+            .expect("Getting contents");
+        assert_eq!(data.len(), projection.len());
+
+        for (i, x) in data.iter().enumerate() {
+            assert_eq!(
+                *x, projection[i].value,
+                "Mismatch at entry: {} {:?}",
+                i, projection[i]
+            );
+        }
+
+        teardown(ch, jh);
     }
     #[test]
     fn twod_5() {
         // got y projection contents right.
-    }
 
+        let (ch, jh) = setup();
+        let props = make_2d_properties(&ch);
+        let api = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let mut data = vec![];
+        for i in 0..props.yaxis.unwrap().bins {
+            data.push((i + 10) as f64); // So all bins have data.
+        }
+
+        make_projection_spectrum(&api, "test", &props, ProjectionDirection::Y, data.clone())
+            .expect("Making x projection");
+
+        // Get the contents and compare:
+
+        let projection = api
+            .get_contents("test", -2048.0, 2048.0, -2048.0, 2048.0)
+            .expect("Getting contents");
+        assert_eq!(data.len(), projection.len());
+
+        for (i, x) in data.iter().enumerate() {
+            assert_eq!(
+                *x, projection[i].value,
+                "Mismatch at entry: {} {:?}",
+                i, projection[i]
+            );
+        }
+
+        teardown(ch, jh);
+    }
 }
