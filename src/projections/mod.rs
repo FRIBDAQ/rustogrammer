@@ -1246,22 +1246,75 @@ mod make_spectrum_tests {
             type_name: String::from("2D"),
             xparams: vec![String::from("p1")],
             yparams: vec![String::from("p2")],
-            xaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 1024.0, bins: 512}),
-            yaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 512.0, bins: 512}),
+            xaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 1024.0, bins: 1026}),
+            yaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 512.0, bins: 514}),
             gate: None
         }
     }
     #[test]
     fn twod_1() {
         // NO error from attemt to project
+        let(ch, jh) = setup();
+        let props = make_2d_properties(&ch);
+        let api = spectrum_messages::SpectrumMessageClient::new(&ch);
+
+        assert!(make_projection_spectrum(&api, "test1", &props, ProjectionDirection::X, vec![]).is_ok());
+        assert!(make_projection_spectrum(&api, "test2", &props, ProjectionDirection::Y, vec![]).is_ok());
+
+        teardown(ch, jh);
     }
     #[test]
     fn twod_2() {
         // Got x projection properties right.
+
+        let(ch, jh) = setup();
+        let props = make_2d_properties(&ch);
+        let api = spectrum_messages::SpectrumMessageClient::new(&ch);
+
+        assert!(make_projection_spectrum(&api, "test1", &props, ProjectionDirection::X, vec![]).is_ok());
+
+        let props = api.list_spectra("test1").expect("unable to get spectrum list");
+        assert_eq!(1, props.len());
+        let props = props[0].clone();
+
+        assert_eq!(spectrum_messages::SpectrumProperties {
+            name: String::from("test1"),
+            type_name: String::from("1D"),
+            xparams: vec![String::from("p1")],
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 1024.0, bins: 1026}),
+            yaxis: None,
+            gate: None
+        }, props);
+
+        teardown(ch, jh);
     }
     #[test]
     fn twod_3() {
         // got y projection properties right.
+
+        let(ch, jh) = setup();
+        let props = make_2d_properties(&ch);
+        let api = spectrum_messages::SpectrumMessageClient::new(&ch);
+
+        assert!(make_projection_spectrum(&api, "test1", &props, ProjectionDirection::Y, vec![]).is_ok());
+
+        let props = api.list_spectra("test1").expect("unable to get spectrum list");
+        assert_eq!(1, props.len());
+        let props = props[0].clone();
+
+        assert_eq!(spectrum_messages::SpectrumProperties {
+            name: String::from("test1"),
+            type_name: String::from("1D"),
+            xparams: vec![String::from("p2")],
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 512.0, bins: 514}),
+            yaxis: None,
+            gate: None
+        }, props);
+
+        teardown(ch, jh);
+
     }
     #[test]
     fn twod_4() {
