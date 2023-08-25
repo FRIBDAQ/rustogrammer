@@ -1417,7 +1417,9 @@ mod make_spectrum_tests {
     }
     // Test projection of 2d sum spectra.
 
-    fn make_2dsum_properties(ch: &mpsc::Sender<messaging::Request>) -> spectrum_messages::SpectrumProperties {
+    fn make_2dsum_properties(
+        ch: &mpsc::Sender<messaging::Request>,
+    ) -> spectrum_messages::SpectrumProperties {
         // Make some parameters - 2dsums require the same number of x/y parameters.
 
         let papi = parameter_messages::ParameterMessageClient::new(ch);
@@ -1429,25 +1431,41 @@ mod make_spectrum_tests {
         }
 
         spectrum_messages::SpectrumProperties {
-            name : String::from("input"),
-            type_name:String::from("2DSum"),
-            xparams: vec![String::from("x1"), String::from("x2"), String::from("x3"), ],
-            yparams: vec![String::from("y1"), String::from("y2"), String::from("y3"), ],
+            name: String::from("input"),
+            type_name: String::from("2DSum"),
+            xparams: vec![String::from("x1"), String::from("x2"), String::from("x3")],
+            yparams: vec![String::from("y1"), String::from("y2"), String::from("y3")],
             xaxis: Some(spectrum_messages::AxisSpecification {
-                low: 0.0, high: 1024.0, bins: 1026
+                low: 0.0,
+                high: 1024.0,
+                bins: 1026,
             }),
             yaxis: Some(spectrum_messages::AxisSpecification {
-                low: 0.0, high: 512.0, bins: 514
+                low: 0.0,
+                high: 512.0,
+                bins: 514,
             }),
-            gate: None
+            gate: None,
         }
     }
     #[test]
     fn sum2_1() {
         // X/Y projections make no errors.
+
+        let (ch, jh) = setup();
+        let desc = make_2dsum_properties(&ch);
+        let api = spectrum_messages::SpectrumMessageClient::new(&ch);
+        assert!(
+            make_projection_spectrum(&api, "test1", &desc, ProjectionDirection::X, vec![]).is_ok()
+        );
+        assert!(
+            make_projection_spectrum(&api, "test2", &desc, ProjectionDirection::Y, vec![]).is_ok()
+        );
+
+        teardown(ch, jh);
     }
     #[test]
-    fn sum2_2() { 
+    fn sum2_2() {
         // X projection has correct properties.
     }
     #[test]
@@ -1463,4 +1481,3 @@ mod make_spectrum_tests {
         // y projectinohas corect contents.
     }
 }
-
