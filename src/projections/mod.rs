@@ -1232,4 +1232,44 @@ mod make_spectrum_tests {
 
         teardown(ch, jh);
     }
+    // Tests for regular 2d spectra.
+
+    fn make_2d_properties(ch : &mpsc::Sender<messaging::Request>) -> spectrum_messages::SpectrumProperties {
+        // Make p1, p2 parameters so the new spectrum can be made:
+
+        let api = parameter_messages::ParameterMessageClient::new(ch);
+        api.create_parameter("p1").expect("Making p1");
+        api.create_parameter("p2").expect("Making p2");
+
+        spectrum_messages::SpectrumProperties {
+            name: String::from("input"),
+            type_name: String::from("2D"),
+            xparams: vec![String::from("p1")],
+            yparams: vec![String::from("p2")],
+            xaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 1024.0, bins: 512}),
+            yaxis: Some(spectrum_messages::AxisSpecification {low: 0.0, high: 512.0, bins: 512}),
+            gate: None
+        }
+    }
+    #[test]
+    fn twod_1() {
+        // NO error from attemt to project
+    }
+    #[test]
+    fn twod_2() {
+        // Got x projection properties right.
+    }
+    #[test]
+    fn twod_3() {
+        // got y projection properties right.
+    }
+    #[test]
+    fn twod_4() {
+        // got x projection contents right
+    }
+    #[test]
+    fn twod_5() {
+        // got y projection contents right.
+    }
+
 }
