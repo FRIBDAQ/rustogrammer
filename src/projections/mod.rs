@@ -1467,10 +1467,64 @@ mod make_spectrum_tests {
     #[test]
     fn sum2_2() {
         // X projection has correct properties.
+
+        let (ch, jh) = setup();
+        let desc = make_2dsum_properties(&ch);
+        let api = spectrum_messages::SpectrumMessageClient::new(&ch);
+        assert!(
+            make_projection_spectrum(&api, "test1", &desc, ProjectionDirection::X, vec![]).is_ok()
+        );
+
+        let props = api.list_spectra("test1").expect("failed to get spectrum list");
+        assert_eq!(1, props.len());
+        let props = props[0].clone();
+
+        assert_eq!(spectrum_messages::SpectrumProperties {
+            name: String::from("test1"),
+            type_name: String::from("Multi1d"),
+            xparams: vec![String::from("x1"), String::from("x2"), String::from("x3"), ],
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 1026,
+            }),
+            yaxis: None,
+            gate: None
+        }, props);
+
+        teardown(ch, jh);
     }
     #[test]
     fn sum2_3() {
         // Y projevction has correct properties.
+
+        let (ch, jh) = setup();
+        let desc = make_2dsum_properties(&ch);
+        let api = spectrum_messages::SpectrumMessageClient::new(&ch);
+        assert!(
+            make_projection_spectrum(&api, "test1", &desc, ProjectionDirection::Y, vec![]).is_ok()
+        );
+
+        let props = api.list_spectra("test1").expect("failed to get spectrum list");
+        assert_eq!(1, props.len());
+        let props = props[0].clone();
+
+        assert_eq!(spectrum_messages::SpectrumProperties {
+            name: String::from("test1"),
+            type_name: String::from("Multi1d"),
+            xparams: vec![String::from("y1"), String::from("y2"), String::from("y3"), ],
+            yparams: vec![],
+            xaxis: Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 512.0,
+                bins: 514,
+            }),
+            yaxis: None,
+            gate: None
+        }, props);
+
+        teardown(ch, jh);
     }
     #[test]
     fn sum2_4() {
