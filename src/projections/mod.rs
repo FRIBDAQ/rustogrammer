@@ -306,6 +306,12 @@ fn create_projection_gate(
     if source_desc.gate.is_none() && contour.is_none() {
         return None;
     }
+    // If there is a contour but no gate the contour rules:
+
+    if contour.is_some() && source_desc.gate.is_none() {
+        return Some(contour.clone().unwrap());
+    }
+
     // If there is no contour and a gate, that's the gate:
 
     if contour.is_none() && source_desc.gate.is_some() {
@@ -1848,7 +1854,7 @@ mod project_tests {
     }
 
     #[test]
-    fn make_proj_1() {
+    fn make_gate_1() {
         let (ch, jh) = setup();
 
         let props = get_spectrum_info(&ch, "test");
@@ -1866,7 +1872,7 @@ mod project_tests {
         teardown(ch, jh);
     }
     #[test]
-    fn make_proj_2() {
+    fn make_gate_2() {
         // snapshot means it's a snapshot:
 
         let (ch, jh) = setup();
@@ -1888,7 +1894,7 @@ mod project_tests {
         teardown(ch, jh);
     }
     #[test]
-    fn make_proj_3() {
+    fn make_gate_3() {
         // Still snapshot if it's true and there's a projection contour:
 
         let (ch, jh) = setup();
@@ -1910,7 +1916,7 @@ mod project_tests {
         teardown(ch, jh);
     }
     #[test]
-    fn make_proj_4() {
+    fn make_gate_4() {
         // still a snapshot if the spectrum is gated:
 
         let (ch, jh) = setup();
@@ -1930,6 +1936,92 @@ mod project_tests {
 
         let result = result.unwrap();
         assert_eq!("_snapshot_condition_", result);
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn make_gate_5() {
+        // If not a snapshot, there's an ROI contour and nothing else, that's the gate:
+
+        let (ch, jh) = setup();
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+
+        let props = get_spectrum_info(&ch, "test");
+
+        let result = create_projection_gate(
+            &condition_messages::ConditionMessageClient::new(&ch),
+            "proj",
+            &props,
+            Some(String::from("contour")),
+            false,
+        );
+        assert!(result.is_some());
+
+        let result = result.unwrap();
+        assert_eq!("contour", result);
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn make_gate_6() {
+        // not snapshot - if there's a spectrum gate but no contour it's the spectrum
+        // gate.
+
+        let (ch, jh) = setup();
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        sapi.gate_spectrum("test", "true").expect("gating spectrum");
+
+        let props = get_spectrum_info(&ch, "test");
+
+        let result = create_projection_gate(
+            &condition_messages::ConditionMessageClient::new(&ch),
+            "proj",
+            &props,
+            None,
+            false,
+        );
+        assert!(result.is_some());
+
+        let result = result.unwrap();
+        assert_eq!("true", result);
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn make_gate_7() {
+        // no snapshot but there's a gate and a contour.
+        // The result is a new gate: _proj_projection_gate_ which is an
+        // and gate with true and contour as components:
+
+        let (ch, jh) = setup();
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        sapi.gate_spectrum("test", "true").expect("gating spectrum");
+
+        let props = get_spectrum_info(&ch, "test");
+
+        let result = create_projection_gate(
+            &condition_messages::ConditionMessageClient::new(&ch),
+            "proj",
+            &props,
+            Some(String::from("contour")),
+            false,
+        );
+        assert!(result.is_some());
+
+        let result = result.unwrap();
+        assert_eq!("_proj_projection_gate_", result);
+
+        let capi = condition_messages::ConditionMessageClient::new(&ch);
+        if let condition_messages::ConditionReply::Listing(l) = capi.list_conditions(&result) {
+            assert_eq!(1, l.len());
+            let cond = l[0].clone();
+            assert_eq!("And", cond.type_name);
+            assert_eq!(2, cond.gates.len());
+            assert_eq!("true", cond.gates[0]);
+            assert_eq!("contour", cond.gates[1]);
+        } else {
+            assert!(false, "Failed to get projection gate information");
+        }
 
         teardown(ch, jh);
     }
