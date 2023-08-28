@@ -1783,6 +1783,69 @@ mod make_spectrum_tests {
 }
 #[cfg(test)]
 mod project_tests {
+
+    use super::*;
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
+    use crate::trace;
+    use std::sync::mpsc;
+    use std::thread;
+    // We need to run the histogram server.
+    // and have some parameters and a contour and a source spectrum or two.
+
+    fn setup() -> (mpsc::Sender<messaging::Request>, thread::JoinHandle<()>) {
+        let (jh, ch) = histogramer::start_server(trace::SharedTraceStore::new());
+        let papi = parameter_messages::ParameterMessageClient::new(&ch);
+        let capi = condition_messages::ConditionMessageClient::new(&ch);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            papi.create_parameter(&name).expect("Making parameter");
+        }
+
+        // make a contour on param.0, param.1:
+
+        let points = vec![(100.0, 100.0), (200.0, 100.0), (150.0, 150.0)];
+        if let condition_messages::ConditionReply::Error(s) =
+            capi.create_contour_condition("contour", 0, 1, &points)
+        {
+            panic!("Failed to create contour : {}", s);
+        }
+
+        // 2-d spectrum named 'test'
+
+        sapi.create_spectrum_2d(
+            "test", "param.0", "param.1", 0.0, 1024.0, 512, 0.0, 1024.0, 512,
+        )
+        .expect("Creating spectrum");
+
+        (ch, jh)
+    }
+    fn teardown(ch: mpsc::Sender<messaging::Request>, jh: thread::JoinHandle<()>) {
+        histogramer::stop_server(&ch);
+        jh.join().expect("Joining with histogram server.")
+    }
+
+    fn get_spectrum_info(
+        ch: mpsc::Sender<messaging::Request>,
+        name: &str,
+    ) -> spectrum_messages::SpectrumProperties {
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+
+        let listing = sapi
+            .list_spectra(name)
+            .expect("Getting matching spectrum list");
+        assert_eq!(1, listing.len());
+
+        listing[0].clone()
+    }
+
     #[test]
-    fn dummy() {}
+    fn dummy() {
+        let (ch, jh) = setup();
+
+        teardown(ch, jh);
+    }
 }
