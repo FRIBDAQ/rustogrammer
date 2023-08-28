@@ -279,6 +279,153 @@ pub fn make_projection_spectrum(
         status
     }
 }
+/// Create the gate appropriate to a projection spectcrum.  See
+/// the description of project below for how this is derived.
+///
+/// ### Parameters:
+///   *  gapi = Gate API instance reference.
+///   *  source_desc - References the description of the source spectrum.
+///   *  contour - If Some the payload is the name of the AOI contour
+///   *  snapshot - If true the specturm is a snapshot spectrum.
+fn create_projection_gate(
+    gapi: &condition_messages::ConditionMessageClient,
+    source_desc: &spectrum_messages::SpectrumProperties,
+    contour: Option<String>,
+    snapshot: bool,
+) -> Option<String> {
+    None
+}
+
+/// Actually do the projection.
+/// This is called by the ReST handler to:
+/// *  Figure out the contents of the projected spectrum.
+/// *  Create any needed condition(s) to properly gate that spectrum.
+/// *  Create the projection spectrum itself.
+/// *  Gate the spectrum as needed.
+///
+/// ### Parameters:
+/// *  sapi - spectrum messaging api reference.
+/// *  gapi - Condition/gate messaging api reference.
+/// *  source - Name of the spectrum to be projected.
+/// *  direction - desired direction of projection.
+/// *  dest - Name of the resulting spectrum if successful.
+/// *  snapshot - if true, the spectrum is gated with a false condition
+/// to keep it from incrementing with new data.
+/// *  aoi  - If Some() this _must_ be the name of a contour condition
+/// the ponts of which are used to restrict the projection only to those
+/// channels in the source spectrum that are within the contour.  If None, the
+/// entire spectrum is projected.
+/// The parameters in the contour are irelevant.
+///
+/// ### Returns:
+///   Result<(), String>:
+///   * Ok - nothing useful is returned.
+///   * Err  encapsulates a string error message describing why the
+/// projection could not be done.
+///
+/// ### Note:
+/// The final gate placed on the spectrum is determined by the state of the
+/// _snapshot_ parameter and any gate that is on the source spectrum.
+/// *   If snapshot is **true**, it takes precendence over everything and
+/// a false condition gates the resulting spectrum so that it will never increment.
+/// The false spectrum will be called _snapshot_condition_ (same name as the one
+/// used in spectrum I/O to gate snapshot spectra). If necessary it is created.
+/// *   If snapshot is **false**, and the source spectrum has no gate, then the
+/// resulting spectrum has no gate,
+/// *  If snapshot is **false** and the source spectrum has a gate, the same condition
+/// gates the resulting spectrum.
+/// If there is a region of interest it is anded with any non-snapshot gate.
+///
+/// The intent of these gating rules is that either the specturm never increments
+/// because it's a snapshot (false gate) or it increments in a manner that makes it
+/// a faithful projection
+///
+///  ### TODO:
+///
+pub fn project(
+    sapi: &spectrum_messages::SpectrumMessageClient,
+    gapi: &condition_messages::ConditionMessageClient,
+    source: &str,
+    direction: ProjectionDirection,
+    dest: &str,
+    snapshot: bool,
+    aoi: Option<String>,
+) -> Result<(), String> {
+    // Ensure the sapi exists and, if there's an aoi contour that as well
+    // if so, compute the projection vector and
+    // fill in the destination spectrum.
+
+    let source_desc = sapi.list_spectra(source);
+    if let Err(s) = source_desc {
+        return Err(format!(
+            "Could not get source spectrum info from histogram service: {}",
+            s
+        ));
+    }
+    let source_desc = source_desc.unwrap();
+    if source_desc.len() != 1 {
+        return Err(format!("{} does not specify a unique spectrum", source));
+    }
+    let source_desc = source_desc[0].clone();
+    let xlimits = if let Some(xaxis) = source_desc.xaxis {
+        (xaxis.low - 10.0, xaxis.high + 10.0)
+    } else {
+        (0.0, 0.0)
+    };
+    let ylimits = if let Some(yaxis) = source_desc.yaxis {
+        (yaxis.low - 10.0, yaxis.high + 10.)
+    } else {
+        (0.0, 0.0)
+    };
+    let contents = sapi.get_contents(source, xlimits.0, xlimits.1, ylimits.0, ylimits.1);
+    if let Err(s) = contents {
+        return Err(format!("Failed to get spectrum contents: {}", s));
+    }
+    let contents = contents.unwrap();
+    let data = if let Some(roi) = aoi.clone() {
+        let cprops = match gapi.list_conditions(&roi) {
+            condition_messages::ConditionReply::Error(s) => {
+                return Err(format!("Could not get info for ROI {}", s));
+            }
+            condition_messages::ConditionReply::Listing(p) => p,
+            _ => {
+                return Err(String::from("Could not get info for ROI"));
+            }
+        };
+
+        if cprops.len() != 1 {
+            return Err(format!("{} does not uniquely identify a condition", roi));
+        }
+        let contour = reconstitute_contour(cprops[0].clone());
+        if let Err(s) = contour {
+            return Err(format!("Could not recontitute {} as a contoure {}", roi, s));
+        }
+        let contour = contour.unwrap();
+        project_spectrum(&source_desc, &contents, direction, |x, y| {
+            contour.inside(x, y)
+        })
+    } else {
+        project_spectrum(&source_desc, &contents, direction, |_, _| true)
+    };
+    if let Err(s) = data {
+        return Err(format!("Projection failed: {}", s));
+    }
+    let data = data.unwrap();
+
+    // Now we can create the spectrum and fill it with our hard won projection data:
+
+    if let Err(s) = make_projection_spectrum(sapi, dest, &source_desc, direction, data) {
+        return Err(format!("Failed to create projection spectrum: {}", s));
+    }
+
+    // Figure out the correct gate:
+
+    if let Some(g) = create_projection_gate(gapi, &source_desc, aoi.clone(), snapshot) {
+        return sapi.gate_spectrum(dest, &g);
+    } else {
+        return Ok(());
+    }
+}
 
 // Tests for make_sum_vector
 #[cfg(test)]
