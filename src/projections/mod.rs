@@ -1813,6 +1813,11 @@ mod project_tests {
         {
             panic!("Failed to create contour : {}", s);
         }
+        // True gate we can put on the spectrum if we need to for testing:
+
+        if let condition_messages::ConditionReply::Error(s) = capi.create_true_condition("true") {
+            panic!("Failed to create true condition {}", s);
+        }
 
         // 2-d spectrum named 'test'
 
@@ -1829,10 +1834,10 @@ mod project_tests {
     }
 
     fn get_spectrum_info(
-        ch: mpsc::Sender<messaging::Request>,
+        ch: &mpsc::Sender<messaging::Request>,
         name: &str,
     ) -> spectrum_messages::SpectrumProperties {
-        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(ch);
 
         let listing = sapi
             .list_spectra(name)
@@ -1843,8 +1848,88 @@ mod project_tests {
     }
 
     #[test]
-    fn dummy() {
+    fn make_proj_1() {
         let (ch, jh) = setup();
+
+        let props = get_spectrum_info(&ch, "test");
+
+        let result = create_projection_gate(
+            &condition_messages::ConditionMessageClient::new(&ch),
+            "proj",
+            &props,
+            None,
+            false,
+        );
+
+        assert!(result.is_none()); // Not snap, no condition, -> no condition.
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn make_proj_2() {
+        // snapshot means it's a snapshot:
+
+        let (ch, jh) = setup();
+
+        let props = get_spectrum_info(&ch, "test");
+
+        let result = create_projection_gate(
+            &condition_messages::ConditionMessageClient::new(&ch),
+            "proj",
+            &props,
+            None,
+            true,
+        );
+        assert!(result.is_some());
+
+        let result = result.unwrap();
+        assert_eq!("_snapshot_condition_", result);
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn make_proj_3() {
+        // Still snapshot if it's true and there's a projection contour:
+
+        let (ch, jh) = setup();
+
+        let props = get_spectrum_info(&ch, "test");
+
+        let result = create_projection_gate(
+            &condition_messages::ConditionMessageClient::new(&ch),
+            "proj",
+            &props,
+            Some(String::from("contour")),
+            true,
+        );
+        assert!(result.is_some());
+
+        let result = result.unwrap();
+        assert_eq!("_snapshot_condition_", result);
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn make_proj_4() {
+        // still a snapshot if the spectrum is gated:
+
+        let (ch, jh) = setup();
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        sapi.gate_spectrum("test", "true").expect("gating spectrum");
+
+        let props = get_spectrum_info(&ch, "test");
+
+        let result = create_projection_gate(
+            &condition_messages::ConditionMessageClient::new(&ch),
+            "proj",
+            &props,
+            Some(String::from("contour")),
+            true,
+        );
+        assert!(result.is_some());
+
+        let result = result.unwrap();
+        assert_eq!("_snapshot_condition_", result);
 
         teardown(ch, jh);
     }
