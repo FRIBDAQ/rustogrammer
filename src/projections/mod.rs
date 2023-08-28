@@ -283,16 +283,47 @@ pub fn make_projection_spectrum(
 /// the description of project below for how this is derived.
 ///
 /// ### Parameters:
-///   *  gapi = Gate API instance reference.
+///   *  gapi- Gate API instance reference.
+///   *  dest_name -  destination spectrum name - used to generate
+/// the and gate if needed ("_dest_name_projection_gate_")
 ///   *  source_desc - References the description of the source spectrum.
 ///   *  contour - If Some the payload is the name of the AOI contour
 ///   *  snapshot - If true the specturm is a snapshot spectrum.
 fn create_projection_gate(
     gapi: &condition_messages::ConditionMessageClient,
+    dest_name: &str,
     source_desc: &spectrum_messages::SpectrumProperties,
     contour: Option<String>,
     snapshot: bool,
 ) -> Option<String> {
+    if (snapshot) {
+        gapi.create_false_condition("_snapshot_condition_");
+        return Some(String::from("_snapshot_condition_"));
+    }
+    // If the spectrum has no gate and there's no contour we don't have a
+    // gate:
+
+    if source_desc.gate.is_none() && contour.is_none() {
+        return None;
+    }
+    // If there is no contour and a gate, that's the gate:
+
+    if contour.is_none() && source_desc.gate.is_some() {
+        return Some(source_desc.gate.clone().unwrap());
+    }
+    // If there is a contour and a gate we need to make and condition
+    // of the two of them.
+    //
+    if contour.is_some() && source_desc.gate.is_some() {
+        let components = vec![
+            String::from(source_desc.gate.clone().unwrap()),
+            String::from(contour.unwrap()),
+        ];
+        let and_name = format!("_{}_projection_gate_", dest_name);
+        gapi.create_and_condition(&and_name, &components);
+        return Some(and_name);
+    }
+
     None
 }
 
@@ -420,7 +451,7 @@ pub fn project(
 
     // Figure out the correct gate:
 
-    if let Some(g) = create_projection_gate(gapi, &source_desc, aoi.clone(), snapshot) {
+    if let Some(g) = create_projection_gate(gapi, dest, &source_desc, aoi.clone(), snapshot) {
         return sapi.gate_spectrum(dest, &g);
     } else {
         return Ok(());
