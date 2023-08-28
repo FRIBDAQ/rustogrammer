@@ -296,7 +296,7 @@ fn create_projection_gate(
     contour: Option<String>,
     snapshot: bool,
 ) -> Option<String> {
-    if (snapshot) {
+    if snapshot {
         gapi.create_false_condition("_snapshot_condition_");
         return Some(String::from("_snapshot_condition_"));
     }
@@ -595,7 +595,7 @@ mod make_sum_tests {
     }
 }
 #[cfg(test)]
-mod project_tests {
+mod project_spectrum_tests {
     use super::*;
     use crate::messaging::spectrum_messages;
 
@@ -1780,4 +1780,9 @@ mod make_spectrum_tests {
 
         teardown(ch, jh);
     }
+}
+#[cfg(test)]
+mod project_tests {
+    #[test]
+    fn dummy() {}
 }
