@@ -1813,7 +1813,12 @@ mod project_tests {
 
         // make a contour on param.0, param.1:
 
-        let points = vec![(100.0, 100.0), (200.0, 100.0), (150.0, 150.0)];
+        let points = vec![
+            (100.0, 100.0),
+            (200.0, 100.0),
+            (200.0, 600.0),
+            (100.0, 600.0),
+        ];
         if let condition_messages::ConditionReply::Error(s) =
             capi.create_contour_condition("contour", 0, 1, &points)
         {
@@ -1944,7 +1949,6 @@ mod project_tests {
         // If not a snapshot, there's an ROI contour and nothing else, that's the gate:
 
         let (ch, jh) = setup();
-        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
 
         let props = get_spectrum_info(&ch, "test");
 
@@ -2185,6 +2189,164 @@ mod project_tests {
                 value: sum
             },
             contents[0],
+        );
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn project_3() {
+        // X projection within a simple contour:
+
+        let (ch, jh) = setup();
+
+        // Same data:
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let gapi = condition_messages::ConditionMessageClient::new(&ch);
+
+        // Put some data into "test" to project.  We're projecting on x/ no contour:
+        // put a horizontal line of data in the test spectrum:
+
+        let mut contents = Vec::<spectrum_messages::Channel>::new();
+        for i in 0..512 {
+            contents.push(spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: (i * 2) as f64,
+                y: 512.0,
+                bin: 0,
+                value: (i + 10) as f64,
+            });
+        }
+        sapi.fill_spectrum("test", contents)
+            .expect("Filling 'test' spectrum");
+
+        project(
+            &sapi,
+            &gapi,
+            "test",
+            ProjectionDirection::X,
+            "proj",
+            false,
+            Some(String::from("contour")),
+        )
+        .expect("Projecting");
+
+        // Ensure we have created the spectrum and it has the right contents:
+
+        let desc = sapi.list_spectra("proj").expect("Getting spectrum list");
+        assert_eq!(1, desc.len());
+        let desc = desc[0].clone();
+
+        assert_eq!("1D", desc.type_name);
+        assert_eq!(1, desc.xparams.len());
+        assert_eq!("param.0", desc.xparams[0]);
+        assert_eq!(0, desc.yparams.len());
+        assert!(desc.xaxis.is_some());
+        let xaxis = desc.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(514, xaxis.bins); // over/underflow chans.
+        assert!(desc.yaxis.is_none());
+        assert!(desc.gate.is_some());
+        assert_eq!("contour", desc.gate.unwrap());
+
+        let data = sapi
+            .get_contents("proj", -1024.0, 1024.0, -1024.0, 1024.0)
+            .expect("Getting contents");
+        assert_eq!(50, data.len(), "Size mismatch: {:?}", data);
+        let x0 = 102.0; // start point of the ROI.
+        for i in 0..50 {
+            let x = x0 + (i * 2) as f64;
+            let bin = (x / 2.0) as usize;
+            assert_eq!(
+                spectrum_messages::Channel {
+                    chan_type: spectrum_messages::ChannelType::Bin,
+                    x: x,
+                    y: 0.0,
+                    bin: bin + 1,
+                    value: (bin + 10) as f64
+                },
+                data[i]
+            )
+        }
+        teardown(ch, jh);
+    }
+    #[test]
+    fn project_4() {
+        // Project within a contour in y...
+
+        let (ch, jh) = setup();
+
+        // Same data:
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let gapi = condition_messages::ConditionMessageClient::new(&ch);
+
+        // Put some data into "test" to project.  We're projecting on x/ no contour:
+        // put a horizontal line of data in the test spectrum:
+
+        let mut contents = Vec::<spectrum_messages::Channel>::new();
+        let mut sum = 0.0;
+        for i in 0..512 {
+            let value = (i + 10) as f64;
+            let x = (i * 2) as f64;
+            if x > 100.0 && x <= 200.0 {
+                sum += value;
+            }
+            contents.push(spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: x,
+                y: 512.0,
+                bin: 0,
+                value: value,
+            });
+        }
+        sapi.fill_spectrum("test", contents)
+            .expect("Filling 'test' spectrum");
+
+        project(
+            &sapi,
+            &gapi,
+            "test",
+            ProjectionDirection::Y,
+            "proj",
+            false,
+            Some(String::from("contour")),
+        )
+        .expect("Projecting");
+
+        // Ensure we have created the spectrum and it has the right contents:
+
+        let desc = sapi.list_spectra("proj").expect("Getting spectrum list");
+        assert_eq!(1, desc.len());
+        let desc = desc[0].clone();
+
+        assert_eq!("1D", desc.type_name);
+        assert_eq!(1, desc.xparams.len());
+        assert_eq!("param.1", desc.xparams[0]);
+        assert_eq!(0, desc.yparams.len());
+        assert!(desc.xaxis.is_some());
+        let xaxis = desc.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(514, xaxis.bins); // over/underflow chans.
+        assert!(desc.yaxis.is_none());
+        assert!(desc.gate.is_some());
+        assert_eq!("contour", desc.gate.unwrap());
+
+        let data = sapi
+            .get_contents("proj", -1024.0, 1024.0, -1024.0, 1024.0)
+            .expect("Getting contents");
+        assert_eq!(1, data.len(), "Size mismatch: {:?}", data);
+        assert_eq!(
+            spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: 512.0,
+                y: 0.0,
+                bin: (512.0 / 2.0) as usize + 1,
+                value: sum
+            },
+            data[0]
         );
 
         teardown(ch, jh);
