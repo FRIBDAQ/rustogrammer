@@ -2351,4 +2351,217 @@ mod project_tests {
 
         teardown(ch, jh);
     }
+    #[test]
+    fn project_5() {
+        // X projection within a contour as for project_3 but
+        // the source spectrum is also gated. Should not change
+        // the outcome other than the gate on the final spectrum and
+        // its characteristics.
+
+        // Project within a contour in y...
+
+        let (ch, jh) = setup();
+
+        // Same data:
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let gapi = condition_messages::ConditionMessageClient::new(&ch);
+
+        // gate the test spectrum:
+
+        sapi.gate_spectrum("test", "true").expect("Gating spectrum");
+
+        // Put some data into "test" to project.  We're projecting on x/ no contour:
+        // put a horizontal line of data in the test spectrum:
+
+        let mut contents = Vec::<spectrum_messages::Channel>::new();
+
+        for i in 0..512 {
+            let value = (i + 10) as f64;
+            let x = (i * 2) as f64;
+
+            contents.push(spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: x,
+                y: 512.0,
+                bin: 0,
+                value: value,
+            });
+        }
+        sapi.fill_spectrum("test", contents)
+            .expect("Filling 'test' spectrum");
+
+        project(
+            &sapi,
+            &gapi,
+            "test",
+            ProjectionDirection::X,
+            "proj",
+            false,
+            Some(String::from("contour")),
+        )
+        .expect("Projecting");
+
+        // Ensure we have created the spectrum and it has the right contents:
+
+        let desc = sapi.list_spectra("proj").expect("Getting spectrum list");
+        assert_eq!(1, desc.len());
+        let desc = desc[0].clone();
+
+        assert_eq!("1D", desc.type_name);
+        assert_eq!(1, desc.xparams.len());
+        assert_eq!("param.0", desc.xparams[0]);
+        assert_eq!(0, desc.yparams.len());
+        assert!(desc.xaxis.is_some());
+        let xaxis = desc.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(514, xaxis.bins); // over/underflow chans.
+        assert!(desc.yaxis.is_none());
+        assert!(desc.gate.is_some());
+        assert_eq!("_proj_projection_gate_", desc.gate.unwrap());
+
+        let data = sapi
+            .get_contents("proj", -1024.0, 1024.0, -1024.0, 1024.0)
+            .expect("Getting contents");
+        assert_eq!(50, data.len(), "Size mismatch: {:?}", data);
+        let x0 = 102.0; // start point of the ROI.
+        for i in 0..50 {
+            let x = x0 + (i * 2) as f64;
+            let bin = (x / 2.0) as usize;
+            assert_eq!(
+                spectrum_messages::Channel {
+                    chan_type: spectrum_messages::ChannelType::Bin,
+                    x: x,
+                    y: 0.0,
+                    bin: bin + 1,
+                    value: (bin + 10) as f64
+                },
+                data[i]
+            );
+        }
+
+        // See that the gate is correct:
+
+        match gapi.list_conditions("_proj_projection_gate_") {
+            condition_messages::ConditionReply::Error(s) => assert!(false, "{}", s),
+            condition_messages::ConditionReply::Listing(v) => {
+                assert_eq!(1, v.len());
+                let gate = v[0].clone();
+                assert_eq!(
+                    condition_messages::ConditionProperties {
+                        cond_name: String::from("_proj_projection_gate_"),
+                        type_name: String::from("And"),
+                        points: vec![],
+                        gates: vec![String::from("true"), String::from("contour")],
+                        parameters: vec![]
+                    },
+                    gate
+                );
+            }
+            _ => assert!(false, "Unexpected return type from gate list"),
+        };
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn project_6() {
+        // y projection of a gated spectrum:
+
+        let (ch, jh) = setup();
+
+        // Same data:
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let gapi = condition_messages::ConditionMessageClient::new(&ch);
+
+        sapi.gate_spectrum("test", "true").expect("Gating spectrum");
+
+        // Put some data into "test" to project.  We're projecting on x/ no contour:
+        // put a horizontal line of data in the test spectrum:
+
+        let mut contents = Vec::<spectrum_messages::Channel>::new();
+        let mut sum = 0.0;
+        for i in 0..512 {
+            let value = (i + 10) as f64;
+            let x = (i * 2) as f64;
+            if x > 100.0 && x <= 200.0 {
+                sum += value;
+            }
+            contents.push(spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: x,
+                y: 512.0,
+                bin: 0,
+                value: value,
+            });
+        }
+        sapi.fill_spectrum("test", contents)
+            .expect("Filling 'test' spectrum");
+
+        project(
+            &sapi,
+            &gapi,
+            "test",
+            ProjectionDirection::Y,
+            "proj",
+            false,
+            Some(String::from("contour")),
+        )
+        .expect("Projecting");
+
+        // Ensure we have created the spectrum and it has the right contents:
+
+        let desc = sapi.list_spectra("proj").expect("Getting spectrum list");
+        assert_eq!(1, desc.len());
+        let desc = desc[0].clone();
+
+        assert_eq!("1D", desc.type_name);
+        assert_eq!(1, desc.xparams.len());
+        assert_eq!("param.1", desc.xparams[0]);
+        assert_eq!(0, desc.yparams.len());
+        assert!(desc.xaxis.is_some());
+        let xaxis = desc.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(514, xaxis.bins); // over/underflow chans.
+        assert!(desc.yaxis.is_none());
+        assert!(desc.gate.is_some());
+        assert_eq!("_proj_projection_gate_", desc.gate.unwrap());
+
+        let data = sapi
+            .get_contents("proj", -1024.0, 1024.0, -1024.0, 1024.0)
+            .expect("Getting contents");
+        assert_eq!(1, data.len(), "Size mismatch: {:?}", data);
+        assert_eq!(
+            spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: 512.0,
+                y: 0.0,
+                bin: (512.0 / 2.0) as usize + 1,
+                value: sum
+            },
+            data[0]
+        );
+
+        match gapi.list_conditions("_proj_projection_gate_") {
+            condition_messages::ConditionReply::Error(s) => assert!(false, "{}", s),
+            condition_messages::ConditionReply::Listing(v) => {
+                assert_eq!(1, v.len());
+                let gate = v[0].clone();
+                assert_eq!(
+                    condition_messages::ConditionProperties {
+                        cond_name: String::from("_proj_projection_gate_"),
+                        type_name: String::from("And"),
+                        points: vec![],
+                        gates: vec![String::from("true"), String::from("contour")],
+                        parameters: vec![]
+                    },
+                    gate
+                );
+            }
+            _ => assert!(false, "Unexpected return type from gate list"),
+        }
+        teardown(ch, jh);
+    }
 }
