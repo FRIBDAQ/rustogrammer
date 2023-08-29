@@ -2025,4 +2025,168 @@ mod project_tests {
 
         teardown(ch, jh);
     }
+    // Tests for fn project:
+    // Note that we assume that the dependent functions work (they've all been
+    // tested). So we really just need to look the logic inside of that function
+    ///
+
+    #[test]
+    fn project_1() {
+        let (ch, jh) = setup();
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let gapi = condition_messages::ConditionMessageClient::new(&ch);
+
+        // Put some data into "test" to project.  We're projecting on x/ no contour:
+        // put a horizontal line of data in the test spectrum:
+
+        let mut contents = Vec::<spectrum_messages::Channel>::new();
+        for i in 0..512 {
+            contents.push(spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: (i * 2) as f64,
+                y: 512.0,
+                bin: 0,
+                value: (i + 10) as f64,
+            });
+        }
+        sapi.fill_spectrum("test", contents)
+            .expect("Filling 'test' spectrum");
+
+        // Projecting that onto X should give just the channels  we put in.
+
+        project(
+            &sapi,
+            &gapi,
+            "test",
+            ProjectionDirection::X,
+            "proj",
+            false,
+            None,
+        )
+        .expect("Failed to project");
+
+        // Ensure we have created the spectrum and it has the right contents:
+
+        let desc = sapi.list_spectra("proj").expect("Getting spectrum list");
+        assert_eq!(1, desc.len());
+        let desc = desc[0].clone();
+
+        assert_eq!("1D", desc.type_name);
+        assert_eq!(1, desc.xparams.len());
+        assert_eq!("param.0", desc.xparams[0]);
+        assert_eq!(0, desc.yparams.len());
+        assert!(desc.xaxis.is_some());
+        let xaxis = desc.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(514, xaxis.bins); // over/underflow chans.
+        assert!(desc.yaxis.is_none());
+        assert!(desc.gate.is_none());
+
+        // CHeck the contents:
+
+        let contents = sapi
+            .get_contents("proj", -1024.0, 1024.0, -1024.0, 1024.0)
+            .expect("get spectrum contents");
+        assert_eq!(512, contents.len(), "Contents are: {:?}", contents);
+
+        // Assuming the contents come out in channel order:
+
+        for i in 0..512 {
+            assert_eq!(
+                spectrum_messages::Channel {
+                    chan_type: spectrum_messages::ChannelType::Bin,
+                    x: (i * 2) as f64,
+                    y: 0.0,
+                    bin: i + 1, // +1 for underflow channel
+                    value: (i + 10) as f64,
+                },
+                contents[i],
+                "Mismatch at {}: {:?}",
+                i,
+                contents[i]
+            );
+        }
+
+        teardown(ch, jh);
+    }
+    #[test]
+    fn project_2() {
+        // Same as above with same data - should get a sum of the
+        // line projected over to the Y axis.
+
+        let (ch, jh) = setup();
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
+        let gapi = condition_messages::ConditionMessageClient::new(&ch);
+
+        // Put some data into "test" to project.  We're projecting on x/ no contour:
+        // put a horizontal line of data in the test spectrum:
+
+        let mut contents = Vec::<spectrum_messages::Channel>::new();
+        let mut sum = 0.0; // lazy way.
+        for i in 0..512 {
+            let value = (i + 10) as f64;
+            contents.push(spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: (i * 2) as f64,
+                y: 512.0,
+                bin: 0,
+                value: value,
+            });
+            sum += value;
+        }
+        sapi.fill_spectrum("test", contents)
+            .expect("Filling 'test' spectrum");
+
+        // Projecting that onto X should give just the channels  we put in.
+
+        project(
+            &sapi,
+            &gapi,
+            "test",
+            ProjectionDirection::Y,
+            "proj",
+            false,
+            None,
+        )
+        .expect("Failed to project");
+
+        // Ensure we have created the spectrum and it has the right contents:
+
+        let desc = sapi.list_spectra("proj").expect("Getting spectrum list");
+        assert_eq!(1, desc.len());
+        let desc = desc[0].clone();
+
+        assert_eq!("1D", desc.type_name);
+        assert_eq!(1, desc.xparams.len());
+        assert_eq!("param.1", desc.xparams[0]);
+        assert_eq!(0, desc.yparams.len());
+        assert!(desc.xaxis.is_some());
+        let xaxis = desc.xaxis.clone().unwrap();
+        assert_eq!(0.0, xaxis.low);
+        assert_eq!(1024.0, xaxis.high);
+        assert_eq!(514, xaxis.bins); // over/underflow chans.
+        assert!(desc.yaxis.is_none());
+        assert!(desc.gate.is_none());
+
+        // CHeck the contents:
+
+        let contents = sapi
+            .get_contents("proj", -1024.0, 1024.0, -1024.0, 1024.0)
+            .expect("get spectrum contents");
+        assert_eq!(1, contents.len());
+
+        assert_eq!(
+            spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: 512.0,
+                y: 0.0,
+                bin: 257,
+                value: sum
+            },
+            contents[0],
+        );
+
+        teardown(ch, jh);
+    }
 }
