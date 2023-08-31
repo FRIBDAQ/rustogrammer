@@ -1,3 +1,7 @@
+// Rust is a bit wonky.  It's not enough to create module source code
+// for it to be visible.. you also have to indicate the a desire for the
+// module if it's not 'used' in main for it to be visible elsewhere hence:
+
 mod conditions;
 mod histogramer;
 mod messaging;
@@ -9,13 +13,14 @@ mod sharedmem;
 mod spectclio;
 mod spectra;
 mod trace;
+mod projections;
 
 use clap::Parser;
 use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, getstats,
-    integrate, mirror_list, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio, traces,
-    unbind, unimplemented, version,
+    integrate, mirror_list, project, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio,
+    traces, unbind, unimplemented, version,
 };
 use sharedmem::{binder, mirror};
 use std::env;
@@ -239,7 +244,7 @@ fn rocket() -> _ {
                 unimplemented::pman_clone
             ],
         )
-        .mount("/spectcl/project", routes![unimplemented::project])
+        .mount("/spectcl/project", routes![project::project])
         .mount(
             "/spectcl/pseudo",
             routes![

@@ -55,8 +55,8 @@ use libm::{fmax, fmin};
 ///
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct Point {
-    x: f64,
-    y: f64,
+    pub x: f64,
+    pub y: f64,
 }
 impl Point {
     pub fn new(x: f64, y: f64) -> Point {
@@ -318,6 +318,36 @@ impl Contour {
     pub fn get_points(&self) -> Points {
         self.pts.clone()
     }
+    ///
+    /// Given a point return true if it is insde the contour figure.
+    /// this can be used when the contour is used for something other
+    /// that gating (e.g. projections of summing).
+    ///
+    pub fn inside(&self, x: f64, y: f64) -> bool {
+        // Outside of the circumscribing rectangle
+
+        if (x < self.ll.x) || (y < self.ll.y) || (x > self.ur.x) || (y > self.ur.y) {
+            false
+        } else {
+            // Inside  rectangle so count edge crossings:
+
+            let mut c = 0;
+            for e in &self.edges {
+                // If x/y are the same as  one of the edge points, wer're in:
+
+                if (x == e.p1.x && y == e.p1.y) || (x == e.p2.x && y == e.p2.y) {
+                    c = 1; // Forces true
+                    break;
+                }
+
+                // Else see if we cross the edge:
+                if Self::crosses(x, y, e) {
+                    c += 1;
+                }
+            }
+            (c % 2) == 1
+        }
+    }
 }
 impl Condition for Contour {
     fn evaluate(&mut self, event: &FlatEvent) -> bool {
@@ -327,29 +357,7 @@ impl Condition for Contour {
             let x = event[self.p1].unwrap();
             let y = event[self.p2].unwrap();
 
-            // Outside of the circumscribing rectangle
-
-            if (x < self.ll.x) || (y < self.ll.y) || (x > self.ur.x) || (y > self.ur.y) {
-                false
-            } else {
-                // Inside  rectangle so count edge crossings:
-
-                let mut c = 0;
-                for e in &self.edges {
-                    // If x/y are the same as  one of the edge points, wer're in:
-
-                    if (x == e.p1.x && y == e.p1.y) || (x == e.p2.x && y == e.p2.y) {
-                        c = 1; // Forces true
-                        break;
-                    }
-
-                    // Else see if we cross the edge:
-                    if Self::crosses(x, y, e) {
-                        c += 1;
-                    }
-                }
-                (c % 2) == 1
-            }
+            self.inside(x, y)
         };
         self.cache = Some(result);
         result
