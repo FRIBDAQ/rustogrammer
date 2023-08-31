@@ -43,20 +43,85 @@ use super::*;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
 
+use crate::messaging::{condition_messages, spectrum_messages};
 use crate::projections;
+use crate::sharedmem::binder;
 //------------------------------------------------------------------
 // project:
 #[allow(unused_variables)]
-#[get("/?<snapshot>&<source>&<newname>&<direction>&<contour>")]
+#[get("/?<snapshot>&<source>&<newname>&<direction>&<contour>&<bind>")]
 pub fn project(
     snapshot: String,
     source: String,
     newname: String,
     direction: String,
     contour: OptionalString,
+    bind: OptionalFlag,
+    hgchannel: &State<SharedHistogramChannel>,
+    bchannel: &State<SharedBinderChannel>,
 ) -> Json<GenericResponse> {
-    Json(GenericResponse::err(
-        "Projections are not implemented",
-        "This is not SpecTcl",
-    ))
+    // Make the spectrum and condition APIs:
+
+    let sapi = spectrum_messages::SpectrumMessageClient::new(&(hgchannel.inner().lock().unwrap()));
+    let capi =
+        condition_messages::ConditionMessageClient::new(&(hgchannel.inner().lock().unwrap()));
+
+    // Figure out direction:
+
+    let projection_direction = match direction.as_str() {
+        "x" | "X" => projections::ProjectionDirection::X,
+        "y" | "Y" => projections::ProjectionDirection::Y,
+        _ => {
+            return Json(GenericResponse::err(
+                "Invalid projection direction",
+                "Must be 'X' or 'Y'",
+            ));
+        }
+    };
+    // Snapshot text to bool:
+
+    let snapshot = match snapshot.as_str() {
+        "Yes" | "yes" | "True" | "true" => true,
+        "No" | "no" | "False" | "false" => false,
+        _ => {
+            return Json(GenericResponse::err(
+                "Invalid value for 'snapshot'",
+                "Must be in {yes, no, true, false} e.g.",
+            ));
+        }
+    };
+
+    // Can we make the spectrum?
+
+    let mut reply = if let Err(s) = projections::project(
+        &sapi,
+        &capi,
+        &source,
+        projection_direction,
+        &newname,
+        snapshot,
+        contour,
+    ) {
+        GenericResponse::err("Failed to crate projection spectrum", &s)
+    } else {
+        GenericResponse::ok("")
+    };
+    // On success, bind if requested:
+
+    if "OK" == reply.status.as_str() {
+        let do_bind = if let Some(b) = bind {
+            b
+        } else {
+            false // SpecTcl does not support this flag and does not bind
+        };
+        if do_bind {
+            let bapi = binder::BindingApi::new(&bchannel.inner().lock().unwrap());
+            reply = match bapi.bind(&newname) {
+                Ok(()) => GenericResponse::ok(""),
+                Err(s) => GenericResponse::err("Could not bind projected spectrum", &s),
+            };
+        }
+    }
+
+    Json(reply)
 }
