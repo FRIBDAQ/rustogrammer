@@ -565,4 +565,269 @@ mod project_rest_tests {
 
         teardown(hch, &papi, &bapi);
     }
+    // If the source spectrum is gated...
+    #[test]
+    fn gated_1() {
+        // x projection of gated source spectrum...
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        // Gate the source spectrum on 'cut'
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        sapi.gate_spectrum("2", "cut").expect("Gating source spectrum.");
+
+        // Should be a successful projection.
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=X");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.0")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(Some(String::from("cut")), props.gate);
+
+        teardown(hch, &papi, &bapi);        
+    }
+    #[test]
+    fn gated_2() {
+        // y projectin of gated spectrum...
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        // Gate the source spectrum on 'cut'
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        sapi.gate_spectrum("2", "cut").expect("Gating source spectrum.");
+
+        // Should be a successful projection.
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=Y");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.1")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(Some(String::from("cut")), props.gate);
+
+        teardown(hch, &papi, &bapi);        
+    }
+    #[test]
+    fn gated_3() {
+        // gated spectrum project in  a countour gets a new gate made:
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        // Gate the source spectrum on 'cut'
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        sapi.gate_spectrum("2", "cut").expect("Gating source spectrum.");
+
+        // Should be a successful projection.
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=X&contour=aoi");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.0")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(Some(String::from("_projection_projection_gate_")), props.gate);
+
+        teardown(hch, &papi, &bapi);        
+    }
+    #[test]
+    fn gated_4() {
+        // y projectin of gated spectrum...
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        // Gate the source spectrum on 'cut'
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        sapi.gate_spectrum("2", "cut").expect("Gating source spectrum.");
+
+        // Should be a successful projection.
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=Y&contour=aoi");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.1")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(Some(String::from("_projection_projection_gate_")), props.gate);
+
+        teardown(hch, &papi, &bapi);        
+    }
+    #[test]
+    fn gated_5() {
+        // Even if gated if it's snapshot it gets the snapshot gate X:
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        // Gate the source spectrum on 'cut'
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        sapi.gate_spectrum("2", "cut").expect("Gating source spectrum.");
+
+        // Should be a successful projection.
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=yes&source=2&newname=projection&direction=X&contour=aoi");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.0")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(Some(String::from("_snapshot_condition_")), props.gate);
+
+        teardown(hch, &papi, &bapi);        
+    }
+    #[test]
+    fn gated_6() {
+        // Even if gated if it's a snapshot it gets the shapshot gate Y:
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        // Gate the source spectrum on 'cut'
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        sapi.gate_spectrum("2", "cut").expect("Gating source spectrum.");
+
+        // Should be a successful projection.
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=yes&source=2&newname=projection&direction=Y&contour=aoi");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.1")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(Some(String::from("_snapshot_condition_")), props.gate);
+
+        teardown(hch, &papi, &bapi);  
+    }
 }
