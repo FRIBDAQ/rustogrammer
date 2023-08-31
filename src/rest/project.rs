@@ -40,7 +40,7 @@
 //!
 
 use super::*;
-use rocket::serde::{json::Json, Deserialize, Serialize};
+use rocket::serde::json::Json;
 use rocket::State;
 
 use crate::messaging::{condition_messages, spectrum_messages};
@@ -124,4 +124,109 @@ pub fn project(
     }
 
     Json(reply)
+}
+// Tests of the REST interface.
+#[cfg(test)]
+mod project_rest_tests {
+    use super::*;
+    use crate::messaging;
+    use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
+    use crate::test::rest_common;
+
+    use rocket;
+    use rocket::local::blocking::Client;
+    use rocket::Build;
+    use rocket::Rocket;
+
+    // Setup Rocket and create parameters, conditions and spectra that
+    // will be used by the tests:
+
+    fn setup() -> Rocket<Build> {
+        let r = rest_common::setup().mount("/", routes![super::project]);
+
+        create_test_objects(&r);
+
+        r
+    }
+    fn teardown(
+        c: mpsc::Sender<messaging::Request>,
+        p: &processing::ProcessingApi,
+        b: &binder::BindingApi,
+    ) {
+        rest_common::teardown(c, p, b);
+    }
+    fn get_state(
+        r: &Rocket<Build>,
+    ) -> (
+        mpsc::Sender<messaging::Request>,
+        processing::ProcessingApi,
+        binder::BindingApi,
+    ) {
+        rest_common::get_state(r)
+    }
+    fn create_test_objects(r: &Rocket<Build>) {
+        // Make some parameters, a contour, a gate and a pair
+        // of spectra.
+
+        let (hch, _, _) = get_state(r);
+
+        let papi = parameter_messages::ParameterMessageClient::new(&hch);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        let capi = condition_messages::ConditionMessageClient::new(&hch);
+
+        // Make some parameters:
+
+        for i in 0..10 {
+            papi.create_parameter(&(format!("param.{}", i)))
+                .expect("Making parameters");
+        }
+        // A oned spectrum named '1' and a twod one createvely enough named '2'
+        // THe oned spectrum is to test error handling.
+
+        sapi.create_spectrum_1d("1", "param.0", 0.0, 1024.0, 1024)
+            .expect("making 1d spectrum");
+        sapi.create_spectrum_2d(
+            "2", "param.0", "param.1", 0.0, 1024.0, 256, 0.0, 1024.0, 256,
+        )
+        .expect("Creating 2d spectrum");
+
+        // A projection contour
+        //                                   ids
+        match capi.create_contour_condition(
+            "aoi",
+            0,
+            1,
+            &vec![
+                (100.0, 100.0),
+                (200.0, 100.0),
+                (200.0, 200.0),
+                (100.0, 200.0),
+            ],
+        ) {
+            condition_messages::ConditionReply::Created => {}
+            condition_messages::ConditionReply::Replaced => {}
+            condition_messages::ConditionReply::Error(s) => {
+                panic!("Failed to create contour {}", s)
+            }
+            _ => panic!("Failed to create contour"),
+        };
+        // A simple gate that can be applied to the spectrum if desired.
+
+        match capi.create_cut_condition("cut", 2, 100.0, 200.0) {
+            condition_messages::ConditionReply::Created => {}
+            condition_messages::ConditionReply::Replaced => {}
+            condition_messages::ConditionReply::Error(s) => {
+                panic!("Failed to create cut {}", s)
+            }
+            _ => panic!("Failed to create cut"),
+        };
+    }
+
+    #[test]
+    fn junk() {
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        teardown(hch, &papi, &bapi);
+    }
 }
