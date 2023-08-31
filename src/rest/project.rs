@@ -223,10 +223,98 @@ mod project_rest_tests {
     }
 
     #[test]
-    fn junk() {
+    fn fail_1() {
+        // NO such source spectrum:
+
         let r = setup();
         let (hch, papi, bapi) = get_state(&r);
 
+        let c = Client::untracked(r).expect("Creating clients");
+        let r = c.get("/?snapshot=no&source=junk&newname=stuff&direction=X");
+        let response = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("JSON Parse error");
+
+        assert!("OK" != response.status.as_str());
+
         teardown(hch, &papi, &bapi);
+    }
+    #[test]
+    fn fail_2() {
+        // Destination spectrum exists
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        let c = Client::untracked(r).expect("Creating clients");
+        let r = c.get("/?snapshot=no&source=2&newname=1&direction=X");
+        let response = r.dispatch().into_json::<GenericResponse>().expect("JSON Parse Error");
+
+        assert!("OK" != response.status.as_str());
+
+        teardown(hch, &papi, &bapi);
+    }
+    #[test]
+    fn fail_3() {
+        // projection contour does not exist.
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=X&contour=junk");
+        let response = r.dispatch().into_json::<GenericResponse>().expect("JSON Parse error");
+
+        assert!("OK" != response.status.as_str());
+
+        teardown(hch, &papi, &bapi);
+        
+    }
+    #[test]
+    fn fail_4() {
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=X&contour=cut");
+        let response = r.dispatch().into_json::<GenericResponse>().expect("JSON Parse error");
+
+        assert!("OK" != response.status.as_str());
+
+        teardown(hch, &papi, &bapi);
+        
+    }
+    #[test]
+    fn fail_5() {
+        // invalid direction string
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=Xyzzy");
+        let response = r.dispatch().into_json::<GenericResponse>().expect("JSON Parse error");
+
+        assert!("OK" != response.status.as_str());
+
+        teardown(hch, &papi, &bapi);
+        
+    }
+    #[test]
+    fn fail_6() {
+        // Invalid snapshot string
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=nooooooo&source=2&newname=projection&direction=X");
+        let response = r.dispatch().into_json::<GenericResponse>().expect("JSON Parse error");
+
+        assert!("OK" != response.status.as_str());
+
+        teardown(hch, &papi, &bapi);
+        
     }
 }
