@@ -484,4 +484,85 @@ mod project_rest_tests {
 
         teardown(hch, &papi, &bapi);
     }
+    // Projetions within a contour gate the resulting spectrum on
+    // the contour - if there are no other things that infulence.
+
+    #[test]
+    fn contour_1() {
+        // Project with contour in X
+
+        // Snapshot plain spectrum X.
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        // Should be a successful projection.
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=X&contour=aoi");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.0")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(Some(String::from("aoi")), props.gate);
+
+        teardown(hch, &papi, &bapi);
+    }
+    #[test]
+    fn contour_2() {
+        // project with contour in y
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=Y&contour=aoi");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.1")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(Some(String::from("aoi")), props.gate);
+
+        teardown(hch, &papi, &bapi);
+    }
 }
