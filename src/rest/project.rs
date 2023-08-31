@@ -249,7 +249,10 @@ mod project_rest_tests {
 
         let c = Client::untracked(r).expect("Creating clients");
         let r = c.get("/?snapshot=no&source=2&newname=1&direction=X");
-        let response = r.dispatch().into_json::<GenericResponse>().expect("JSON Parse Error");
+        let response = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("JSON Parse Error");
 
         assert!("OK" != response.status.as_str());
 
@@ -264,12 +267,14 @@ mod project_rest_tests {
 
         let c = Client::untracked(r).expect("Creating test client");
         let r = c.get("/?snapshot=no&source=2&newname=projection&direction=X&contour=junk");
-        let response = r.dispatch().into_json::<GenericResponse>().expect("JSON Parse error");
+        let response = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("JSON Parse error");
 
         assert!("OK" != response.status.as_str());
 
         teardown(hch, &papi, &bapi);
-        
     }
     #[test]
     fn fail_4() {
@@ -278,12 +283,14 @@ mod project_rest_tests {
 
         let c = Client::untracked(r).expect("Creating test client");
         let r = c.get("/?snapshot=no&source=2&newname=projection&direction=X&contour=cut");
-        let response = r.dispatch().into_json::<GenericResponse>().expect("JSON Parse error");
+        let response = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("JSON Parse error");
 
         assert!("OK" != response.status.as_str());
 
         teardown(hch, &papi, &bapi);
-        
     }
     #[test]
     fn fail_5() {
@@ -294,12 +301,14 @@ mod project_rest_tests {
 
         let c = Client::untracked(r).expect("Creating test client");
         let r = c.get("/?snapshot=no&source=2&newname=projection&direction=Xyzzy");
-        let response = r.dispatch().into_json::<GenericResponse>().expect("JSON Parse error");
+        let response = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("JSON Parse error");
 
         assert!("OK" != response.status.as_str());
 
         teardown(hch, &papi, &bapi);
-        
     }
     #[test]
     fn fail_6() {
@@ -310,11 +319,169 @@ mod project_rest_tests {
 
         let c = Client::untracked(r).expect("Creating test client");
         let r = c.get("/?snapshot=nooooooo&source=2&newname=projection&direction=X");
-        let response = r.dispatch().into_json::<GenericResponse>().expect("JSON Parse error");
+        let response = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("JSON Parse error");
 
         assert!("OK" != response.status.as_str());
 
         teardown(hch, &papi, &bapi);
-        
+    }
+    // A note on the success tests -there's already a thorough set of tests for the
+    // underlying projection function.  The thing we need to be sure of is
+    // that the correct parameters were sent to it -- so we don't actually
+    // need to see the data - we just need to see what the resulting spectrum looks like.
+
+    #[test]
+    fn plain_1() {
+        // not fancy projection in x
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        // Should be a successful projection.
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=X");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.0")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(None, props.gate);
+
+        teardown(hch, &papi, &bapi);
+    }
+    #[test]
+    fn plain_2() {
+        // Not fancy projection in y
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=no&source=2&newname=projection&direction=Y");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.1")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(None, props.gate);
+
+        teardown(hch, &papi, &bapi);
+    }
+    #[test]
+    fn plain_snap_1() {
+        // Snapshot plain spectrum X.
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        // Should be a successful projection.
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=yes&source=2&newname=projection&direction=X");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.0")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(Some(String::from("_snapshot_condition_")), props.gate);
+
+        teardown(hch, &papi, &bapi);
+    }
+    #[test]
+    fn plain_snap_2() {
+        // snapshot plain spectrum Y.
+
+        let r = setup();
+        let (hch, papi, bapi) = get_state(&r);
+
+        let c = Client::untracked(r).expect("Creating test client");
+        let r = c.get("/?snapshot=yes&source=2&newname=projection&direction=Y");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+
+        // Ensure the properties of the projection are correct:
+
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&hch);
+        let listing = sapi.list_spectra("projection").expect("Getting spectrum list");
+        assert_eq!(1, listing.len(), "No unique match for generated spectrum");
+        let props = listing[0].clone();
+        assert_eq!("1D", props.type_name);
+        assert_eq!(vec![String::from("param.1")], props.xparams);
+        assert_eq!(0, props.yparams.len());
+        assert_eq!(
+            Some(spectrum_messages::AxisSpecification {
+                low: 0.0,
+                high: 1024.0,
+                bins: 258
+            }),
+            props.xaxis
+        );
+        assert_eq!(None, props.yaxis);
+        assert_eq!(Some(String::from("_snapshot_condition_")), props.gate);
+
+        teardown(hch, &papi, &bapi);
     }
 }
