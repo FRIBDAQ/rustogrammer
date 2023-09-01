@@ -903,7 +903,6 @@ mod sbind_client_tests {
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::sharedmem;
     use crate::test::{binder_common, histogramer_common};
-    use crate::trace;
     use std::mem;
     use std::sync::mpsc;
     use std::thread;

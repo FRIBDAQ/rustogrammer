@@ -1788,11 +1788,9 @@ mod make_spectrum_tests {
 mod project_tests {
 
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
     use crate::test::histogramer_common;
-    use crate::trace;
 
     use std::sync::mpsc;
     use std::thread;
