@@ -141,13 +141,13 @@ impl ConditionMessageClient {
         name: &str,
         x_id: u32,
         y_id: u32,
-        points: &Vec<(f64, f64)>,
+        points: &[(f64, f64)],
     ) -> ConditionRequest {
         ConditionRequest::CreateContour {
             name: String::from(name),
             x_id,
             y_id,
-            points: points.clone(),
+            points: points.to_owned(),
         }
     }
     fn make_delete(name: &str) -> ConditionRequest {
@@ -243,7 +243,7 @@ impl ConditionMessageClient {
     /// Other returns are errors.  Note that a very simple error is that the
     /// one or more of the dependent conditions does not exist.
     ///
-    pub fn create_and_condition(&self, name: &str, dependents: &Vec<String>) -> ConditionReply {
+    pub fn create_and_condition(&self, name: &str, dependents: &[String]) -> ConditionReply {
         self.transaction(Self::make_and_creation(name, dependents))
     }
     /// Create a condition that is true if any of its dependenbt conditions is
@@ -261,7 +261,7 @@ impl ConditionMessageClient {
     /// Other returns are errors.  Note that a very simple error is that the
     /// one or more of the dependent conditions does not exist.
     ///
-    pub fn create_or_condition(&self, name: &str, dependents: &Vec<String>) -> ConditionReply {
+    pub fn create_or_condition(&self, name: &str, dependents: &[String]) -> ConditionReply {
         self.transaction(Self::make_or_creation(name, dependents))
     }
     /// Create a condition that is a cut on a parameter.
@@ -315,7 +315,7 @@ impl ConditionMessageClient {
         name: &str,
         x_id: u32,
         y_id: u32,
-        points: &Vec<(f64, f64)>,
+        points: &[(f64, f64)],
     ) -> ConditionReply {
         self.transaction(Self::make_band_creation(name, x_id, y_id, points))
     }

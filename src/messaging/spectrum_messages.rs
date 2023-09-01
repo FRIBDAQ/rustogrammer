@@ -655,7 +655,7 @@ impl SpectrumProcessor {
     }
     fn process_events(
         &mut self,
-        events: &Vec<parameters::Event>,
+        events: &[parameters::Event],
         cdict: &mut conditions::ConditionDictionary,
     ) -> SpectrumReply {
         for e in events.iter() {
@@ -905,9 +905,7 @@ impl SpectrumProcessor {
             } => self.make_2dsum(&name, &xparams, &yparams, &xaxis, &yaxis, pdict, tracedb),
             SpectrumRequest::Delete(name) => self.delete_spectrum(&name, tracedb),
             SpectrumRequest::List(pattern) => self.list_spectra(&pattern),
-            SpectrumRequest::Gate { spectrum, gate } => {
-                self.gate_spectrum(&spectrum, &gate, &cdict)
-            }
+            SpectrumRequest::Gate { spectrum, gate } => self.gate_spectrum(&spectrum, &gate, cdict),
             SpectrumRequest::Ungate(name) => self.ungate_spectrum(&name),
             SpectrumRequest::Clear(pattern) => self.clear_spectra(&pattern),
             SpectrumRequest::GetContents {
@@ -983,14 +981,14 @@ impl SpectrumMessageClient {
 
     fn createmulti1d_request(
         name: &str,
-        params: &Vec<String>,
+        params: &[String],
         low: f64,
         high: f64,
         bins: u32,
     ) -> SpectrumRequest {
         SpectrumRequest::CreateMulti1D {
             name: String::from(name),
-            params: params.clone(),
+            params: params.to_owned(),
             axis: AxisSpecification { low, high, bins },
         }
     }
@@ -1048,14 +1046,14 @@ impl SpectrumMessageClient {
     }
     fn createsummary_request(
         name: &str,
-        params: &Vec<String>,
+        params: &[String],
         low: f64,
         high: f64,
         bins: u32,
     ) -> SpectrumRequest {
         SpectrumRequest::CreateSummary {
             name: String::from(name),
-            params: params.clone(),
+            params: params.to_owned(),
             yaxis: AxisSpecification { low, high, bins },
         }
     }
@@ -1238,7 +1236,7 @@ impl SpectrumMessageClient {
     pub fn create_spectrum_multi2d(
         &self,
         name: &str,
-        parameters: &Vec<String>,
+        parameters: &[String],
         xlow: f64,
         xhigh: f64,
         xbins: u32,
@@ -1269,8 +1267,8 @@ impl SpectrumMessageClient {
     pub fn create_spectrum_pgamma(
         &self,
         name: &str,
-        xparams: &Vec<String>,
-        yparams: &Vec<String>,
+        xparams: &[String],
+        yparams: &[String],
         xlow: f64,
         xhigh: f64,
         xbins: u32,

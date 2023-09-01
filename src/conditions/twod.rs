@@ -297,8 +297,8 @@ impl Contour {
             e.push(ed);
 
             Some(Contour {
-                p1: p1,
-                p2: p2,
+                p1,
+                p2,
                 pts,
                 ll,
                 ur,
