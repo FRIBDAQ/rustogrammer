@@ -741,10 +741,10 @@ impl BindingApi {
 #[cfg(test)]
 mod sbind_server_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging::Request;
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::sharedmem;
+    use crate::test::histogramer_common;
     use crate::trace;
     use std::mem;
     use std::sync::mpsc;
@@ -754,17 +754,15 @@ mod sbind_server_tests {
     // we can directly call process process_request/
     // We do need a histogram thread.
     fn setup() -> (thread::JoinHandle<()>, mpsc::Sender<Request>, BindingThread) {
-        let tracedb = trace::SharedTraceStore::new();
-        let (jh, hreq) = histogramer::start_server(tracedb.clone());
+        let (hreq, jh) = histogramer_common::setup();
 
         let (_, rcv) = mpsc::channel();
-        let binder = BindingThread::new(rcv, &hreq, 1024 * 1024, &tracedb);
+        let binder = BindingThread::new(rcv, &hreq, 1024 * 1024, &trace::SharedTraceStore::new());
 
         (jh, hreq.clone(), binder)
     }
     fn teardown(hreq: mpsc::Sender<Request>, jh: thread::JoinHandle<()>) {
-        histogramer::stop_server(&hreq);
-        jh.join().unwrap();
+        histogramer_common::teardown(hreq, jh);
     }
 
     #[test]
@@ -901,10 +899,10 @@ mod sbind_server_tests {
 #[cfg(test)]
 mod sbind_client_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging::Request;
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::sharedmem;
+    use crate::test::{binder_common, histogramer_common};
     use crate::trace;
     use std::mem;
     use std::sync::mpsc;
@@ -920,9 +918,8 @@ mod sbind_client_tests {
         thread::JoinHandle<()>,
         BindingApi,
     ) {
-        let tracedb = trace::SharedTraceStore::new();
-        let (jh, hreq) = histogramer::start_server(tracedb.clone());
-        let (breq, bjh) = start_server(&hreq, 1024 * 1024, &tracedb);
+        let (hreq, jh) = histogramer_common::setup();
+        let (breq, bjh, _) = binder_common::setup(&hreq);
         let bapi = BindingApi::new(&breq);
 
         (jh, hreq, bjh, bapi)
@@ -933,11 +930,8 @@ mod sbind_client_tests {
         bapi: BindingApi,
         bjh: thread::JoinHandle<()>,
     ) {
-        bapi.exit().expect("Requesting server stop");
-        bjh.join().unwrap();
-
-        histogramer::stop_server(&hreq);
-        jh.join().unwrap();
+        binder_common::teardown(bapi.req_chan, bjh);
+        histogramer_common::teardown(hreq, jh);
     }
 
     #[test]
@@ -1131,9 +1125,9 @@ mod sbind_client_tests {
 #[cfg(test)]
 mod sbind_trace_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::test::{binder_common, histogramer_common};
     use crate::trace;
     use std::collections::HashSet;
     use std::sync::mpsc;
@@ -1150,16 +1144,15 @@ mod sbind_trace_tests {
     //  The shared trace store.
     //
 
-    fn start_servers() -> (
+    fn setup() -> (
         mpsc::Sender<messaging::Request>,
         mpsc::Sender<Request>, // Binder.
         trace::SharedTraceStore,
         thread::JoinHandle<()>, // Histogrammer thread
         thread::JoinHandle<()>, // Binder thread
     ) {
-        let tracedb = trace::SharedTraceStore::new();
-        let (histogram_join, histogram_request) = histogramer::start_server(tracedb.clone());
-        let (binder_req, binder_join) = start_server(&histogram_request, 1024 * 1024, &tracedb);
+        let (histogram_request, histogram_join) = histogramer_common::setup();
+        let (binder_req, binder_join, tracedb) = binder_common::setup(&histogram_request);
 
         (
             histogram_request,
@@ -1169,27 +1162,23 @@ mod sbind_trace_tests {
             binder_join,
         )
     }
-    // Stop_servers
+    // teardown
 
-    fn stop_servers(
+    fn teardown(
         hreq: mpsc::Sender<messaging::Request>,
         hjoin: thread::JoinHandle<()>,
         bindreq: mpsc::Sender<Request>,
         bjoin: thread::JoinHandle<()>,
     ) {
-        histogramer::stop_server(&hreq);
-        hjoin.join().expect("Joining histogram server");
-
-        let bind_api = BindingApi::new(&bindreq);
-        bind_api.exit().expect("Stopping binding server");
-        bjoin.join().expect("Joniing with binding server");
+        histogramer_common::teardown(hreq, hjoin);
+        binder_common::teardown(bindreq, bjoin);
     }
 
     #[test]
     fn bind_1() {
         // Make a spectrum, bind it - should get a single SpectrumBound event.
 
-        let (hreq, binder_req, tracedb, hjoin, bjoin) = start_servers();
+        let (hreq, binder_req, tracedb, hjoin, bjoin) = setup();
 
         // Make a parameter and a 1d spectrum:
 
@@ -1221,14 +1210,14 @@ mod sbind_trace_tests {
         } else {
             false
         });
-        stop_servers(hreq, hjoin, binder_req, bjoin);
+        teardown(hreq, hjoin, binder_req, bjoin);
     }
     #[test]
     fn unbind_1() {
         // Make several spectra and bind them all.  Then unbind one of them.
         // we should get a SpectrumUnbound event for that.
 
-        let (hreq, binder_req, tracedb, hjoin, bjoin) = start_servers();
+        let (hreq, binder_req, tracedb, hjoin, bjoin) = setup();
 
         // Make a parameter and a 1d spectrum:
 
@@ -1261,14 +1250,14 @@ mod sbind_trace_tests {
             false
         });
 
-        stop_servers(hreq, hjoin, binder_req, bjoin);
+        teardown(hreq, hjoin, binder_req, bjoin);
     }
     #[test]
     fn unbind_2() {
         // Using unbind_all allows all bound spectra to be unbound
         // we'll make a set of spectra, bind them all and then
         // ensure we have unbind traces for all of them.
-        let (hreq, binder_req, tracedb, hjoin, bjoin) = start_servers();
+        let (hreq, binder_req, tracedb, hjoin, bjoin) = setup();
         // Make several spectra and bind them all.  Then unbind one of them.
         // we should get a SpectrumUnbound event for that.
 
@@ -1311,6 +1300,6 @@ mod sbind_trace_tests {
             assert!(traced_names.contains(&name), "Missing {}", n);
         }
 
-        stop_servers(hreq, hjoin, binder_req, bjoin);
+        teardown(hreq, hjoin, binder_req, bjoin);
     }
 }
