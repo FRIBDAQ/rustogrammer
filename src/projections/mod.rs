@@ -882,20 +882,17 @@ mod recons_contour_tests {
 #[cfg(test)]
 mod make_spectrum_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages};
-    use crate::trace;
+    use crate::test::histogramer_common;
     use std::sync::mpsc;
     use std::thread;
 
     fn setup() -> (mpsc::Sender<messaging::Request>, thread::JoinHandle<()>) {
-        let (jh, send) = histogramer::start_server(trace::SharedTraceStore::new());
-        (send, jh)
+        histogramer_common::setup()
     }
     fn teardown(ch: mpsc::Sender<messaging::Request>, jh: thread::JoinHandle<()>) {
-        histogramer::stop_server(&ch);
-        jh.join().unwrap();
+        histogramer_common::teardown(ch, jh);
     }
 
     #[test]

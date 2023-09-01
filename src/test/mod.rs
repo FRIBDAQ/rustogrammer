@@ -90,3 +90,22 @@ pub mod rest_common {
         (chan, papi, binder_api)
     }
 }
+// Common test code for tests that need a histogramer active:
+#[cfg(test)]
+pub mod histogramer_common {
+    use crate::histogramer;
+    use crate::messaging;
+    use crate::trace;
+
+    use std::sync::mpsc;
+    use std::thread;
+
+    pub fn setup() -> (mpsc::Sender<messaging::Request>, thread::JoinHandle<()>) {
+        let (jh, send) = histogramer::start_server(trace::SharedTraceStore::new());
+        (send, jh)
+    }
+    pub fn teardown(ch: mpsc::Sender<messaging::Request>, jh: thread::JoinHandle<()>) {
+        histogramer::stop_server(&ch);
+        jh.join().unwrap();
+    }
+}
