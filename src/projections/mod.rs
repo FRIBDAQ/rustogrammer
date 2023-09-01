@@ -1791,14 +1791,16 @@ mod project_tests {
     use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
+    use crate::test::histogramer_common;
     use crate::trace;
+
     use std::sync::mpsc;
     use std::thread;
     // We need to run the histogram server.
     // and have some parameters and a contour and a source spectrum or two.
 
     fn setup() -> (mpsc::Sender<messaging::Request>, thread::JoinHandle<()>) {
-        let (jh, ch) = histogramer::start_server(trace::SharedTraceStore::new());
+        let (ch, jh) = histogramer_common::setup();
         let papi = parameter_messages::ParameterMessageClient::new(&ch);
         let capi = condition_messages::ConditionMessageClient::new(&ch);
         let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
@@ -1837,8 +1839,7 @@ mod project_tests {
         (ch, jh)
     }
     fn teardown(ch: mpsc::Sender<messaging::Request>, jh: thread::JoinHandle<()>) {
-        histogramer::stop_server(&ch);
-        jh.join().expect("Joining with histogram server.")
+        histogramer_common::teardown(ch, jh);
     }
 
     fn get_spectrum_info(

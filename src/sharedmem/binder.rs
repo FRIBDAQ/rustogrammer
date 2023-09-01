@@ -1144,7 +1144,7 @@ mod sbind_trace_tests {
     //  The shared trace store.
     //
 
-    fn start_servers() -> (
+    fn setup() -> (
         mpsc::Sender<messaging::Request>,
         mpsc::Sender<Request>, // Binder.
         trace::SharedTraceStore,
@@ -1162,9 +1162,9 @@ mod sbind_trace_tests {
             binder_join,
         )
     }
-    // Stop_servers
+    // teardown
 
-    fn stop_servers(
+    fn teardown(
         hreq: mpsc::Sender<messaging::Request>,
         hjoin: thread::JoinHandle<()>,
         bindreq: mpsc::Sender<Request>,
@@ -1178,7 +1178,7 @@ mod sbind_trace_tests {
     fn bind_1() {
         // Make a spectrum, bind it - should get a single SpectrumBound event.
 
-        let (hreq, binder_req, tracedb, hjoin, bjoin) = start_servers();
+        let (hreq, binder_req, tracedb, hjoin, bjoin) = setup();
 
         // Make a parameter and a 1d spectrum:
 
@@ -1210,14 +1210,14 @@ mod sbind_trace_tests {
         } else {
             false
         });
-        stop_servers(hreq, hjoin, binder_req, bjoin);
+        teardown(hreq, hjoin, binder_req, bjoin);
     }
     #[test]
     fn unbind_1() {
         // Make several spectra and bind them all.  Then unbind one of them.
         // we should get a SpectrumUnbound event for that.
 
-        let (hreq, binder_req, tracedb, hjoin, bjoin) = start_servers();
+        let (hreq, binder_req, tracedb, hjoin, bjoin) = setup();
 
         // Make a parameter and a 1d spectrum:
 
@@ -1250,14 +1250,14 @@ mod sbind_trace_tests {
             false
         });
 
-        stop_servers(hreq, hjoin, binder_req, bjoin);
+        teardown(hreq, hjoin, binder_req, bjoin);
     }
     #[test]
     fn unbind_2() {
         // Using unbind_all allows all bound spectra to be unbound
         // we'll make a set of spectra, bind them all and then
         // ensure we have unbind traces for all of them.
-        let (hreq, binder_req, tracedb, hjoin, bjoin) = start_servers();
+        let (hreq, binder_req, tracedb, hjoin, bjoin) = setup();
         // Make several spectra and bind them all.  Then unbind one of them.
         // we should get a SpectrumUnbound event for that.
 
@@ -1300,6 +1300,6 @@ mod sbind_trace_tests {
             assert!(traced_names.contains(&name), "Missing {}", n);
         }
 
-        stop_servers(hreq, hjoin, binder_req, bjoin);
+        teardown(hreq, hjoin, binder_req, bjoin);
     }
 }
