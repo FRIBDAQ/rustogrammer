@@ -89,9 +89,9 @@ impl ClientTraces {
 /// * A hash of ClientTraces.
 ///
 pub struct TraceStore {
-    next_client: usize,
+    next_client: u64,
     stop_prune_thread: bool,
-    client_traces: HashMap<usize, ClientTraces>,
+    client_traces: HashMap<u64, ClientTraces>,
 }
 
 /// A shared TraceStore just holds a TraceStore in an Arc/Mutex
@@ -129,7 +129,7 @@ impl SharedTraceStore {
     }
     /// Allocate a new token for a new trace client
     /// And add a trace store for it.
-    pub fn new_client(&self, lifetime: time::Duration) -> usize {
+    pub fn new_client(&self, lifetime: time::Duration) -> u64 {
         let mut store = self.store.lock().unwrap();
         let result = store.next_client;
         store.next_client += 1;
@@ -169,7 +169,7 @@ impl SharedTraceStore {
     /// Given a client token,
     /// Return its traces and clear them:
 
-    pub fn get_traces(&self, token: usize) -> Result<Vec<StampedTraceEvent>, String> {
+    pub fn get_traces(&self, token: u64) -> Result<Vec<StampedTraceEvent>, String> {
         let mut store = self.store.lock().unwrap();
 
         if store.client_traces.contains_key(&token) {
@@ -184,7 +184,7 @@ impl SharedTraceStore {
     /// Remove the data associated with a client token.
     /// This includes any stored traces for that client.
     ///
-    pub fn delete_client(&self, token: usize) -> Result<(), String> {
+    pub fn delete_client(&self, token: u64) -> Result<(), String> {
         if let None = self
             .store
             .lock()
