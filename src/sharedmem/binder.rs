@@ -741,10 +741,10 @@ impl BindingApi {
 #[cfg(test)]
 mod sbind_server_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging::Request;
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::sharedmem;
+    use crate::test::histogramer_common;
     use crate::trace;
     use std::mem;
     use std::sync::mpsc;
@@ -754,17 +754,15 @@ mod sbind_server_tests {
     // we can directly call process process_request/
     // We do need a histogram thread.
     fn setup() -> (thread::JoinHandle<()>, mpsc::Sender<Request>, BindingThread) {
-        let tracedb = trace::SharedTraceStore::new();
-        let (jh, hreq) = histogramer::start_server(tracedb.clone());
+        let (hreq, jh) = histogramer_common::setup();
 
         let (_, rcv) = mpsc::channel();
-        let binder = BindingThread::new(rcv, &hreq, 1024 * 1024, &tracedb);
+        let binder = BindingThread::new(rcv, &hreq, 1024 * 1024, &trace::SharedTraceStore::new());
 
         (jh, hreq.clone(), binder)
     }
     fn teardown(hreq: mpsc::Sender<Request>, jh: thread::JoinHandle<()>) {
-        histogramer::stop_server(&hreq);
-        jh.join().unwrap();
+        histogramer_common::teardown(hreq, jh);
     }
 
     #[test]
@@ -901,10 +899,10 @@ mod sbind_server_tests {
 #[cfg(test)]
 mod sbind_client_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging::Request;
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::sharedmem;
+    use crate::test::histogramer_common;
     use crate::trace;
     use std::mem;
     use std::sync::mpsc;
@@ -920,9 +918,8 @@ mod sbind_client_tests {
         thread::JoinHandle<()>,
         BindingApi,
     ) {
-        let tracedb = trace::SharedTraceStore::new();
-        let (jh, hreq) = histogramer::start_server(tracedb.clone());
-        let (breq, bjh) = start_server(&hreq, 1024 * 1024, &tracedb);
+        let (hreq, jh) = histogramer_common::setup();
+        let (breq, bjh) = start_server(&hreq, 1024 * 1024, &trace::SharedTraceStore::new());
         let bapi = BindingApi::new(&breq);
 
         (jh, hreq, bjh, bapi)
@@ -936,8 +933,7 @@ mod sbind_client_tests {
         bapi.exit().expect("Requesting server stop");
         bjh.join().unwrap();
 
-        histogramer::stop_server(&hreq);
-        jh.join().unwrap();
+        histogramer_common::teardown(hreq, jh);
     }
 
     #[test]
@@ -1131,9 +1127,9 @@ mod sbind_client_tests {
 #[cfg(test)]
 mod sbind_trace_tests {
     use super::*;
-    use crate::histogramer;
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages};
+    use crate::test::histogramer_common;
     use crate::trace;
     use std::collections::HashSet;
     use std::sync::mpsc;
@@ -1157,8 +1153,9 @@ mod sbind_trace_tests {
         thread::JoinHandle<()>, // Histogrammer thread
         thread::JoinHandle<()>, // Binder thread
     ) {
+        let (histogram_request, histogram_join) = histogramer_common::setup();
+
         let tracedb = trace::SharedTraceStore::new();
-        let (histogram_join, histogram_request) = histogramer::start_server(tracedb.clone());
         let (binder_req, binder_join) = start_server(&histogram_request, 1024 * 1024, &tracedb);
 
         (
@@ -1177,8 +1174,7 @@ mod sbind_trace_tests {
         bindreq: mpsc::Sender<Request>,
         bjoin: thread::JoinHandle<()>,
     ) {
-        histogramer::stop_server(&hreq);
-        hjoin.join().expect("Joining histogram server");
+        histogramer_common::teardown(hreq, hjoin);
 
         let bind_api = BindingApi::new(&bindreq);
         bind_api.exit().expect("Stopping binding server");
