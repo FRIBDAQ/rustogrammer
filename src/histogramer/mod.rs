@@ -230,12 +230,16 @@ mod request_tests {
 mod hgrammer_tests {
     use super::*;
     use crate::messaging;
-    use crate::trace;
+    use crate::test::histogramer_common;
     use std::sync::mpsc;
     use std::thread;
 
-    fn start_server() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
-        super::start_server(trace::SharedTraceStore::new())
+    fn setup() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
+        let (req, jh) = histogramer_common::setup();
+        (jh, req)
+    }
+    fn teardown(ch: mpsc::Sender<Request>, jh: thread::JoinHandle<()>) {
+        histogramer_common::teardown(ch, jh);
     }
     fn stop_server(req_send: mpsc::Sender<Request>) {
         super::stop_server(&req_send);
@@ -244,7 +248,7 @@ mod hgrammer_tests {
     fn exit_1() {
         // start and stop the thread...all test are in that
         // Tests server response to Request::Exit
-        let (jh, ch) = start_server();
+        let (jh, ch) = setup();
         stop_server(ch);
         jh.join().unwrap();
     }
@@ -252,7 +256,7 @@ mod hgrammer_tests {
     fn params_1() {
         // test parameters:
 
-        let (jh, ch) = start_server();
+        let (jh, ch) = setup();
         let client = messaging::parameter_messages::ParameterMessageClient::new(&ch);
         let lr = client.list_parameters("*").expect("list failed"); // should be empty but work.
         assert_eq!(0, lr.len());
@@ -266,14 +270,13 @@ mod hgrammer_tests {
         assert_eq!(1, lr.len());
         assert_eq!(String::from("test"), lr[0].get_name());
 
-        stop_server(ch);
-        jh.join().unwrap();
+        teardown(ch, jh);
     }
     #[test]
     fn conditions_1() {
         // test interactions via conditions API:
 
-        let (jh, ch) = start_server();
+        let (jh, ch) = setup();
 
         let client = messaging::condition_messages::ConditionMessageClient::new(&ch);
 
@@ -296,14 +299,13 @@ mod hgrammer_tests {
             }
         );
 
-        stop_server(ch);
-        jh.join().unwrap();
+        teardown(ch, jh);
     }
     #[test]
     fn spectra_1() {
         // Test interactions with spectrum API.
 
-        let (jh, ch) = start_server();
+        let (jh, ch) = setup();
         let client = messaging::spectrum_messages::SpectrumMessageClient::new(&ch);
 
         // Simplest thing we cand without needing to add any parameters
@@ -312,15 +314,14 @@ mod hgrammer_tests {
         let l = client.list_spectra("*").expect("Failed to list spectra");
         assert_eq!(0, l.len());
 
-        stop_server(ch);
-        jh.join().unwrap();
+        teardown(ch, jh);
     }
     #[test]
     fn getchan_1() {
         // Get a channel from a spectrum...don't bother to load data
         // just see that the round trip request/response works:
 
-        let (jh, ch) = start_server();
+        let (jh, ch) = setup();
         let client = messaging::spectrum_messages::SpectrumMessageClient::new(&ch);
         let params = messaging::parameter_messages::ParameterMessageClient::new(&ch);
 
@@ -338,14 +339,13 @@ mod hgrammer_tests {
             .expect("Getting channel value");
         assert_eq!(0.0, result);
 
-        stop_server(ch);
-        jh.join().unwrap();
+        teardown(ch, jh);
     }
     #[test]
     fn getchan_2() {
         // Same as above but for a 2d spectrum:
 
-        let (jh, ch) = start_server();
+        let (jh, ch) = setup();
         let client = messaging::spectrum_messages::SpectrumMessageClient::new(&ch);
         let params = messaging::parameter_messages::ParameterMessageClient::new(&ch);
 
@@ -362,7 +362,6 @@ mod hgrammer_tests {
             .expect("Getting channel value");
         assert_eq!(0.0, result);
 
-        stop_server(ch);
-        jh.join().unwrap();
+        teardown(ch, jh);
     }
 }
