@@ -902,7 +902,7 @@ mod sbind_client_tests {
     use crate::messaging::Request;
     use crate::messaging::{parameter_messages, spectrum_messages};
     use crate::sharedmem;
-    use crate::test::histogramer_common;
+    use crate::test::{binder_common, histogramer_common};
     use crate::trace;
     use std::mem;
     use std::sync::mpsc;
@@ -919,7 +919,7 @@ mod sbind_client_tests {
         BindingApi,
     ) {
         let (hreq, jh) = histogramer_common::setup();
-        let (breq, bjh) = start_server(&hreq, 1024 * 1024, &trace::SharedTraceStore::new());
+        let (breq, bjh, _) = binder_common::setup(&hreq);
         let bapi = BindingApi::new(&breq);
 
         (jh, hreq, bjh, bapi)
@@ -930,9 +930,7 @@ mod sbind_client_tests {
         bapi: BindingApi,
         bjh: thread::JoinHandle<()>,
     ) {
-        bapi.exit().expect("Requesting server stop");
-        bjh.join().unwrap();
-
+        binder_common::teardown(bapi.req_chan, bjh);
         histogramer_common::teardown(hreq, jh);
     }
 
@@ -1129,7 +1127,7 @@ mod sbind_trace_tests {
     use super::*;
     use crate::messaging;
     use crate::messaging::{parameter_messages, spectrum_messages};
-    use crate::test::histogramer_common;
+    use crate::test::{binder_common, histogramer_common};
     use crate::trace;
     use std::collections::HashSet;
     use std::sync::mpsc;
@@ -1154,9 +1152,7 @@ mod sbind_trace_tests {
         thread::JoinHandle<()>, // Binder thread
     ) {
         let (histogram_request, histogram_join) = histogramer_common::setup();
-
-        let tracedb = trace::SharedTraceStore::new();
-        let (binder_req, binder_join) = start_server(&histogram_request, 1024 * 1024, &tracedb);
+        let (binder_req, binder_join, tracedb) = binder_common::setup(&histogram_request);
 
         (
             histogram_request,
@@ -1175,10 +1171,7 @@ mod sbind_trace_tests {
         bjoin: thread::JoinHandle<()>,
     ) {
         histogramer_common::teardown(hreq, hjoin);
-
-        let bind_api = BindingApi::new(&bindreq);
-        bind_api.exit().expect("Stopping binding server");
-        bjoin.join().expect("Joniing with binding server");
+        binder_common::teardown(bindreq, bjoin);
     }
 
     #[test]
