@@ -5,3 +5,4 @@ Cargo.lock
 *.h
 __pycache__
 t
+clippy.txt
