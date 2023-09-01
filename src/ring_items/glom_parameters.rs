@@ -75,7 +75,7 @@ impl GlomParameters {
 }
 impl fmt::Display for GlomParameters {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Glom parameters\n").unwrap();
+        writeln!(f, "Glom parameters").unwrap();
         let building = if self.is_building { "On" } else { "Off" };
         write!(
             f,

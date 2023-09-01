@@ -543,7 +543,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
     // returned:
 
     let result = SpectrumProperties {
-        name: name,
+        name,
         type_string: spectrum_type,
         x_parameters: xparams.clone(),
         y_parameters: yparams.clone(),
@@ -621,7 +621,7 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
         }
     }
     Ok(SpectrumFileData {
-        definition: definition,
+        definition,
         channels: contents,
     })
 }

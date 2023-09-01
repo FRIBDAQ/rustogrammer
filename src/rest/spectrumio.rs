@@ -75,26 +75,23 @@ pub struct SpectrumFileData {
 // into Option<(f64, f64, u32)>
 
 fn axis_to_tuple(i: Option<spectrum_messages::AxisSpecification>) -> Option<(f64, f64, u32)> {
-    match i {
-        None => None,
-        Some(s) => Some((s.low, s.high, s.bins)),
-    }
+    i.map(|s| (s.low, s.high, s.bins))
 }
 
 // private function to get spectrum properties:
 
 fn get_spectrum_descriptions(
-    spectra: &Vec<String>,
+    spectra: &[String],
     api: &spectrum_messages::SpectrumMessageClient,
 ) -> Result<Vec<SpectrumProperties>, (String, String)> {
     let mut ok_result = Vec::<SpectrumProperties>::new();
     for name in spectra {
-        let info = api.list_spectra(&name);
+        let info = api.list_spectra(name);
         if let Err(i) = info {
             return Err((name.clone(), i));
         }
         let info = info.unwrap();
-        if info.len() == 0 {
+        if info.is_empty() {
             return Err((name.clone(), String::from("Spectrum does not exist")));
         }
         let info = &info[0];
@@ -212,7 +209,7 @@ fn convert_channel(c: &spectrum_messages::Channel, d: &SpectrumProperties) -> Sp
 // make the x/y bin numbers.
 //
 fn convert_channels(
-    channels: &Vec<spectrum_messages::Channel>,
+    channels: &[spectrum_messages::Channel],
     d: &SpectrumProperties,
 ) -> Vec<SpectrumChannel> {
     let mut result = Vec::<SpectrumChannel>::new();
@@ -341,7 +338,7 @@ pub fn swrite_handler(
                 GenericResponse::ok("")
             }
         }
-        _ => GenericResponse::err("Invalid format type specification:", &format!("{}", format)),
+        _ => GenericResponse::err("Invalid format type specification:", &format),
     };
 
     Json(response)
@@ -387,7 +384,7 @@ fn make_parameter_set(
 // in the existing hash -- updating the hash.
 
 fn make_missing_params(
-    params: &Vec<String>,
+    params: &[String],
     existing: &mut HashSet<String>,
     api: &parameter_messages::ParameterMessageClient,
 ) -> Result<(), String> {
@@ -421,7 +418,7 @@ fn delete_existing(
     // See if name exists:
 
     let listing = api.list_spectra(name)?;
-    if listing.len() > 0 {
+    if !listing.is_empty() {
         api.delete_spectrum(name)?;
     }
     Ok(())
@@ -436,7 +433,7 @@ fn make_unique_name(
     let mut counter = 0;
     loop {
         let list = api.list_spectra(&candidate_name)?;
-        if list.len() == 0 {
+        if list.is_empty() {
             break;
         }
         // Make next candidate name:
@@ -558,13 +555,13 @@ fn enter_spectrum(
     } else {
         make_unique_name(&def.name, api)? // Generate a unique name.
     };
-    make_spectrum(&actual_name, &def, api)
+    make_spectrum(&actual_name, def, api)
 }
 // Given a spectrum we know now exists, fill it:
 
 fn fill_spectrum(
     name: &str,
-    c: &Vec<SpectrumChannel>,
+    c: &[SpectrumChannel],
     api: &spectrum_messages::SpectrumMessageClient,
 ) -> Result<(), String> {
     // Need to map our channels -> contents:
@@ -620,9 +617,7 @@ fn enter_spectra(
 
         let actual_name = enter_spectrum(&s.definition, replace, &spectrum_api)?;
         if as_snapshot {
-            if let Err(e) = spectrum_api.gate_spectrum(&actual_name, "_snapshot_condition_") {
-                return Err(e);
-            }
+            spectrum_api.gate_spectrum(&actual_name, "_snapshot_condition_")?
         }
 
         // Now fill the spectrum from the data we got from the file
@@ -750,7 +745,7 @@ pub fn sread_handler(
         let msg = spectra.as_ref().err().unwrap();
         return Json(GenericResponse::err(
             "Unable to deserialize from file",
-            &format!("{}", msg),
+            &msg,
         ));
     }
     let spectra = spectra.as_ref().unwrap();

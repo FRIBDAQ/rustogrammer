@@ -145,8 +145,8 @@ impl Multi1d {
                 axis::Uniform::new(xbins.unwrap() as usize, xlow.unwrap(), xmax.unwrap());
                 Sum
             ))),
-            param_names: param_names,
-            param_ids: param_ids,
+            param_names,
+            param_ids,
         })
     }
 }

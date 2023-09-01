@@ -46,7 +46,7 @@ pub struct Not {
 impl Not {
     pub fn new(cond: &Container) -> Not {
         Not {
-            dependent: Rc::downgrade(&cond),
+            dependent: Rc::downgrade(cond),
             cache: None,
         }
     }
@@ -54,7 +54,7 @@ impl Not {
 impl Condition for Not {
     fn evaluate(&mut self, event: &FlatEvent) -> bool {
         let result = if let Some(d) = self.dependent.upgrade() {
-            !d.borrow_mut().check(&event)
+            !d.borrow_mut().check(event)
         } else {
             false
         };
@@ -77,9 +77,7 @@ impl Condition for Not {
         Vec::<(f64, f64)>::new()
     }
     fn dependent_gates(&self) -> Vec<ContainerReference> {
-        let mut result = Vec::<ContainerReference>::new();
-        result.push(self.dependent.clone());
-        result
+        vec![self.dependent.clone()]
     }
     fn dependent_parameters(&self) -> Vec<u32> {
         Vec::<u32>::new()
@@ -160,7 +158,7 @@ impl Condition for And {
         } else {
             for d in &self.dependencies.dependent_conditions {
                 if let Some(g) = d.upgrade() {
-                    if !g.borrow_mut().check(&event) {
+                    if !g.borrow_mut().check(event) {
                         result = false;
                         break;
                     }
@@ -234,7 +232,7 @@ impl Condition for Or {
         } else {
             for d in &self.dependencies.dependent_conditions {
                 if let Some(c) = d.upgrade() {
-                    if c.borrow_mut().check(&event) {
+                    if c.borrow_mut().check(event) {
                         break;
                     } else {
                         falses += 1;

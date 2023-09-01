@@ -74,11 +74,11 @@ impl ScalerItem {
         scalers: &mut Vec<u32>,
     ) -> ScalerItem {
         let mut result = ScalerItem {
-            body_header: body_header,
+            body_header,
             start_offset: start,
             end_offset: end,
             absolute_time: time,
-            divisor: divisor,
+            divisor,
             is_incremental: incremental,
             original_sid: orsid,
             scalers: Vec::<u32>::new(),
@@ -90,30 +90,30 @@ impl ScalerItem {
 }
 impl fmt::Display for ScalerItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, " Scaler: \n").unwrap();
+        writeln!(f, " Scaler: ").unwrap();
         if let Some(bh) = self.body_header {
             write!(f, "Body header:\n  {}\n", bh).unwrap();
         }
-        write!(
+        writeln!(
             f,
-            "  Start: {} End {}\n",
+            "  Start: {} End {}",
             self.get_start_secs(),
             self.get_end_secs()
         )
         .unwrap();
-        write!(
+        writeln!(
             f,
-            "  At: {}\n",
+            "  At: {}",
             humantime::format_rfc3339(self.get_absolute_time())
         )
         .unwrap();
         if let Some(osid) = self.original_sid() {
-            write!(f, " Original source id {}\n", osid).unwrap();
+            writeln!(f, " Original source id {}", osid).unwrap();
         }
 
-        write!(f, " {} scalers:\n", self.len()).unwrap();
+        writeln!(f, " {} scalers:", self.len()).unwrap();
         for s in self.iter() {
-            write!(f, "    {} counts\n", *s).unwrap();
+            writeln!(f, "    {} counts", *s).unwrap();
         }
         write!(f, "")
     }
@@ -183,7 +183,7 @@ impl ring_items::FromRaw<ScalerItem> for ring_items::RingItem {
                 orsid = Some(u32::from_ne_bytes(
                     p[offset..offset + 4].try_into().unwrap(),
                 ));
-                offset = offset + 4;
+                offset += 4;
             }
             // Offset now points at the scalers regardless of the format:
 
@@ -192,7 +192,7 @@ impl ring_items::FromRaw<ScalerItem> for ring_items::RingItem {
                 scalers.push(u32::from_ne_bytes(
                     p[offset..offset + 4].try_into().unwrap(),
                 ));
-                offset = offset + 4;
+                offset += 4;
             }
             Some(ScalerItem::new(
                 body_header,

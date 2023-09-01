@@ -73,7 +73,7 @@ impl StateChange {
             offset_divisor: divisor,
             absolute_time: time::SystemTime::now(),
             run_title: String::from(title),
-            original_sid: original_sid,
+            original_sid,
         }
     }
     /// new state change item with body header.
@@ -94,7 +94,7 @@ impl StateChange {
             offset_divisor: divisor,
             absolute_time: time::SystemTime::now(),
             run_title: String::from(title),
-            original_sid: original_sid,
+            original_sid,
         }
     }
     pub fn new(
@@ -156,21 +156,21 @@ impl StateChange {
 
 impl fmt::Display for StateChange {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "State Change: {}\n", self.change_type_string()).unwrap();
+        writeln!(f, "State Change: {}", self.change_type_string()).unwrap();
         if let Some(bh) = self.body_header {
             write!(f, "Body header\n  {}", bh).unwrap();
         }
-        write!(
+        writeln!(
             f,
-            " run: {} offset {} seconds\n",
+            " run: {} offset {} seconds",
             self.run_number(),
             self.time_offset(),
         )
         .unwrap();
         if let Some(osid) = self.original_sid() {
-            write!(f, " original sid: {}\n", osid).unwrap();
+            writeln!(f, " original sid: {}", osid).unwrap();
         }
-        write!(f, "Title: {}\n", self.title()).unwrap();
+        writeln!(f, "Title: {}", self.title()).unwrap();
         write!(
             f,
             " Stamp {}",
@@ -212,7 +212,7 @@ impl ring_items::ToRaw for StateChange {
         // Pad out with nulls and ensure there's a null terminator
         // which  is not put in title_bytes by into_bytes.
         for _i in title_bytes.len()..81 {
-            item.add(0 as u8);
+            item.add(0_u8);
         }
         item
     }
@@ -248,13 +248,13 @@ impl ring_items::FromRaw<StateChange> for ring_items::RingItem {
                 result.original_sid = Some(u32::from_ne_bytes(
                     payload[title_pos..title_pos + 4].try_into().unwrap(),
                 ));
-                title_pos = title_pos + 4;
+                title_pos += 4;
             }
 
-            result.run_title = ring_items::get_c_string(&mut title_pos, &payload);
-            return Some(result);
+            result.run_title = ring_items::get_c_string(&mut title_pos, payload);
+            Some(result)
         } else {
-            return None;
+            None
         }
     }
 }

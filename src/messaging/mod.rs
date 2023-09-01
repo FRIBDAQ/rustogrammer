@@ -94,7 +94,7 @@ impl Request {
     /// Send request message to the histogramer along chan.
     ///
     pub fn send(&self, chan: mpsc::Sender<Request>) -> Result<(), ()> {
-        if let Err(_) = chan.send(self.clone()) {
+        if chan.send(self.clone()).is_err() {
             println!("Failed to send a request to histogram thread -possibly it's exited");
             Err(())
         } else {
@@ -105,8 +105,7 @@ impl Request {
     ///
     #[allow(dead_code)]
     pub fn get_request(chan: mpsc::Receiver<Request>) -> Request {
-        let result = chan.recv().expect("Receive by histogramer failed!");
-        result
+        chan.recv().expect("Receive by histogramer failed!")
     }
     /// Send a reply to the client:
     ///
@@ -128,7 +127,7 @@ impl Request {
     /// overlap some work between the request/reply
     ///
     pub fn transaction(&self, req: mpsc::Sender<Request>, reply: mpsc::Receiver<Reply>) -> Reply {
-        if let Ok(_) = self.send(req) {
+        if self.send(req).is_ok() {
             Self::get_reply(reply)
         } else {
             Reply::Failed

@@ -66,7 +66,7 @@ impl TextItem {
     ) -> TextItem {
         TextItem {
             item_type: type_id,
-            body_header: body_header,
+            body_header,
             time_offset: offset,
             absolute_time: timestamp,
             offset_divisor: divisor,

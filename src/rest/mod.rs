@@ -162,10 +162,10 @@ fn find_parameter_by_id(id: u32, state: &State<SharedHistogramChannel>) -> Optio
 fn find_parameter_by_name(name: &str, state: &State<SharedHistogramChannel>) -> Option<u32> {
     let api = ParameterMessageClient::new(&state.inner().lock().unwrap());
     if let Ok(l) = api.list_parameters(name) {
-        if l.len() > 0 {
-            Some(l[0].get_id())
-        } else {
+        if l.is_empty() {
             None
+        } else {
+            Some(l[0].get_id())
         }
     } else {
         None

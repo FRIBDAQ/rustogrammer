@@ -100,8 +100,8 @@ impl Edge {
     fn new(p1: Point, p2: Point) -> Edge {
         let seg_info = p1.segment_between(&p2);
         Edge {
-            p1: p1,
-            p2: p2,
+            p1,
+            p2,
             m: seg_info.0,
             b: seg_info.1,
         }
@@ -110,18 +110,14 @@ impl Edge {
     // This is important for band conditions.
     fn order_by_x(&mut self) {
         if self.p1.x > self.p2.x {
-            let p = self.p1;
-            self.p1 = self.p2;
-            self.p2 = p;
+            std::mem::swap(&mut self.p1, &mut self.p2);
         }
     }
     // Reorder p1, p2 so that the one with the smalles y is first.
     // this is important for contour conditions:
     fn order_by_y(&mut self) {
         if self.p1.y > self.p2.y {
-            let p = self.p1;
-            self.p1 = self.p2;
-            self.p2 = p;
+            std::mem::swap(&mut self.p1, &mut self.p2);
         }
     }
 }
@@ -215,10 +211,7 @@ impl Condition for Band {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
-        let mut result = Vec::<u32>::new();
-        result.push(self.parameters.0);
-        result.push(self.parameters.1);
-        result
+        vec![self.parameters.0, self.parameters.1]
     }
     fn get_cached_value(&self) -> Option<bool> {
         self.cache
@@ -306,9 +299,9 @@ impl Contour {
             Some(Contour {
                 p1: p1,
                 p2: p2,
-                pts: pts,
-                ll: ll,
-                ur: ur,
+                pts,
+                ll,
+                ur,
                 edges: e,
                 cache: None,
             })
@@ -377,10 +370,7 @@ impl Condition for Contour {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
-        let mut result = Vec::<u32>::new();
-        result.push(self.p1);
-        result.push(self.p2);
-        result
+        vec![self.p1, self.p2]
     }
     fn get_cached_value(&self) -> Option<bool> {
         self.cache

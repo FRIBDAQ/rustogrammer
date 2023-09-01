@@ -30,17 +30,17 @@ pub fn ringversion_set(major: String, state: &State<SharedProcessingApi>) -> Jso
 
     let result = major.parse::<RingVersion>();
     if let Err(r) = result {
-        return Json(GenericResponse::err(
+        Json(GenericResponse::err(
             "Unable to set ring format version",
             &r,
-        ));
+        ))
     } else {
         let v = result.unwrap();
         let result = api.set_ring_version(v);
-        return Json(match result {
+        Json(match result {
             Ok(_) => GenericResponse::ok(""),
             Err(reason) => GenericResponse::err("Unable to set ring format version", &reason),
-        });
+        })
     }
 }
 

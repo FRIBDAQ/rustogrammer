@@ -246,8 +246,8 @@ pub fn edit_parameter(
     } else {
         // Fish out low/high given that either both are there or none:
 
-        let limits = if low.is_some() {
-            Some((low.unwrap(), high.unwrap()))
+        let limits = if let Some(low) = low {
+            Some((low, high.unwrap()))
         } else {
             None
         };
@@ -298,7 +298,7 @@ fn check_uncheck_common_code(name: &str, state: &State<SharedHistogramChannel>) 
     let result = api.list_parameters(name);
     match result {
         Ok(listing) => {
-            if listing.len() == 0 {
+            if listing.is_empty() {
                 response.status = format!("No such parameter {}", name);
                 response.detail = None;
             }
@@ -403,19 +403,17 @@ pub fn list_rawparameter(
             status: String::from("One of name or id must be supplied neither were"),
             detail: Vec::<ParameterDefinition>::new(),
         })
+    } else if pattern.is_some() {
+        list_parameters(pattern, state)
     } else {
-        if let Some(_) = pattern {
-            list_parameters(pattern, state)
+        let name = find_parameter_by_id(id.unwrap(), state);
+        if name.is_some() {
+            list_parameters(name, state)
         } else {
-            let name = find_parameter_by_id(id.unwrap(), state);
-            if name.is_some() {
-                list_parameters(name, state)
-            } else {
-                Json(Parameters {
-                    status: format!("No parameter with id {} exists", id.unwrap()),
-                    detail: Vec::<ParameterDefinition>::new(),
-                })
-            }
+            Json(Parameters {
+                status: format!("No parameter with id {} exists", id.unwrap()),
+                detail: Vec::<ParameterDefinition>::new(),
+            })
         }
     }
 }

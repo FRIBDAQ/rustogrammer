@@ -16,7 +16,6 @@ mod spectra;
 mod trace;
 
 use clap::Parser;
-use portman_client;
 use rest::{
     apply, channel, data_processing, evbunpack, exit, filter, fit, fold, gates, getstats,
     integrate, mirror_list, project, rest_parameter, ringversion, sbind, shm, spectrum, spectrumio,
@@ -103,7 +102,7 @@ fn rocket() -> _ {
 
     let state = rest::MirrorState {
         mirror_exit: Arc::new(Mutex::new(mirror_send)),
-        mirror_port: mirror_port,
+        mirror_port,
     };
 
     // Set the rocket port then fire it off:

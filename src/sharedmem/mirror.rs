@@ -406,7 +406,7 @@ impl MirrorServerInstance {
                         shared_memory_map: map,
                         shared_memory: p,
                         socket: sock.try_clone().unwrap(),
-                        peer: peer,
+                        peer,
                         mirror_directory: dir.clone(),
                         shm_info: None,
                     }
@@ -546,7 +546,7 @@ impl MirrorServer {
             port: listen_port,
             shm_name: String::from(shm_file),
             mirror_directory: mirror_dir,
-            exit_req: exit_req,
+            exit_req,
         }
     }
     /// Called to run the server.  The typical game is to spawn a thread

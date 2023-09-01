@@ -237,7 +237,7 @@ fn parse_simple_list(list: &str) -> Result<Vec<String>, String> {
 
     // Simple strings must not have {} embedded:
 
-    if list.contains("{") || list.contains("}") {
+    if list.contains('{') || list.contains('}') {
         Err(format!("'{}' is not a simple list", list))
     } else {
         let v: Vec<&str> = list.split(' ').collect();
@@ -334,48 +334,40 @@ fn parse_single_axis_def(axes: &Vec<String>) -> Result<(f64, f64, u32), String> 
 }
 // Process an axis definition.
 
-fn parse_axis_def(axes: &str) -> Result<(f64, f64, u32), String> {
+type ParsedAxis = (f64, f64, u32);
+
+fn parse_axis_def(axes: &str) -> Result<ParsedAxis, String> {
     let parsed_axes = parse_simple_list(axes);
-    if parsed_axes.is_err() {
-        return Err(parsed_axes.unwrap_err());
-    }
-    let axes = parsed_axes.unwrap();
-    let axis_tuple = parse_single_axis_def(&axes);
-    if let Err(s) = axis_tuple {
+    if let Err(s) = parsed_axes {
         return Err(s);
     }
-    let axis = axis_tuple.unwrap();
+    let axes = parsed_axes.unwrap();
+    let axis_tuple = parse_single_axis_def(&axes)?;
+
+    let axis = axis_tuple;
     let low = axis.0;
     let high = axis.1;
     let bins = axis.2;
 
     Ok((low, high, bins))
 }
-fn parse_2_axis_defs(axes: &str) -> Result<((f64, f64, u32), (f64, f64, u32)), String> {
+
+fn parse_2_axis_defs(axes: &str) -> Result<(ParsedAxis, ParsedAxis), String> {
     let axis_list = parse_two_element_list(axes);
-    if axis_list.is_err() {
-        return Err(format!(
-            "Failed to break apart axis list: {}",
-            axis_list.unwrap_err()
-        ));
+    if let Err(s) = axis_list {
+        return Err(format!("Failed to break apart axis list: {}", &s));
     }
     let (xaxis_def, yaxis_def) = axis_list.unwrap();
 
     let xaxis = parse_single_axis_def(&xaxis_def);
-    if xaxis.is_err() {
-        return Err(format!(
-            "Failed to parse X axis definition: {}",
-            xaxis.unwrap_err()
-        ));
+    if let Err(s) = xaxis {
+        return Err(format!("Failed to parse X axis definition: {}", &s));
     }
     let (xlow, xhigh, xbins) = xaxis.unwrap();
 
     let yaxis = parse_single_axis_def(&yaxis_def);
-    if yaxis.is_err() {
-        return Err(format!(
-            "Failed to parse Y axis definition {}",
-            yaxis.unwrap_err()
-        ));
+    if let Err(s) = yaxis {
+        return Err(format!("Failed to parse Y axis definition {}", &s));
     }
     let (ylow, yhigh, ybins) = yaxis.unwrap();
 
@@ -393,11 +385,8 @@ fn make_1d(
     state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     let parsed_params = parse_simple_list(parameters);
-    if parsed_params.is_err() {
-        return GenericResponse::err(
-            "Error parsing 1d spectrum parameter",
-            &parsed_params.unwrap_err(),
-        );
+    if let Err(s) = parsed_params {
+        return GenericResponse::err("Error parsing 1d spectrum parameter", &s);
     }
     let params = parsed_params.unwrap();
     if params.len() != 1 {
@@ -410,8 +399,8 @@ fn make_1d(
     // Axis parsed as a simple list must be a 3 element list:
 
     let parsed_axes = parse_axis_def(axes);
-    if parsed_axes.is_err() {
-        return GenericResponse::err("Invalid axis specification", &parsed_axes.unwrap_err());
+    if let Err(s) = parsed_axes {
+        return GenericResponse::err("Invalid axis specification", &s);
     }
     let (low, high, bins) = parsed_axes.unwrap();
     let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
@@ -432,11 +421,8 @@ fn make_2d(
     // need exactly two parameters:
 
     let parsed_params = parse_simple_list(parameters);
-    if parsed_params.is_err() {
-        return GenericResponse::err(
-            "Failed to parse 2d parameter list",
-            &parsed_params.unwrap_err(),
-        );
+    if let Err(s) = parsed_params {
+        return GenericResponse::err("Failed to parse 2d parameter list", &s);
     }
     let params = parsed_params.unwrap();
     if params.len() != 2 {
@@ -449,8 +435,8 @@ fn make_2d(
     let yp = params[1].clone();
 
     let axes = parse_2_axis_defs(axes);
-    if axes.is_err() {
-        return GenericResponse::err("Failed to parse axes definitions", &axes.unwrap_err());
+    if let Err(s) = axes {
+        return GenericResponse::err("Failed to parse axes definitions", &s);
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
@@ -472,14 +458,14 @@ fn make_gamma1(
     state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     let parameters = parse_simple_list(parameters);
-    if parameters.is_err() {
-        return GenericResponse::err("Could not parse parameter list", &parameters.unwrap_err());
+    if let Err(s) = parameters {
+        return GenericResponse::err("Could not parse parameter list", &s);
     }
     let parameters = parameters.unwrap();
 
     let axis = parse_axis_def(axes);
-    if axis.is_err() {
-        return GenericResponse::err("Failed to process axis definition", &axis.unwrap_err());
+    if let Err(s) = axis {
+        return GenericResponse::err("Failed to process axis definition", &s);
     }
     let (low, high, bins) = axis.unwrap();
 
@@ -505,8 +491,8 @@ fn make_gamma2(
     let parameters = parameters.unwrap(); // Vec of names.
 
     let axes = parse_2_axis_defs(axes);
-    if axes.is_err() {
-        return GenericResponse::err("Failed to parse axes definitions", &axes.unwrap_err());
+    if let Err(s) = axes {
+        return GenericResponse::err("Failed to parse axes definitions", &s);
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
@@ -532,19 +518,16 @@ fn make_pgamma(
     // Get the two parameter vectors:
 
     let parsed_params = parse_two_element_list(parameters);
-    if parsed_params.is_err() {
-        return GenericResponse::err(
-            "Failed to parse parameter list",
-            &parsed_params.unwrap_err(),
-        );
+    if let Err(s) = parsed_params {
+        return GenericResponse::err("Failed to parse parameter list", &s);
     }
     let (xparams, yparams) = parsed_params.unwrap();
 
     // Now the axis specifications:
 
     let axes = parse_2_axis_defs(axes);
-    if axes.is_err() {
-        return GenericResponse::err("Failed to parse axes definitions", &axes.unwrap_err());
+    if let Err(s) = axes {
+        return GenericResponse::err("Failed to parse axes definitions", &s);
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
@@ -567,17 +550,14 @@ fn make_summary(
     state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     let parameters = parse_simple_list(parameters);
-    if parameters.is_err() {
-        return GenericResponse::err(
-            "Failed to parse the parameter list",
-            &parameters.unwrap_err(),
-        );
+    if let Err(s) = parameters {
+        return GenericResponse::err("Failed to parse the parameter list", &s);
     }
     let parameters = parameters.unwrap(); // Vec<String> now.
 
     let axes = parse_axis_def(axes);
-    if axes.is_err() {
-        return GenericResponse::err("Failed to process axis definition", &axes.unwrap_err());
+    if let Err(s) = axes {
+        return GenericResponse::err("Failed to process axis definition", &s);
     }
     let (low, high, bins) = axes.unwrap();
 
@@ -598,17 +578,14 @@ fn make_2dsum(
     state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
     let parameters = parse_two_element_list(parameters);
-    if parameters.is_err() {
-        return GenericResponse::err(
-            "Failed to parse the parameter list(s)",
-            &parameters.unwrap_err(),
-        );
+    if let Err(s) = parameters {
+        return GenericResponse::err("Failed to parse the parameter list(s)", &s);
     }
     let (xpars, ypars) = parameters.unwrap(); // both Vec<String>
 
     let axes = parse_2_axis_defs(axes);
-    if axes.is_err() {
-        return GenericResponse::err("Failed to parse axes definitions", &axes.unwrap_err());
+    if let Err(s) = axes {
+        return GenericResponse::err("Failed to parse axes definitions", &s);
     }
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 

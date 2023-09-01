@@ -161,7 +161,7 @@ impl SharedTraceStore {
     pub fn add_event(&self, event: TraceEvent) {
         let stamped_event = StampedTraceEvent {
             stamp: time::Instant::now(),
-            event: event,
+            event,
         };
         self.add_to_all(stamped_event);
     }

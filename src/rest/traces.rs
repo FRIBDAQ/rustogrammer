@@ -115,10 +115,7 @@ pub struct TraceGetResponse {
 ///      *  The binding id of the affected spectrum.
 ///  
 #[get("/fetch?<token>")]
-pub fn fetch_traces(
-    token: u64,
-    state: &State<trace::SharedTraceStore>,
-) -> Json<TraceGetResponse> {
+pub fn fetch_traces(token: u64, state: &State<trace::SharedTraceStore>) -> Json<TraceGetResponse> {
     let mut result = TraceGetResponse {
         status: String::from("OK"),
         detail: TraceDetail {

@@ -46,7 +46,7 @@ fn make_sum_vector(
             def.yaxis.unwrap().bins
         } as usize;
         let mut result = vec![];
-        result.resize(n_element, 0.0 as f64);
+        result.resize(n_element, 0.0_f64);
         Ok(result)
     } else {
         Err(String::from("To project requires an X and a Y axis."))
@@ -82,7 +82,7 @@ pub fn project_spectrum<F>(
 where
     F: Fn(f64, f64) -> bool,
 {
-    match make_sum_vector(&desc, direction) {
+    match make_sum_vector(desc, direction) {
         Ok(mut v) => {
             // Get the axis specification:
 
@@ -321,10 +321,7 @@ fn create_projection_gate(
     // of the two of them.
     //
     if contour.is_some() && source_desc.gate.is_some() {
-        let components = vec![
-            String::from(source_desc.gate.clone().unwrap()),
-            String::from(contour.unwrap()),
-        ];
+        let components = vec![source_desc.gate.clone().unwrap(), contour.unwrap()];
         let and_name = format!("_{}_projection_gate_", dest_name);
         gapi.create_and_condition(&and_name, &components);
         return Some(and_name);
@@ -458,9 +455,9 @@ pub fn project(
     // Figure out the correct gate:
 
     if let Some(g) = create_projection_gate(gapi, dest, &source_desc, aoi.clone(), snapshot) {
-        return sapi.gate_spectrum(dest, &g);
+        sapi.gate_spectrum(dest, &g)
     } else {
-        return Ok(());
+        Ok(())
     }
 }
 

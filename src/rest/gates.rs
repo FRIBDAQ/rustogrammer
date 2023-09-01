@@ -80,7 +80,7 @@ fn marshall_parameter_names(ids: &Vec<u32>, state: &State<SharedHistogramChannel
     for id in ids {
         result.push(
             find_parameter_by_id(*id, state)
-                .expect(format!("BUG Failed to find gate parameter {} by id", id).as_str()),
+                .unwrap_or_else(|| panic!("BUG Failed to find gate parameter {} by id", id)),
         );
     }
     result
@@ -172,7 +172,7 @@ pub fn list_gates(
             detail: Vec::<GateProperties>::new(),
         },
         _ => ListReply {
-            status: format!("Unexpeced return type from list_conditions"),
+            status: String::from("Unexpeced return type from list_conditions"),
             detail: Vec::<GateProperties>::new(),
         },
     };
@@ -236,13 +236,15 @@ fn validate_slice_parameters(
     Ok((pid.unwrap(), low, high))
 }
 
+type TwodParameters = (u32, u32, Vec<(f64, f64)>);
+
 fn validate_2d_parameters(
     xpname: OptionalString,
     ypname: OptionalString,
     xcoord: OptionalF64Vec,
     ycoord: OptionalF64Vec,
     state: &State<SharedHistogramChannel>,
-) -> Result<(u32, u32, Vec<(f64, f64)>), String> {
+) -> Result<TwodParameters, String> {
     if xpname.is_none() {
         return Err(String::from(
             "xparameter is a mandatory query parameter for this gate type",
@@ -361,8 +363,7 @@ pub fn edit_gate(
         "-" => {
             // There must be exactly one gate:
 
-            if gate.is_some() {
-                let gate = gate.unwrap();
+            if let Some(gate) = gate {
                 if gate.len() == 1 {
                     api.create_not_condition(&name, &gate[0])
                 } else {
@@ -379,8 +380,7 @@ pub fn edit_gate(
         "*" => {
             // There must be at least one gate:
 
-            if gate.is_some() {
-                let gate = gate.unwrap();
+            if let Some(gate) = gate {
                 if gate.len() >= 1 {
                     api.create_and_condition(&name, &gate)
                 } else {
@@ -397,9 +397,8 @@ pub fn edit_gate(
         "+" => {
             // There must be at least one gate:
 
-            if gate.is_some() {
-                let gate = gate.unwrap();
-                if gate.len() >= 1 {
+            if let Some(gate) = gate {
+                if !gate.is_empty() {
                     api.create_or_condition(&name, &gate)
                 } else {
                     ConditionReply::Error(String::from(

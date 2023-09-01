@@ -48,7 +48,7 @@ pub fn shutdown(
     // Kill off the mirror server:...again ignore errors.
 
     let _ = state.inner().mirror_exit.lock().unwrap().send(true); // ignore errors;
-    let _ = TcpStream::connect(&format!("127.0.0.1:{}", state.inner().mirror_port));
+    let _ = TcpStream::connect(format!("127.0.0.1:{}", state.inner().mirror_port));
 
     // Shutdown the shared memory program.
 

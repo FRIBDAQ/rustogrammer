@@ -9,10 +9,9 @@
 //! spectra.
 //!
 extern crate dirs;
-use memmap;
+
 //use std::fs::File;
 use std::mem;
-use tempfile;
 
 use crate::messaging::spectrum_messages;
 pub mod binder;
@@ -349,9 +348,9 @@ impl SharedMemory {
         let mut result = SharedMemory {
             bindings: vec![],
             backing_store: file,
-            map: map,
+            map,
             allocator: StorageAllocator::new(specsize),
-            total_size: total_size,
+            total_size,
         };
         Self::init_bindings(&mut result);
         Ok(result)

@@ -62,36 +62,30 @@ pub fn get_version() -> Json<VersionResponse> {
     };
 
     let major = env::var("CARGO_PKG_VERSION_MAJOR");
-    if let Err(_) = major {
+    if major.is_err() {
         return Json(result);
+    } else if let Ok(m) = major.unwrap().parse::<u32>() {
+        result.detail.major = m;
     } else {
-        if let Ok(m) = major.unwrap().parse::<u32>() {
-            result.detail.major = m;
-        } else {
-            return Json(result);
-        }
+        return Json(result);
     }
 
     let minor = env::var("CARGO_PKG_VERSION_MINOR");
-    if let Err(_) = minor {
+    if minor.is_err() {
         return Json(result);
+    } else if let Ok(m) = minor.unwrap().parse::<u32>() {
+        result.detail.minor = m;
     } else {
-        if let Ok(m) = minor.unwrap().parse::<u32>() {
-            result.detail.minor = m;
-        } else {
-            return Json(result);
-        }
+        return Json(result);
     }
 
     let edit = env::var("CARGO_PKG_VERSION_PATCH");
-    if let Err(_) = edit {
+    if edit.is_err() {
         return Json(result);
+    } else if let Ok(e) = edit.unwrap().parse::<u32>() {
+        result.detail.editlevel = e;
     } else {
-        if let Ok(e) = edit.unwrap().parse::<u32>() {
-            result.detail.editlevel = e;
-        } else {
-            return Json(result);
-        }
+        return Json(result);
     }
 
     let name = env::var("CARGO_PKG_NAME");
