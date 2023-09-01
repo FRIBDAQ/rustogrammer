@@ -34,18 +34,6 @@ use std::time;
 //---------------------------------------------------------------------------
 // what's needed for the trace/establish interface:
 
-///
-/// This is the struct that's JSON encoded and returned by a
-/// trace/establish call.  The detail is just a isize that is a token
-/// that must be used in subsequent calls;
-
-#[derive(Serialize, Deserialize)]
-#[serde(crate = "rocket::serde")]
-pub struct EstablishResponse {
-    status: String,
-    detail: usize,
-}
-
 /// handler for trace/establish
 ///  Get the trace database from the server state and invoke
 ///  new client to get a token to return.
@@ -59,14 +47,11 @@ pub struct EstablishResponse {
 pub fn establish_trace(
     retention: u64,
     state: &State<trace::SharedTraceStore>,
-) -> Json<EstablishResponse> {
+) -> Json<UnsignedResponse> {
     let lifetime = time::Duration::from_secs(retention);
     let token = state.inner().new_client(lifetime);
 
-    Json(EstablishResponse {
-        status: String::from("OK"),
-        detail: token,
-    })
+    Json(UnsignedResponse::new("OK", token))
 }
 ///  When done tracing, or before exiting, a client should do a
 /// call to trace/done - this releases all storage associted
@@ -80,7 +65,7 @@ pub fn establish_trace(
 /// client.
 ///
 #[get("/done?<token>")]
-pub fn trace_done(token: usize, state: &State<trace::SharedTraceStore>) -> Json<GenericResponse> {
+pub fn trace_done(token: u64, state: &State<trace::SharedTraceStore>) -> Json<GenericResponse> {
     match state.inner().delete_client(token) {
         Ok(()) => Json(GenericResponse::ok("")),
         Err(s) => Json(GenericResponse::err("Unable to delete client", &s)),
@@ -131,7 +116,7 @@ pub struct TraceGetResponse {
 ///  
 #[get("/fetch?<token>")]
 pub fn fetch_traces(
-    token: usize,
+    token: u64,
     state: &State<trace::SharedTraceStore>,
 ) -> Json<TraceGetResponse> {
     let mut result = TraceGetResponse {
@@ -227,17 +212,17 @@ mod trace_rest_tests {
     ) {
         rest_common::teardown(c, p, b);
     }
-    fn get_token(client: &Client, retention: usize) -> usize {
+    fn get_token(client: &Client, retention: usize) -> u64 {
         let uri = format!("/establish?retention={}", retention);
         let req = client.get(&uri);
         let reply = req
             .dispatch()
-            .into_json::<EstablishResponse>()
+            .into_json::<UnsignedResponse>()
             .expect("Parsing JSON");
         assert_eq!("OK", reply.status);
         reply.detail
     }
-    fn free_token(client: &Client, token: usize) {
+    fn free_token(client: &Client, token: u64) {
         let uri = format!("/done?token={}", token);
         let req = client.get(&uri);
         let reply = req

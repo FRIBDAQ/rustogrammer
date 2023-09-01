@@ -7,13 +7,13 @@ mod histogramer;
 mod messaging;
 mod parameters;
 mod processing;
+mod projections;
 mod rest;
 mod ring_items;
 mod sharedmem;
 mod spectclio;
 mod spectra;
 mod trace;
-mod projections;
 
 use clap::Parser;
 use portman_client;
