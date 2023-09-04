@@ -483,24 +483,22 @@ fn make_gamma2(
     let parameters = match parse_simple_list(parameters) {
         Err(s) => {
             return GenericResponse::err("Could not parse parameter list", &s);
-        },
-        Ok(p) => p
+        }
+        Ok(p) => p,
     };
-    
 
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = match parse_2_axis_defs(axes) {
-        Err(s) =>  {
+        Err(s) => {
             return GenericResponse::err("Failed to parse axes definitions", &s);
-        },
-        Ok(a) => a
+        }
+        Ok(a) => a,
     };
-    
 
     let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
 
-    match  api.create_spectrum_multi2d(name, &parameters, xlow, xhigh, xbins, ylow, yhigh, ybins) {
+    match api.create_spectrum_multi2d(name, &parameters, xlow, xhigh, xbins, ylow, yhigh, ybins) {
         Ok(()) => GenericResponse::ok(""),
-        Err(s) => GenericResponse::err("Failed to create multi2d spectrum", &s)
+        Err(s) => GenericResponse::err("Failed to create multi2d spectrum", &s),
     }
 }
 // Make a particle gamma spectrum.
