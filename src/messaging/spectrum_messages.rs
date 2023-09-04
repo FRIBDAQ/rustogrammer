@@ -329,8 +329,8 @@ impl SpectrumProcessor {
         if !self.dict.exists(name) {
             match spectra::PGamma::new(
                 name,
-                &xparams.to_owned(),
-                &yparams.to_owned(),
+                xparams,
+                yparams,
                 pdict,
                 Some(xaxis.low),
                 Some(xaxis.high),
