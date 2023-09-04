@@ -157,8 +157,8 @@ impl PGamma {
     ///
     pub fn new(
         name: &str,
-        xparams: &Vec<String>,
-        yparams: &Vec<String>,
+        xparams: &[String],
+        yparams: &[String],
         pdict: &ParameterDictionary,
         xmin: Option<f64>,
         xmax: Option<f64>,
@@ -167,11 +167,9 @@ impl PGamma {
         ymax: Option<f64>,
         ybins: Option<u32>,
     ) -> Result<PGamma, String> {
-        let xdef = Self::make_axis_def(xparams, pdict);
-        if let Err(s) = xdef {
-            return Err(s);
-        }
-        let (mut x_min, mut x_max, mut x_bins, xp) = xdef.unwrap();
+        let xdef = Self::make_axis_def(xparams, pdict)?;
+        
+        let (mut x_min, mut x_max, mut x_bins, xp) = xdef;
         // Override x default axis specs:
 
         if xmin.is_some() {
