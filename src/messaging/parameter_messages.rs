@@ -128,7 +128,7 @@ impl ParameterMessageClient {
         let result = self.transaction(create);
         match result {
             ParameterReply::Error(s) => Err(s),
-            ParameterReply::Created => return Ok(()),
+            ParameterReply::Created => Ok(()),
             ParameterReply::Listing(_) => Err(String::from("BUG!! Create got a Listing reply")),
             ParameterReply::Modified => Err(String::from("BUG!! Create got a Modified reply")),
         }
@@ -217,12 +217,12 @@ impl ParameterProcessor {
     fn list(&self, pattern: &str) -> ParameterReply {
         let mut result = Vec::<Parameter>::new();
         let pat = Pattern::new(pattern);
-        if pat.is_err() {
-            return ParameterReply::Error(String::from(pat.unwrap_err().msg));
+        if let Err(e) = pat {
+            return ParameterReply::Error(String::from(e.msg));
         }
         let pat = pat.unwrap();
         for (name, p) in self.dict.iter() {
-            if pat.matches(&name) {
+            if pat.matches(name) {
                 result.push(p.clone());
             }
         }
@@ -238,18 +238,17 @@ impl ParameterProcessor {
         tracedb: &trace::SharedTraceStore,
     ) -> ParameterReply {
         if let Some(p) = self.dict.lookup_mut(name) {
-            if bins.is_some() {
-                p.set_bins(bins.unwrap());
+            if let Some(b) = bins {
+                p.set_bins(b);
             }
-            if limits.is_some() {
-                let lims = limits.unwrap();
+            if let Some(lims) = limits {
                 p.set_limits(lims.0, lims.1);
             }
-            if units.is_some() {
-                p.set_units(&units.unwrap());
+            if let Some(u) = units {
+                p.set_units(&u);
             }
-            if desc.is_some() {
-                p.set_description(&desc.unwrap());
+            if let Some(d) = desc {
+                p.set_description(&d);
             }
             tracedb.add_event(trace::TraceEvent::ParameterModified(String::from(name)));
             ParameterReply::Modified
@@ -272,7 +271,7 @@ impl ParameterProcessor {
         tracedb: &trace::SharedTraceStore,
     ) -> ParameterReply {
         match req {
-            ParameterRequest::Create(name) => self.create(&name, &tracedb),
+            ParameterRequest::Create(name) => self.create(&name, tracedb),
             ParameterRequest::List(pattern) => self.list(&pattern),
             ParameterRequest::SetMetaData {
                 name,
@@ -280,7 +279,7 @@ impl ParameterProcessor {
                 limits,
                 units,
                 description,
-            } => self.modify(&name, bins, limits, units, description, &tracedb),
+            } => self.modify(&name, bins, limits, units, description, tracedb),
         }
     }
     pub fn get_dict(&mut self) -> &mut ParameterDictionary {

@@ -253,7 +253,7 @@ pub trait Spectrum {
             return self.get_out_of_range_1d(spec);
         }
         let twod = self.get_histogram_2d().unwrap();
-        return self.get_out_of_range_2d(twod);
+        self.get_out_of_range_2d(twod)
     }
     // Get out of range statistics for 1d:
 
@@ -348,7 +348,7 @@ impl SpectrumStorage {
 
         for (i, s_container) in spectra.iter().enumerate() {
             if let Some(spectrum) = s_container.upgrade() {
-                spectrum.borrow_mut().handle_event(&e);
+                spectrum.borrow_mut().handle_event(e);
             } else {
                 result.push(i); // Spectrum removed from dictionary.
             }
@@ -364,7 +364,7 @@ impl SpectrumStorage {
     // This method will run through those indices in reverse order
     // removing those spectra from the list
     //
-    fn prune_spectra(spectrum_list: &mut SpectrumReferences, drop_list: &Vec<usize>) {
+    fn prune_spectra(spectrum_list: &mut SpectrumReferences, drop_list: &[usize]) {
         for i in drop_list.iter().rev() {
             spectrum_list.remove(*i);
         }
@@ -419,7 +419,7 @@ impl SpectrumStorage {
             }
             // The array is big enough but the element might be None
 
-            if let None = self.spectra_by_parameter[pno] {
+            if self.spectra_by_parameter[pno].is_none() {
                 self.spectra_by_parameter[pno] = Some(SpectrumReferences::new());
             }
             // Now we can insert the new spectrum in the vector:
@@ -466,7 +466,7 @@ impl SpectrumStorage {
     ///
     pub fn process_event(&mut self, e: &Event) {
         let mut fe = FlatEvent::new();
-        fe.load_event(&e);
+        fe.load_event(e);
 
         for p in e.iter() {
             let id = p.id as usize;
@@ -511,33 +511,29 @@ fn axis_limits(
 ) -> Result<(f64, f64, u32), String> {
     let default_lims = pdef.get_limits();
     let param_name = pdef.get_name();
-    let low_lim = if low.is_some() {
-        low.unwrap()
+    let low_lim = if let Some(low) = low {
+        low
+    } else if let Some(l) = default_lims.0 {
+        l
     } else {
-        if let Some(l) = default_lims.0 {
-            l
-        } else {
-            return Err(format!("No default low limit defined for {}", param_name));
-        }
+        return Err(format!("No default low limit defined for {}", param_name));
     };
-    let high_lim = if high.is_some() {
-        high.unwrap()
+    let high_lim = if let Some(h) = high {
+        h
+    } else if let Some(h) = default_lims.1 {
+        h
     } else {
-        if let Some(h) = default_lims.1 {
-            h
-        } else {
-            return Err(format!("No default high limit defined for {}", param_name));
-        }
+        return Err(format!("No default high limit defined for {}", param_name));
     };
-    let bin_count = if bins.is_some() {
-        bins.unwrap()
+
+    let bin_count = if let Some(b) = bins {
+        b
+    } else if let Some(b) = pdef.get_bins() {
+        b
     } else {
-        if let Some(b) = pdef.get_bins() {
-            b
-        } else {
-            return Err(format!("No default bin count for {}", param_name));
-        }
+        return Err(format!("No default bin count for {}", param_name));
     };
+
     Ok((low_lim, high_lim, bin_count))
 }
 
@@ -546,23 +542,21 @@ fn axis_limits(
 fn optmin<T: PartialOrd>(v1: Option<T>, v2: Option<T>) -> Option<T> {
     if v1.is_none() && v2.is_none() {
         None
-    } else {
-        if v1.is_none() || v2.is_none() {
-            if let Some(v1) = v1 {
-                Some(v1)
-            } else {
-                Some(v2.unwrap())
-            }
+    } else if v1.is_none() || v2.is_none() {
+        if let Some(v1) = v1 {
+            Some(v1)
         } else {
-            // neither are none:
+            Some(v2.unwrap())
+        }
+    } else {
+        // neither are none:
 
-            let v1 = v1.unwrap();
-            let v2 = v2.unwrap();
-            if v1 < v2 {
-                Some(v1)
-            } else {
-                Some(v2)
-            }
+        let v1 = v1.unwrap();
+        let v2 = v2.unwrap();
+        if v1 < v2 {
+            Some(v1)
+        } else {
+            Some(v2)
         }
     }
 }
@@ -570,23 +564,21 @@ fn optmin<T: PartialOrd>(v1: Option<T>, v2: Option<T>) -> Option<T> {
 fn optmax<T: PartialOrd>(v1: Option<T>, v2: Option<T>) -> Option<T> {
     if v1.is_none() && v2.is_none() {
         None
-    } else {
-        if v1.is_none() || v2.is_none() {
-            if let Some(v1) = v1 {
-                Some(v1)
-            } else {
-                Some(v2.unwrap())
-            }
+    } else if v1.is_none() || v2.is_none() {
+        if let Some(v1) = v1 {
+            Some(v1)
         } else {
-            // neither are none:
+            Some(v2.unwrap())
+        }
+    } else {
+        // neither are none:
 
-            let v1 = v1.unwrap();
-            let v2 = v2.unwrap();
-            if v1 > v2 {
-                Some(v1)
-            } else {
-                Some(v2)
-            }
+        let v1 = v1.unwrap();
+        let v2 = v2.unwrap();
+        if v1 > v2 {
+            Some(v1)
+        } else {
+            Some(v2)
         }
     }
 }

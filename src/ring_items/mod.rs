@@ -50,10 +50,10 @@ pub struct BodyHeader {
 }
 impl fmt::Display for BodyHeader {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Body header:\n").unwrap();
-        write!(f, "   timestamp: {:0>8x}\n", self.timestamp).unwrap();
-        write!(f, "   sourceid:  {}\n", self.source_id).unwrap();
-        write!(f, "   barrier:   {}\n", self.barrier_type)
+        writeln!(f, "Body header:").unwrap();
+        writeln!(f, "   timestamp: {:0>8x}", self.timestamp).unwrap();
+        writeln!(f, "   sourceid:  {}", self.source_id).unwrap();
+        writeln!(f, "   barrier:   {}", self.barrier_type)
     }
 }
 #[derive(Debug)]
@@ -62,12 +62,12 @@ pub enum RingItemError {
     InvalidHeader,
     FileTooSmall,
 }
-impl RingItemError {
-    pub fn to_string(&self) -> String {
+impl fmt::Display for RingItemError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::HeaderReadFailed => String::from("Header read failed"),
-            Self::InvalidHeader => String::from("Invalid header"),
-            Self::FileTooSmall => String::from("File not large enough for ring item"),
+            Self::HeaderReadFailed => write!(f, "Header read failed"),
+            Self::InvalidHeader => write!(f, "Invalid header"),
+            Self::FileTooSmall => write!(f, "File not large enough for ring item"),
         }
     }
 }
@@ -81,11 +81,11 @@ impl RingItem {
     fn read_long<T: Read>(f: &mut T) -> Result<u32, u8> {
         let mut buf: [u8; 4] = [0; 4];
 
-        if let Ok(_) = f.read_exact(&mut buf) {
-            let long = u32::from_ne_bytes(buf);
-            return Ok(long);
+        if f.read_exact(&mut buf).is_ok() {
+            Ok(u32::from_ne_bytes(buf))
+        } else {
+            Err(0)
         }
-        Err(0)
     }
     /// Write a u32:
 
@@ -131,15 +131,15 @@ impl RingItem {
     ///
     pub fn get_bodyheader(&self) -> Option<BodyHeader> {
         if self.has_body_header() {
-            return Some(BodyHeader {
+            Some(BodyHeader {
                 timestamp: u64::from_ne_bytes(self.payload.as_slice()[0..8].try_into().unwrap()),
                 source_id: u32::from_ne_bytes(self.payload.as_slice()[8..12].try_into().unwrap()),
                 barrier_type: u32::from_ne_bytes(
                     self.payload.as_slice()[12..16].try_into().unwrap(),
                 ),
-            });
+            })
         } else {
-            return None;
+            None
         }
     }
     pub fn payload(&self) -> &Vec<u8> {
@@ -167,7 +167,7 @@ impl RingItem {
                 p = p.offset(1);
             }
         }
-        self.size = self.size + mem::size_of::<T>() as u32;
+        self.size += mem::size_of::<T>() as u32;
         self
     }
     pub fn add_byte_vec(&mut self, v: &Vec<u8>) {
@@ -215,7 +215,7 @@ impl RingItem {
         let body_size: usize = (item.size as usize) - 3 * mem::size_of::<u32>();
         if body_size > 0 {
             item.payload.resize(body_size, 0);
-            if let Err(_) = file.read_exact(item.payload.as_mut_slice()) {
+            if file.read_exact(item.payload.as_mut_slice()).is_err() {
                 return Err(RingItemError::FileTooSmall);
             }
         }
@@ -230,10 +230,10 @@ impl RingItem {
     pub fn write_item<T: Write>(&self, file: &mut T) -> std::io::Result<usize> {
         let mut bytes_written: usize = 0;
 
-        bytes_written = bytes_written + file.write(&u32::to_ne_bytes(self.size))?;
-        bytes_written = bytes_written + file.write(&u32::to_ne_bytes(self.type_id))?;
-        bytes_written = bytes_written + file.write(&u32::to_ne_bytes(self.body_header_size))?;
-        bytes_written = bytes_written + file.write(&self.payload)?;
+        bytes_written += file.write(&u32::to_ne_bytes(self.size))?;
+        bytes_written += file.write(&u32::to_ne_bytes(self.type_id))?;
+        bytes_written += file.write(&u32::to_ne_bytes(self.body_header_size))?;
+        bytes_written += file.write(&self.payload)?;
 
         Ok(bytes_written)
     }
@@ -244,25 +244,25 @@ impl RingItem {
 impl fmt::Display for RingItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "Raw ring item").unwrap();
-        write!(f, "Size: {}\n", self.size()).unwrap();
-        write!(f, "type: {}\n", self.type_id()).unwrap();
+        writeln!(f, "Size: {}", self.size()).unwrap();
+        writeln!(f, "type: {}", self.type_id()).unwrap();
         let mut offset = 0;
         if self.has_body_header() {
             let header = self.get_bodyheader().unwrap();
-            write!(f, "{}\n", header).unwrap();
+            writeln!(f, "{}\n", header).unwrap();
             offset = body_header_size();
         }
 
         let payload = self.payload().as_slice();
         if offset < payload.len() {
-            for (i, p) in payload[offset..].into_iter().enumerate() {
+            for (i, p) in payload[offset..].iter().enumerate() {
                 if i % 8 == 0 {
-                    write!(f, "\n").unwrap();
+                    writeln!(f).unwrap();
                 }
                 write!(f, "{:0>2x} ", p).unwrap();
             }
         }
-        write!(f, "\n")
+        writeln!(f)
     }
 }
 /// This trait defines conversion to raw.  I'd love to use From
@@ -315,14 +315,14 @@ pub fn body_header_size() -> usize {
 pub fn string_len(d: &[u8]) -> usize {
     let mut result = 0;
     for c in d {
-        if *c == (0 as u8) {
+        if *c == (0_u8) {
             break;
         } else {
-            result = result + 1;
+            result += 1;
         }
     }
 
-    return result;
+    result
 }
 pub fn get_c_string(offset: &mut usize, bytes: &[u8]) -> String {
     let o: usize = *offset;

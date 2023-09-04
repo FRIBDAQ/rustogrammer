@@ -149,17 +149,17 @@ impl Summary {
         }
         // if any of the Y axis stuff are still None, that's a failure:
 
-        if let None = low {
+        if low.is_none() {
             return Err(String::from(
                 "None of the parameters can default the axis low limit",
             ));
         }
-        if let None = high {
+        if high.is_none() {
             return Err(String::from(
                 "None of the parameters can default the axis high limit",
             ));
         }
-        if let None = nbins {
+        if nbins.is_none() {
             return Err(String::from(
                 "None of the parameters can default the bin count",
             ));

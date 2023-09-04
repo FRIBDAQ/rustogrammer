@@ -74,7 +74,7 @@ fn list_unbound_spectra(
     // Put the names of the bound spectra into a HashSet so the
     // lookup is O(1):
 
-    let binding_hash = make_binding_hash(&bindings);
+    let binding_hash = make_binding_hash(bindings);
     let spectrum_names = make_spectrum_names(spectra);
 
     remove_bound_spectra(&spectrum_names, &binding_hash)
@@ -88,7 +88,7 @@ fn bind_spectrum_list(
     binding_api: &binder::BindingApi,
 ) -> GenericResponse {
     for name in spectra_to_bind {
-        if let Err(s) = binding_api.bind(&name) {
+        if let Err(s) = binding_api.bind(name) {
             return GenericResponse::err(&format!("Unable to bind spectrum {}", name), &s);
         }
     }
@@ -164,7 +164,7 @@ fn remove_duplicates(in_names: Vec<String>) -> Vec<String> {
         }
     }
 
-    return result;
+    result
 }
 
 /// Implements the /spectcl/sbind/sbind REST interface.

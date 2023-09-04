@@ -88,10 +88,10 @@ impl ProcessingApi {
             Err(String::from("Send to processing thread failed"))
         } else {
             let result = rep_recv.recv();
-            if result.is_err() {
-                Err(String::from("Receive from processing thread failed"))
+            if let Ok(result) = result {
+                result
             } else {
-                result.unwrap()
+                Err(String::from("Receive from processing thread failed"))
             }
         }
     }
@@ -117,8 +117,7 @@ impl ProcessingApi {
         self.transaction(RequestType::Detach)
     }
     pub fn set_batching(&mut self, events: usize) -> Result<String, String> {
-        let result = self.transaction(RequestType::ChunkSize(events));
-        result
+        self.transaction(RequestType::ChunkSize(events))
     }
     pub fn get_batching(&self) -> usize {
         let result = self.transaction(RequestType::GetChunkSize);
@@ -296,7 +295,7 @@ impl ProcessingThread {
             let name = def.name();
             let id = def.id();
             if let Err(reason) = self.parameter_mapping.map(id, &name) {
-                if reason == String::from("Duplicate Map") {
+                if reason == *"Duplicate Map" {
                     panic!("ProcessingThread failed to make a map due to duplication");
                 }
                 if let Err(s) = self.parameter_api.create_parameter(&name) {
@@ -312,7 +311,7 @@ impl ProcessingThread {
                     );
                 }
                 let param = param.unwrap();
-                if param.len() == 0 {
+                if param.is_empty() {
                     panic!(
                         "Just made parameter {} but got an empty list fetching it def",
                         name
@@ -348,7 +347,7 @@ impl ProcessingThread {
     // Flush the event batch to the histogramer:
     //
     fn flush_events(&mut self) {
-        if self.event_chunk.len() > 0 {
+        if self.event_chunk.is_empty() {
             if let Err(s) = self.spectrum_api.process_events(&self.event_chunk) {
                 panic!("Unable to get the histogram thread to process events {}", s);
             }
@@ -385,7 +384,7 @@ impl ProcessingThread {
             // Any error will be treated as an end
 
             if let Err(reason) = try_item {
-                println!("Failed to read a ring item: {}", reason.to_string());
+                println!("Failed to read a ring item: {}", reason);
                 self.processing = false;
                 return true;
             }

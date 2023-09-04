@@ -59,7 +59,7 @@ pub fn shmem_size(state: &State<SharedBinderChannel>) -> Json<GenericResponse> {
 
     let response = match info {
         Ok(stats) => {
-            let spectrum_size = stats.total_size as usize - mem::size_of::<XamineSharedMemory>();
+            let spectrum_size = stats.total_size - mem::size_of::<XamineSharedMemory>();
             GenericResponse::ok(&(spectrum_size.to_string()))
         }
         Err(reason) => GenericResponse::err("Could not get shared memory size", &reason),

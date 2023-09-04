@@ -59,20 +59,20 @@ impl PhysicsEventCountItem {
 }
 impl fmt::Display for PhysicsEventCountItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Trigger count information: \n").unwrap();
+        writeln!(f, "Trigger count information:").unwrap();
         if let Some(bh) = self.get_bodyheader() {
             write!(f, "BodyHeader: \n   {}", bh).unwrap();
         }
-        write!(
+        writeln!(
             f,
-            "{} Seconds in the run at {} : {} Triggers\n",
+            "{} Seconds in the run at {} : {} Triggers",
             self.get_offset_time(),
             humantime::format_rfc3339(self.get_absolute_time()),
             self.get_event_count()
         )
         .unwrap();
         if let Some(sid) = self.get_original_sid() {
-            write!(f, "Original sid: {}\n", sid).unwrap();
+            writeln!(f, "Original sid: {}", sid).unwrap();
         }
         write!(f, "")
     }
@@ -108,7 +108,7 @@ impl ring_items::FromRaw<PhysicsEventCountItem> for ring_items::RingItem {
         if self.type_id() == ring_items::PHYSICS_EVENT_COUNT {
             let mut result = PhysicsEventCountItem::new(None, 0, 1, None, 0);
             result.body_header = self.get_bodyheader();
-            let offset = if let Some(_) = result.body_header {
+            let offset = if result.body_header.is_some() {
                 ring_items::body_header_size()
             } else {
                 0
@@ -118,11 +118,9 @@ impl ring_items::FromRaw<PhysicsEventCountItem> for ring_items::RingItem {
                 u32::from_ne_bytes(payload[offset..offset + 4].try_into().unwrap());
             result.time_divisor =
                 u32::from_ne_bytes(payload[offset + 4..offset + 8].try_into().unwrap());
-            result.absolute_time = ring_items::raw_to_systime(
-                u32::from_ne_bytes(payload[offset + 8..offset + 12].try_into().unwrap())
-                    .try_into()
-                    .unwrap(),
-            );
+            result.absolute_time = ring_items::raw_to_systime(u32::from_ne_bytes(
+                payload[offset + 8..offset + 12].try_into().unwrap(),
+            ));
             if version == ring_items::RingVersion::V11 {
                 result.event_count =
                     u64::from_ne_bytes(payload[offset + 12..offset + 20].try_into().unwrap());

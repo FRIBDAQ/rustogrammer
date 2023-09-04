@@ -82,7 +82,7 @@ impl Histogramer {
     pub fn new(chan: mpsc::Receiver<Request>, tracedb: trace::SharedTraceStore) -> Histogramer {
         Histogramer {
             processor: RequestProcessor::new(),
-            chan: chan,
+            chan,
             tracdb: tracedb.clone(),
         }
     }

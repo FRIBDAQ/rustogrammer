@@ -46,7 +46,7 @@ impl Parameter {
     pub fn new(name: &str, id: u32) -> Parameter {
         Parameter {
             name: String::from(name),
-            id: id,
+            id,
             low: None,
             high: None,
             bins: None,
@@ -99,18 +99,12 @@ impl Parameter {
     /// Get units of measure (if any).
 
     pub fn get_units(&self) -> Option<String> {
-        match &self.units {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
+        self.units.as_ref().cloned()
     }
     /// Get histogram description
 
     pub fn get_description(&self) -> Option<String> {
-        match &self.description {
-            Some(s) => Some(s.clone()),
-            None => None,
-        }
+        self.description.as_ref().cloned()
     }
 }
 
@@ -224,9 +218,9 @@ impl ParameterDictionary {
 ///
 impl fmt::Display for ParameterDictionary {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Next id: {}\n", self.next_id).unwrap();
+        writeln!(f, "Next id: {}", self.next_id).unwrap();
         for (_, v) in self.iter() {
-            write!(f, "{}\n", v).unwrap();
+            writeln!(f, "{}", v).unwrap();
         }
         write!(f, "")
     }
@@ -433,7 +427,7 @@ impl FlatEvent {
     pub fn get_parameter(&self, id: u32) -> &Option<f64> {
         let id = id as usize; // The better to index with:
         if id < self.event.len() {
-            &(self.event[id].get(self.generation))
+            self.event[id].get(self.generation)
         } else {
             &None
         }

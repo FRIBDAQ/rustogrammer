@@ -35,8 +35,10 @@ impl Spectrum for Twod {
 
         // We need both parameters in the event:
 
-        if x.is_some() && y.is_some() {
-            self.histogram.borrow_mut().fill(&(x.unwrap(), y.unwrap()));
+        if let Some(x) = x {
+            if let Some(y) = y {
+                self.histogram.borrow_mut().fill(&(x, y));
+            }
         }
     }
     fn required_parameter(&self) -> Option<u32> {
@@ -96,31 +98,29 @@ impl Twod {
         let xpar = pdict.lookup(xname);
         let ypar = pdict.lookup(yname);
 
-        if xpar.is_some() && ypar.is_some() {
-            let xpar = xpar.unwrap(); // Get the definitions:
-            let ypar = ypar.unwrap();
+        if let Some(xpar) = xpar {
+            if let Some(ypar) = ypar {
+                let xaxis_info = axis_limits(xpar, xlow, xhigh, xbins)?;
+                let yaxis_info = axis_limits(ypar, ylow, yhigh, ybins)?;
 
-            let xaxis_info = axis_limits(&xpar, xlow, xhigh, xbins)?;
-            let yaxis_info = axis_limits(&ypar, ylow, yhigh, ybins)?;
-
-            Ok(Twod {
-                applied_gate: SpectrumGate::new(),
-                name: String::from(spectrum_name),
-                histogram: Rc::new(RefCell::new(ndhistogram!(
-                    axis::Uniform::new(xaxis_info.2 as usize, xaxis_info.0, xaxis_info.1),
-                    axis::Uniform::new(yaxis_info.2 as usize, yaxis_info.0, yaxis_info.1)
-                    ; Sum
-                ))),
-                x_name: String::from(xname),
-                x_id: xpar.get_id(),
-                y_name: String::from(yname),
-                y_id: ypar.get_id(),
-            })
+                Ok(Twod {
+                    applied_gate: SpectrumGate::new(),
+                    name: String::from(spectrum_name),
+                    histogram: Rc::new(RefCell::new(ndhistogram!(
+                        axis::Uniform::new(xaxis_info.2 as usize, xaxis_info.0, xaxis_info.1),
+                        axis::Uniform::new(yaxis_info.2 as usize, yaxis_info.0, yaxis_info.1)
+                        ; Sum
+                    ))),
+                    x_name: String::from(xname),
+                    x_id: xpar.get_id(),
+                    y_name: String::from(yname),
+                    y_id: ypar.get_id(),
+                })
+            } else {
+                Err(format!("Y parmeter {} is not defined", yname))
+            }
         } else {
-            Err(format!(
-                "One of the parameters {}, {} are not defined",
-                xname, yname
-            ))
+            Err(format!("X parameter {} is not defined", xname))
         }
     }
 }

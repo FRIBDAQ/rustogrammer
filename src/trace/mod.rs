@@ -161,7 +161,7 @@ impl SharedTraceStore {
     pub fn add_event(&self, event: TraceEvent) {
         let stamped_event = StampedTraceEvent {
             stamp: time::Instant::now(),
-            event: event,
+            event,
         };
         self.add_to_all(stamped_event);
     }
@@ -185,12 +185,12 @@ impl SharedTraceStore {
     /// This includes any stored traces for that client.
     ///
     pub fn delete_client(&self, token: u64) -> Result<(), String> {
-        if let None = self
+        if self
             .store
             .lock()
             .unwrap()
             .client_traces
-            .remove_entry(&token)
+            .remove_entry(&token).is_none()
         {
             Err(String::from("No such client token"))
         } else {

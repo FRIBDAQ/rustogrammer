@@ -83,7 +83,7 @@ fn write_2(fd: &mut dyn Write, c: &SpectrumChannel) -> Result<(), String> {
 
 fn write_channels(
     fd: &mut dyn Write,
-    chans: &Vec<SpectrumChannel>,
+    chans: &[SpectrumChannel],
     f: fn(&mut dyn Write, &SpectrumChannel) -> Result<(), String>,
 ) -> Result<(), String> {
     for c in chans.iter() {
@@ -97,7 +97,7 @@ fn write_axis_def(fd: &mut dyn Write, low: f64, high: f64) -> Result<(), String>
     fdwrite(fd, &format!("({} {}) ", low, high))
 }
 
-fn write_string_list(fd: &mut dyn Write, s: &Vec<String>) -> Result<(), String> {
+fn write_string_list(fd: &mut dyn Write, s: &[String]) -> Result<(), String> {
     fdwrite(fd, "(")?;
 
     for px in s.iter() {
@@ -109,7 +109,7 @@ fn write_string_list(fd: &mut dyn Write, s: &Vec<String>) -> Result<(), String> 
 /// This method writes a spectrum to any object that supports the Write
 /// trait.
 
-pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Result<(), String> {
+pub fn write_spectrum(fd: &mut dyn Write, spectra: &[SpectrumFileData]) -> Result<(), String> {
     for spectrum in spectra.iter() {
         println!("Writing: {:?}", spectrum.definition);
         // Header: Spectrum name/bins:
@@ -194,7 +194,7 @@ pub fn write_spectrum(fd: &mut dyn Write, spectra: &Vec<SpectrumFileData>) -> Re
 
 fn read_line<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<String, String> {
     let line = l.next();
-    if let None = line {
+    if line.is_none() {
         return Err(String::from("End of file"));
     }
     let line = line.unwrap();
@@ -323,7 +323,7 @@ fn read_channel<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<Option<SpectrumC
 
     // There must be at least 1 bin:
 
-    if bins.len() == 0 {
+    if bins.is_empty() {
         return Err(format!(
             "Parenthesized channel coordinate list is empty: {}",
             line,
@@ -331,7 +331,7 @@ fn read_channel<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<Option<SpectrumC
     }
 
     let xbin = bins[0].parse::<i32>();
-    if let Err(_) = xbin {
+    if xbin.is_err() {
         return Err(format!(
             "Unable to parse x bin number as an integer {}",
             line
@@ -344,7 +344,7 @@ fn read_channel<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<Option<SpectrumC
     let mut ybin = 0; // a default value since - bins are not options.
     if bins.len() > 1 {
         let ybinstr = bins[1].parse::<i32>();
-        if let Err(_) = ybinstr {
+        if ybinstr.is_err() {
             return Err(format!(
                 "Unable to decode y bin as an integer from {}",
                 line
@@ -360,11 +360,11 @@ fn read_channel<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<Option<SpectrumC
     let close = line.find(')').unwrap();
     let remainder: String = line.drain(close + 1..).collect();
     let remainder = remainder.trim();
-    if remainder.len() == 0 {
+    if remainder.is_empty() {
         return Err(format!("Unable to locate the channel value in : {}", line));
     }
     let height = remainder.parse::<u64>();
-    if let Err(_) = height {
+    if height.is_err() {
         return Err(format!("Unable to parse channel counts in : {}", line));
     }
     let height = height.unwrap();
@@ -411,17 +411,21 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
     let xbins;
     let mut ybins = 0;
     let name;
-    if hdr1_result.is_err() {
-        // try as 1d:
 
-        let result = scan_fmt!(&hdr1, "\"{}\" ({})", String, u32);
-        if let Err(s) = result {
-            return Err((false, format!("Unable to decode header1: {}", s)));
-        }
-        (name, xbins) = result.unwrap();
+    if let Ok(result) = hdr1_result {
+        (name, xbins, ybins) = result;
     } else {
-        (name, xbins, ybins) = hdr1_result.unwrap();
+        let result = scan_fmt!(&hdr1, "\"{}\" ({})", String, u32);
+        match result {
+            Err(s) => {
+                return Err((false, format!("Unable to decode header1: {}", s)));
+            }
+            Ok(result) => {
+                (name, xbins) = result;
+            }
+        }
     }
+
     // Next is the date/time which we just skip:
 
     let date_time = read_line(l);
@@ -525,7 +529,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
     let xaxis = xaxis.unwrap();
 
     let mut yaxis: Result<(f64, f64), String> = Ok((0.0, 0.0));
-    if yaxis_str.len() > 0 {
+    if !yaxis_str.is_empty() {
         yaxis = parse_axis(&yaxis_str);
     }
     if let Err(s) = yaxis {
@@ -543,7 +547,7 @@ fn read_header<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumPropertie
     // returned:
 
     let result = SpectrumProperties {
-        name: name,
+        name,
         type_string: spectrum_type,
         x_parameters: xparams.clone(),
         y_parameters: yparams.clone(),
@@ -599,7 +603,7 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
             definition.x_parameters.len() as f64,
             definition.x_parameters.len() as u32,
         ));
-        result.y_axis = definition.x_axis.clone();
+        result.y_axis = definition.x_axis;
         result
     } else {
         definition.clone()
@@ -621,7 +625,7 @@ fn read_spectrum<T: Read>(l: &mut Lines<BufReader<T>>) -> Result<SpectrumFileDat
         }
     }
     Ok(SpectrumFileData {
-        definition: definition,
+        definition,
         channels: contents,
     })
 }

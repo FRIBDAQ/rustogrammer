@@ -55,13 +55,13 @@ impl PhysicsEvent {
         if self.get_cursor < (self.event_data.len() + 1 - mem::size_of::<T>()) {
             let mut p = self.event_data.as_ptr();
             unsafe {
-                p = p.offset(self.get_cursor as isize);
+                p = p.add(self.get_cursor);
             }
             // Need to cast this to a pointer of type T:
 
             let pt = p.cast::<T>();
             let result = unsafe { ptr::read_unaligned(pt) };
-            self.get_cursor = self.get_cursor + mem::size_of::<T>();
+            self.get_cursor += mem::size_of::<T>();
             Some(result)
         } else {
             None // Out of range.
@@ -101,9 +101,9 @@ impl Iterator for PhysicsEvent {
 
 impl fmt::Display for PhysicsEvent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Physics Event:\n").unwrap();
+        writeln!(f, "Physics Event:").unwrap();
         if let Some(bh) = self.get_bodyheader() {
-            write!(f, "Body Header:\n {}\n", bh).unwrap();
+            writeln!(f, "Body Header:\n {}", bh).unwrap();
         }
 
         // We're a bit hampered by the fact that the signature
@@ -119,25 +119,23 @@ impl fmt::Display for PhysicsEvent {
             } else {
                 let mut p = self.event_data.as_ptr();
                 unsafe {
-                    p = p.offset(offset as isize);
+                    p = p.add(offset);
                 }
                 let pt = p.cast::<u16>();
                 let word = { unsafe { *pt } };
                 offset += u32s;
 
                 write!(f, "{:0>4x} ", word).unwrap();
-                in_line = in_line + 1;
+                in_line += 1;
                 if in_line == 8 {
-                    write!(f, "\n").unwrap();
-                    ();
+                    writeln!(f).unwrap();
                     in_line = 0;
                 }
             }
         }
         if in_line != 0 {
-            write!(f, "\n").unwrap();
+            writeln!(f).unwrap();
         }
-
         write!(f, "")
     }
 }

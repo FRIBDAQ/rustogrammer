@@ -116,18 +116,22 @@ pub mod binder_common {
     use crate::trace;
     use std::sync::mpsc;
     use std::thread;
-    
-    pub fn setup(hreq: &mpsc::Sender<messaging::Request>) -> (mpsc::Sender<binder::Request>, thread::JoinHandle<()>, trace::SharedTraceStore)  {
+
+    pub fn setup(
+        hreq: &mpsc::Sender<messaging::Request>,
+    ) -> (
+        mpsc::Sender<binder::Request>,
+        thread::JoinHandle<()>,
+        trace::SharedTraceStore,
+    ) {
         let tracedb = trace::SharedTraceStore::new();
         let (binder_req, binder_join) = binder::start_server(hreq, 1024 * 1024, &tracedb);
 
         (binder_req, binder_join, tracedb)
     }
-    pub fn teardown(breq : mpsc::Sender<binder::Request>, jh: thread::JoinHandle<()>) {
-
+    pub fn teardown(breq: mpsc::Sender<binder::Request>, jh: thread::JoinHandle<()>) {
         let api = binder::BindingApi::new(&breq);
         api.exit().expect("Stopping binding server");
         jh.join().expect("Joining binder thread");
     }
-
 }

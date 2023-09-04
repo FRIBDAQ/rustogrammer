@@ -28,8 +28,8 @@ impl Cut {
     pub fn new(id: u32, low: f64, high: f64) -> Cut {
         Cut {
             parameter_id: id,
-            low: low,
-            high: high,
+            low,
+            high,
             cache: None, // Starts with invalid cache.
         }
     }
@@ -56,10 +56,7 @@ impl Condition for Cut {
         String::from("Cut")
     }
     fn gate_points(&self) -> Vec<(f64, f64)> {
-        let mut result = Vec::<(f64, f64)>::new();
-        result.push((self.low, 0.0));
-        result.push((self.high, 0.0));
-        result
+        vec![(self.low, 0.0), (self.high, 0.0)]
     }
     fn dependent_gates(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
@@ -68,9 +65,7 @@ impl Condition for Cut {
         self.cache
     }
     fn dependent_parameters(&self) -> Vec<u32> {
-        let mut result = Vec::<u32>::new();
-        result.push(self.parameter_id);
-        result
+        vec![self.parameter_id]
     }
     fn invalidate_cache(&mut self) {
         self.cache = None;

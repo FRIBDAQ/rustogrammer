@@ -104,16 +104,16 @@ impl ConditionMessageClient {
             dependent: String::from(dependent),
         }
     }
-    fn make_and_creation(name: &str, dependents: &Vec<String>) -> ConditionRequest {
+    fn make_and_creation(name: &str, dependents: &[String]) -> ConditionRequest {
         ConditionRequest::CreateAnd {
             name: String::from(name),
-            dependents: dependents.clone(),
+            dependents: dependents.to_owned(),
         }
     }
-    fn make_or_creation(name: &str, dependents: &Vec<String>) -> ConditionRequest {
+    fn make_or_creation(name: &str, dependents: &[String]) -> ConditionRequest {
         ConditionRequest::CreateOr {
             name: String::from(name),
-            dependents: dependents.clone(),
+            dependents: dependents.to_owned(),
         }
     }
     fn make_cut_creation(name: &str, param_id: u32, low: f64, high: f64) -> ConditionRequest {
@@ -128,26 +128,26 @@ impl ConditionMessageClient {
         name: &str,
         x_id: u32,
         y_id: u32,
-        points: &Vec<(f64, f64)>,
+        points: &[(f64, f64)],
     ) -> ConditionRequest {
         ConditionRequest::CreateBand {
             name: String::from(name),
             x_id,
             y_id,
-            points: points.clone(),
+            points: points.to_owned(),
         }
     }
     fn make_contour_creation(
         name: &str,
         x_id: u32,
         y_id: u32,
-        points: &Vec<(f64, f64)>,
+        points: &[(f64, f64)],
     ) -> ConditionRequest {
         ConditionRequest::CreateContour {
             name: String::from(name),
             x_id,
             y_id,
-            points: points.clone(),
+            points: points.to_owned(),
         }
     }
     fn make_delete(name: &str) -> ConditionRequest {
@@ -243,7 +243,7 @@ impl ConditionMessageClient {
     /// Other returns are errors.  Note that a very simple error is that the
     /// one or more of the dependent conditions does not exist.
     ///
-    pub fn create_and_condition(&self, name: &str, dependents: &Vec<String>) -> ConditionReply {
+    pub fn create_and_condition(&self, name: &str, dependents: &[String]) -> ConditionReply {
         self.transaction(Self::make_and_creation(name, dependents))
     }
     /// Create a condition that is true if any of its dependenbt conditions is
@@ -261,7 +261,7 @@ impl ConditionMessageClient {
     /// Other returns are errors.  Note that a very simple error is that the
     /// one or more of the dependent conditions does not exist.
     ///
-    pub fn create_or_condition(&self, name: &str, dependents: &Vec<String>) -> ConditionReply {
+    pub fn create_or_condition(&self, name: &str, dependents: &[String]) -> ConditionReply {
         self.transaction(Self::make_or_creation(name, dependents))
     }
     /// Create a condition that is a cut on a parameter.
@@ -315,9 +315,9 @@ impl ConditionMessageClient {
         name: &str,
         x_id: u32,
         y_id: u32,
-        points: &Vec<(f64, f64)>,
+        points: &[(f64, f64)],
     ) -> ConditionReply {
-        self.transaction(Self::make_band_creation(name, x_id, y_id, &points))
+        self.transaction(Self::make_band_creation(name, x_id, y_id, points))
     }
     ///
     /// create a contour condition.  Contours are closed figures in a plane
@@ -350,9 +350,9 @@ impl ConditionMessageClient {
         name: &str,
         x_id: u32,
         y_id: u32,
-        points: &Vec<(f64, f64)>,
+        points: &[(f64, f64)],
     ) -> ConditionReply {
-        self.transaction(Self::make_contour_creation(name, x_id, y_id, &points))
+        self.transaction(Self::make_contour_creation(name, x_id, y_id, points))
     }
     ///
     /// Deletes a condition.  The condition is removed fromt he dictionary.
@@ -539,7 +539,7 @@ impl ConditionProcessor {
         name: &str,
         tracedb: &trace::SharedTraceStore,
     ) -> ConditionReply {
-        if let Some(_) = self.dict.remove(&String::from(name)) {
+        if self.dict.remove(&String::from(name)).is_some() {
             tracedb.add_event(trace::TraceEvent::ConditionDeleted(String::from(name)));
             ConditionReply::Deleted
         } else {
@@ -573,15 +573,15 @@ impl ConditionProcessor {
         // compile the pattern if that fails return an error:
 
         let patt = Pattern::new(pattern);
-        if patt.is_err() {
-            return ConditionReply::Error(String::from(patt.unwrap_err().msg));
+        if let Err(e) = patt {
+            return ConditionReply::Error(String::from(e.msg));
         }
         let patt = patt.unwrap();
 
         let mut props = Vec::<ConditionProperties>::new();
         for (name, cond) in self.dict.iter() {
-            if patt.matches(&name) {
-                props.push(self.make_props(&name, cond))
+            if patt.matches(name) {
+                props.push(self.make_props(name, cond))
             }
         }
         ConditionReply::Listing(props)

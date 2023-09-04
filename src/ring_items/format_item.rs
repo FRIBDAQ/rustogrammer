@@ -18,10 +18,7 @@ impl FormatItem {
         self.minor
     }
     pub fn new(major: u16, minor: u16) -> FormatItem {
-        FormatItem {
-            major: major,
-            minor: minor,
-        }
+        FormatItem { major, minor }
     }
 }
 

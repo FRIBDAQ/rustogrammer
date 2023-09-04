@@ -26,7 +26,7 @@ pub struct ParameterDefinitions {
 impl ParameterDefinition {
     pub fn new(id: u32, name: &str) -> ParameterDefinition {
         ParameterDefinition {
-            id: id,
+            id,
             name: String::from(name),
         }
     }
@@ -65,15 +65,15 @@ impl ParameterDefinitions {
     fn get_parameter_def(offset: &mut usize, bytes: &[u8]) -> ParameterDefinition {
         let id = u32::from_ne_bytes(bytes[*offset..*offset + 4].try_into().unwrap());
         *offset = offset.checked_add(4).unwrap();
-        let name = ring_items::get_c_string(offset, &bytes);
+        let name = ring_items::get_c_string(offset, bytes);
         ParameterDefinition::new(id, &name)
     }
 }
 impl fmt::Display for ParameterDefinitions {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Parameter definition item:\n").unwrap();
+        writeln!(f, "Parameter definition item:").unwrap();
         for p in &self.defs {
-            write!(f, "{}\n", *p).unwrap();
+            writeln!(f, "{}", *p).unwrap();
         }
         write!(f, "")
     }
@@ -111,7 +111,7 @@ impl ring_items::FromRaw<ParameterDefinitions> for ring_items::RingItem {
             for _ in 0..num {
                 result.defs.push(ParameterDefinitions::get_parameter_def(
                     &mut offset,
-                    &payload,
+                    payload,
                 ));
             }
             Some(result)
@@ -137,7 +137,7 @@ pub struct VariableValue {
 impl VariableValue {
     pub fn new(value: f64, name: &str, units: &str) -> VariableValue {
         VariableValue {
-            value: value,
+            value,
             name: String::from(name),
             units: String::from(units),
         }
@@ -191,9 +191,9 @@ impl VariableValues {
 }
 impl fmt::Display for VariableValues {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Variable values items:\n").unwrap();
+        writeln!(f, "Variable values items:").unwrap();
         for v in &self.defs {
-            write!(f, "{}\n", *v).unwrap();
+            writeln!(f, "{}", *v).unwrap();
         }
         write!(f, "")
     }
@@ -243,9 +243,9 @@ impl ring_items::FromRaw<VariableValues> for ring_items::RingItem {
                     f64::from_ne_bytes(payload[offset..offset + 8].try_into().unwrap());
                 offset += mem::size_of::<f64>();
                 let mut off = offset;
-                let units = ring_items::get_c_string(&mut off, &payload);
-                offset = offset + MAX_UNITS_LENGTH;
-                let name = ring_items::get_c_string(&mut offset, &payload);
+                let units = ring_items::get_c_string(&mut off, payload);
+                offset += MAX_UNITS_LENGTH;
+                let name = ring_items::get_c_string(&mut offset, payload);
                 result.defs.push(VariableValue::new(value, &name, &units));
             }
             Some(result)
@@ -265,10 +265,7 @@ pub struct ParameterValue {
 
 impl ParameterValue {
     pub fn new(id: u32, value: f64) -> ParameterValue {
-        ParameterValue {
-            id: id,
-            value: value,
-        }
+        ParameterValue { id, value }
     }
     pub fn id(&self) -> u32 {
         self.id
@@ -291,7 +288,7 @@ pub struct ParameterItem {
 impl ParameterItem {
     pub fn new(trigger: u64) -> ParameterItem {
         ParameterItem {
-            trigger: trigger,
+            trigger,
             parameters: Vec::<ParameterValue>::new(),
         }
     }
@@ -313,10 +310,10 @@ impl ParameterItem {
 }
 impl fmt::Display for ParameterItem {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Parameter Item\n").unwrap();
-        write!(f, "  trigger number{}\n", self.trigger).unwrap();
+        writeln!(f, "Parameter Item").unwrap();
+        writeln!(f, "  trigger number{}", self.trigger).unwrap();
         for p in &self.parameters {
-            write!(f, "   {}\n", *p).unwrap();
+            writeln!(f, "   {}", *p).unwrap();
         }
         write!(f, "")
     }
@@ -362,7 +359,7 @@ impl ring_items::FromRaw<ParameterItem> for ring_items::RingItem {
                         .unwrap(),
                 );
                 result.parameters.push(ParameterValue::new(id, value));
-                offset = offset + mem::size_of::<f64>();
+                offset += mem::size_of::<f64>();
             }
 
             Some(result)
