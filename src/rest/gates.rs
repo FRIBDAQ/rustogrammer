@@ -381,7 +381,7 @@ pub fn edit_gate(
             // There must be at least one gate:
 
             if let Some(gate) = gate {
-                if gate.len() >= 1 {
+                if !gate.is_empty() {
                     api.create_and_condition(&name, &gate)
                 } else {
                     ConditionReply::Error(String::from(

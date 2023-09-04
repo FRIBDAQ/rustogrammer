@@ -350,7 +350,7 @@ impl ConditionMessageClient {
         name: &str,
         x_id: u32,
         y_id: u32,
-        points: &Vec<(f64, f64)>,
+        points: &[(f64, f64)],
     ) -> ConditionReply {
         self.transaction(Self::make_contour_creation(name, x_id, y_id, points))
     }

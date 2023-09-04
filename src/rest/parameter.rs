@@ -184,11 +184,7 @@ pub fn create_parameter(
     } else {
         // Fish out low/high given that either both are there or none:
 
-        let limits = if low.is_some() {
-            Some((low.unwrap(), high.unwrap()))
-        } else {
-            None
-        };
+        let limits = low.map(|low| (low, high.unwrap()));
 
         // Make the API so we can create and, if needed,
         // modify the metadata:
@@ -246,11 +242,7 @@ pub fn edit_parameter(
     } else {
         // Fish out low/high given that either both are there or none:
 
-        let limits = if let Some(low) = low {
-            Some((low, high.unwrap()))
-        } else {
-            None
-        };
+        let limits = low.map(|low| (low, high.unwrap()));
 
         // Make the API so we can create and, if needed,
         // modify the metadata:

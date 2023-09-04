@@ -61,35 +61,45 @@ pub fn get_version() -> Json<VersionResponse> {
         },
     };
 
-    let major = env::var("CARGO_PKG_VERSION_MAJOR");
-    if major.is_err() {
-        return Json(result);
-    } else if let Ok(m) = major.unwrap().parse::<u32>() {
-        result.detail.major = m;
-    } else {
-        return Json(result);
+    
+    match env::var("CARGO_PKG_VERSION_MAJOR") {
+        Err(_) => {
+            return Json(result)
+        },
+        Ok(ma) => {
+            if let Ok(m) =  ma.parse::<u32>() {
+                result.detail.major = m;
+            } else {
+                return Json(result);
+            }
+        }
     }
 
-    let minor = env::var("CARGO_PKG_VERSION_MINOR");
-    if minor.is_err() {
-        return Json(result);
-    } else if let Ok(m) = minor.unwrap().parse::<u32>() {
-        result.detail.minor = m;
-    } else {
-        return Json(result);
+    match env::var("CARGO_PKG_VERSION_MINOR") {
+        Err(_) => return Json(result),
+        Ok(mi) => {
+            if let Ok(m) = mi.parse::<u32>() {
+                result.detail.minor = m;
+            } else {
+                return Json(result);
+            }
+        }
+    }
+    
+    match env::var("CARGO_PKG_VERSION_PATCH") {
+        Err(_) => {
+            return Json(result);
+        }
+        Ok(ed) => {
+            if let Ok(e) = ed.parse::<u32>() {
+                result.detail.editlevel = e;
+            } else {
+                return Json(result);
+            }
+        }
     }
 
-    let edit = env::var("CARGO_PKG_VERSION_PATCH");
-    if edit.is_err() {
-        return Json(result);
-    } else if let Ok(e) = edit.unwrap().parse::<u32>() {
-        result.detail.editlevel = e;
-    } else {
-        return Json(result);
-    }
-
-    let name = env::var("CARGO_PKG_NAME");
-    if let Ok(n) = name {
+    if let Ok(n) =  env::var("CARGO_PKG_NAME") {
         result.detail.program_name = n.clone();
         result.status = String::from("OK");
     }

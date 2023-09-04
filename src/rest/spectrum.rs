@@ -337,11 +337,7 @@ fn parse_single_axis_def(axes: &Vec<String>) -> Result<(f64, f64, u32), String> 
 type ParsedAxis = (f64, f64, u32);
 
 fn parse_axis_def(axes: &str) -> Result<ParsedAxis, String> {
-    let parsed_axes = parse_simple_list(axes);
-    if let Err(s) = parsed_axes {
-        return Err(s);
-    }
-    let axes = parsed_axes.unwrap();
+    let axes = parse_simple_list(axes)?;
     let axis_tuple = parse_single_axis_def(&axes)?;
 
     let axis = axis_tuple;
@@ -484,25 +480,27 @@ fn make_gamma2(
     axes: &str,
     state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
-    let parameters = parse_simple_list(parameters);
-    if parameters.is_err() {
-        return GenericResponse::err("Could not parse parameter list", &parameters.unwrap_err());
-    }
-    let parameters = parameters.unwrap(); // Vec of names.
-
-    let axes = parse_2_axis_defs(axes);
-    if let Err(s) = axes {
-        return GenericResponse::err("Failed to parse axes definitions", &s);
+    let parameters = match parse_simple_list(parameters) {
+        Err(s) => {
+            return GenericResponse::err("Could not parse parameter list", &s);
+        },
+        Ok(p) => p
     };
-    let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
+    
+
+    let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = match parse_2_axis_defs(axes) {
+        Err(s) =>  {
+            return GenericResponse::err("Failed to parse axes definitions", &s);
+        },
+        Ok(a) => a
+    };
+    
 
     let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
-    if let Err(s) =
-        api.create_spectrum_multi2d(name, &parameters, xlow, xhigh, xbins, ylow, yhigh, ybins)
-    {
-        GenericResponse::err("Failed to create multi2d spectrum", &s)
-    } else {
-        GenericResponse::ok("")
+
+    match  api.create_spectrum_multi2d(name, &parameters, xlow, xhigh, xbins, ylow, yhigh, ybins) {
+        Ok(()) => GenericResponse::ok(""),
+        Err(s) => GenericResponse::err("Failed to create multi2d spectrum", &s)
     }
 }
 // Make a particle gamma spectrum.

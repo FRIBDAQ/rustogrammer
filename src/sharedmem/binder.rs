@@ -126,12 +126,9 @@ impl BindingThread {
 
     fn find_binding(&mut self, name: &str) -> Option<usize> {
         let bindings = self.shm.get_bindings();
-        let is_found = bindings.iter().find(|x| x.1 == String::from(name));
-        if let Some(x) = is_found {
-            Some(x.0)
-        } else {
-            None
-        }
+        let is_found = bindings.iter().find(|x| x.1 == *name);
+
+        is_found.map(|x| x.0)
     }
     // Unbind a spectrum from shared memory:
 
@@ -183,7 +180,7 @@ impl BindingThread {
     ) -> Result<spectrum_messages::SpectrumProperties, String> {
         match self.spectrum_api.list_spectra(name) {
             spectrum_messages::SpectrumServerListingResult::Ok(spectra) => {
-                if spectra.len() == 0 {
+                if spectra.is_empty() {
                     Err(format!("No such spectrum {}", name))
                 } else if spectra.len() > 1 {
                     Err(format!("Ambiguous spectrum name {}", name))
@@ -197,22 +194,14 @@ impl BindingThread {
     fn get_yaxis(info: &spectrum_messages::SpectrumProperties) -> Option<(f64, f64, u32)> {
         // This is just extracted fom th Y axis if it's there:
 
-        if let Some(y) = info.yaxis {
-            Some((y.low, y.high, y.bins))
-        } else {
-            None
-        }
+        info.yaxis.map(|y| (y.low, y.high, y.bins))
     }
     fn get_xaxis(info: &spectrum_messages::SpectrumProperties) -> Option<(f64, f64, u32)> {
         // Normally this will just be the X axis but for summary
         // spectra we constuct this from the number of parameters.
 
-        if info.type_name != String::from("Summary") {
-            if let Some(x) = info.xaxis {
-                Some((x.low, x.high, x.bins))
-            } else {
-                None
-            }
+        if info.type_name != *"Summary" {
+            info.xaxis.map(|x| (x.low, x.high, x.bins))
         } else {
             let len = info.xparams.len();
             Some((0.0, len as f64, len as u32))
@@ -235,7 +224,7 @@ impl BindingThread {
         }
         // Summary spectra have a y axis specification and the
         // X axis is determined by the number of x parameters.
-        if info.type_name == String::from("Summary") {
+        if info.type_name == *"Summary" {
             result.0 = 0.0;
             result.1 = info.xparams.len() as f64;
         }
@@ -505,21 +494,26 @@ impl BindingApi {
     //
     fn transaction(&self, req: RequestType) -> Reply {
         let (rep_send, rep_rcv) = mpsc::channel();
-        if let Err(_) = self.req_chan.send(Request {
-            reply_chan: rep_send,
-            request: req,
-        }) {
+        if self
+            .req_chan
+            .send(Request {
+                reply_chan: rep_send,
+                request: req,
+            })
+            .is_err()
+        {
             return Reply::Generic(GenericResult::Err(String::from(
                 "Failed to send request to Binding Thread",
             )));
         }
-        let reply = rep_rcv.recv();
-        if let Err(_) = reply {
-            return Reply::Generic(GenericResult::Err(String::from(
+
+        if let Ok(reply) = rep_rcv.recv() {
+            reply
+        } else {
+            Reply::Generic(GenericResult::Err(String::from(
                 "Failed to receive reply from Binding thread request",
-            )));
+            )))
         }
-        reply.unwrap()
     }
     /// Creates a binding API instance given a BindingThread's
     /// request channel.  Note that this is cloned so multiple

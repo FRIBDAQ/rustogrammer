@@ -62,7 +62,7 @@ impl TextItem {
         timestamp: time::SystemTime,
         divisor: u32,
         orsid: Option<u32>,
-        strings: &Vec<String>,
+        strings: &[String],
     ) -> TextItem {
         TextItem {
             item_type: type_id,
@@ -71,7 +71,7 @@ impl TextItem {
             absolute_time: timestamp,
             offset_divisor: divisor,
             original_sid: orsid,
-            strings: strings.clone(),
+            strings: strings.to_owned(),
         }
     }
     // Getters.
@@ -127,23 +127,23 @@ impl TextItem {
 
 impl fmt::Display for TextItem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Text Item: \n").unwrap();
-        write!(f, "  type: {}\n", self.get_item_type_string()).unwrap();
+        writeln!(f, "Text Item:").unwrap();
+        writeln!(f, "  type: {}", self.get_item_type_string()).unwrap();
         if let Some(bh) = self.body_header {
-            write!(f, "Body header: \n {}\n", bh).unwrap();
+            writeln!(f, "Body header: \n {}", bh).unwrap();
         }
-        write!(
+        writeln!(
             f,
-            "  Offset {} secs , time {}\n",
+            "  Offset {} secs , time {}",
             self.get_offset_secs(),
             humantime::format_rfc3339(self.get_absolute_time())
         )
         .unwrap();
         if let Some(sid) = self.get_original_sid() {
-            write!(f, "Original sid:  {}\n", sid).unwrap();
+            writeln!(f, "Original sid:  {}", sid).unwrap();
         }
         for i in 0..self.get_string_count() {
-            write!(f, "String: {} : {}\n", i, self.get_string(i).unwrap()).unwrap();
+            writeln!(f, "String: {} : {}", i, self.get_string(i).unwrap()).unwrap();
         }
         write!(f, "")
     }
@@ -208,7 +208,7 @@ impl ring_items::FromRaw<TextItem> for ring_items::RingItem {
             // or nonexistence of a body header
 
             let offset: usize = if result.body_header.is_some() {
-                ring_items::body_header_size() as usize
+                ring_items::body_header_size()
             } else {
                 0
             };
@@ -225,14 +225,14 @@ impl ring_items::FromRaw<TextItem> for ring_items::RingItem {
                 result.original_sid = Some(u32::from_ne_bytes(
                     p[offset..offset + 4].try_into().unwrap(),
                 ));
-                offset = offset + 4;
+                offset += 4;
             }
             // offset is the offset of the first string.
 
             for _ in 0..num_string {
                 result
                     .strings
-                    .push(ring_items::get_c_string(&mut offset, &p));
+                    .push(ring_items::get_c_string(&mut offset, p));
             }
 
             Some(result)

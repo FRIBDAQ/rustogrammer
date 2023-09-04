@@ -99,12 +99,12 @@ impl Parameter {
     /// Get units of measure (if any).
 
     pub fn get_units(&self) -> Option<String> {
-        self.units.as_ref().map(|x| x.clone())
+        self.units.as_ref().cloned()
     }
     /// Get histogram description
 
     pub fn get_description(&self) -> Option<String> {
-        self.description.as_ref().map(|x| x.clone())
+        self.description.as_ref().cloned()
     }
 }
 

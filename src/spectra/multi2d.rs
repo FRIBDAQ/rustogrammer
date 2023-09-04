@@ -40,12 +40,12 @@ impl Spectrum for Multi2d {
         let mut histogram = self.histogram.borrow_mut();
         for a in 0..self.param_ids.len() {
             for b in (a + 1)..self.param_ids.len() {
-                let x = e[self.param_ids[a] as u32];
-                let y = e[self.param_ids[b] as u32];
-                if x.is_some() && y.is_some() {
-                    let x = x.unwrap();
-                    let y = y.unwrap();
-                    histogram.fill(&(x, y));
+                let x = e[self.param_ids[a]];
+                let y = e[self.param_ids[b]];
+                if let Some(x) = x {
+                    if let Some(y) = y {
+                        histogram.fill(&(x, y));
+                    }
                 }
             }
         }

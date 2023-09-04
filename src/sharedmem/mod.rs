@@ -269,7 +269,7 @@ impl SharedMemory {
         unsafe {
             self.map
                 .as_mut_ptr()
-                .offset(mem::size_of::<XamineSharedMemory>() as isize)
+                .add(mem::size_of::<XamineSharedMemory>())
         }
     }
     fn get_header(&mut self) -> &mut XamineSharedMemory {
@@ -309,7 +309,7 @@ impl SharedMemory {
         let file = match tempfile::NamedTempFile::new_in(home_dir) {
             Ok(f) => f,
             Err(e) => {
-                return Err(format!("Failed to create temp file: {}", e.to_string()));
+                return Err(format!("Failed to create temp file: {}", e));
             }
         };
         // Now we need to set the file length:
@@ -317,7 +317,7 @@ impl SharedMemory {
         if let Err(e) = file.as_file().set_len(total_size as u64) {
             return Err(format!(
                 "Failed to set the length of the backing store file: {}",
-                e.to_string()
+                e
             ));
         }
         // Finally we can make the memory map:
@@ -325,7 +325,7 @@ impl SharedMemory {
         let mut map = match unsafe { memmap::MmapMut::map_mut(file.as_file()) } {
             Ok(m) => m,
             Err(e) => {
-                return Err(format!("Failed to map file: {}", e.to_string()));
+                return Err(format!("Failed to map file: {}", e));
             }
         };
         // Initialize the map by setting it to zeros.
@@ -359,12 +359,7 @@ impl SharedMemory {
 
     pub fn get_free_slot(&self) -> Option<usize> {
         let header = self.map.as_ptr() as *mut XamineSharedMemory;
-        for i in 0..XAMINE_MAXSPEC {
-            if unsafe { (*header).dsp_types[i] } == SpectrumTypes::Undefined {
-                return Some(i);
-            }
-        }
-        return None; // No free slots.
+        (0..XAMINE_MAXSPEC).find(|&i| unsafe { (*header).dsp_types[i] } == SpectrumTypes::Undefined)
     }
     /// Allocate a free spectrum pointer that
     /// points to sufficient storage for a spectrum _size_ bytes long.
@@ -373,13 +368,9 @@ impl SharedMemory {
     /// spectrum storage area and the pointer to that stroage.
     pub fn get_free_spectrum_pointer(&mut self, size: usize) -> Option<(usize, *mut u8)> {
         // See if we have any that fit:
-        if let Some(offset) = self.allocator.allocate(size) {
-            Some((offset, unsafe {
-                self.spectrum_pointer().offset(offset as isize)
-            }))
-        } else {
-            None
-        }
+        self.allocator
+            .allocate(size)
+            .map(|offset| (offset, unsafe { self.spectrum_pointer().add(offset) }))
     }
     /// Make a binding for a specific named spectrum.
     ///
@@ -429,7 +420,7 @@ impl SharedMemory {
         let mut required = xaxis.2;
         let mut spectrum_type = SpectrumTypes::OnedLong;
         if let Some(y) = yaxis {
-            required = required * (y.2);
+            required *= y.2;
             spectrum_type = SpectrumTypes::TwodLong;
         }
         let storage = self.get_free_spectrum_pointer((required as usize) * mem::size_of::<u32>());
@@ -525,7 +516,7 @@ impl SharedMemory {
         let pspectrum = self.slot_as_pointer(slot);
         for c in contents.iter() {
             unsafe {
-                let p = pspectrum.offset(c.bin as isize);
+                let p = pspectrum.add(c.bin);
                 *p = c.value as u32;
             }
         }
@@ -541,7 +532,7 @@ impl SharedMemory {
             .as_os_str()
             .to_str()
             .expect("Failed to get shared memory path");
-        result = result + filepath;
+        result += filepath;
         result
     }
     /// Return the binding indices that are in use:

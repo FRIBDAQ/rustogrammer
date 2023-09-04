@@ -62,8 +62,10 @@ impl Spectrum for PGamma {
 
                 let x = e[xid];
                 let y = e[yid];
-                if x.is_some() && y.is_some() {
-                    histogram.fill(&(x.unwrap(), y.unwrap()));
+                if let Some(x) = x {
+                    if let Some(y) = y {
+                        histogram.fill(&(x, y));
+                    }
                 }
             }
         }
@@ -109,19 +111,17 @@ impl Spectrum for PGamma {
         Some(Rc::clone(&self.histogram))
     }
 }
+type ParameterDescription = (
+    Option<f64>,
+    Option<f64>,
+    Option<u32>,
+    Vec<SpectrumParameter>,
+);
 impl PGamma {
     fn make_axis_def(
-        params: &Vec<String>,
+        params: &[String],
         pdict: &ParameterDictionary,
-    ) -> Result<
-        (
-            Option<f64>,
-            Option<f64>,
-            Option<u32>,
-            Vec<SpectrumParameter>,
-        ),
-        String,
-    > {
+    ) -> Result<ParameterDescription, String> {
         // Validate all the x parameters and get the x axis default
         // specifications:
 
@@ -131,7 +131,7 @@ impl PGamma {
         let mut xp = Vec::<SpectrumParameter>::new();
 
         for pname in params.iter() {
-            if let Some(p) = pdict.lookup(&pname) {
+            if let Some(p) = pdict.lookup(pname) {
                 let lims = p.get_limits();
                 x_min = optmin(x_min, lims.0);
                 x_max = optmax(x_max, lims.1);
@@ -174,13 +174,13 @@ impl PGamma {
         let (mut x_min, mut x_max, mut x_bins, xp) = xdef.unwrap();
         // Override x default axis specs:
 
-        if let Some(_) = xmin {
+        if xmin.is_some() {
             x_min = xmin;
         }
-        if let Some(_) = xmax {
+        if xmax.is_some() {
             x_max = xmax;
         }
-        if let Some(_) = xbins {
+        if xbins.is_some() {
             x_bins = xbins;
         }
 
@@ -197,18 +197,16 @@ impl PGamma {
         }
         // Same but for y axis:
 
-        let ydef = Self::make_axis_def(yparams, pdict);
-        if let Err(s) = ydef {
-            return Err(s);
-        }
-        let (mut y_min, mut y_max, mut y_bins, yp) = ydef.unwrap();
-        if let Some(_) = ymin {
+        let ydef = Self::make_axis_def(yparams, pdict)?;
+
+        let (mut y_min, mut y_max, mut y_bins, yp) = ydef;
+        if ymin.is_some() {
             y_min = ymin;
         }
-        if let Some(_) = ymax {
+        if ymax.is_some() {
             y_max = ymax;
         }
-        if let Some(_) = ybins {
+        if ybins.is_some() {
             y_bins = ybins;
         }
 

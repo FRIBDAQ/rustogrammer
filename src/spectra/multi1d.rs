@@ -129,13 +129,13 @@ impl Multi1d {
             xbins = Some(b);
         }
 
-        if let None = xlow {
+        if xlow.is_none() {
             return Err(String::from("X axis low limit cannot be defaulted"));
         }
-        if let None = xmax {
+        if xmax.is_none() {
             return Err(String::from("X axis high limit cannot be defaulted"));
         }
-        if let None = xbins {
+        if xbins.is_none() {
             return Err(String::from("X axis binning cannot be defaulted"));
         }
         Ok(Multi1d {

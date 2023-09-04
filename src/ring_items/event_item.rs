@@ -119,14 +119,14 @@ impl fmt::Display for PhysicsEvent {
             } else {
                 let mut p = self.event_data.as_ptr();
                 unsafe {
-                    p = p.offset(offset as isize);
+                    p = p.add(offset);
                 }
                 let pt = p.cast::<u16>();
                 let word = { unsafe { *pt } };
                 offset += u32s;
 
                 write!(f, "{:0>4x} ", word).unwrap();
-                in_line = in_line + 1;
+                in_line += 1;
                 if in_line == 8 {
                     writeln!(f).unwrap();
                     in_line = 0;

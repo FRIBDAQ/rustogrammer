@@ -1210,7 +1210,7 @@ impl SpectrumMessageClient {
     pub fn create_spectrum_multi1d(
         &self,
         name: &str,
-        parameters: &Vec<String>,
+        parameters: &[String],
         low: f64,
         high: f64,
         bins: u32,
@@ -1296,7 +1296,7 @@ impl SpectrumMessageClient {
     pub fn create_spectrum_summary(
         &self,
         name: &str,
-        params: &Vec<String>,
+        params: &[String],
         low: f64,
         high: f64,
         bins: u32,
@@ -1356,8 +1356,8 @@ impl SpectrumMessageClient {
     pub fn create_spectrum_2dsum(
         &self,
         name: &str,
-        xparams: &Vec<String>,
-        yparams: &Vec<String>,
+        xparams: &[String],
+        yparams: &[String],
         xlow: f64,
         xhigh: f64,
         xbins: u32,
@@ -1479,7 +1479,7 @@ impl SpectrumMessageClient {
     /// *  events - vector of flat event.
     ///
     ///
-    pub fn process_events(&self, e: &Vec<parameters::Event>) -> SpectrumServerEmptyResult {
+    pub fn process_events(&self, e: &[parameters::Event]) -> SpectrumServerEmptyResult {
         match self.transact(Self::events_request(e)) {
             SpectrumReply::Processed => Ok(()),
             SpectrumReply::Error(s) => Err(s),

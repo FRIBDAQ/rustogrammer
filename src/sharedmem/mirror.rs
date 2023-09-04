@@ -122,7 +122,7 @@ impl MessageHeader {
         let mut buf: [u8; mem::size_of::<MessageHeader>()] = [0; mem::size_of::<MessageHeader>()];
         buf[0..4].copy_from_slice(&self.msg_size.to_ne_bytes()[0..]);
         buf[4..].copy_from_slice(&self.msg_type.to_ne_bytes()[0..]);
-        ();
+
         match f.write_all(&buf) {
             Ok(_) => Ok(mem::size_of::<MessageHeader>()),
             Err(e) => Err(format!("Header write failed: {}", e)),
@@ -198,14 +198,15 @@ impl Directory {
     /// and inserts it into the items.
     pub fn add(&mut self, host: &str, key: &str) -> Result<(), String> {
         let index = Self::compute_index(host, key);
-        if self.items.contains_key(&index) {
+
+        if let std::collections::hash_map::Entry::Vacant(e) = self.items.entry(index) {
+            e.insert(DirectoryEntry::new(host, key));
+            Ok(())
+        } else {
             Err(format!(
                 "The host/key pair {} {} are already registered",
                 host, key
             ))
-        } else {
-            self.items.insert(index, DirectoryEntry::new(host, key));
-            Ok(())
         }
     }
     /// Iterate over the DirectoryEntry -s in the directory.
@@ -216,7 +217,7 @@ impl Directory {
 
     fn remove(&mut self, host: &str, key: &str) -> Result<(), String> {
         let index = Self::compute_index(host, key);
-        if let Some(_) = self.items.remove(&index) {
+        if self.items.remove(&index).is_some() {
             Ok(())
         } else {
             Err(format!("No such entry for {} {}", host, key))
@@ -481,7 +482,7 @@ impl MirrorServerInstance {
                 .mirror_directory
                 .lock()
                 .unwrap()
-                .remove(&format!("{}", self.peer.ip()), &shm);
+                .remove(&format!("{}", self.peer.ip()), shm);
         }
 
         // Shutdown the socket rather than letting it linger.
@@ -565,7 +566,7 @@ impl MirrorServer {
             if let Ok(client) = client {
                 self.start_server_instance(client);
             }
-            match self.exit_req.recv_timeout(timeout.clone()) {
+            match self.exit_req.recv_timeout(timeout) {
                 Ok(_) => break,
                 Err(reason) => {
                     match reason {

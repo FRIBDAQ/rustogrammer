@@ -61,10 +61,10 @@ impl Spectrum for TwodSum {
             let yid = pair.y_id;
             let x = e[xid];
             let y = e[yid];
-            if x.is_some() && y.is_some() {
-                let x = x.unwrap();
-                let y = y.unwrap();
-                histogram.fill(&(x, y));
+            if let Some(x) = x {
+                if let Some(y) = y {
+                    histogram.fill(&(x, y));
+                }
             }
         }
     }

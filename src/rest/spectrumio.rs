@@ -745,7 +745,7 @@ pub fn sread_handler(
         let msg = spectra.as_ref().err().unwrap();
         return Json(GenericResponse::err(
             "Unable to deserialize from file",
-            &msg,
+            msg,
         ));
     }
     let spectra = spectra.as_ref().unwrap();

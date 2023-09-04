@@ -384,7 +384,7 @@ impl ProcessingThread {
             // Any error will be treated as an end
 
             if let Err(reason) = try_item {
-                println!("Failed to read a ring item: {}", reason.to_string());
+                println!("Failed to read a ring item: {}", reason);
                 self.processing = false;
                 return true;
             }
