@@ -243,14 +243,14 @@ pub type SharedMirrorDirectory = Arc<Mutex<Directory>>;
 ///
 /// ```
 ///    compute the digest of the header
-///    If the digest  is None 
+///    If the digest  is None
 ///      set the digest to Some(digest of the header).
 ///      do a full update.
-///    else 
+///    else
 ///      let current_digest = digest of the header.
 ///      if the current digest == digest of header
 ///         Do a partial update
-///      else 
+///      else
 ///         Update the digest to Some(digest of the header)
 ///         Do a full update.
 ///    endif
@@ -276,13 +276,31 @@ impl MirrorServerInstance {
     fn memory(&self) -> &XamineSharedMemory {
         unsafe { self.shared_memory.as_ref().unwrap() }
     }
-    // Provide a memory soup reference for the shared memory region with
+    // Provide a memory soup pointer for the shared memory region with
     // a given size.  This is suitable to be written to the socket
     // for an e.g. FULL_UPDATE
     //
     fn make_update_pointer(&self, size: usize) -> *const [u8] {
         let p8 = self.shared_memory as *const u8;
         ptr::slice_from_raw_parts(p8, size)
+    }
+    // provide a memory soup pointer for the spectrum soup part of the
+    // shared memory that represents the specific size  passed in:
+
+    fn make_spectrum_pointer(&self, size: usize) -> *const [u8] {
+        let p8 = self.shared_memory as *const u8;
+        let p8 = unsafe { p8.add(size) };
+        ptr::slice_from_raw_parts(p8, size)
+    }
+    //  Compute the digest of the header:
+
+    fn compute_digest(&self) -> md5::Digest {
+        let header = unsafe {
+            self.make_update_pointer(std::mem::size_of::<XamineSharedMemory>())
+                .as_ref()
+                .unwrap()
+        };
+        md5::compute(header)
     }
     // Find the defined spectrum definition with the largest offset.
     // note that it's possible there are no defined spectra in which case,
@@ -367,9 +385,8 @@ impl MirrorServerInstance {
     // A later version will support caching information about the shared memory
     // header so that we can determine if a partial u pdate is possible.
     //
-    
+
     fn process_full_update(&mut self) -> Result<(), String> {
-    
         let shm_header_size = mem::size_of::<XamineSharedMemory>();
         let shm_spectrum_size = self.size_spectrum_region();
         let shm_ptr = self.make_update_pointer(shm_header_size + shm_spectrum_size);
@@ -385,14 +402,33 @@ impl MirrorServerInstance {
         if let Err(reason) = self.socket.write_all(msg_body) {
             return Err(format!("Failed to write update body: {}", reason));
         }
-        self.socket.flush().expect("Failed toflush socket");
+        self.socket.flush().expect("Failed to flush socket");
 
         Ok(())
-    
     }
     // Process a partial update request:
     //
-    
+
+    fn process_partial_update(&mut self) -> Result<(), String> {
+        let used_spectrum_size = self.size_spectrum_region();
+        let shm_ptr = self.make_spectrum_pointer(used_spectrum_size);
+
+        let msg_header = MessageHeader {
+            msg_size: (mem::size_of::<MessageHeader>() + used_spectrum_size) as u32,
+            msg_type: PARTIAL_UPDATE
+        };
+        let msg_body = unsafe { shm_ptr.as_ref().unwrap()};
+
+        if let Err(s) = msg_header.write(&mut self.socket) {
+            return Err(format!("Failed to write partial update header: {}", s));
+        }
+        if let Err(reason) = self.socket.write_all(msg_body) {
+            return Err(format!("Failed to write partial update body: {}", reason));
+        }
+        self.socket.flush().expect("Falied to flush socket (Partial update)");
+        Ok(())
+    }
+
     // Process and update request:
     //
     // * There must be no body in the request message.
@@ -403,7 +439,19 @@ impl MirrorServerInstance {
     //
     fn process_update(&mut self, body_size: usize) -> Result<(), String> {
         if body_size == 0 {
-            self.process_full_update()
+            if self.digest.is_none() {
+                let new_digest = self.compute_digest();
+                self.digest = Some(new_digest);
+                self.process_full_update()
+            } else {
+                let new_digest = self.compute_digest();
+                if new_digest != self.digest.unwrap() {
+                    self.digest = Some(new_digest);
+                    self.process_full_update()
+                } else {
+                    self.process_partial_update()
+                }
+            }
         } else {
             Err(String::from("REQUEST_UPDATES must not have a body"))
         }
@@ -442,7 +490,7 @@ impl MirrorServerInstance {
                         peer,
                         mirror_directory: dir.clone(),
                         shm_info: None,
-                        digest: None
+                        digest: None,
                     }
                 } else {
                     sock.shutdown(Shutdown::Both)
