@@ -26,6 +26,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
+use md5;
+
 /// Here are the message type codes for the MessageHeader:
 ///
 /// ### Client request message types:
@@ -232,10 +234,27 @@ pub type SharedMirrorDirectory = Arc<Mutex<Directory>>;
 /// issues encountered when trying to maintain one map and pass
 /// pointers/references to threads.
 ///
-/// This initial version of the MirrorServerInstance is stupid
-/// and only does full updates.  A later version needs to understand
-/// how to do partial updates based on when things change in the
-/// shared memory header.
+/// Prior to sending the contents of the shared memory to the
+/// client on request, an md5 hash is done of the header to
+/// determine if we can get away with a partial transfer or if
+/// a full transfer is required.  The digest is encapsulated
+/// in an option which is initially None.
+/// Thus the logic for doing upates is like this:
+///
+/// ```
+///    compute the digest of the header
+///    If the digest  is None 
+///      set the digest to Some(digest of the header).
+///      do a full update.
+///    else 
+///      let current_digest = digest of the header.
+///      if the current digest == digest of header
+///         Do a partial update
+///      else 
+///         Update the digest to Some(digest of the header)
+///         Do a full update.
+///    endif
+/// ```
 
 struct MirrorServerInstance {
     #[allow(dead_code)]
