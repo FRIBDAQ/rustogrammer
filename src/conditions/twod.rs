@@ -379,6 +379,9 @@ impl Condition for Contour {
         self.cache = None;
     }
 }
+
+
+
 #[cfg(test)]
 mod band_tests {
     use super::*;

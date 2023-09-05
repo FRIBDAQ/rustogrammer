@@ -108,44 +108,6 @@ where
     }
 }
 ///
-/// This function reconstructs a contour in terms of the information
-/// that is passed to it by the condition_messaging API.  This is needed
-/// in order to construct a closure that can properly work for project_spectrum
-/// when the projection is inside s contour.
-///
-/// ### Parameters:
-///   *  props - the condition properties. Note these are consumed.
-/// ### Returns:
-///   Result<conditions::twod::Contour, String>  - where:
-///   *  Ok encapsulates the reconstituted contour
-///   *  Err encapsulates an error string (normally if props are not a
-/// contour).
-///
-/// ### NOTE:
-///   Dummy parameter numbers 0 and 1 are used for the parameter ids.
-///
-fn reconstitute_contour(
-    props: condition_messages::ConditionProperties,
-) -> Result<twod::Contour, String> {
-    if props.type_name == "Contour" {
-        let mut pts = Vec::<twod::Point>::new();
-        for (x, y) in props.points {
-            pts.push(twod::Point::new(x, y));
-        }
-        match twod::Contour::new(0, 1, pts) {
-            Some(c) => Ok(c),
-            None => Err(String::from(
-                "Failed to reconstitute contour in constructor - maybe too few points?",
-            )),
-        }
-    } else {
-        Err(String::from(
-            "Error reconstituting a contour - input is not a contour",
-        ))
-    }
-}
-
-///
 /// Make projection spectrum
 ///   Given an input spectrum description, produces the output spectrum for
 /// a projection (in the histogram server) and stuffs it with the
@@ -430,7 +392,7 @@ pub fn project(
         if cprops.len() != 1 {
             return Err(format!("{} does not uniquely identify a condition", roi));
         }
-        let contour = reconstitute_contour(cprops[0].clone());
+        let contour = condition_messages::reconstitute_contour(cprops[0].clone());
         if let Err(s) = contour {
             return Err(format!("Could not recontitute {} as a contoure {}", roi, s));
         }
@@ -818,59 +780,6 @@ mod project_spectrum_tests {
             .expect("Y Projection");
         for (i, x) in yproj.iter().enumerate() {
             assert_eq!(0.0, *x, "Nonzero value in Y chanel {}", i)
-        }
-    }
-}
-#[cfg(test)]
-mod recons_contour_tests {
-    use super::*;
-    use crate::messaging::condition_messages;
-
-    #[test]
-    fn err_1() {
-        // Contour described is not actually a contour:
-
-        let desc = condition_messages::ConditionProperties {
-            cond_name: String::from("junk"),
-            type_name: String::from("Not a contour"),
-            points: vec![],
-            gates: vec![],
-            parameters: vec![],
-        };
-        assert!(reconstitute_contour(desc).is_err());
-    }
-    #[test]
-    fn err_2() {
-        // Some how too few points in a thing that claims to be a contour
-
-        let desc = condition_messages::ConditionProperties {
-            cond_name: String::from("junk"),
-            type_name: String::from("Contour"),
-            points: vec![(100.0, 100.0), (200.0, 100.0)],
-            gates: vec![],
-            parameters: vec![],
-        };
-        assert!(reconstitute_contour(desc).is_err());
-    }
-    #[test]
-    fn ok_1() {
-        let pts = vec![(100.0, 100.0), (200.0, 100.0), (150.0, 150.0)]; // needed for later assertion:
-        let desc = condition_messages::ConditionProperties {
-            cond_name: String::from("junk"),
-            type_name: String::from("Contour"),
-            points: pts.clone(),
-            gates: vec![],
-            parameters: vec![],
-        };
-        let result = reconstitute_contour(desc);
-        assert!(result.is_ok());
-        let contour = result.unwrap();
-
-        let contour_points = contour.get_points();
-        assert_eq!(pts.len(), contour_points.len());
-        for (i, p) in pts.iter().enumerate() {
-            assert_eq!(p.0, contour_points[i].x, "X mismatch on point {}", i);
-            assert_eq!(p.1, contour_points[i].y, "Y mismatch on point {}", i);
         }
     }
 }
