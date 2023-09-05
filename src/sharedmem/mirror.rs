@@ -264,6 +264,7 @@ struct MirrorServerInstance {
     peer: SocketAddr,
     mirror_directory: SharedMirrorDirectory,
     shm_info: Option<String>,
+    digest: Option<md5::Digest>,
 }
 
 impl MirrorServerInstance {
@@ -361,10 +362,38 @@ impl MirrorServerInstance {
             Err(String::from("SHM_INFO requires a non-null body"))
         }
     }
-    // Process an update request.
+    // Process a full update request.
     // In this version of MirrorServerInstance only FULL_UPDATE replies are given.
     // A later version will support caching information about the shared memory
     // header so that we can determine if a partial u pdate is possible.
+    //
+    
+    fn process_full_update(&mut self) -> Result<(), String> {
+    
+        let shm_header_size = mem::size_of::<XamineSharedMemory>();
+        let shm_spectrum_size = self.size_spectrum_region();
+        let shm_ptr = self.make_update_pointer(shm_header_size + shm_spectrum_size);
+        let msg_header = MessageHeader {
+            msg_size: (mem::size_of::<MessageHeader>() + shm_header_size + shm_spectrum_size)
+                as u32,
+            msg_type: FULL_UPDATE,
+        };
+        let msg_body = unsafe { shm_ptr.as_ref().unwrap() };
+        if let Err(s) = msg_header.write(&mut self.socket) {
+            return Err(format!("Failed to write update header: {}", s));
+        }
+        if let Err(reason) = self.socket.write_all(msg_body) {
+            return Err(format!("Failed to write update body: {}", reason));
+        }
+        self.socket.flush().expect("Failed toflush socket");
+
+        Ok(())
+    
+    }
+    // Process a partial update request:
+    //
+    
+    // Process and update request:
     //
     // * There must be no body in the request message.
     // * We determien how large the used part of the shared memory region is.
@@ -374,28 +403,12 @@ impl MirrorServerInstance {
     //
     fn process_update(&mut self, body_size: usize) -> Result<(), String> {
         if body_size == 0 {
-            let shm_header_size = mem::size_of::<XamineSharedMemory>();
-            let shm_spectrum_size = self.size_spectrum_region();
-            let shm_ptr = self.make_update_pointer(shm_header_size + shm_spectrum_size);
-            let msg_header = MessageHeader {
-                msg_size: (mem::size_of::<MessageHeader>() + shm_header_size + shm_spectrum_size)
-                    as u32,
-                msg_type: FULL_UPDATE,
-            };
-            let msg_body = unsafe { shm_ptr.as_ref().unwrap() };
-            if let Err(s) = msg_header.write(&mut self.socket) {
-                return Err(format!("Failed to write update header: {}", s));
-            }
-            if let Err(reason) = self.socket.write_all(msg_body) {
-                return Err(format!("Failed to write update body: {}", reason));
-            }
-            self.socket.flush().expect("Failed toflush socket");
-
-            Ok(())
+            self.process_full_update()
         } else {
             Err(String::from("REQUEST_UPDATES must not have a body"))
         }
     }
+
     ///
     /// Create a new server instance.
     /// Normally a MirrorServerInstance will accept a connection
@@ -429,6 +442,7 @@ impl MirrorServerInstance {
                         peer,
                         mirror_directory: dir.clone(),
                         shm_info: None,
+                        digest: None
                     }
                 } else {
                     sock.shutdown(Shutdown::Both)
