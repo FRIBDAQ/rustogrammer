@@ -1645,4 +1645,132 @@ mod mirror_server_tests {
 
         teardown(&sender, offset);
     }
+    #[test]
+    fn partial_3() {
+        // If I get a partial update, changing the header
+        // results in a full update.
+        //
+
+        let offset=12;
+
+        let (mem, sender) = setup(SERVER_PORT + offset, 2048 * 1024);
+
+        let mut stream = connect_server(offset);
+        let mut msg_body = String::from("file:");
+        msg_body.push_str(&format!("{}", mem.path().display()));
+        // msg_body.shrink_to_fit();
+        let msg_len = mem::size_of::<MessageHeader>() + msg_body.len();
+        let header = MessageHeader {
+            msg_size: msg_len as u32,
+            msg_type: SHM_INFO,
+        };
+
+        header
+            .write(&mut stream)
+            .expect("Failed to write SHM_INFO header");
+        stream
+            .write_all(msg_body.as_bytes())
+            .expect("Failed to write SHM_INFO body");
+
+        // now request the update, read the header and be sure it's right:
+        // full update and the size is the size of a message header + XamineSharedMemory size.
+
+        thread::sleep(Duration::from_millis(500));
+        let header = MessageHeader {
+            msg_size: mem::size_of::<MessageHeader>() as u32,
+            msg_type: REQUEST_UPDATE,
+        };
+
+        header
+            .write(&mut stream)
+            .expect("Failed to request an update");
+        stream.flush().expect("Flushing stream failed");
+        let reply_header = MessageHeader::read(&mut stream).expect("Failed to read update header");
+        assert_eq!(
+            mem::size_of::<MessageHeader>() + mem::size_of::<XamineSharedMemory>(),
+            reply_header.msg_size as usize
+        );
+        assert_eq!(FULL_UPDATE, reply_header.msg_type);
+
+        // Read the data - this requires some skulduggery to get a reference
+        // to [u8]:
+
+        let mut mirror_bytes = Vec::<u8>::new();
+        mirror_bytes.resize(mem::size_of::<XamineSharedMemory>(), 0);
+        stream
+            .read_exact(&mut mirror_bytes)
+            .expect("Reading mirror.");
+
+        // Ok now do the request again - we should just get a header
+        // with PARTIAL_UPDATE type - only the headedr because
+        // no spectra are defined:
+
+        header
+            .write(&mut stream)
+            .expect("Failed to request an update");
+        stream.flush().expect("Flushing stream failed");
+        let reply_header = MessageHeader::read(&mut stream).expect("Failed to read update header");
+        assert_eq!(
+            mem::size_of::<MessageHeader>(),
+            reply_header.msg_size as usize
+        );
+        assert_eq!(PARTIAL_UPDATE, reply_header.msg_type);
+
+        // Now define a spectrum:
+
+        init_mirror_2shm(&mem);
+
+        header
+            .write(&mut stream)
+            .expect("Failed to request an update");
+        stream.flush().expect("Flushing stream failed");
+
+        // Request the reply:
+
+        let reply_header = MessageHeader::read(&mut stream).expect("Failed to read update header");
+        assert_eq!(
+            mem::size_of::<MessageHeader>()
+                + mem::size_of::<XamineSharedMemory>()
+                + 1024 * mem::size_of::<u32>(),
+            reply_header.msg_size as usize
+        );
+        assert_eq!(FULL_UPDATE, reply_header.msg_type);
+
+        // Now the mirror data:
+
+        let mut mirror_bytes = Vec::<u8>::new();
+        mirror_bytes.resize(
+            mem::size_of::<XamineSharedMemory>() + 1024 * mem::size_of::<u32>(),
+            0,
+        );
+
+        stream
+            .read_exact(&mut mirror_bytes)
+            .expect("Reading mirror_2 data");
+
+        // Make a pointer to the header and the soup:
+
+        let pmirror_bytes = mirror_bytes.as_ptr(); // ptr to u8
+                                                   // All spectra should be undefined...that's the only other thing we can check:
+        let pmirror = pmirror_bytes as *const XamineSharedMemory;
+        let mirror = unsafe { pmirror.as_ref().expect("pmirror nonzero") };
+        let mut psoup = unsafe { pmirror.offset(1) as *const u32 };
+
+        // Slot 0 defines a 1d spectrum.
+
+        assert_eq!(mirror.dsp_xy[0].xchans, 1024);
+        assert_eq!(mirror.dsp_xy[0].ychans, 1);
+        assert_eq!(mirror.dsp_offsets[0], 0);
+        assert_eq!(SpectrumTypes::OnedLong, mirror.dsp_types[0]);
+
+        for i in 0..1024 {
+            assert_eq!(i, unsafe { *psoup }, "Mismatch on {}", i);
+            unsafe { psoup = psoup.add(1) };
+        }
+
+        
+        teardown(&sender, offset);
+
+
+    }
 }
