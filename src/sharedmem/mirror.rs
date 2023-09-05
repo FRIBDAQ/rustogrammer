@@ -1651,7 +1651,7 @@ mod mirror_server_tests {
         // results in a full update.
         //
 
-        let offset=12;
+        let offset = 12;
 
         let (mem, sender) = setup(SERVER_PORT + offset, 2048 * 1024);
 
@@ -1768,9 +1768,6 @@ mod mirror_server_tests {
             unsafe { psoup = psoup.add(1) };
         }
 
-        
         teardown(&sender, offset);
-
-
     }
 }
