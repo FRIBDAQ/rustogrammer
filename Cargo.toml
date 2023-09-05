@@ -1,6 +1,6 @@
 [package]
 name = "rustogramer"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 authors = ["Ron Fox fox@frib.msu.edu"]
 description="A generic histogramer intended for nuclear science data from the FRIB"
@@ -37,6 +37,7 @@ chrono="0.4.26"
 scan_fmt="0.2.6"
 # For tests that need unique filenames.
 names = {version = "0.14.0", default-features = false}
+md5 = "0.7.0"
 
 [dependencies.rocket]
 version="0.5.0-rc.3"
