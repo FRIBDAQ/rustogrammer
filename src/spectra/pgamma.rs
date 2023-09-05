@@ -168,7 +168,7 @@ impl PGamma {
         ybins: Option<u32>,
     ) -> Result<PGamma, String> {
         let xdef = Self::make_axis_def(xparams, pdict)?;
-        
+
         let (mut x_min, mut x_max, mut x_bins, xp) = xdef;
         // Override x default axis specs:
 

@@ -61,13 +61,10 @@ pub fn get_version() -> Json<VersionResponse> {
         },
     };
 
-    
     match env::var("CARGO_PKG_VERSION_MAJOR") {
-        Err(_) => {
-            return Json(result)
-        },
+        Err(_) => return Json(result),
         Ok(ma) => {
-            if let Ok(m) =  ma.parse::<u32>() {
+            if let Ok(m) = ma.parse::<u32>() {
                 result.detail.major = m;
             } else {
                 return Json(result);
@@ -85,7 +82,7 @@ pub fn get_version() -> Json<VersionResponse> {
             }
         }
     }
-    
+
     match env::var("CARGO_PKG_VERSION_PATCH") {
         Err(_) => {
             return Json(result);
@@ -99,7 +96,7 @@ pub fn get_version() -> Json<VersionResponse> {
         }
     }
 
-    if let Ok(n) =  env::var("CARGO_PKG_NAME") {
+    if let Ok(n) = env::var("CARGO_PKG_NAME") {
         result.detail.program_name = n.clone();
         result.status = String::from("OK");
     }

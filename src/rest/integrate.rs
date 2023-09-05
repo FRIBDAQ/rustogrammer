@@ -7,13 +7,14 @@
 //!
 //!  There is only /spectcl/integrate, nothing underneath it.
 //!
+use super::*;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct IntegrationDetail {
-    centroid: f64,
-    fwhm: f64,
+    centroid: Vec<f64>,
+    fwhm: Vec<f64>,
     counts: u64,
 }
 #[derive(Serialize, Deserialize)]
@@ -43,13 +44,21 @@ pub struct IntegrationResponse {
 ///
 /// The reply is an IntegrationResponse.
 ///
-#[get("/")]
-pub fn integrate() -> Json<IntegrationResponse> {
+#[get("/?<name>&<gate>&<low>&<high>&<xcoord>&<ycoord>")]
+pub fn integrate(
+    name: String,
+    gate: OptionalString,
+    low: Option<f64>,
+    high: Option<f64>,
+    xcoord: OptionalF64Vec,
+    ycoord: OptionalF64Vec,
+    state: &State<SharedHistogramChannel>,
+) -> Json<IntegrationResponse> {
     Json(IntegrationResponse {
         status: String::from("/spectcl/integrate is not supported - this is not SpecTcl"),
         detail: IntegrationDetail {
-            centroid: 0.0,
-            fwhm: 0.0,
+            centroid: vec![0.0],
+            fwhm: vec![0.0],
             counts: 0,
         },
     })
@@ -72,7 +81,7 @@ mod integrate_tests {
     use std::sync::mpsc;
 
     fn setup() -> Rocket<Build> {
-        rest_common::setup().mount("/", routes![integrate])
+        rest_common::setup().mount("/", routes![integrate::integrate])
     }
     fn teardown(
         c: mpsc::Sender<messaging::Request>,
@@ -98,7 +107,7 @@ mod integrate_tests {
         let (c, papi, bapi) = getstate(&rocket);
 
         let client = Client::tracked(rocket).expect("Creating client");
-        let request = client.get("/");
+        let request = client.get("/?name=test");
         let response = request
             .dispatch()
             .into_json::<IntegrationResponse>()
