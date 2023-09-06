@@ -67,7 +67,7 @@ fn sum_channel(chan: &spectrum_messages::Channel, aoi: &AreaOfInterest) -> SumEl
         spectrum_messages::ChannelType::Bin => {
             if match aoi {
                 AreaOfInterest::All => true,
-                AreaOfInterest::Oned { low, high } => (chan.x >= *low) && (chan.y <= *high),
+                AreaOfInterest::Oned { low, high } => (chan.x >= *low) && (chan.x <= *high),
                 AreaOfInterest::Twod(c) => c.inside(chan.x, chan.y),
             } {
                 SumElement {
@@ -147,4 +147,125 @@ pub fn integrate(contents: &spectrum_messages::SpectrumContents, aoi: AreaOfInte
     }
 
     result;
+}
+#[cfg(test)]
+mod integrate_channel_tests {
+    use super::*;
+    use crate::conditions::twod::Contour;
+    use crate::messaging::spectrum_messages::{Channel, ChannelType};
+
+    #[test]
+    fn none_1() {
+        // No restriction regular bin - contributes:
+
+        let chan = Channel {
+            chan_type: ChannelType::Bin,
+            x: 10.0,
+            y: 20.0,
+            bin: 0,
+            value: 100.0,
+        };
+        let aoi = AreaOfInterest::All;
+
+        let value = sum_channel(&chan, &aoi);
+        assert_eq!(100.0, value.contents);
+        assert_eq!(100.0 * 10.0, value.wsum.0);
+        assert_eq!(100.0 * 20.0, value.wsum.1);
+    }
+    #[test]
+    fn none_2() {
+        // Never include overflow:
+
+        let chan = Channel {
+            chan_type: ChannelType::Overflow,
+            x: 10.0,
+            y: 20.0,
+            bin: 0,
+            value: 100.0,
+        };
+        let aoi = AreaOfInterest::All;
+
+        let value = sum_channel(&chan, &aoi);
+
+        assert_eq!(0.0, value.contents);
+        assert_eq!((0.0, 0.0), value.wsum);
+    }
+    #[test]
+    fn none_3() {
+        // never include underflows:
+
+        let chan = Channel {
+            chan_type: ChannelType::Underflow,
+            x: 10.0,
+            y: 20.0,
+            bin: 0,
+            value: 100.0,
+        };
+        let aoi = AreaOfInterest::All;
+
+        let value = sum_channel(&chan, &aoi);
+
+        assert_eq!(0.0, value.contents);
+        assert_eq!((0.0, 0.0), value.wsum);
+    }
+    #[test]
+    fn cut_1() {
+        // Limits inside for 1d.
+
+        let chan = Channel {
+            chan_type: ChannelType::Bin,
+            x: 100.0,
+            y: 0.0,
+            bin: 0,
+            value: 120.0,
+        };
+        let aoi = AreaOfInterest::Oned {
+            low: 10.0,
+            high: 200.0,
+        };
+
+        let value = sum_channel(&chan, &aoi);
+        assert_eq!(120.0, value.contents);
+        assert_eq!((100.0 * 120.0, 0.0), value.wsum);
+    }
+    #[test]
+    fn cut_2() {
+        // Limits lower than cut:
+
+        let chan = Channel {
+            chan_type: ChannelType::Bin,
+            x: 100.0,
+            y: 0.0,
+            bin: 0,
+            value: 120.0,
+        };
+        let aoi = AreaOfInterest::Oned {
+            low: 101.0,
+            high: 200.0,
+        };
+
+        let value = sum_channel(&chan, &aoi);
+        assert_eq!(0.0, value.contents);
+        assert_eq!((0.0, 0.0), value.wsum);
+    }
+    #[test]
+    fn cut_3() {
+        // Limits higher than cut.
+
+        let chan = Channel {
+            chan_type: ChannelType::Bin,
+            x: 100.0,
+            y: 0.0,
+            bin: 0,
+            value: 120.0,
+        };
+        let aoi = AreaOfInterest::Oned {
+            low: 10.0,
+            high: 99.0,
+        };
+
+        let value = sum_channel(&chan, &aoi);
+        assert_eq!(0.0, value.contents);
+        assert_eq!((0.0, 0.0), value.wsum);
+    }
 }
