@@ -380,8 +380,6 @@ impl Condition for Contour {
     }
 }
 
-
-
 #[cfg(test)]
 mod band_tests {
     use super::*;
