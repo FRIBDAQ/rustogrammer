@@ -151,7 +151,7 @@ pub fn integrate(contents: &spectrum_messages::SpectrumContents, aoi: AreaOfInte
 #[cfg(test)]
 mod integrate_channel_tests {
     use super::*;
-    use crate::conditions::twod::Contour;
+    use crate::conditions::twod::{Point, Contour};
     use crate::messaging::spectrum_messages::{Channel, ChannelType};
 
     #[test]
@@ -263,6 +263,51 @@ mod integrate_channel_tests {
             low: 10.0,
             high: 99.0,
         };
+
+        let value = sum_channel(&chan, &aoi);
+        assert_eq!(0.0, value.contents);
+        assert_eq!((0.0, 0.0), value.wsum);
+    }
+    // Utility to make an nice diamond for contour tests:
+    //
+
+    fn make_contour() -> Contour {
+        Contour::new(0, 1, vec![
+            Point::new(100.0, 0.0),
+            Point::new(150.0, 50.0),
+            Point::new(100.0, 100.0),
+            Point::new(50.0, 50.0)
+        ]).unwrap()
+    }
+    #[test]
+    fn contour_1() {
+        // point is inside a contour
+
+        let chan = Channel {
+            chan_type: ChannelType::Bin,
+            x: 100.0,            // On the midline of the contour.
+            y: 50.0, 
+            bin: 0,
+            value: 100.0
+        };
+        let aoi = AreaOfInterest::Twod(make_contour());
+
+        let value = sum_channel(&chan, &aoi);
+        assert_eq!(100.0, value.contents);
+        assert_eq!((100.0*100.0, 100.0*50.0), value.wsum);
+    }
+    #[test]
+    fn contour_2() {
+        // Out at upper quad.
+
+        let chan = Channel {
+            chan_type: ChannelType::Bin,
+            x: 50.0,
+            y: 75.0,
+            bin: 0,
+            value: 100.0
+        };
+        let aoi = AreaOfInterest::Twod(make_contour());
 
         let value = sum_channel(&chan, &aoi);
         assert_eq!(0.0, value.contents);
