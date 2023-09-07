@@ -41,6 +41,8 @@ pub enum AreaOfInterest {
     All,                 // No limits.
 }
 /// The results of an integration.
+
+#[derive(PartialEq, Debug)]
 pub struct Integration {
     sum: f64,
     centroid: (f64, f64),
@@ -100,7 +102,10 @@ fn sum_channel(chan: &spectrum_messages::Channel, aoi: &AreaOfInterest) -> SumEl
 /// ### Notes:
 ///   *  The caller can limit the data returned so that fewer channels are examined.
 ///   *  Only zero or none of limits
-pub fn integrate(contents: &spectrum_messages::SpectrumContents, aoi: AreaOfInterest) {
+pub fn integrate(
+    contents: &spectrum_messages::SpectrumContents,
+    aoi: AreaOfInterest,
+) -> Integration {
     let mut result = Integration {
         sum: 0.0,
         centroid: (0.0, 0.0),
@@ -108,45 +113,44 @@ pub fn integrate(contents: &spectrum_messages::SpectrumContents, aoi: AreaOfInte
     };
     let mut counts: f64 = 0.0;
     let mut wsum: (f64, f64) = (0.0, 0.0);
-    let mut wsumsq: (f64, f64) = (0.0, 0.0);
+    let mut wsumsq = (0.0_f64, 0.0_f64);
     for chan in contents {
         let contribution = sum_channel(&chan, &aoi);
         counts += contribution.contents;
         wsum.0 += contribution.wsum.0;
         wsum.1 += contribution.wsum.1;
 
-        wsumsq.0 += contribution.wsum.0 * chan.x; // n*x^2
-        wsumsq.1 += contribution.wsum.1 * chan.y; // n*y^2
+        wsumsq.0 += wsum.0 * wsum.0;
+        wsumsq.1 + -wsum.1 * wsum.1;
     }
 
     // It's possible for the ROI to be empty in which case we can't do the
     // divisions:
 
     if counts != 0.0 {
-        let sum = counts;
         let centroid = (wsum.0 / counts, wsum.1 / counts);
-        let deviance = (
-            wsumsq.0 - centroid.0 * centroid.0,
-            wsumsq.1 - centroid.1 * centroid.1,
-        );
-        let deviance = (
-            if deviance.0 > 0.0 {
-                sqrt(deviance.0)
+
+        let variance = (wsumsq.0 - wsum.0 * wsum.0, wsumsq.1 - wsum.1 * wsum.1);
+
+        let variance = (
+            if variance.0 > 0.0 {
+                sqrt(wsumsq.0) / counts
             } else {
                 0.0
             },
-            if deviance.1 > 0.0 {
-                sqrt(deviance.1)
+            if variance.1 > 0.0 {
+                sqrt(wsumsq.1) / counts
             } else {
                 0.0
             },
         );
+
         result.sum = counts;
         result.centroid = (centroid.0, centroid.1);
-        result.fwhm = (deviance.0 * GAMMA, deviance.1 * GAMMA);
+        result.fwhm = (variance.0 * GAMMA, variance.1 * GAMMA);
     }
 
-    result;
+    result
 }
 
 #[cfg(test)]
@@ -174,7 +178,6 @@ mod test_utilities {
 #[cfg(test)]
 mod integrate_channel_tests {
     use super::*;
-    use crate::conditions::twod::{Contour, Point};
     use crate::messaging::spectrum_messages::{Channel, ChannelType};
 
     #[test]
@@ -330,6 +333,137 @@ mod integrate_channel_tests {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use crate::conditions::twod::{Contour, Point};
-    use crate::messaging::spectrum_messages::{Channel, ChannelType};
+    use crate::messaging::spectrum_messages::{Channel, ChannelType, SpectrumContents};
+
+    // Make a 1d spike at where that's got how_high counts:
+
+    fn make_spike_1d(x: f64, how_high: f64) -> SpectrumContents {
+        vec![Channel {
+            chan_type: ChannelType::Bin,
+            x: x,
+            y: 0.0,
+            bin: 0,
+            value: how_high,
+        }]
+    }
+    fn make_spike_2d(x: f64, y: f64, how_high: f64) -> SpectrumContents {
+        vec![Channel {
+            chan_type: ChannelType::Bin,
+            x,
+            y,
+            bin: 0,
+            value: how_high,
+        }]
+    }
+
+    #[test]
+    fn empty_1() {
+        // Empty spectrum returns 0's:
+
+        let contents: SpectrumContents = vec![];
+        let result = integrate(&contents, AreaOfInterest::All);
+
+        assert_eq!(
+            Integration {
+                sum: 0.0,
+                centroid: (0.0, 0.0),
+                fwhm: (0.0, 0.0)
+            },
+            result
+        );
+    }
+    #[test]
+    fn spike1_1() {
+        // 1d spke for all:
+
+        let contents = make_spike_1d(100.0, 250.0);
+        let result = integrate(&contents, AreaOfInterest::All);
+
+        assert_eq!(
+            Integration {
+                sum: 250.0,
+                centroid: (100.0, 0.0),
+                fwhm: (0.0, 0.0)
+            },
+            result
+        );
+    }
+    #[test]
+    fn spike1_2() {
+        // The AOI is a slice but the spike is inside the slice:
+
+        let contents = make_spike_1d(100.0, 250.0);
+        let result = integrate(
+            &contents,
+            AreaOfInterest::Oned {
+                low: 50.0,
+                high: 150.0,
+            },
+        );
+
+        assert_eq!(
+            Integration {
+                sum: 250.0,
+                centroid: (100.0, 0.0),
+                fwhm: (0.0, 0.0)
+            },
+            result
+        );
+    }
+    #[test]
+    fn spike1_3() {
+        // AOI is a slice with the spike outside the slice:
+
+        let contents = make_spike_1d(100.0, 250.0);
+        let result = integrate(
+            &contents,
+            AreaOfInterest::Oned {
+                low: 150.0,
+                high: 250.0,
+            },
+        );
+
+        assert_eq!(
+            Integration {
+                sum: 0.0,
+                centroid: (0.0, 0.0),
+                fwhm: (0.0, 0.0)
+            },
+            result
+        );
+    }
+    #[test]
+    fn oned() {
+        // Only slightly more interesting data
+
+        let mut contents = make_spike_1d(100.0, 250.0);
+        let spike2 = make_spike_1d(110.0, 250.0);
+        contents.push(spike2[0]);
+        let result = integrate(&contents, AreaOfInterest::All);
+        assert_eq!(500.0, result.sum);
+        assert_eq!((105.0, 0.0), result.centroid);
+
+        let sumsq = (100.0_f64 * 250.0_f64).powi(2) + (110.0_f64 * 250.0_f64).powi(2);
+        let variance = sumsq - (100.0_f64 * 250.0_f64 + 110.0_f64 * 250.0_f64).powi(2);
+        let fwhm = (sqrt(variance) / 500.0) * GAMMA;
+        assert_eq!((fwhm, 0.0), result.fwhm);
+    }
+
+    // 2-d integrations
+
+    #[test]
+    fn spike2_1() {
+        // single spike - AOI is all:
+
+        let contents = make_spike_2d(100.0, 200.0, 400.0);
+        let result = integrate(&contents, AreaOfInterest::All);
+
+        assert_eq!(
+            Integration {
+                sum: 400.0,
+                centroid: (100.0, 200.0),
+                fwhm: (0.0, 0.0)
+            }, result
+        );
+    }
 }
