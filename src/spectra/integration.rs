@@ -85,6 +85,51 @@ fn sum_channel(chan: &spectrum_messages::Channel, aoi: &AreaOfInterest) -> SumEl
         }
     }
 }
+// COmpute (centroid.x, centroid.y, counts)
+fn centroid(
+    contents: &spectrum_messages::SpectrumContents,
+    aoi: &AreaOfInterest,
+) -> (f64, f64, f64) {
+    let mut wsums = (0.0_f64, 0.0_f64);
+    let mut counts = 0.0_f64;
+
+    for chan in contents {
+        let contribution = sum_channel(&chan, aoi);
+        counts += contribution.contents;
+        wsums.0 += contribution.wsum.0;
+        wsums.1 += contribution.wsum.1;
+    }
+    if counts > 0.0 {
+        (wsums.0 / counts, wsums.1 / counts, counts)
+    } else {
+        (0.0, 0.0, 0.0)
+    }
+}
+// Compute (fwhm.x fwhm.y)
+fn fwhm(
+    centroid: (f64, f64),
+    total_counts: f64,
+    contents: &spectrum_messages::SpectrumContents,
+    aoi: &AreaOfInterest,
+) -> (f64, f64) {
+    let mut sqsums = (0.0_f64, 0.0_f64);
+    for chan in contents {
+        let contribution = sum_channel(&chan, aoi);
+        sqsums.0 += contribution.contents * (chan.x - centroid.0) * (chan.x - centroid.0);
+        sqsums.1 += contribution.contents * (chan.y - centroid.1) * (chan.y - centroid.1);
+    }
+
+    // sqsums _cannot_ be negative so:
+
+    if total_counts > 0.0 {
+        (
+            sqrt(sqsums.0) * GAMMA / total_counts,
+            sqrt(sqsums.1) * GAMMA / total_counts,
+        )
+    } else {
+        (0.0, 0.0)
+    }
+}
 
 /// Integrate a spectrum within a region of interest.
 /// For 1-d spectra the region of interest is supplied by a low/high pair.
@@ -102,6 +147,7 @@ fn sum_channel(chan: &spectrum_messages::Channel, aoi: &AreaOfInterest) -> SumEl
 /// ### Notes:
 ///   *  The caller can limit the data returned so that fewer channels are examined.
 ///   *  Only zero or none of limits
+///   * This takes two runs over the data but is less likely to overflow.
 pub fn integrate(
     contents: &spectrum_messages::SpectrumContents,
     aoi: AreaOfInterest,
@@ -111,46 +157,14 @@ pub fn integrate(
         centroid: (0.0, 0.0),
         fwhm: (0.0, 0.0),
     };
-    let mut counts: f64 = 0.0;
-    let mut wsum: (f64, f64) = (0.0, 0.0);
-    let mut wsumsq = (0.0_f64, 0.0_f64);
-    for chan in contents {
-        let contribution = sum_channel(&chan, &aoi);
-        counts += contribution.contents;
-        wsum.0 += contribution.wsum.0;
-        wsum.1 += contribution.wsum.1;
+    let (cx, cy, counts) = centroid(contents, &aoi);
+    let width = fwhm((cx, cy), counts, contents, &aoi);
 
-        wsumsq.0 += wsum.0 * wsum.0;
-        wsumsq.1 + -wsum.1 * wsum.1;
+    Integration {
+        sum: counts,
+        centroid: (cx, cy),
+        fwhm: width,
     }
-
-    // It's possible for the ROI to be empty in which case we can't do the
-    // divisions:
-
-    if counts != 0.0 {
-        let centroid = (wsum.0 / counts, wsum.1 / counts);
-
-        let variance = (wsumsq.0 - wsum.0 * wsum.0, wsumsq.1 - wsum.1 * wsum.1);
-
-        let variance = (
-            if variance.0 > 0.0 {
-                sqrt(wsumsq.0) / counts
-            } else {
-                0.0
-            },
-            if variance.1 > 0.0 {
-                sqrt(wsumsq.1) / counts
-            } else {
-                0.0
-            },
-        );
-
-        result.sum = counts;
-        result.centroid = (centroid.0, centroid.1);
-        result.fwhm = (variance.0 * GAMMA, variance.1 * GAMMA);
-    }
-
-    result
 }
 
 #[cfg(test)]
@@ -332,6 +346,7 @@ mod integrate_channel_tests {
 }
 #[cfg(test)]
 mod integration_tests {
+    use super::test_utilities::make_contour;
     use super::*;
     use crate::messaging::spectrum_messages::{Channel, ChannelType, SpectrumContents};
 
@@ -437,16 +452,21 @@ mod integration_tests {
         // Only slightly more interesting data
 
         let mut contents = make_spike_1d(100.0, 250.0);
-        let spike2 = make_spike_1d(110.0, 250.0);
+        let spike2 = make_spike_1d(110.0, 200.0);
         contents.push(spike2[0]);
         let result = integrate(&contents, AreaOfInterest::All);
-        assert_eq!(500.0, result.sum);
-        assert_eq!((105.0, 0.0), result.centroid);
+        assert_eq!(450.0, result.sum);
+        let csbc = (100.0 * 250.0 + 110.0 * 200.0) / 450.0; 
+        assert_eq!(
+            (csbc, 0.0),
+            result.centroid
+        );
 
-        let sumsq = (100.0_f64 * 250.0_f64).powi(2) + (110.0_f64 * 250.0_f64).powi(2);
-        let variance = sumsq - (100.0_f64 * 250.0_f64 + 110.0_f64 * 250.0_f64).powi(2);
-        let fwhm = (sqrt(variance) / 500.0) * GAMMA;
+        let sqsum = 250.0*(100.0-csbc)*(100.0-csbc) + 200.0*(110.0 - csbc)*(110.0 - csbc);
+        let fwhm = sqrt(sqsum)*GAMMA/450.0;
+        
         assert_eq!((fwhm, 0.0), result.fwhm);
+        
     }
 
     // 2-d integrations
@@ -463,7 +483,24 @@ mod integration_tests {
                 sum: 400.0,
                 centroid: (100.0, 200.0),
                 fwhm: (0.0, 0.0)
-            }, result
+            },
+            result
         );
+    }
+    #[test]
+    fn spike2_2() {
+        // single spike inside contour AOI
+
+        let contents = make_spike_2d(100.0, 50.0, 1234.0);
+        let result = integrate(&contents, AreaOfInterest::Twod(make_contour()));
+
+        assert_eq!(
+            Integration {
+                sum: 1234.0,
+                centroid: (100.0, 50.0),
+                fwhm: (0.0, 0.0)
+            },
+            result
+        )
     }
 }
