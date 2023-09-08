@@ -152,11 +152,7 @@ pub fn integrate(
     contents: &spectrum_messages::SpectrumContents,
     aoi: AreaOfInterest,
 ) -> Integration {
-    let mut result = Integration {
-        sum: 0.0,
-        centroid: (0.0, 0.0),
-        fwhm: (0.0, 0.0),
-    };
+    
     let (cx, cy, counts) = centroid(contents, &aoi);
     let width = fwhm((cx, cy), counts, contents, &aoi);
 
@@ -456,17 +452,14 @@ mod integration_tests {
         contents.push(spike2[0]);
         let result = integrate(&contents, AreaOfInterest::All);
         assert_eq!(450.0, result.sum);
-        let csbc = (100.0 * 250.0 + 110.0 * 200.0) / 450.0; 
-        assert_eq!(
-            (csbc, 0.0),
-            result.centroid
-        );
+        let csbc = (100.0 * 250.0 + 110.0 * 200.0) / 450.0;
+        assert_eq!((csbc, 0.0), result.centroid);
 
-        let sqsum = 250.0*(100.0-csbc)*(100.0-csbc) + 200.0*(110.0 - csbc)*(110.0 - csbc);
-        let fwhm = sqrt(sqsum)*GAMMA/450.0;
-        
+        let sqsum =
+            250.0 * (100.0 - csbc) * (100.0 - csbc) + 200.0 * (110.0 - csbc) * (110.0 - csbc);
+        let fwhm = sqrt(sqsum) * GAMMA / 450.0;
+
         assert_eq!((fwhm, 0.0), result.fwhm);
-        
     }
 
     // 2-d integrations
@@ -502,5 +495,47 @@ mod integration_tests {
             },
             result
         )
+    }
+    #[test]
+    fn spike2_3() {
+        // Single spike outside the AOI:
+
+        let contents = make_spike_2d(150.0, 60.0, 1243.0); // Right and above.
+        let result = integrate(&contents, AreaOfInterest::Twod(make_contour()));
+        assert_eq!(
+            Integration {
+                sum: 0.0,
+                centroid: (0.0, 0.0),
+                fwhm: (0.0, 0.0)
+            },
+            result
+        );
+    }
+    #[test]
+    fn twod_1() {
+        // A couple of spikes:
+
+        let mut contents = make_spike_2d(100.0, 60.0, 100.0);
+        let other_spike = make_spike_2d(120.0, 70.0, 150.0);
+        contents.push(other_spike[0]);
+        let result = integrate(&contents, AreaOfInterest::All);
+
+        // X centroid and fwhm:
+
+        let cx: f64 = (100.0 * 100.0 + 120.0 * 150.0) / 250.0;
+        let var: f64 = 100.0 * (100.0 - cx).powi(2) + 150.0 * (120.0 - cx).powi(2);
+        let fwhmx = GAMMA * sqrt(var) / 250.0;
+
+        assert_eq!(250.0, result.sum);
+        assert_eq!(cx, result.centroid.0);
+        assert_eq!(fwhmx, result.fwhm.0);
+
+        // ... and in the y direction:
+
+        let cy: f64 = (100.0 * 60.0 + 150.0 * 70.0) / 250.0;
+        let var: f64 = 100.0 * (60.0 - cy).powi(2) + 150.0 * (70.0 - cy).powi(2);
+        let fwhmy = GAMMA * sqrt(var) / 250.0;
+        assert_eq!(cy, result.centroid.1);
+        assert_eq!(fwhmy, result.fwhm.1);
     }
 }
