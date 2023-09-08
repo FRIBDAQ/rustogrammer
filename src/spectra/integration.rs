@@ -19,6 +19,7 @@
 
 use crate::conditions::twod;
 use crate::messaging::spectrum_messages; // Need for reconstiting contours.
+
 use libm::sqrt;
 
 /// Multiplier from deviance to FWHM under Gaussian assumption:
@@ -31,6 +32,7 @@ struct SumElement {
     wsum: (f64, f64), // cahnnel contents weighted by x/y positions.
 }
 /// Used to hold the region of interest in which a sum is being done.
+#[derive(Clone)]
 pub enum AreaOfInterest {
     Oned {
         // OneD slice of interest
@@ -44,9 +46,9 @@ pub enum AreaOfInterest {
 
 #[derive(PartialEq, Debug)]
 pub struct Integration {
-    sum: f64,
-    centroid: (f64, f64),
-    fwhm: (f64, f64),
+    pub sum: f64,
+    pub centroid: (f64, f64),
+    pub fwhm: (f64, f64),
 }
 // This function handles a single channel returning a SumElement
 // Parameters
@@ -152,7 +154,6 @@ pub fn integrate(
     contents: &spectrum_messages::SpectrumContents,
     aoi: AreaOfInterest,
 ) -> Integration {
-    
     let (cx, cy, counts) = centroid(contents, &aoi);
     let width = fwhm((cx, cy), counts, contents, &aoi);
 

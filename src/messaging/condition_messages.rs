@@ -656,9 +656,7 @@ impl ConditionProcessor {
 /// ### NOTE:
 ///   Dummy parameter numbers 0 and 1 are used for the parameter ids.
 ///
-pub fn reconstitute_contour(
-    props: ConditionProperties,
-) -> Result<twod::Contour, String> {
+pub fn reconstitute_contour(props: ConditionProperties) -> Result<twod::Contour, String> {
     if props.type_name == "Contour" {
         let mut pts = Vec::<twod::Point>::new();
         for (x, y) in props.points {
