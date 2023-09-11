@@ -90,6 +90,7 @@ pub type Points = Vec<Point>;
 /// A line segment is defined by a pair of points and the slope/intercept
 /// of the segment that connects them:
 
+#[derive(Clone)]
 struct Edge {
     p1: Point,
     p2: Point,
@@ -236,6 +237,7 @@ impl Condition for Band {
 ///
 /// Again the constructor returns an Option as a closed figure
 /// requires at least
+#[derive(Clone)]
 pub struct Contour {
     p1: u32,
     p2: u32,
@@ -379,6 +381,7 @@ impl Condition for Contour {
         self.cache = None;
     }
 }
+
 #[cfg(test)]
 mod band_tests {
     use super::*;

@@ -71,6 +71,9 @@ pub use twodsum::*;
 pub mod pgamma;
 pub use pgamma::*;
 
+pub mod integration;
+pub use integration::*;
+
 ///
 /// Gated spectra have this.  The condition_name just documents
 /// which condition is applied to the spectrum.

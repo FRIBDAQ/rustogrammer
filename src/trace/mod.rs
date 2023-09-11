@@ -190,7 +190,8 @@ impl SharedTraceStore {
             .lock()
             .unwrap()
             .client_traces
-            .remove_entry(&token).is_none()
+            .remove_entry(&token)
+            .is_none()
         {
             Err(String::from("No such client token"))
         } else {
