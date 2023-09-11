@@ -177,6 +177,8 @@ fn generate_aoi(
                         return Err(format!("Could not make a contour from x/y points: {}", s));
                     }
                 }
+            } else if xcoord.is_none() && ycoord.is_none() {
+                return Ok(integration::AreaOfInterest::All);
             } else {
                 return Err(String::from(
                     "When specifying a 2d AOI with points both xcoord and ycoord must be present",
@@ -701,6 +703,136 @@ mod integrate_tests {
             IntegrationDetail {
                 centroid: vec![0.0],
                 fwhm: vec![0.0],
+                counts: 0
+            },
+            reply.detail
+        );
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn twod_1() {
+        // 2d with no gate:
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=twod");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(
+            IntegrationDetail {
+                centroid: vec![150.0, 150.0],
+                fwhm: vec![0.0, 0.0],
+                counts: 4321
+            },
+            reply.detail
+        );
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn twod_2() {
+        // Integration when the peak's in a contour:
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=twod&gate=good-contour");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(
+            IntegrationDetail {
+                centroid: vec![150.0, 150.0],
+                fwhm: vec![0.0, 0.0],
+                counts: 4321
+            },
+            reply.detail
+        );
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn twod_3() {
+        // Integration when the peak's not in the contour:
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=twod&gate=empty-contour");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(
+            IntegrationDetail {
+                centroid: vec![0.0, 0.0],
+                fwhm: vec![0.0, 0.0],
+                counts: 0
+            },
+            reply.detail
+        );
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn twod_4() {
+        // Integration is in side a contour defined by x/ycoors:
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=twod&xcoord=100&xcoord=500&xcoord=500&xcoord=100&ycoord=100&ycoord=100&ycoord=500&ycoord=500");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(
+            IntegrationDetail {
+                centroid: vec![150.0, 150.0],
+                fwhm: vec![0.0, 0.0],
+                counts: 4321
+            },
+            reply.detail
+        );
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn twod_5() {
+        // integration spike is outside the contour defined by x/ycoords:
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=twod&xcoord=0&xcoord=50&xcoord=50&xcoord=0&ycoord=0&ycoord=0&ycoord=50&ycoord=50");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(
+            IntegrationDetail {
+                centroid: vec![0.0, 0.0],
+                fwhm: vec![0.0, 0.0],
                 counts: 0
             },
             reply.detail
