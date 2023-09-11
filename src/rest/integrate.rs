@@ -8,13 +8,11 @@
 //!  There is only /spectcl/integrate, nothing underneath it.
 //!
 use super::*;
-use crate::conditions::twod;
 use crate::messaging::{condition_messages, spectrum_messages};
-use crate::spectra;
 use crate::spectra::integration;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(crate = "rocket::serde")]
 pub struct IntegrationDetail {
     centroid: Vec<f64>,
@@ -82,8 +80,8 @@ fn generate_aoi(
                     }
                     condition_messages::ConditionReply::Error(s) => {
                         return Err(format!(
-                            "Failed to get information about gate {}",
-                            gate_name
+                            "Failed to get information about gate {}: {}",
+                            gate_name, s
                         ));
                     }
                     _ => {
@@ -324,6 +322,7 @@ pub fn integrate(
 mod integrate_tests {
     use super::*;
     use crate::messaging;
+    use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
     use crate::processing;
     use crate::sharedmem::binder;
     use crate::test::rest_common;
@@ -336,14 +335,20 @@ mod integrate_tests {
     use std::sync::mpsc;
 
     fn setup() -> Rocket<Build> {
-        rest_common::setup().mount("/", routes![integrate::integrate])
+        let r = rest_common::setup().mount("/", routes![integrate::integrate]);
+
+        make_parameters(&r);
+        make_conditions(&r);
+        make_spectra(&r);
+
+        r
     }
     fn teardown(
         c: mpsc::Sender<messaging::Request>,
-        p: &processing::ProcessingApi,
-        b: &binder::BindingApi,
+        p: processing::ProcessingApi,
+        b: binder::BindingApi,
     ) {
-        rest_common::teardown(c, p, b);
+        rest_common::teardown(c, &p, &b);
     }
     fn getstate(
         r: &Rocket<Build>,
@@ -354,25 +359,353 @@ mod integrate_tests {
     ) {
         rest_common::get_state(r)
     }
+    fn make_parameters(r: &Rocket<Build>) {
+        let (req, _, _) = getstate(r);
+        let api = parameter_messages::ParameterMessageClient::new(&req);
+        for i in 0..10 {
+            api.create_parameter(&format!("param.{}", i))
+                .expect("Making parameter");
+        }
+    }
+    // Make a 2-d and a 2-d spectrum with spikes at well known places:
+    fn make_spectra(r: &Rocket<Build>) {
+        let (req, _, _) = getstate(r);
+        let api = spectrum_messages::SpectrumMessageClient::new(&req);
+
+        api.create_spectrum_1d("oned", "param.0", 0.0, 1024.0, 1024)
+            .expect("Making 1d");
+        api.create_spectrum_2d(
+            "twod", "param.0", "param.1", 0.0, 1024.0, 512, 0.0, 1024.0, 512,
+        )
+        .expect("Making 2d");
+
+        // Put a spike in ths 1d spectrum at 150.0:
+
+        api.fill_spectrum(
+            "oned",
+            vec![spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: 150.0,
+                y: 0.0,
+                bin: 0,
+                value: 1234.0,
+            }],
+        )
+        .expect("Setting 1d contents.");
+
+        // put a spike in the twod spectrum at 150, 150:
+
+        api.fill_spectrum(
+            "twod",
+            vec![spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: 150.0,
+                y: 150.0,
+                bin: 0,
+                value: 4321.0,
+            }],
+        )
+        .expect("setting 2d contents");
+    }
+    fn make_conditions(r: &Rocket<Build>) {
+        // Make a slice and a diamond condition;  Note these, for fun, are on different
+        // parameters than the spectra.
+
+        let (req, _, _) = getstate(r);
+        let api = condition_messages::ConditionMessageClient::new(&req);
+
+        match api.create_true_condition("true") {
+            condition_messages::ConditionReply::Created => {}
+            _ => panic!("Bad reply from true creation."),
+        } // bad condition to use.
+
+        match api.create_cut_condition("good-cut", 2, 100.0, 200.0) {
+            condition_messages::ConditionReply::Created => {}
+            _ => panic!("Bad reply from true creation."),
+        } // Spike in this cut.
+
+        match api.create_cut_condition("empty-cut", 2, 0.0, 50.0) {
+            condition_messages::ConditionReply::Created => {}
+            _ => panic!("Bad reply from true creation."),
+        } // Spike not sin this cut.
+
+        // Make a couple of squares one that contains the spike the other that does not
+
+        match api.create_contour_condition(
+            "good-contour",
+            4,
+            5,
+            &vec![
+                (100.0, 100.0),
+                (500.0, 100.0),
+                (500.0, 500.0),
+                (100.0, 500.0),
+            ],
+        ) {
+            condition_messages::ConditionReply::Created => {}
+            _ => panic!("Bad reply from true creation."),
+        } // Contains spike
+
+        match api.create_contour_condition(
+            "empty-contour",
+            4,
+            5,
+            &vec![(0.0, 0.0), (50.0, 0.0), (50.0, 50.0), (0.0, 50.0)],
+        ) {
+            condition_messages::ConditionReply::Created => {}
+            _ => panic!("Bad reply from true creation."),
+        }
+    }
     #[test]
-    fn integrate_1() {
-        // Make the request...
+    fn error_1() {
+        // Integrate a nonexistent spectrum:
 
-        let rocket = setup();
-        let (c, papi, bapi) = getstate(&rocket);
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
 
-        let client = Client::tracked(rocket).expect("Creating client");
-        let request = client.get("/?name=test");
-        let response = request
+        let c = Client::untracked(r).expect("Unable to create client");
+        let req = c.get("/?name=junk");
+        let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
-            .expect("parsing JSON");
+            .expect("Parsing JSON");
 
+        assert!("Ok" != reply.status); // Fails.
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn error_2() {
+        // Spectrum is ok but condition name is nonexistent
+        // gate name.
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=oned&gate=no-such");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert!("OK" != reply.status);
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn error_3() {
+        // Condition exists but is not a legal integration gate:
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=oned&gate=true");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert!("OK" != reply.status);
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn error_4() {
+        // Condition exists but is a contour integrating a 1d
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=oned&gate=good-contour");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert!("OK" != reply.status);
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn error_5() {
+        // Same as error 4 but 2d spectrum with cut gate:
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=twod&gate=good-cut");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert!("OK" != reply.status);
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn error_6() {
+        // oned integration can have gate or low/high but not both
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=oned&gate=good-cut&low=100&high=200");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert!("OK" != reply.status);
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn error_7() {
+        // 2d integration can have contour or (xcoorc/ycoord) but not both.
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=twod&gate=good-contour?xcoord=10&xcoord=20&xcoord=10&ycoord=10&ycoord=20&ycoord=10");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert!("OK" != reply.status);
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn oned_1() {
+        // Integrate 1d with no gate
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=oned");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
         assert_eq!(
-            "/spectcl/integrate is not supported - this is not SpecTcl",
-            response.status
+            IntegrationDetail {
+                centroid: vec![150.0],
+                fwhm: vec![0.0],
+                counts: 1234
+            },
+            reply.detail
         );
 
-        teardown(c, &papi, &bapi);
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn oned_2() {
+        // integration inside a cut:
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=oned&gate=good-cut");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(
+            IntegrationDetail {
+                centroid: vec![150.0],
+                fwhm: vec![0.0],
+                counts: 1234
+            },
+            reply.detail
+        );
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn oned_3() {
+        // integration with the peak outside the cut:
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=oned&gate=empty-cut");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(
+            IntegrationDetail {
+                centroid: vec![0.0],
+                fwhm: vec![0.0],
+                counts: 0
+            },
+            reply.detail
+        );
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn oned_4() {
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=oned&low=100&high200");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(
+            IntegrationDetail {
+                centroid: vec![150.0],
+                fwhm: vec![0.0],
+                counts: 1234
+            },
+            reply.detail
+        );
+
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn oned_5() {
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let c = Client::untracked(r).expect("unable to create client");
+        let req = c.get("/?name=oned&low=0&high=50");
+        let reply = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(
+            IntegrationDetail {
+                centroid: vec![0.0],
+                fwhm: vec![0.0],
+                counts: 0
+            },
+            reply.detail
+        );
+
+        teardown(chan, p, b);
     }
 }
