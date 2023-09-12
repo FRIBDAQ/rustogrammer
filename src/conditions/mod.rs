@@ -108,7 +108,75 @@ pub trait Condition {
             self.evaluate(event)
         }
     }
+} 
+
+/// Some conditions can be treated as folds on a Gamma spectrum.
+/// A fold takes an event and reduces it to the set of parameters
+/// or parameter pairs that can increment a gamma spectrum.
+/// there are 1-d and 2-d folds but they both provide the same interface,
+/// the trait below -- which, given an event, provides the indices
+/// or, for 2-d spectra, the index pairs of parameters that 
+/// are allowed to increment the spectrum.
+///
+/// What's going on:
+///   Gamma spectra (Multi-1D - M) in general will have peaks for each
+/// gamma ray energy detected by the detectors in the parameter set.
+/// it can be that within the timing of a trigger, a cascade of gammas
+/// are emitted and detected within the trigger window resulting in 
+/// contributions to several peaks in a single event.
+///
+/// Folds allow some untangling of this.  Paramters (or pairs in the 
+/// case of twod folds) which live within the fold AOI are removed
+/// from the set of parameters that can increment the spectrum.
+/// Setting a fold AOI on a peak, for example and applying that fold
+/// to the spectrum leaves peaks that are in coincidence with the
+/// peak in the AOI.
+///
+///
+
+trait Fold {
+    /// Used by a fold applied to a 1-d spectrum
+    ///  events go into the fold and what's
+    /// returned is the set of parameter ids that can increment the
+    /// spectrum
+    ///
+    /// ### Parameters:
+    /// *  event - the event to check the fold against.
+    /// 
+    /// ### Returns:
+    /// *  Vec<u32> - a vector if parameter ids that are outside the
+    /// fold AOI.
+    ///
+    /// There are two cases: 1d and 2d AOIs (e.g. 2d AOI in another
+    /// spectrum applied to this spectrum).
+    ///
+    /// * If a 1-d AOI is evaluated it should return the parameters
+    /// that do not make the AOI true,.
+    /// * If a 2-d AOI is evaluated it should return the parameters that
+    /// are not in a pair that make the AOI true.
+    ///
+    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32>;
+
+    /// Used to evaluate a fold applied to a 2d spectrum.
+    /// An event goes in and what comes out are the set of parameter
+    /// pairs that can be allowed to increment the spectrum.
+    ///
+    /// ### Parameters
+    /// *  event - the event to process through the fold.
+    ///
+    /// ### Returns:
+    ///  * Vec<(u32, u32)> - pairs of parameter ids that can increment
+    /// the spectrum. 
+    ///
+    /// The two cases above apply:
+    /// *  If a 1-d AOI is evaluated then it should return all parameter
+    /// pairs that do not have a parameter that made the AOI true.
+    /// * IF a 2-d AOI is evaluated then it should return all paramter pairs
+    /// that lie outside the AOI
+    ///
+    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> Vec<(u32, u32)>;
 }
+
 
 /// The ConditionContainer is the magic by which
 /// Condition objects get dynamic dispatch to their checking

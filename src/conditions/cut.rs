@@ -71,6 +71,106 @@ impl Condition for Cut {
         self.cache = None;
     }
 }
+/// MultiCut
+///     This is a cut that is set on several parameters.
+///  The truth or falsity of the cut is the same as it would
+///  be for an OR of cuts on the individual parameters.
+///
+/// Another use of Multicut is that it _does_ implement the
+/// Fold trait so it can be used to fold gamma spectra.
+///
+struct MultiCut {
+    parameters: Vec<u32>,
+    low: f64,
+    high: f64,
+    cache: Option<bool>,
+}
+impl MultiCut {
+    /// Create a new MultiCut condition.
+    /// We need a set of parameter ids, a low and a high value:
+    ///
+    pub fn new(params: &Vec<u32>, low: f64, high: f64) -> MultiCut {
+        MultiCut {
+            parameters: params.clone(),
+            low,
+            high,
+            cache: None,
+        }
+    }
+    /// Given a coordinate value, returns true if it lies
+    /// inside the low/high limits.
+    pub fn inside(&self, value: f64) -> bool {
+        (value >= self.low) && (value < self.high)
+    }
+}
+impl Condition for MultiCut {
+    fn evaluate(&mut self, event: &parameters::FlatEvent) -> bool {
+        for p in self.parameters.iter() {
+            if let Some(value) = event[*p] {
+                if self.inside(value) {
+                    self.cache = Some(true);
+                    return true;
+                }
+            }
+        }
+        // Failed the gate:
+        self.cache = Some(false);
+        false
+    }
+    fn gate_type(&self) -> String {
+        String::from("MultiCut")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        vec![(self.low, 0.0), (self.high, 0.0)]
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        vec![]
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        self.parameters.clone()
+    }
+
+    fn invalidate_cache(&mut self) {
+        self.cache = None;
+    }
+}
+impl Fold for MultiCut {
+    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
+        let mut result = Vec::<u32>::new();
+
+        for p in self.parameters.iter() {
+            if let Some(value) = event[*p] {
+                if !self.inside(value) {
+                    result.push(*p);
+                }
+            }
+        }
+        result
+    }
+    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> Vec<(u32, u32)> {
+        let mut result = Vec::<(u32, u32)>::new();
+
+        // iterate over pairs:
+        // outer loop goes from [0 - last) index i
+        for (i, p1) in self.parameters[0..self.parameters.len() - 1]
+            .iter()
+            .enumerate()
+        {
+            // Inner loop goes from [i+1 last]
+            for p2 in self.parameters.iter().skip(i + 1) {
+                if let Some(val1) = event[*p1] {
+                    if let Some(val2) = event[*p2] {
+                        if !self.inside(val1) && !self.inside(val2) {
+                            result.push((*p1, *p2));
+                        }
+                    }
+                }
+            }
+        }
+
+        result
+    }
+}
 
 #[cfg(test)]
 mod cut_tests {
