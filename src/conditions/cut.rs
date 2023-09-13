@@ -79,6 +79,7 @@ impl Condition for Cut {
 /// Another use of Multicut is that it _does_ implement the
 /// Fold trait so it can be used to fold gamma spectra.
 ///
+#[derive(PartialEq, Debug)]
 struct MultiCut {
     parameters: Vec<u32>,
     low: f64,
@@ -306,5 +307,47 @@ mod cut_tests {
         assert!(dict.get(&k1).unwrap().borrow_mut().check(&e));
         assert!(dict.get(&k2).unwrap().borrow_mut().check(&e));
         invalidate_cache(&mut dict);
+    }
+}
+#[cfg(test)]
+mod multicut_tests {
+    use super::*;
+    use crate::parameters;
+
+    #[test]
+    fn new_1() {
+        // Create a new multicut:
+
+        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        assert_eq!(
+            MultiCut {
+                parameters: vec![1, 2, 3],
+                low: 100.0,
+                high: 200.0,
+                cache: None
+            },
+            mcut
+        );
+    }
+    #[test]
+    fn inside_1() {
+        // Is inside:
+
+        let mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+        assert!(mcut.inside(150.0));
+    }
+    #[test]
+    fn inside_2() {
+        // is not inside (low)
+
+        let mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+        assert!(!mcut.inside(90.0));
+    }
+    #[test]
+    fn inside_3() {
+        // is not inside (high).
+        
+        let mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+        assert!(!mcut.inside(201.0));
     }
 }
