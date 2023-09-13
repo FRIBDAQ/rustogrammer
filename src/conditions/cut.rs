@@ -522,4 +522,49 @@ mod multicut_tests {
 
         assert_eq!(vec![1, 3], mcut.evaluate_1(&fevent));
     }
+    #[test]
+    fn fold2_1() {
+        // All pairs have an item in the cut - no pairs returned:
+
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let event = vec![
+            EventParameter::new(1, 110.0),
+            EventParameter::new(2, 20.0),
+            EventParameter::new(3, 180.0),
+        ];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+
+        assert!(mcut.evaluate_2(&fevent).is_empty());
+    }
+    #[test]
+    fn fold2_2() {
+        // There's a pair not in the slice:
+
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let event = vec![
+            EventParameter::new(1, 110.0),
+            EventParameter::new(2, 20.0),
+            EventParameter::new(3, 80.0),
+        ];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+
+        assert_eq!(vec![(2, 3)], mcut.evaluate_2(&fevent));
+    }
+    #[test]
+    fn fold2_3() {
+        // all pairs are in the slice:
+
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let event = vec![
+            EventParameter::new(1, 10.0),
+            EventParameter::new(2, 20.0),
+            EventParameter::new(3, 80.0),
+        ];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+
+        assert_eq!(vec![(1, 2), (1, 3), (2, 3)], mcut.evaluate_2(&fevent));
+    }
 }
