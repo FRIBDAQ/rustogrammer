@@ -58,6 +58,7 @@ use std::rc::{Rc, Weak};
 
 pub mod cut;
 pub use cut::Cut; // Enbables conditions::Cut to mean conditions::cut::Cut
+pub use cut::MultiCut;
 pub mod compound;
 pub use compound::*;
 pub mod twod;

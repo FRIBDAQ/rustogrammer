@@ -37,6 +37,7 @@ fn rg_condition_to_spctl(rg_type: &str) -> String {
         "Band" => String::from("b"),
         "Contour" => String::from("c"),
         "Cut" => String::from("s"),
+        "MultiCut" => String::from("gs"),
         _ => String::from("-unsupported-"),
     }
 }

@@ -80,7 +80,7 @@ impl Condition for Cut {
 /// Fold trait so it can be used to fold gamma spectra.
 ///
 #[derive(PartialEq, Debug)]
-struct MultiCut {
+pub struct MultiCut {
     parameters: Vec<u32>,
     low: f64,
     high: f64,
@@ -90,9 +90,9 @@ impl MultiCut {
     /// Create a new MultiCut condition.
     /// We need a set of parameter ids, a low and a high value:
     ///
-    pub fn new(params: &Vec<u32>, low: f64, high: f64) -> MultiCut {
+    pub fn new(params: &[u32], low: f64, high: f64) -> MultiCut {
         MultiCut {
-            parameters: params.clone(),
+            parameters: params.to_owned(),
             low,
             high,
             cache: None,
@@ -320,7 +320,7 @@ mod multicut_tests {
     fn new_1() {
         // Create a new multicut:
 
-        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         assert_eq!(
             MultiCut {
                 parameters: vec![1, 2, 3],
@@ -335,21 +335,21 @@ mod multicut_tests {
     fn inside_1() {
         // Is inside:
 
-        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         assert!(mcut.inside(150.0));
     }
     #[test]
     fn inside_2() {
         // is not inside (low)
 
-        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         assert!(!mcut.inside(90.0));
     }
     #[test]
     fn inside_3() {
         // is not inside (high).
 
-        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         assert!(!mcut.inside(201.0));
     }
     // Test implementation of Condition trait for MultiCut
@@ -359,7 +359,7 @@ mod multicut_tests {
         // Evaluate an event that is inside the gate b/c one of the parameters
         // is -- all are in the event:
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event: Event = vec![
             EventParameter::new(1, 50.0),
             EventParameter::new(2, 150.0),
@@ -374,7 +374,7 @@ mod multicut_tests {
     fn eval_2() {
         // Inside gate but not all params are present:
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event: Event = vec![EventParameter::new(2, 150.0)];
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
@@ -385,7 +385,7 @@ mod multicut_tests {
     fn eval_3() {
         // Outside cut all parameters present
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event: Event = vec![
             EventParameter::new(1, 20.0),
             EventParameter::new(2, 50.0),
@@ -401,7 +401,7 @@ mod multicut_tests {
     fn eval_4() {
         // outside cut only some parameters
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event: Event = vec![EventParameter::new(1, 20.0), EventParameter::new(3, 250.0)];
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
@@ -413,7 +413,7 @@ mod multicut_tests {
     fn eval_5() {
         // outside cut since no parameters are present.
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event: Event = vec![];
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
@@ -425,21 +425,21 @@ mod multicut_tests {
     fn type_1() {
         // Gate type should be "MultiCut"
 
-        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         assert_eq!("MultiCut", mcut.gate_type());
     }
     #[test]
     fn points_1() {
         // Test gate_points:
 
-        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         assert_eq!(vec![(100.0, 0.0), (200.0, 0.0)], mcut.gate_points());
     }
     // Dependent gatews and parameters are empty:
 
     #[test]
     fn dependencies_1() {
-        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         assert!(mcut.dependent_gates().is_empty());
         assert_eq!(vec![1, 2, 3], mcut.dependent_parameters());
     }
@@ -447,7 +447,7 @@ mod multicut_tests {
     fn cache_1() {
         // Ensure that caching works properly:
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         assert_eq!(None, mcut.get_cached_value());
 
         let event: Event = vec![];
@@ -465,7 +465,7 @@ mod multicut_tests {
     fn invalidate_1() {
         // Test invalidate cache:
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
 
         let event: Event = vec![];
         let mut fevent = FlatEvent::new();
@@ -482,7 +482,7 @@ mod multicut_tests {
     fn fold1_1() {
         // All parameters are in the cut - none come back from evaluate_1:
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
 
         let event = vec![
             EventParameter::new(1, 110.0),
@@ -497,7 +497,7 @@ mod multicut_tests {
     fn fold1_2() {
         // All parameters are out of the cut, all come back.
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event = vec![
             EventParameter::new(1, 10.0),
             EventParameter::new(2, 20.0),
@@ -511,7 +511,7 @@ mod multicut_tests {
     #[test]
     fn fold1_3() {
         // Some are in some are out - the ones that are out come back.
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event = vec![
             EventParameter::new(1, 10.0),
             EventParameter::new(2, 120.0),
@@ -526,7 +526,7 @@ mod multicut_tests {
     fn fold2_1() {
         // All pairs have an item in the cut - no pairs returned:
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event = vec![
             EventParameter::new(1, 110.0),
             EventParameter::new(2, 20.0),
@@ -541,7 +541,7 @@ mod multicut_tests {
     fn fold2_2() {
         // There's a pair not in the slice:
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event = vec![
             EventParameter::new(1, 110.0),
             EventParameter::new(2, 20.0),
@@ -556,7 +556,7 @@ mod multicut_tests {
     fn fold2_3() {
         // all pairs are in the slice:
 
-        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event = vec![
             EventParameter::new(1, 10.0),
             EventParameter::new(2, 20.0),

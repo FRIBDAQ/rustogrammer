@@ -53,6 +53,12 @@ pub enum ConditionRequest {
         y_id: u32,
         points: Vec<(f64, f64)>,
     },
+    CreateMultiCut {
+        name: String,
+        ids: Vec<u32>,
+        low: f64,
+        high: f64,
+    },
     DeleteCondition(String),
     List(String),
 }
@@ -150,19 +156,27 @@ impl ConditionMessageClient {
             points: points.to_owned(),
         }
     }
+    fn make_multicut_creation(name: &str, ids: &[u32], low: f64, high: f64) -> ConditionRequest {
+        ConditionRequest::CreateMultiCut {
+            name: String::from(name),
+            ids: ids.to_owned(),
+            low,
+            high,
+        }
+    }
     fn make_delete(name: &str) -> ConditionRequest {
         ConditionRequest::DeleteCondition(String::from(name))
     }
     fn make_list(pattern: &str) -> ConditionRequest {
         ConditionRequest::List(String::from(pattern))
     }
-
     fn make_request(reply_channel: mpsc::Sender<Reply>, req: ConditionRequest) -> Request {
         Request {
             reply_channel,
             message: MessageType::Condition(req),
         }
     }
+
     // This method isolates all the messaging skulduggery from the rest of the
     // code.
 
@@ -354,6 +368,28 @@ impl ConditionMessageClient {
     ) -> ConditionReply {
         self.transaction(Self::make_contour_creation(name, x_id, y_id, points))
     }
+    /// create_multicut_condition
+    ///
+    /// Multi cuts are what SpecTcl called gamma slices.  They get an array
+    /// of parameters, and low, high limits:
+    ///
+    /// ###  Parameters
+    /// *  name - name of the new condition.
+    /// *  ids  - Array of parameter ids for the condition is set on.
+    /// *  low, high - the condition limits.
+    ///
+    /// ### Returns
+    ///    ConditionReply - this should be either Created or Replaced or Error.
+    ///
+    pub fn create_multicut_condition(
+        &self,
+        name: &str,
+        ids: &[u32],
+        low: f64,
+        high: f64,
+    ) -> ConditionReply {
+        self.transaction(Self::make_multicut_creation(name, ids, low, high))
+    }
     ///
     /// Deletes a condition.  The condition is removed fromt he dictionary.
     /// All remaining references are 'weak' by definition and will fail to promote
@@ -534,6 +570,17 @@ impl ConditionProcessor {
             ConditionReply::Error(String::from("Too few points for a contour"))
         }
     }
+
+    fn add_multicut(
+        &mut self,
+        name: &str,
+        ids: &[u32],
+        low: f64,
+        high: f64,
+        tracedb: &trace::SharedTraceStore,
+    ) -> ConditionReply {
+         self.add_condition(name, MultiCut::new(ids, low, high), tracedb)
+    }
     fn remove_condition(
         &mut self,
         name: &str,
@@ -630,6 +677,12 @@ impl ConditionProcessor {
                 y_id,
                 points,
             } => self.add_contour(&name, x_id, y_id, points, tracedb),
+            ConditionRequest::CreateMultiCut {
+                name,
+                ids,
+                low,
+                high,
+            } => self.add_multicut(&name, &ids, low, high, tracedb),
             ConditionRequest::DeleteCondition(name) => self.remove_condition(&name, tracedb),
             ConditionRequest::List(pattern) => self.list_conditions(&pattern),
         }
