@@ -579,7 +579,7 @@ impl ConditionProcessor {
         high: f64,
         tracedb: &trace::SharedTraceStore,
     ) -> ConditionReply {
-         self.add_condition(name, MultiCut::new(ids, low, high), tracedb)
+        self.add_condition(name, MultiCut::new(ids, low, high), tracedb)
     }
     fn remove_condition(
         &mut self,
@@ -885,14 +885,17 @@ mod cond_msg_tests {
         }
     }
     #[test]
-    fn  make_multicut_1() {
-        let mc = ConditionMessageClient::make_multicut_creation("name", &[1,2,3], 100.0, 200.0);
-        assert_eq!(ConditionRequest::CreateMultiCut {
-            name: String::from("name"),
-            ids: vec![1,2,3],
-            low: 100.0,
-            high: 200.0
-        }, mc)
+    fn make_multicut_1() {
+        let mc = ConditionMessageClient::make_multicut_creation("name", &[1, 2, 3], 100.0, 200.0);
+        assert_eq!(
+            ConditionRequest::CreateMultiCut {
+                name: String::from("name"),
+                ids: vec![1, 2, 3],
+                low: 100.0,
+                high: 200.0
+            },
+            mc
+        )
     }
 }
 #[cfg(test)]
@@ -1253,6 +1256,20 @@ mod cnd_processor_tests {
             assert!(false);
         }
     }
+    #[test]
+    fn create_multi_1() {
+        let tracedb = trace::SharedTraceStore::new();
+        let mut cp = ConditionProcessor::new();
+        let rep = cp.process_request(
+            ConditionMessageClient::make_multicut_creation("test", &[1, 2, 3], 100.0, 200.0),
+            &tracedb,
+        );
+        assert_eq!(ConditionReply::Created, rep);
+
+        let item = cp.dict.get("test");
+        assert!(item.is_some());
+        assert_eq!(String::from("MultiCut"), item.unwrap().borrow().gate_type());
+    }
 }
 #[cfg(test)]
 mod cnd_api_tests {
@@ -1382,6 +1399,28 @@ mod cnd_api_tests {
         }
         stop_server(jh, send);
     }
+    #[test]
+    fn multi_cut_1() {
+        let (jh, send) = start_server();
+
+        let api = ConditionMessageClient::new(&send);
+        let reply = api.create_multicut_condition("test", &[1,2,3], 100.0, 200.0);
+        assert_eq!(ConditionReply::Created, reply);
+
+        let l = api.list_conditions("test");
+        assert_eq!(ConditionReply::Listing(vec![
+            ConditionProperties {
+                cond_name : String::from("test"),
+                type_name : String::from("MultiCut"),
+                points: vec![(100.0, 0.0), (200.0, 0.0)],
+                gates: vec![],
+                parameters: vec![1,2,3]
+            },
+        ]),l );
+
+        stop_server(jh, send);
+    }
+
     fn make_some_conditions(send: &Sender<Request>) {
         let api = ConditionMessageClient::new(send);
         for i in 0..5 {
@@ -1560,6 +1599,7 @@ mod cnd_api_tests {
         }
         stop_server(jh, send);
     }
+
 }
 // Ensure that traces fire when appropriate for conditions:
 
