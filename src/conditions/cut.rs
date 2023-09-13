@@ -419,6 +419,12 @@ mod multicut_tests {
         assert!(!mcut.evaluate(&fevent));
         assert_eq!(Some(false), mcut.cache);
     }
+    #[test]
+    fn type_1() {
+        // Gate type should be "MultiCut"
 
+        let mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+        assert_eq!("MultiCut", mcut.gate_type());
+    }
     // Test implementation of Fold trait for Multicut.
 }
