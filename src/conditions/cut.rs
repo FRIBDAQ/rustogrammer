@@ -130,7 +130,9 @@ impl Condition for MultiCut {
     fn dependent_parameters(&self) -> Vec<u32> {
         self.parameters.clone()
     }
-
+    fn get_cached_value(&self) -> Option<bool> {
+        self.cache
+    }
     fn invalidate_cache(&mut self) {
         self.cache = None;
     }
@@ -432,6 +434,35 @@ mod multicut_tests {
 
         let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
         assert_eq!(vec![(100.0, 0.0), (200.0, 0.0)], mcut.gate_points());
+    }
+    // Dependent gatews and parameters are empty:
+
+    #[test]
+    fn dependencies_1() {
+        let mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+        assert!(mcut.dependent_gates().is_empty());
+        assert_eq!(
+            vec![1,2,3], mcut.dependent_parameters()
+        );
+    }
+    #[test]
+    fn cache_1() {
+        // Ensure that caching works properly:
+
+        let mut mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+        assert_eq!(None, mcut.get_cached_value());
+
+        let event: Event = vec![];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+        mcut.evaluate(&fevent);
+        assert_eq!(Some(false), mcut.get_cached_value());
+
+        let event: Event = vec![EventParameter::new(2, 150.0)];
+        fevent.load_event(&event);
+        mcut.evaluate(&fevent);
+        assert_eq!(Some(true), mcut.get_cached_value());
+
     }
     // Test implementation of Fold trait for Multicut.
 }
