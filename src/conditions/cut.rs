@@ -439,17 +439,15 @@ mod multicut_tests {
 
     #[test]
     fn dependencies_1() {
-        let mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
         assert!(mcut.dependent_gates().is_empty());
-        assert_eq!(
-            vec![1,2,3], mcut.dependent_parameters()
-        );
+        assert_eq!(vec![1, 2, 3], mcut.dependent_parameters());
     }
     #[test]
     fn cache_1() {
         // Ensure that caching works properly:
 
-        let mut mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
         assert_eq!(None, mcut.get_cached_value());
 
         let event: Event = vec![];
@@ -462,7 +460,66 @@ mod multicut_tests {
         fevent.load_event(&event);
         mcut.evaluate(&fevent);
         assert_eq!(Some(true), mcut.get_cached_value());
+    }
+    #[test]
+    fn invalidate_1() {
+        // Test invalidate cache:
 
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+
+        let event: Event = vec![];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+        mcut.evaluate(&fevent);
+        assert_eq!(Some(false), mcut.get_cached_value());
+
+        mcut.invalidate_cache();
+        assert_eq!(None, mcut.get_cached_value());
     }
     // Test implementation of Fold trait for Multicut.
+
+    #[test]
+    fn fold1_1() {
+        // All parameters are in the cut - none come back from evaluate_1:
+
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+
+        let event = vec![
+            EventParameter::new(1, 110.0),
+            EventParameter::new(2, 120.0),
+            EventParameter::new(3, 180.0),
+        ];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+        assert!(mcut.evaluate_1(&fevent).is_empty());
+    }
+    #[test]
+    fn fold1_2() {
+        // All parameters are out of the cut, all come back.
+
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let event = vec![
+            EventParameter::new(1, 10.0),
+            EventParameter::new(2, 20.0),
+            EventParameter::new(3, 80.0),
+        ];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+
+        assert_eq!(vec![1, 2, 3], mcut.evaluate_1(&fevent));
+    }
+    #[test]
+    fn fold1_3() {
+        // Some are in some are out - the ones that are out come back.
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let event = vec![
+            EventParameter::new(1, 10.0),
+            EventParameter::new(2, 120.0),
+            EventParameter::new(3, 80.0),
+        ];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+
+        assert_eq!(vec![1, 3], mcut.evaluate_1(&fevent));
+    }
 }
