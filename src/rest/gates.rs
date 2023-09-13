@@ -211,7 +211,7 @@ pub fn delete_gate(name: String, state: &State<SharedHistogramChannel>) -> Json<
 // Validate the query parameters needed to make a slice gate and extract them
 //
 fn validate_slice_parameters(
-    parameter: OptionalString,
+    parameter: OptionalStringVec,
     low: Option<f64>,
     high: Option<f64>,
     state: &State<SharedHistogramChannel>,
@@ -221,6 +221,11 @@ fn validate_slice_parameters(
             "The parameter query parameter is required for slice gates",
         ));
     }
+    let parameter = parameter.unwrap();
+    if parameter.len() != 1 {
+        return Err(String::from("Slices must have exactly one parameter"));
+    }
+    let parameter_name = &parameter[0];
     if low.is_none() || high.is_none() {
         return Err(String::from(
             "Both the low and high query parameters are requried for slice gates",
@@ -228,7 +233,6 @@ fn validate_slice_parameters(
     }
     let low = low.unwrap();
     let high = high.unwrap();
-    let parameter_name = parameter.unwrap();
     let pid = find_parameter_by_name(&parameter_name, state);
     if pid.is_none() {
         return Err(format!("Parameter {} does not exist", parameter_name));
@@ -305,6 +309,36 @@ fn validate_2d_parameters(
     Ok((xpid, ypid, points))
 }
 
+// Validate the parameters for  multi slice:
+// - There must be a parameter array.
+// -  There must be a low, and a high.
+// - The parameters must be converted into ids.
+fn validate_multi1_parameters(
+    parameter: OptionalStringVec,
+    low: Option<f64>,
+    high: Option<f64>,
+    state: &State<SharedHistogramChannel>,
+) -> Result<(Vec<u32>, f64, f64), String> {
+    if low.is_none() || high.is_none() {
+        return Err(String::from(
+            "Both low and high must be present to make a multi  slice (gs)",
+        ));
+    }
+    if parameter.is_none() {
+        return Err(String::from("Multi 1d (gs) conditions require parameters"));
+    }
+    let mut ids = Vec::<u32>::new();
+
+    for name in parameter.unwrap().iter() {
+        if let Some(id) = find_parameter_by_name(name, state) {
+            ids.push(id);
+        } else {
+            return Err(format!("Parameter: {} does not exist", name));
+        }
+    }
+    Ok((ids, low.unwrap(), high.unwrap()))
+}
+
 ///
 /// Create/edit a gate.  Note that creating a new gate and editing
 /// an existing gate.  If we 'edit' a new gate the gate is created
@@ -349,7 +383,7 @@ pub fn edit_gate(
     gate: OptionalStringVec,
     xparameter: OptionalString,
     yparameter: OptionalString,
-    parameter: OptionalString,
+    parameter: OptionalStringVec,
     xcoord: OptionalF64Vec,
     ycoord: OptionalF64Vec,
     low: Option<f64>,
@@ -411,7 +445,7 @@ pub fn edit_gate(
             }
         }
         "s" => {
-            // There must be a parameter, low and high.
+            // There must be one parameter, low and high.
 
             match validate_slice_parameters(parameter, low, high, state) {
                 Ok((pid, low, high)) => api.create_cut_condition(&name, pid, low, high),
@@ -426,6 +460,11 @@ pub fn edit_gate(
             Err(s) => ConditionReply::Error(s),
             Ok((xid, yid, points)) => api.create_contour_condition(&name, xid, yid, &points),
         },
+        "gs" => match validate_multi1_parameters(parameter, low, high, state) {
+            Err(s) => ConditionReply::Error(s),
+            Ok((ids, low, high)) => api.create_multicut_condition(&name, &ids, low, high),
+        },
+
         _ => ConditionReply::Error(format!("Unsupported gate type: {}", r#type)),
     };
 
@@ -485,6 +524,7 @@ mod gate_tests {
         let api = parameter_messages::ParameterMessageClient::new(c);
         api.create_parameter("p1").expect("Creating p1");
         api.create_parameter("p2").expect("Creating p2");
+        api.create_parameter("p3").expect("creating p3");
     }
 
     #[test]
@@ -779,6 +819,47 @@ mod gate_tests {
         assert_eq!(GatePoint { x: 10.0, y: 10.0 }, l.points[0]);
         assert_eq!(GatePoint { x: 15.0, y: 20.0 }, l.points[1]);
         assert_eq!(GatePoint { x: 100.0, y: 15.0 }, l.points[2]);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn list_10() {
+        // Make a multislice gate and see that it is listed:
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_multicut_condition("test", &[1, 2, 3], 100.0, 200.0);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("test", l.name);
+        assert_eq!("gs", l.type_name);
+        assert!(l.gates.is_empty());
+        assert_eq!(
+            vec![String::from("p1"), String::from("p2"), String::from("p3")],
+            l.parameters
+        );
+        assert_eq!(
+            vec![
+                GatePoint { x: 100.0, y: 0.0 },
+                GatePoint { x: 200.0, y: 0.0 }
+            ],
+            l.points
+        );
+        assert_eq!(100.0, l.low);
+        assert_eq!(200.0, l.high);
 
         teardown(c, &papi, &bapi);
     }
