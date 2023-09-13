@@ -884,6 +884,16 @@ mod cond_msg_tests {
             panic!("make_list did not create a List request");
         }
     }
+    #[test]
+    fn  make_multicut_1() {
+        let mc = ConditionMessageClient::make_multicut_creation("name", &[1,2,3], 100.0, 200.0);
+        assert_eq!(ConditionRequest::CreateMultiCut {
+            name: String::from("name"),
+            ids: vec![1,2,3],
+            low: 100.0,
+            high: 200.0
+        }, mc)
+    }
 }
 #[cfg(test)]
 mod cnd_processor_tests {
