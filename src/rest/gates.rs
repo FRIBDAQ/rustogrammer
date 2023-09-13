@@ -1565,4 +1565,115 @@ mod gate_tests {
         });
         teardown(c, &papi, &bapi);
     }
+    #[test]
+    fn edit_24() {
+        // Good createion of multislice.
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::untracked(rocket).expect("Creating rocket client");
+        let req =
+            client.get("/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p3&low=100&high=200");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing Json");
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let l = api.list_conditions("test");
+
+        assert_eq!(
+            condition_messages::ConditionReply::Listing(vec![
+                condition_messages::ConditionProperties {
+                    cond_name: String::from("test"),
+                    type_name: String::from("MultiCut"),
+                    points: vec![(100.0, 0.0), (200.0, 0.0)],
+                    gates: vec![],
+                    parameters: vec![1, 2, 3]
+                },
+            ]),
+            l
+        );
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn edit_25() {
+        // Missing parameters for multislice.
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating rocket client");
+        let req = client.get("/edit?name=test&type=gs&low=100&high=200");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate test", reply.status);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn edit_26() {
+        // Bad parameter for multi slice
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating rocket client");
+        let req =
+            client.get("/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p333&low=100&high=200");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate test", reply.status);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn edit_27() {
+        // missing high
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating rocket client");
+        let req =
+            client.get("/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p3&low=100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate test", reply.status);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn edit_28() {
+        // missing low.
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating rocket client");
+        let req =
+            client.get("/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p3&high=100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate test", reply.status);
+
+        teardown(c, &papi, &bapi);
+    }
 }
