@@ -312,7 +312,7 @@ mod cut_tests {
 #[cfg(test)]
 mod multicut_tests {
     use super::*;
-    use crate::parameters;
+    use crate::parameters::{Event, EventParameter, FlatEvent};
 
     #[test]
     fn new_1() {
@@ -333,21 +333,92 @@ mod multicut_tests {
     fn inside_1() {
         // Is inside:
 
-        let mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
         assert!(mcut.inside(150.0));
     }
     #[test]
     fn inside_2() {
         // is not inside (low)
 
-        let mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
         assert!(!mcut.inside(90.0));
     }
     #[test]
     fn inside_3() {
         // is not inside (high).
-        
-        let mcut = MultiCut::new(&vec![1,2,3], 100.0, 200.0);
+
+        let mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
         assert!(!mcut.inside(201.0));
     }
+    // Test implementation of Condition trait for MultiCut
+
+    #[test]
+    fn eval_1() {
+        // Evaluate an event that is inside the gate b/c one of the parameters
+        // is -- all are in the event:
+
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let event: Event = vec![
+            EventParameter::new(1, 50.0),
+            EventParameter::new(2, 150.0),
+            EventParameter::new(3, 210.0),
+        ];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+        assert!(mcut.evaluate(&fevent));
+        assert_eq!(Some(true), mcut.cache);
+    }
+    #[test]
+    fn eval_2() {
+        // Inside gate but not all params are present:
+
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let event: Event = vec![EventParameter::new(2, 150.0)];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+        assert!(mcut.evaluate(&fevent));
+        assert_eq!(Some(true), mcut.cache);
+    }
+    #[test]
+    fn eval_3() {
+        // Outside cut all parameters present
+
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let event: Event = vec![
+            EventParameter::new(1, 20.0),
+            EventParameter::new(2, 50.0),
+            EventParameter::new(3, 250.0),
+        ];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+
+        assert!(!mcut.evaluate(&fevent));
+        assert_eq!(Some(false), mcut.cache);
+    }
+    #[test]
+    fn eval_4() {
+        // outside cut only some parameters
+
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let event: Event = vec![EventParameter::new(1, 20.0), EventParameter::new(3, 250.0)];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+
+        assert!(!mcut.evaluate(&fevent));
+        assert_eq!(Some(false), mcut.cache);
+    }
+    #[test]
+    fn eval_5() {
+        // outside cut since no parameters are present.
+
+        let mut mcut = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let event: Event = vec![];
+        let mut fevent = FlatEvent::new();
+        fevent.load_event(&event);
+
+        assert!(!mcut.evaluate(&fevent));
+        assert_eq!(Some(false), mcut.cache);
+    }
+
+    // Test implementation of Fold trait for Multicut.
 }

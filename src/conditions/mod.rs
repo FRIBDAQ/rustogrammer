@@ -108,24 +108,24 @@ pub trait Condition {
             self.evaluate(event)
         }
     }
-} 
+}
 
 /// Some conditions can be treated as folds on a Gamma spectrum.
 /// A fold takes an event and reduces it to the set of parameters
 /// or parameter pairs that can increment a gamma spectrum.
 /// there are 1-d and 2-d folds but they both provide the same interface,
 /// the trait below -- which, given an event, provides the indices
-/// or, for 2-d spectra, the index pairs of parameters that 
+/// or, for 2-d spectra, the index pairs of parameters that
 /// are allowed to increment the spectrum.
 ///
 /// What's going on:
 ///   Gamma spectra (Multi-1D - M) in general will have peaks for each
 /// gamma ray energy detected by the detectors in the parameter set.
 /// it can be that within the timing of a trigger, a cascade of gammas
-/// are emitted and detected within the trigger window resulting in 
+/// are emitted and detected within the trigger window resulting in
 /// contributions to several peaks in a single event.
 ///
-/// Folds allow some untangling of this.  Paramters (or pairs in the 
+/// Folds allow some untangling of this.  Paramters (or pairs in the
 /// case of twod folds) which live within the fold AOI are removed
 /// from the set of parameters that can increment the spectrum.
 /// Setting a fold AOI on a peak, for example and applying that fold
@@ -142,7 +142,7 @@ trait Fold {
     ///
     /// ### Parameters:
     /// *  event - the event to check the fold against.
-    /// 
+    ///
     /// ### Returns:
     /// *  Vec<u32> - a vector if parameter ids that are outside the
     /// fold AOI.
@@ -166,7 +166,7 @@ trait Fold {
     ///
     /// ### Returns:
     ///  * Vec<(u32, u32)> - pairs of parameter ids that can increment
-    /// the spectrum. 
+    /// the spectrum.
     ///
     /// The two cases above apply:
     /// *  If a 1-d AOI is evaluated then it should return all parameter
@@ -176,7 +176,6 @@ trait Fold {
     ///
     fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> Vec<(u32, u32)>;
 }
-
 
 /// The ConditionContainer is the magic by which
 /// Condition objects get dynamic dispatch to their checking
