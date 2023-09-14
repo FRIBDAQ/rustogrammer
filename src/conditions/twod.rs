@@ -1138,3 +1138,77 @@ mod contour_tests {
         c.invalidate_cache();
     }
 }
+#[cfg(test)]
+mod multicontour_tests {
+    use super::*;
+    use crate::parameters::{Event, EventParameter, FlatEvent};
+
+    // some test points:
+
+    fn test_points() -> Points {
+        // Points for a test countour are a diamond because
+        // that's easy to check for but not as trivial as a rectangle
+
+        vec![
+            Point::new(0.0, 50.0),
+            Point::new(50.0, 0.0),
+            Point::new(100.0, 50.0),
+            Point::new(50.0, 100.0),
+        ]
+    }
+
+    #[test]
+    fn new_1() {
+        // Create a contour with test points:
+
+        let c = MultiContour::new(&vec![1, 2, 3], test_points());
+        assert!(c.is_some());
+        let c = c.unwrap();
+        assert_eq!(vec![1, 2, 3], c.parameters);
+        assert_eq!(None, c.cache);
+    }
+    // Note on check tests - the contour tests already tested the insidedness.
+    #[test]
+    fn check_1() {
+        // all pairs in the contour
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 60.0),
+            EventParameter::new(2, 55.0),
+            EventParameter::new(3, 70.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+        assert!(c.check(&fe));
+        assert_eq!(Some(true), c.cache);
+    }
+    #[test]
+    fn check_2() {
+        // One pair in the contour:
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 60.0),
+            EventParameter::new(2, 55.0),
+            EventParameter::new(3, 700.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+        assert!(c.check(&fe));
+        assert_eq!(Some(true), c.cache);
+    }
+    
+    #[test]
+    fn check_3() {
+        // none in contour.
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 60.0),
+            EventParameter::new(2, 675.0),
+            EventParameter::new(3, 700.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+        assert!(!c.check(&fe));
+        assert_eq!(Some(false), c.cache);
+    }
+}
