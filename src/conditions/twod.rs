@@ -493,8 +493,7 @@ impl Fold for MultiContour {
                 if event[*p1].is_some() && event[*p2].is_some() {
                     let x = event[*p1].unwrap();
                     let y = event[*p2].unwrap();
-
-                    if self.contour.inside(x, y) || self.contour.inside(y, x) {
+                    if !self.contour.inside(x, y) {
                         result.push((*p1, *p2));
                     }
                 }
@@ -1282,5 +1281,91 @@ mod multicontour_tests {
         assert!(!c.check(&fe));
         c.invalidate_cache();
         assert_eq!(None, c.get_cached_value());
+    }
+    // tests of the Fold trait.
+
+    #[test]
+    fn fold1_1() {
+        // All pairs are in the contour, so no
+
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 60.0),
+            EventParameter::new(2, 70.0),
+            EventParameter::new(3, 80.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+
+        let p = c.evaluate_1(&fe);
+
+        assert_eq!(Vec::<u32>::new(), p);
+    }
+    #[test]
+    fn fold1_2() {
+        // This should return all because there are pairs for all parameters
+        // in which the contour is not made:
+
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 60.0),
+            EventParameter::new(2, 55.0),
+            EventParameter::new(3, 700.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+        let p = c.evaluate_1(&fe);
+
+        assert_eq!(vec![1, 2, 3], p);
+    }
+    #[test]
+    fn fold1_3() {
+        // None are in so again all parameters:
+
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 60.0),
+            EventParameter::new(2, 550.0),
+            EventParameter::new(3, 700.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+        let p = c.evaluate_1(&fe);
+
+        assert_eq!(vec![1, 2, 3], p);
+    }
+
+    #[test]
+    fn fold2_1() {
+        // All are in the contour - no pairs come out:
+
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 60.0),
+            EventParameter::new(2, 70.0),
+            EventParameter::new(3, 80.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+
+        let p = c.evaluate_2(&fe);
+
+        assert_eq!(Vec::<(u32, u32)>::new(), p);
+    }
+    #[test]
+    fn fold2_2() {
+        // There's a pair in the contour but others are not
+
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 600.0),
+            EventParameter::new(2, 70.0),
+            EventParameter::new(3, 80.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+
+        let p = c.evaluate_2(&fe);
+        assert_eq!(vec![(1,2), (1,3)], p);
     }
 }
