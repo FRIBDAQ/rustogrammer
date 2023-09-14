@@ -956,13 +956,18 @@ mod cond_msg_tests {
     }
     #[test]
     fn make_multicontour_1() {
-        let mc = ConditionMessageClient::make_multicontour_creation("name", &vec![1,2,3], &vec![(100.0, 100.0), (150.0, 100.0), (125.0, 150.0)]);
+        let mc = ConditionMessageClient::make_multicontour_creation(
+            "name",
+            &vec![1, 2, 3],
+            &vec![(100.0, 100.0), (150.0, 100.0), (125.0, 150.0)],
+        );
         assert_eq!(
             ConditionRequest::CreateMultiContour {
                 name: String::from("name"),
-                ids : vec![1,2,3],
+                ids: vec![1, 2, 3],
                 points: vec![(100.0, 100.0), (150.0, 100.0), (125.0, 150.0)]
-            }, mc
+            },
+            mc
         );
     }
 }
@@ -1325,7 +1330,7 @@ mod cnd_processor_tests {
         }
     }
     #[test]
-    fn create_multi_1() {
+    fn create_multi1_1() {
         let tracedb = trace::SharedTraceStore::new();
         let mut cp = ConditionProcessor::new();
         let rep = cp.process_request(
@@ -1337,6 +1342,50 @@ mod cnd_processor_tests {
         let item = cp.dict.get("test");
         assert!(item.is_some());
         assert_eq!(String::from("MultiCut"), item.unwrap().borrow().gate_type());
+    }
+    #[test]
+    fn create_multi2_1() {
+        // Create a multi-contour -no error.
+
+        let tracedb = trace::SharedTraceStore::new();
+        let mut cp = ConditionProcessor::new();
+        let rep = cp.process_request(
+            ConditionMessageClient::make_multicontour_creation(
+                "test",
+                &[1, 2, 3],
+                &vec![(100.0, 100.0), (150.0, 100.0), (125.0, 200.0)],
+            ),
+            &tracedb,
+        );
+        assert_eq!(ConditionReply::Created, rep);
+
+        let item = cp.dict.get("test");
+        assert!(item.is_some());
+        assert_eq!(
+            String::from("MultiContour"),
+            item.unwrap().borrow().gate_type()
+        );
+    }
+    #[test]
+    fn create_multi2_2() {
+        // Not enough pts -> error.
+
+        let tracedb = trace::SharedTraceStore::new();
+        let mut cp = ConditionProcessor::new();
+        let rep = cp.process_request(
+            ConditionMessageClient::make_multicontour_creation(
+                "test",
+                &[1, 2, 3],
+                &vec![(100.0, 100.0), (150.0, 100.0)],
+            ),
+            &tracedb,
+        );
+
+        assert!(if let ConditionReply::Error(_) = rep {
+            true
+        } else {
+            false
+        });
     }
 }
 #[cfg(test)]
