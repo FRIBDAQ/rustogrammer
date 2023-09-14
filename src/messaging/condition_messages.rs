@@ -1545,7 +1545,11 @@ mod cnd_api_tests {
         let (jh, send) = start_server();
         let api = ConditionMessageClient::new(&send);
 
-        let reply = api.create_multicontour_condition("test", &vec![1,2,3], &vec![(10.0, 0.0), (20.0, 0.0), (15.0, 20.0)]);
+        let reply = api.create_multicontour_condition(
+            "test",
+            &vec![1, 2, 3],
+            &vec![(10.0, 0.0), (20.0, 0.0), (15.0, 20.0)],
+        );
         assert_eq!(ConditionReply::Created, reply);
 
         let l = api.list_conditions("test");
