@@ -1141,7 +1141,7 @@ mod contour_tests {
 #[cfg(test)]
 mod multicontour_tests {
     use super::*;
-    use crate::parameters::{Event, EventParameter, FlatEvent};
+    use crate::parameters::{EventParameter, FlatEvent};
 
     // some test points:
 
@@ -1196,7 +1196,7 @@ mod multicontour_tests {
         assert!(c.check(&fe));
         assert_eq!(Some(true), c.cache);
     }
-    
+
     #[test]
     fn check_3() {
         // none in contour.
@@ -1210,5 +1210,77 @@ mod multicontour_tests {
         fe.load_event(&e);
         assert!(!c.check(&fe));
         assert_eq!(Some(false), c.cache);
+    }
+    #[test]
+    fn type_1() {
+        let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        assert_eq!("MultiContour", c.gate_type());
+    }
+    #[test]
+    fn points_1() {
+        let pts = test_points();
+        let c = MultiContour::new(&vec![1, 2, 3], pts.clone()).expect("making multicontour");
+
+        let gate_pts = c.gate_points();
+        assert_eq!(pts.len(), gate_pts.len());
+        for (i, p) in pts.iter().enumerate() {
+            assert_eq!((p.x, p.y), gate_pts[i], "Mismatch on {}", i);
+        }
+    }
+    #[test]
+    fn depcond_1() {
+        let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+
+        assert!(c.dependent_gates().is_empty());
+    }
+    #[test]
+    fn deppars_1() {
+        let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        assert_eq!(vec![1, 2, 3], c.dependent_parameters());
+    }
+    #[test]
+    fn getcache_1() {
+        let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        assert_eq!(None, c.get_cached_value());
+    }
+    #[test]
+    fn get_cache_2() {
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 60.0),
+            EventParameter::new(2, 55.0),
+            EventParameter::new(3, 70.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+        assert!(c.check(&fe));
+        assert_eq!(Some(true), c.get_cached_value());
+    }
+    #[test]
+    fn get_cache_3() {
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 60.0),
+            EventParameter::new(2, 675.0),
+            EventParameter::new(3, 700.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+        assert!(!c.check(&fe));
+        assert_eq!(Some(false), c.get_cached_value());
+    }
+    #[test]
+    fn clrcache_1() {
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let e = vec![
+            EventParameter::new(1, 60.0),
+            EventParameter::new(2, 675.0),
+            EventParameter::new(3, 700.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&e);
+        assert!(!c.check(&fe));
+        c.invalidate_cache();
+        assert_eq!(None, c.get_cached_value());
     }
 }
