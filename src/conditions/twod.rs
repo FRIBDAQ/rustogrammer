@@ -381,7 +381,129 @@ impl Condition for Contour {
         self.cache = None;
     }
 }
+///
+/// MultiContour is what SpecTcl called a gc it implements both the
+/// condition and fold traits and, therefore can be used to fold spectra.
+///
+/// When using MultiContour as a gate, it is true as long as any pair of
+/// parameters is in the contour.   
+///
+/// When using MultiContour as a 1-d fold, any parameters that are not in a
+/// pair of parameters that are in the contoure are returned.
+///
+/// When using MultiContour as a 2-d fold, any pair of parameters not in the
+/// contour are returned.
+///
+/// Implementation note... we are really just a Contour that ignores its
+/// parameters and supplies an unbounded vector of parameter ids  instead.
+///
+///
+pub struct MultiContour {
+    contour: Contour,
+    parameters: Vec<u32>,
+    cache: Option<bool>,
+}
 
+impl MultiContour {
+    /// Create a new contour.
+    ///
+    /// ### Parameters:
+    ///  *  parameters the parameters that are actually used for the gate/fold.
+    ///  *  pts  - the points that define the contour.
+    ///
+    pub fn new(parameters: &[u32], pts: Points) -> Option<MultiContour> {
+        if let Some(c) = Contour::new(0, 0, pts) {
+            Some(MultiContour {
+                contour: c, // Use dummy parameter ids
+                parameters: parameters.to_owned(),
+                cache: None,
+            })
+        } else {
+            None
+        }
+    }
+}
+impl Condition for MultiContour {
+    fn evaluate(&mut self, event: &FlatEvent) -> bool {
+        for (i, p1) in self.parameters.as_slice()[0..self.parameters.len() - 1]
+            .iter()
+            .enumerate()
+        {
+            for p2 in self.parameters.iter().skip(i + 1) {
+                if event[*p1].is_some() && event[*p2].is_some() {
+                    // Use both orientations:
+
+                    if self
+                        .contour
+                        .inside(event[*p1].unwrap(), event[*p2].unwrap())
+                        || self
+                            .contour
+                            .inside(event[*p2].unwrap(), event[*p1].unwrap())
+                    {
+                        self.cache = Some(true);
+                        return true;
+                    }
+                }
+            }
+        }
+        self.cache = Some(false);
+        false
+    }
+    fn gate_type(&self) -> String {
+        String::from("MultiContour")
+    }
+    fn gate_points(&self) -> Vec<(f64, f64)> {
+        self.contour.gate_points() // Can delegate.
+    }
+    fn dependent_gates(&self) -> Vec<ContainerReference> {
+        vec![] // could delegate but this is simpler
+    }
+    fn dependent_parameters(&self) -> Vec<u32> {
+        self.parameters.clone()
+    }
+    fn get_cached_value(&self) -> Option<bool> {
+        self.cache
+    }
+    fn invalidate_cache(&mut self) {
+        self.cache = None;
+    }
+}
+impl Fold for MultiContour {
+    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
+        // All we need to do is
+        // 1. evaluate_2
+        // 2. Turn the vector of pairs into a single vector.
+        // 3. Sort that vector
+        // 4. Remove duplications:
+
+        let pairs = self.evaluate_2(event);
+        let (mut v1, mut v2): (Vec<u32>, Vec<u32>) = pairs.iter().cloned().unzip();
+        v1.append(&mut v2);
+        v1.sort();
+        v1.dedup();
+        v1
+    }
+    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> Vec<(u32, u32)> {
+        let mut result = Vec::<(u32, u32)>::new();
+        for (i, p1) in self.parameters.as_slice()[0..self.parameters.len() - 1]
+            .iter()
+            .enumerate()
+        {
+            for p2 in self.parameters.iter().skip(i + 1) {
+                if event[*p1].is_some() && event[*p2].is_some() {
+                    let x = event[*p1].unwrap();
+                    let y = event[*p2].unwrap();
+
+                    if self.contour.inside(x, y) || self.contour.inside(y, x) {
+                        result.push((*p1, *p2));
+                    }
+                }
+            }
+        }
+
+        result
+    }
+}
 #[cfg(test)]
 mod band_tests {
     use super::*;

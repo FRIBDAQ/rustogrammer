@@ -1574,8 +1574,8 @@ mod gate_tests {
         make_test_objects(&c);
 
         let client = Client::untracked(rocket).expect("Creating rocket client");
-        let req =
-            client.get("/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p3&low=100&high=200");
+        let req = client
+            .get("/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p3&low=100&high=200");
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
@@ -1627,8 +1627,9 @@ mod gate_tests {
         let (c, papi, bapi) = get_state(&rocket);
 
         let client = Client::untracked(rocket).expect("Creating rocket client");
-        let req =
-            client.get("/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p333&low=100&high=200");
+        let req = client.get(
+            "/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p333&low=100&high=200",
+        );
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()

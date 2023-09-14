@@ -1404,19 +1404,20 @@ mod cnd_api_tests {
         let (jh, send) = start_server();
 
         let api = ConditionMessageClient::new(&send);
-        let reply = api.create_multicut_condition("test", &[1,2,3], 100.0, 200.0);
+        let reply = api.create_multicut_condition("test", &[1, 2, 3], 100.0, 200.0);
         assert_eq!(ConditionReply::Created, reply);
 
         let l = api.list_conditions("test");
-        assert_eq!(ConditionReply::Listing(vec![
-            ConditionProperties {
-                cond_name : String::from("test"),
-                type_name : String::from("MultiCut"),
+        assert_eq!(
+            ConditionReply::Listing(vec![ConditionProperties {
+                cond_name: String::from("test"),
+                type_name: String::from("MultiCut"),
                 points: vec![(100.0, 0.0), (200.0, 0.0)],
                 gates: vec![],
-                parameters: vec![1,2,3]
-            },
-        ]),l );
+                parameters: vec![1, 2, 3]
+            },]),
+            l
+        );
 
         stop_server(jh, send);
     }
@@ -1599,7 +1600,6 @@ mod cnd_api_tests {
         }
         stop_server(jh, send);
     }
-
 }
 // Ensure that traces fire when appropriate for conditions:
 
