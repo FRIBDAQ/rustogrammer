@@ -38,6 +38,7 @@ fn rg_condition_to_spctl(rg_type: &str) -> String {
         "Contour" => String::from("c"),
         "Cut" => String::from("s"),
         "MultiCut" => String::from("gs"),
+        "MultiContour" => String::from("gc"),
         _ => String::from("-unsupported-"),
     }
 }
@@ -860,6 +861,50 @@ mod gate_tests {
         );
         assert_eq!(100.0, l.low);
         assert_eq!(200.0, l.high);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn list_11() {
+        // List a gc (MultiContour):
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_multicontour_condition(
+            "test",
+            &[1, 2, 3],
+            &[(100.0, 50.0), (200.0, 50.0), (150.0, 75.0)],
+        );
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("test", l.name);
+        assert_eq!("gc", l.type_name);
+        assert!(l.gates.is_empty());
+        assert_eq!(
+            vec![String::from("p1"), String::from("p2"), String::from("p3")],
+            l.parameters
+        );
+        assert_eq!(
+            vec![
+                GatePoint { x: 100.0, y: 50.0 },
+                GatePoint { x: 200.0, y: 50.0 },
+                GatePoint { x: 150.0, y: 75.0 }
+            ],
+            l.points
+        );
 
         teardown(c, &papi, &bapi);
     }
