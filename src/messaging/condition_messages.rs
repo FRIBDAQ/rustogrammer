@@ -59,6 +59,11 @@ pub enum ConditionRequest {
         low: f64,
         high: f64,
     },
+    CreateMultiContour {
+        name: String,
+        ids: Vec<u32>,
+        points: Vec<(f64, f64)>,
+    },
     DeleteCondition(String),
     List(String),
 }
@@ -162,6 +167,17 @@ impl ConditionMessageClient {
             ids: ids.to_owned(),
             low,
             high,
+        }
+    }
+    fn make_multicontour_creation(
+        name: &str,
+        ids: &[u32],
+        points: &[(f64, f64)],
+    ) -> ConditionRequest {
+        ConditionRequest::CreateMultiContour {
+            name: String::from(name),
+            ids: ids.to_owned(),
+            points: points.to_owned(),
         }
     }
     fn make_delete(name: &str) -> ConditionRequest {
@@ -391,6 +407,27 @@ impl ConditionMessageClient {
         self.transaction(Self::make_multicut_creation(name, ids, low, high))
     }
     ///
+    /// Creaet a multicontour
+    ///   MulitContours are analagous to SpecTcl gamma-contours.  They get an
+    /// array of ids and 2-d points:
+    ///
+    /// ### Parameters
+    ///  *   name - name of the new condition.
+    ///  *   ids - array of parameter ids.
+    ///  *   points - array of points.
+    ///
+    /// ### Returns:
+    ///   Condition reply which is hopefully either Created or Replaced
+    ///
+    pub fn create_multicontour_condition(
+        &self,
+        name: &str,
+        ids: &[u32],
+        points: &[(f64, f64)],
+    ) -> ConditionReply {
+        self.transaction(Self::make_multicontour_creation(name, ids, points))
+    }
+    ///
     /// Deletes a condition.  The condition is removed fromt he dictionary.
     /// All remaining references are 'weak' by definition and will fail to promote
     /// to a strong reference when use is attemped.
@@ -581,6 +618,23 @@ impl ConditionProcessor {
     ) -> ConditionReply {
         self.add_condition(name, MultiCut::new(ids, low, high), tracedb)
     }
+    fn add_multicontour(
+        &mut self,
+        name: &str,
+        ids: &[u32],
+        points: &[(f64, f64)],
+        tracedb: &trace::SharedTraceStore,
+    ) -> ConditionReply {
+        let mut pts = vec![];
+        for pt in points {
+            pts.push(Point::new(pt.0, pt.1));
+        }
+        if let Some(c) = MultiContour::new(ids, pts) {
+            self.add_condition(name, c, tracedb)
+        } else {
+            ConditionReply::Error(String::from("Unable to create multicontour"))
+        }
+    }
     fn remove_condition(
         &mut self,
         name: &str,
@@ -683,6 +737,9 @@ impl ConditionProcessor {
                 low,
                 high,
             } => self.add_multicut(&name, &ids, low, high, tracedb),
+            ConditionRequest::CreateMultiContour { name, ids, points } => {
+                self.add_multicontour(&name, &ids, &points, tracedb)
+            }
             ConditionRequest::DeleteCondition(name) => self.remove_condition(&name, tracedb),
             ConditionRequest::List(pattern) => self.list_conditions(&pattern),
         }
