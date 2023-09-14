@@ -954,6 +954,17 @@ mod cond_msg_tests {
             mc
         )
     }
+    #[test]
+    fn make_multicontour_1() {
+        let mc = ConditionMessageClient::make_multicontour_creation("name", &vec![1,2,3], &vec![(100.0, 100.0), (150.0, 100.0), (125.0, 150.0)]);
+        assert_eq!(
+            ConditionRequest::CreateMultiContour {
+                name: String::from("name"),
+                ids : vec![1,2,3],
+                points: vec![(100.0, 100.0), (150.0, 100.0), (125.0, 150.0)]
+            }, mc
+        );
+    }
 }
 #[cfg(test)]
 mod cnd_processor_tests {
