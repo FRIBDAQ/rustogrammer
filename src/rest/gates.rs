@@ -339,7 +339,51 @@ fn validate_multi1_parameters(
     }
     Ok((ids, low.unwrap(), high.unwrap()))
 }
+// Validate the parameters for a multi parameter contour:
 
+fn validate_multi2_parameters(
+    parameter: OptionalStringVec,
+    xcoords: OptionalF64Vec,
+    ycoords: OptionalF64Vec,
+    state: &State<SharedHistogramChannel>
+) -> Result<(Vec<u32>, Vec<(f64, f64)>), String> {
+    // THere must be parameers, x and y coordinates:
+
+    if parameter.is_none() {
+        return Err(String::from("Parameters are required for a multi parameter contour"));
+    }
+    let parameter = parameter.unwrap();
+
+    if xcoords.is_none() {
+        return Err(String::from("xcoords are required for multi parameter contours"));
+    }
+    if ycoords.is_none() {
+        return Err(String::from("ycoords are required for multi parameters contous"));
+    }
+    let x = xcoords.unwrap();
+    let y = ycoords.unwrap();
+    if x.len() != y.len() {
+        return Err(String::from("There must be the same number of x and y coordinates."))
+    }
+    // Marshall the points:
+
+    let mut pts = vec![];
+    for (i, x) in x.iter().enumerate() {
+        pts.push((*x, y[i]));
+    }
+    // Marshall the parameters -> ids:
+
+    let mut ids = vec![];
+    for name in parameter.iter() {
+        if let Some(id) = find_parameter_by_name(name, state) {
+            ids.push(id);
+        } else {
+            return Err(format!("Parameter: {} does not exist", name));
+        }
+    }
+
+    Ok((ids, pts))
+}
 ///
 /// Create/edit a gate.  Note that creating a new gate and editing
 /// an existing gate.  If we 'edit' a new gate the gate is created
@@ -465,7 +509,10 @@ pub fn edit_gate(
             Err(s) => ConditionReply::Error(s),
             Ok((ids, low, high)) => api.create_multicut_condition(&name, &ids, low, high),
         },
-
+        "gc" => match validate_multi2_parameters(parameter, xcoord, ycoord, state) {
+            Err(s) => ConditionReply::Error(s),
+            Ok((ids, points)) => api.create_multicontour_condition(&name, &ids, &points),
+        },
         _ => ConditionReply::Error(format!("Unsupported gate type: {}", r#type)),
     };
 
