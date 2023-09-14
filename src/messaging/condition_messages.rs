@@ -1538,6 +1538,30 @@ mod cnd_api_tests {
 
         stop_server(jh, send);
     }
+    #[test]
+    fn multi_cont_1() {
+        // Make a multi contour:
+
+        let (jh, send) = start_server();
+        let api = ConditionMessageClient::new(&send);
+
+        let reply = api.create_multicontour_condition("test", &vec![1,2,3], &vec![(10.0, 0.0), (20.0, 0.0), (15.0, 20.0)]);
+        assert_eq!(ConditionReply::Created, reply);
+
+        let l = api.list_conditions("test");
+        assert_eq!(
+            ConditionReply::Listing(vec![ConditionProperties {
+                cond_name: String::from("test"),
+                type_name: String::from("MultiContour"),
+                points: vec![(10.0, 0.0), (20.0, 0.0), (15.0, 20.0)],
+                gates: vec![],
+                parameters: vec![1, 2, 3]
+            },]),
+            l
+        );
+
+        stop_server(jh, send);
+    }
 
     fn make_some_conditions(send: &Sender<Request>) {
         let api = ConditionMessageClient::new(send);
