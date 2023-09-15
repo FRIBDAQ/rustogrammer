@@ -137,6 +137,11 @@ pub enum SpectrumRequest {
         ychan: Option<i32>,
         value: f64,
     },
+    Fold {
+        spectrum_name: String,
+        condition_name: String,
+    },
+    Unfold(String),
 }
 
 /// Defines the replies the spectrum par tof the histogram
@@ -155,6 +160,8 @@ pub enum SpectrumReply {
     Statistics(SpectrumStatistics),   // Spectrum statistics.
     ChannelValue(f64),                // GetChan
     ChannelSet,                       // SetChan
+    Folded,
+    Unfolded,
 }
 /// Convert a coordinate to a bin:
 ///
@@ -844,6 +851,24 @@ impl SpectrumProcessor {
             SpectrumReply::Error(format!("No such spectrum: {}", name))
         }
     }
+    // Fold a spectrum given a condition  name and a condition name:
+
+    fn fold_spectrum(
+        &mut self,
+        spectrum: &str,
+        condition: &str,
+        cdict: &conditions::ConditionDictionary,
+    ) -> SpectrumReply {
+        if let Some(s) = self.dict.get(spectrum) {
+            if let Err(s) = s.borrow_mut().fold(condition, cdict) {
+                SpectrumReply::Error(format!("Failed to fold {}: {}", spectrum, s))
+            } else {
+                SpectrumReply::Folded
+            }
+        } else {
+            SpectrumReply::Error(format!("no such spectrum {}", spectrum))
+        }
+    }
 
     // Public methods
     /// Construction
@@ -927,6 +952,13 @@ impl SpectrumProcessor {
                 ychan,
                 value,
             } => self.set_channel_value(&name, xchan, ychan, value),
+            SpectrumRequest::Fold {
+                spectrum_name,
+                condition_name,
+            } => self.fold_spectrum(&spectrum_name, &condition_name, cdict),
+            SpectrumRequest::Unfold(spectrum) => {
+                SpectrumReply::Error(String::from("unimplemented"))
+            }
         }
     }
 }
