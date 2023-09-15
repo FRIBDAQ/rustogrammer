@@ -278,9 +278,9 @@ mod test_support {
     }
     pub fn test_points() -> Points {
         vec![
-            Point::new(2.0, 5.0),
-            Point::new(5.0, 5.0),
-            Point::new(10.0, 0.0),
+            Point::new(200.0, 500.0),
+            Point::new(500.0, 500.0),
+            Point::new(250.0, 0.0),
         ]
     }
 }
@@ -633,6 +633,7 @@ mod fold_tests {
     use crate::conditions::cut::{Cut, MultiCut};
     use crate::conditions::twod::MultiContour;
     use crate::conditions::ConditionDictionary;
+    use crate::parameters::{EventParameter, FlatEvent};
     use std::cell::RefCell;
     use std::rc::Rc;
 
@@ -714,6 +715,103 @@ mod fold_tests {
 
         assert!(spec.unfold().is_ok());
         assert!(!spec.applied_fold.is_fold());
+    }
+    #[test]
+    fn getpairs_1() {
+        // the parameter pairs are just from raw if there's no fold:
 
+        let mut pdict = ParameterDictionary::new();
+        let _ = make_params(&mut pdict);
+        let mut spec = Multi2d::new(
+            "test",
+            vec![
+                String::from("param.0"),
+                String::from("param.1"),
+                String::from("param.2"),
+            ],
+            &pdict,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .expect("Making spectrum");
+
+        let rawe = vec![];
+        let mut ev = FlatEvent::new();
+        ev.load_event(&rawe);
+
+        let mut ps = spec.get_parameter_pairs(&ev);
+        ps.sort();
+
+        assert_eq!(vec![(1, 2), (1, 3), (2, 3)], ps);
+    }
+    #[test]
+    fn getpairs_2() {
+        // if there's a contour but none of the event is inside all params:
+
+        let mut pdict = ParameterDictionary::new();
+        let _ = make_params(&mut pdict);
+        
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("gc", &gdict)
+            .expect("Unable to fold multi2ds with multi contour.");
+
+        let rawe = vec![
+            EventParameter::new(1, 50.0),
+            EventParameter::new(2, 70.0),
+            EventParameter::new(3, 1000.0),
+        ];
+        let mut ev = FlatEvent::new();
+        ev.load_event(&rawe);
+
+        let mut ps = spec.get_parameter_pairs(&ev);
+        ps.sort();
+
+        assert_eq!(vec![(1, 2), (1, 3), (2, 3)], ps);
+    }
+    #[test]
+    fn getpair_3() {
+        // Pair inside is removed
+
+        let mut pdict = ParameterDictionary::new();
+        let _ = make_params(&mut pdict);
+        
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("gc", &gdict)
+            .expect("Unable to fold multi2ds with multi contour.");
+
+        let rawe = vec![
+            EventParameter::new(1, 50.0),
+            EventParameter::new(2, 250.0),
+            EventParameter::new(3, 400.0),
+        ];
+        let mut ev = FlatEvent::new();
+        ev.load_event(&rawe);
+
+        let mut ps = spec.get_parameter_pairs(&ev);
+        ps.sort();
+
+        assert_eq!(vec![(1, 2), (1, 3)], ps);
     }
 }
