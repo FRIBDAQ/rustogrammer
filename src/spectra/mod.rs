@@ -166,7 +166,7 @@ impl SpectrumGate {
             vec![]
         }
     }
-    pub fn fold_d(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
+    pub fn fold_2d(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
         if let Some(g) = &self.gate {
             if let Some(g) = g.gate.upgrade() {
                 g.borrow_mut().evaluate_2(e)

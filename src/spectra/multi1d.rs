@@ -13,6 +13,7 @@
 //!  
 use super::*;
 use ndhistogram::value::Sum;
+use std::collections::HashSet;
 
 ///
 /// *  applied_gate - is the gate that can conditionalize increments.
@@ -35,9 +36,10 @@ impl Spectrum for Multi1d {
         self.applied_gate.check(e)
     }
     fn increment(&mut self, e: &FlatEvent) {
+        let ids = self.get_param_ids(e); // Raw or from fold.
         let mut histogram = self.histogram.borrow_mut();
-        for id in self.param_ids.iter() {
-            if let Some(x) = e[*id] {
+        for id in ids {
+            if let Some(x) = e[id] {
                 histogram.fill(&x);
             }
         }
@@ -168,6 +170,26 @@ impl Multi1d {
             param_names,
             param_ids,
         })
+    }
+    /// Determine the ids to be used for incrementing the spectra.
+    /// If there is no applied fold, this is just the raw ids.
+    /// otherwise it's the intersection between the raw ids and the ids
+    /// that come out of the fold:
+    /// Returning a box avoids copying the param_ids vec.
+    fn get_param_ids(&mut self, e: &FlatEvent) -> Vec<u32> {
+        if self.applied_fold.is_fold() {
+            // This branch can probably use some optimization
+            let fold_ids = self.applied_fold.fold_1d(e);
+            let fold_set = fold_ids.into_iter().collect::<HashSet<u32>>();
+            let param_set = self.param_ids.clone().into_iter().collect::<HashSet<u32>>();
+            let mut result = vec![];
+            for i in fold_set.intersection(&param_set) {
+                result.push(*i);
+            }
+            result
+        } else {
+            self.param_ids.clone()
+        }
     }
 }
 
