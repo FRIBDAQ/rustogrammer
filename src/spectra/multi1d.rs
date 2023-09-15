@@ -199,11 +199,8 @@ mod multi1d_tests {
     // use ndhistogram::axis::*;
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gating.
-    #[test]
-    fn new_1() {
-        // Success with default x axis and uniform parameter defs:
 
-        let mut pdict = ParameterDictionary::new();
+    fn make_default_parameters(pdict: &mut ParameterDictionary) -> Vec<String> {
         let mut names = Vec::<String>::new();
         for i in 0..10 {
             let name = format!("param.{}", i);
@@ -214,6 +211,15 @@ mod multi1d_tests {
             p.set_bins(1024);
             p.set_description("Some things in arb units");
         }
+        names
+    }
+
+    #[test]
+    fn new_1() {
+        // Success with default x axis and uniform parameter defs:
+
+        let mut pdict = ParameterDictionary::new();
+        let names = make_default_parameters(&mut pdict);
         let result = Multi1d::new("Testing", names, &pdict, None, None, None);
         assert!(result.is_ok());
         let s = result.unwrap();
@@ -238,16 +244,7 @@ mod multi1d_tests {
         // non uniform parameter defs:
 
         let mut pdict = ParameterDictionary::new();
-        let mut names = Vec::<String>::new();
-        for i in 0..10 {
-            let name = format!("param.{}", i);
-            names.push(name.clone());
-            pdict.add(&name).expect("Could not add parameter");
-            let p = pdict.lookup_mut(&name).unwrap();
-            p.set_limits(0.0, 1023.0);
-            p.set_bins(1024);
-            p.set_description("Some things in arb units");
-        }
+        let names = make_default_parameters(&mut pdict);
         {
             let p = pdict.lookup_mut("param.5").unwrap();
             p.set_limits(-2048.0, 2048.0);
@@ -279,16 +276,8 @@ mod multi1d_tests {
         // Success with default x axis and uniform parameter defs:
 
         let mut pdict = ParameterDictionary::new();
-        let mut names = Vec::<String>::new();
-        for i in 0..10 {
-            let name = format!("param.{}", i);
-            names.push(name.clone());
-            pdict.add(&name).expect("Could not add parameter");
-            let p = pdict.lookup_mut(&name).unwrap();
-            p.set_limits(0.0, 1023.0);
-            p.set_bins(1024);
-            p.set_description("Some things in arb units");
-        }
+        let names = make_default_parameters(&mut pdict);
+
         let result = Multi1d::new(
             "Testing",
             names,
@@ -320,16 +309,8 @@ mod multi1d_tests {
         // invalid parameter in the list:
 
         let mut pdict = ParameterDictionary::new();
-        let mut names = Vec::<String>::new();
-        for i in 0..10 {
-            let name = format!("param.{}", i);
-            names.push(name.clone());
-            pdict.add(&name).expect("Could not add parameter");
-            let p = pdict.lookup_mut(&name).unwrap();
-            p.set_limits(0.0, 1023.0);
-            p.set_bins(1024);
-            p.set_description("Some things in arb units");
-        }
+        let mut names = make_default_parameters(&mut pdict);
+
         names.push(String::from("No-such"));
         let result = Multi1d::new(
             "Testing",
@@ -386,16 +367,8 @@ mod multi1d_tests {
         // Increment in all parameters ungated.
 
         let mut pdict = ParameterDictionary::new();
-        let mut names = Vec::<String>::new();
-        for i in 0..10 {
-            let name = format!("param.{}", i);
-            names.push(name.clone());
-            pdict.add(&name).expect("Could not add parameter");
-            let p = pdict.lookup_mut(&name).unwrap();
-            p.set_limits(0.0, 1023.0);
-            p.set_bins(1024);
-            p.set_description("Some things in arb units");
-        }
+        let names = make_default_parameters(&mut pdict);
+
         let mut spec = Multi1d::new("Testing", names, &pdict, None, None, None).unwrap();
 
         let mut fe = FlatEvent::new();
@@ -425,16 +398,7 @@ mod multi1d_tests {
         // Increment gated on T in all parameters.
 
         let mut pdict = ParameterDictionary::new();
-        let mut names = Vec::<String>::new();
-        for i in 0..10 {
-            let name = format!("param.{}", i);
-            names.push(name.clone());
-            pdict.add(&name).expect("Could not add parameter");
-            let p = pdict.lookup_mut(&name).unwrap();
-            p.set_limits(0.0, 1023.0);
-            p.set_bins(1024);
-            p.set_description("Some things in arb units");
-        }
+        let names = make_default_parameters(&mut pdict);
         let mut spec = Multi1d::new("Testing", names, &pdict, None, None, None).unwrap();
 
         let mut fe = FlatEvent::new();
@@ -472,16 +436,7 @@ mod multi1d_tests {
         // Gated on F no increments happen:
 
         let mut pdict = ParameterDictionary::new();
-        let mut names = Vec::<String>::new();
-        for i in 0..10 {
-            let name = format!("param.{}", i);
-            names.push(name.clone());
-            pdict.add(&name).expect("Could not add parameter");
-            let p = pdict.lookup_mut(&name).unwrap();
-            p.set_limits(0.0, 1023.0);
-            p.set_bins(1024);
-            p.set_description("Some things in arb units");
-        }
+        let names = make_default_parameters(&mut pdict);
         let mut spec = Multi1d::new("Testing", names, &pdict, None, None, None).unwrap();
 
         let mut fe = FlatEvent::new();
@@ -519,16 +474,7 @@ mod multi1d_tests {
         // Over/underflow - 1/2 will under, 1/2 will over:
 
         let mut pdict = ParameterDictionary::new();
-        let mut names = Vec::<String>::new();
-        for i in 0..10 {
-            let name = format!("param.{}", i);
-            names.push(name.clone());
-            pdict.add(&name).expect("Could not add parameter");
-            let p = pdict.lookup_mut(&name).unwrap();
-            p.set_limits(0.0, 1023.0);
-            p.set_bins(1024);
-            p.set_description("Some things in arb units");
-        }
+        let names = make_default_parameters(&mut pdict);
         let mut spec = Multi1d::new("Testing", names, &pdict, None, None, None).unwrap();
 
         let mut fe = FlatEvent::new();
@@ -544,4 +490,12 @@ mod multi1d_tests {
         assert_eq!(5.0, spec.histogram.borrow().value(&-1.0).unwrap().get());
         assert_eq!(5.0, spec.histogram.borrow().value(&1025.0).unwrap().get());
     }
+}
+// Test folds of Multi1d.
+
+#[cfg(test)]
+mod fold_tests {
+    use super::*;
+    use std::cell::RefCell; // Needed in gating
+    use std::rc::Rc; // Needed in gate/folds
 }
