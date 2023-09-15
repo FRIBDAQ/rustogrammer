@@ -696,4 +696,24 @@ mod fold_tests {
 
         assert!(spec.fold("cut", &gdict).is_err());
     }
+    #[test]
+    fn unfold_1() {
+        // Can remove a fold from a specturml
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("gc", &gdict)
+            .expect("Unable to fold multi2ds with multi contour.");
+
+        assert!(spec.unfold().is_ok());
+        assert!(!spec.applied_fold.is_fold());
+
+    }
 }
