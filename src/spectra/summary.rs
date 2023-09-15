@@ -373,6 +373,23 @@ mod summary_tests {
         assert_eq!(2048.0, *y.high());
         assert_eq!(2048 + 2, y.num_bins());
     }
+    #[test]
+    fn foldable_1() {
+        let mut pd = ParameterDictionary::new();
+        let mut names = Vec::<String>::new();
+        for i in 0..10 {
+            let name = format!("param{}", i);
+            pd.add(&name).unwrap();
+            let p = pd.lookup_mut(&name).unwrap();
+            p.set_limits(0.0, 1023.0);
+            p.set_bins(1024);
+            p.set_description("Arbitrary");
+            names.push(name);
+        }
+
+        let result = Summary::new("summary-test", names.clone(), &pd, None, None, None);
+        assert!(!result.unwrap().can_fold());
+    }
     // Tests for increment with and without gates... with and w/o
     // y axis over/underflow (x axis must be in range).
     #[test]

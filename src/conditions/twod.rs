@@ -470,7 +470,9 @@ impl Condition for MultiContour {
 
     // fold
 
-    fn is_fold(&self) -> bool {true}
+    fn is_fold(&self) -> bool {
+        true
+    }
     fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
         // All we need to do is
         // 1. evaluate_2
@@ -789,10 +791,9 @@ mod band_tests {
     }
     #[test]
     fn foldable_1() {
-        let mut b = Band::new(1, 2, test_points()).unwrap();
+        let  b = Band::new(1, 2, test_points()).unwrap();
         assert!(!b.is_fold());
     }
-
 }
 #[cfg(test)]
 mod contour_tests {
@@ -1159,7 +1160,7 @@ mod contour_tests {
     }
     #[test]
     fn foldable() {
-        let mut c = Contour::new(1, 2, hourglass()).unwrap();
+        let  c = Contour::new(1, 2, hourglass()).unwrap();
 
         assert!(!c.is_fold());
     }
@@ -1313,7 +1314,7 @@ mod multicontour_tests {
 
     #[test]
     fn foldable_1() {
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let  c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
         assert!(c.is_fold());
     }
 

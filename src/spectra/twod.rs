@@ -448,6 +448,29 @@ mod twod_tests {
         );
         assert!(result.is_err());
     }
+    #[test]
+    fn foldable() {
+        let mut pdict = ParameterDictionary::new();
+        pdict.add("x").unwrap();
+        pdict.add("y").unwrap();
+        
+        let px = pdict.lookup_mut("x").unwrap();
+        px.set_limits(0.0, 1023.0);
+        px.set_bins(512);
+        px.set_description("Just some x parameter");
+        
+        let py = pdict.lookup_mut("y").unwrap();
+        py.set_limits(-1.0, 1.0);
+        py.set_bins(100);
+        py.set_description("Just some y parameter");
+
+        let result = Twod::new(
+            "2d", "x", "y", &pdict, None, None, None, // Default xaxis.
+            None, None, None, // default y axis.
+        );
+
+        assert!(!result.unwrap().can_fold());
+    }
     // The remaining tests test increments.
     // To support them utility function below creates and returns
     // a standard 2d spectrum.  Note that the fact that

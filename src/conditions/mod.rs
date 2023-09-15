@@ -110,7 +110,6 @@ pub trait Condition {
         }
     }
 
-    
     /// Some conditions can be treated as folds on a Gamma spectrum.
     /// A fold takes an event and reduces it to the set of parameters
     /// or parameter pairs that can increment a gamma spectrum.
@@ -137,8 +136,10 @@ pub trait Condition {
     /// the methods below implement folding for a condition.
     /// Note that they default in a way that makes sense for conditions
     /// that cannot be used to fold.
-    /// 
-    fn is_fold(&self) -> bool {false}
+    ///
+    fn is_fold(&self) -> bool {
+        false
+    }
 
     /// Used by a fold applied to a 1-d spectrum
     ///  events go into the fold and what's
@@ -160,7 +161,7 @@ pub trait Condition {
     /// * If a 2-d AOI is evaluated it should return the parameters that
     /// are not in a pair that make the AOI true.
     ///
-    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
+    fn evaluate_1(&mut self, _event: &parameters::FlatEvent) -> Vec<u32> {
         vec![]
     }
 
@@ -181,12 +182,10 @@ pub trait Condition {
     /// * IF a 2-d AOI is evaluated then it should return all paramter pairs
     /// that lie outside the AOI
     ///
-    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> Vec<(u32, u32)>  {
+    fn evaluate_2(&mut self, _event: &parameters::FlatEvent) -> Vec<(u32, u32)> {
         vec![]
     }
-
 }
-
 
 /// The ConditionContainer is the magic by which
 /// Condition objects get dynamic dispatch to their checking

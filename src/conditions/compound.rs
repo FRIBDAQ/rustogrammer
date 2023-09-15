@@ -446,7 +446,6 @@ mod and_tests {
     #[test]
     fn foldable_1() {
         let mut a = And::new();
-        let e = FlatEvent::new();
         let f = False {};
         let c1: Container = Rc::new(RefCell::new(Box::new(f)));
         let s = Cut::new(1, 100.0, 200.0);
@@ -590,7 +589,6 @@ mod or_tests {
     #[test]
     fn foldable_1() {
         let mut o = Or::new();
-        let e = FlatEvent::new();
         let f1 = False {};
         let cf1: Container = Rc::new(RefCell::new(Box::new(f1)));
         let f2 = False {};

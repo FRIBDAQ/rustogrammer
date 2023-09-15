@@ -317,7 +317,7 @@ pub trait Spectrum {
     fn can_fold(&self) -> bool {
         false
     }
-    fn fold(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+    fn fold(&mut self, _name: &str, _dict: &ConditionDictionary) -> Result<(), String> {
         Err(String::from(
             "Spectra of this type cannot have folds applied",
         ))
