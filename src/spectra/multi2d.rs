@@ -252,6 +252,7 @@ impl Multi2d {
 
 #[cfg(test)]
 mod test_support {
+    use crate::conditions::twod::{Point, Points};
     use crate::parameters::ParameterDictionary;
     pub fn make_params(pdict: &mut ParameterDictionary) -> Vec<String> {
         let mut pnames = Vec::<String>::new();
@@ -274,6 +275,13 @@ mod test_support {
             pnames.push(pname);
         }
         pnames
+    }
+    pub fn test_points() -> Points {
+        vec![
+            Point::new(2.0, 5.0),
+            Point::new(5.0, 5.0),
+            Point::new(10.0, 0.0),
+        ]
     }
 }
 #[cfg(test)]
@@ -616,5 +624,32 @@ mod multi2d_tests {
         for chan in spec.histogram.borrow().iter() {
             assert_eq!(0.0, chan.value.get());
         }
+    }
+}
+#[cfg(test)]
+mod fold_tests {
+    use super::test_support::{make_params, make_simple_params, test_points};
+    use super::*;
+    use crate::conditions::cut::MultiCut;
+    use crate::conditions::twod::MultiContour;
+    use crate::conditions::ConditionDictionary;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn fold_1() {
+        // Can use a multicontour as a fold.
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("gc", &gdict)
+            .expect("Unable to fold multi2ds with multi contour.")
     }
 }
