@@ -249,14 +249,11 @@ impl Multi2d {
         }
     }
 }
+
 #[cfg(test)]
-mod multi2d_tests {
-    use super::*;
-    use std::cell::RefCell;
-    use std::rc::Rc;
-    #[test]
-    fn new_1() {
-        let mut pdict = ParameterDictionary::new();
+mod test_support {
+    use crate::parameters::ParameterDictionary;
+    pub fn make_params(pdict: &mut ParameterDictionary) -> Vec<String> {
         let mut pnames = Vec::<String>::new();
         for i in 0..10 {
             let pname = format!("param.{}", i);
@@ -267,6 +264,28 @@ mod multi2d_tests {
             p.set_bins(1024);
             pnames.push(pname);
         }
+        pnames
+    }
+    pub fn make_simple_params(pdict: &mut ParameterDictionary) -> Vec<String> {
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            pnames.push(pname);
+        }
+        pnames
+    }
+}
+#[cfg(test)]
+mod multi2d_tests {
+    use super::test_support::{make_params, make_simple_params};
+    use super::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    #[test]
+    fn new_1() {
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
         let result = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None);
         assert!(result.is_ok());
         let spec = result.unwrap();
@@ -300,16 +319,7 @@ mod multi2d_tests {
         // Override X axis definitions:
 
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let pnames = make_params(&mut pdict);
         let result = Multi2d::new(
             "test",
             pnames,
@@ -353,16 +363,7 @@ mod multi2d_tests {
         // Override y axis defs:
 
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let pnames = make_params(&mut pdict);
         let result = Multi2d::new(
             "test",
             pnames,
@@ -408,16 +409,7 @@ mod multi2d_tests {
         // A nonexistent parameter is in the parameter array:
 
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let mut pnames = make_params(&mut pdict);
         pnames.push(String::from("param.11"));
         let result = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None);
         assert!(result.is_err());
@@ -428,12 +420,7 @@ mod multi2d_tests {
         // Remember parameters supply both x/y defaults:
 
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            pnames.push(pname);
-        }
+        let pnames = make_simple_params(&mut pdict);
 
         let result = Multi2d::new(
             "test",
@@ -463,12 +450,7 @@ mod multi2d_tests {
     #[test]
     fn new_6() {
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            pnames.push(pname);
-        }
+        let pnames = make_simple_params(&mut pdict);
 
         let result = Multi2d::new(
             "test",
@@ -498,12 +480,7 @@ mod multi2d_tests {
     #[test]
     fn new_7() {
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            pnames.push(pname);
-        }
+        let pnames = make_simple_params(&mut pdict);
 
         let result = Multi2d::new(
             "test",
@@ -535,16 +512,7 @@ mod multi2d_tests {
     #[test]
     fn incr_1() {
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let pnames = make_params(&mut pdict);
         let mut spec =
             Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None).unwrap();
 
@@ -579,16 +547,7 @@ mod multi2d_tests {
     #[test]
     fn incr_2() {
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let pnames = make_params(&mut pdict);
         let mut spec =
             Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None).unwrap();
 
@@ -630,16 +589,7 @@ mod multi2d_tests {
     #[test]
     fn incr_3() {
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let pnames = make_params(&mut pdict);
         let mut spec =
             Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None).unwrap();
 
