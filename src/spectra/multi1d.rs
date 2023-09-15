@@ -504,7 +504,7 @@ mod multi1d_tests {
 mod fold_tests {
     use super::test_support::make_default_parameters;
     use super::*;
-    use crate::conditions::{cut, ConditionDictionary};
+    use crate::conditions::{cut, ConditionDictionary, twod};
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gate/folds
 
@@ -550,6 +550,26 @@ mod fold_tests {
         let gdict = ConditionDictionary::new();
 
         assert!(spec.fold("nosuch", &gdict).is_err());
+    }
+    #[test]
+    fn fold_4() {
+        // a multicontour can be fold too:
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_default_parameters(&mut pdict);
+        let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
+
+        // Make a Condition Dict and put a multicut into it.
+
+        let mut gdict = ConditionDictionary::new();
+        let fold = twod::MultiContour::new(&vec![0,1,2,3], vec![
+            Point::new(2.0, 5.0),
+            Point::new(5.0, 5.0),
+            Point::new(10.0, 0.0),
+        ]).expect("Making multicontour");
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(fold))));
+        assert!(spec.fold("gc", &gdict).is_ok());
+
     }
     #[test]
     fn unfold_1() {
