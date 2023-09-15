@@ -22,6 +22,7 @@ use super::*;
 use ndhistogram::value::Sum;
 pub struct Multi2d {
     applied_gate: SpectrumGate,
+    applied_fold: SpectrumGate,
     name: String,
     histogram: H2DContainer,
     param_names: Vec<String>,
@@ -38,10 +39,13 @@ impl Spectrum for Multi2d {
 
     fn increment(&mut self, e: &FlatEvent) {
         let mut histogram = self.histogram.borrow_mut();
-        for a in 0..self.param_ids.len() {
-            for b in (a + 1)..self.param_ids.len() {
-                let x = e[self.param_ids[a]];
-                let y = e[self.param_ids[b]];
+        for (i, a) in self.param_ids.as_slice()[0..self.param_ids.len() - 1]
+            .iter()
+            .enumerate()
+        {
+            for b in self.param_ids.iter().skip(i + 1) {
+                let x = e[*a];
+                let y = e[*b];
                 if let Some(x) = x {
                     if let Some(y) = y {
                         histogram.fill(&(x, y));
@@ -81,6 +85,27 @@ impl Spectrum for Multi2d {
     }
     fn get_histogram_2d(&self) -> Option<H2DContainer> {
         Some(Rc::clone(&self.histogram))
+    }
+    // support applying a fold:
+
+    fn can_fold(&self) -> bool {
+        true
+    }
+
+    fn fold(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+        if let Some(cond) = dict.get(name) {
+            if cond.borrow().is_fold() {
+                self.applied_fold.set_gate(name, dict)
+            } else {
+                Err(format!("{} cannot be used as a fold", name))
+            }
+        } else {
+            Err(format!("There is no condition named {}", name))
+        }
+    }
+    fn unfold(&mut self) -> Result<(), String> {
+        self.applied_fold.ungate();
+        Ok(())
     }
 }
 impl Multi2d {
@@ -181,6 +206,7 @@ impl Multi2d {
         }
         Ok(Multi2d {
             applied_gate: SpectrumGate::new(),
+            applied_fold: SpectrumGate::new(),
             name: String::from(name),
             histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(
