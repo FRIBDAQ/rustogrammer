@@ -20,6 +20,8 @@
 use super::*;
 
 use ndhistogram::value::Sum;
+use std::collections::HashSet;
+
 pub struct Multi2d {
     applied_gate: SpectrumGate,
     applied_fold: SpectrumGate,
@@ -38,18 +40,14 @@ impl Spectrum for Multi2d {
     }
 
     fn increment(&mut self, e: &FlatEvent) {
+        let pairs = self.get_parameter_pairs(e);
         let mut histogram = self.histogram.borrow_mut();
-        for (i, a) in self.param_ids.as_slice()[0..self.param_ids.len() - 1]
-            .iter()
-            .enumerate()
-        {
-            for b in self.param_ids.iter().skip(i + 1) {
-                let x = e[*a];
-                let y = e[*b];
-                if let Some(x) = x {
-                    if let Some(y) = y {
-                        histogram.fill(&(x, y));
-                    }
+        for pair in pairs {
+            let x = e[pair.0];
+            let y = e[pair.1];
+            if let Some(x) = x {
+                if let Some(y) = y {
+                    histogram.fill(&(x, y));
                 }
             }
         }
@@ -220,6 +218,35 @@ impl Multi2d {
             param_names: pnames,
             param_ids: pids,
         })
+    }
+    // Get the parameter pairs to increment.
+    // If not folded this is just all pairs.
+    // If folded its the intersection of all pairs and
+    // the fold pairs.  Optimization is very possible - later.
+
+    fn get_parameter_pairs(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
+        let mut raw = vec![];
+        // Could precompute this...
+        for (i, p1) in self.param_ids.as_slice()[0..self.param_ids.len() - 1]
+            .iter()
+            .enumerate()
+        {
+            for p2 in self.param_ids.iter().skip(i + 1) {
+                raw.push((*p1, *p2));
+            }
+        }
+        if self.applied_fold.is_fold() {
+            let fold = self.applied_fold.fold_2d(e);
+            let fold_set = fold.into_iter().collect::<HashSet<(u32, u32)>>();
+            let raw_set = raw.into_iter().collect::<HashSet<(u32, u32)>>();
+            let mut result = vec![];
+            for pair in fold_set.intersection(&raw_set) {
+                result.push(*pair);
+            }
+            result
+        } else {
+            raw
+        }
     }
 }
 #[cfg(test)]
