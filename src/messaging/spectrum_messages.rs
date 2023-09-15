@@ -869,6 +869,19 @@ impl SpectrumProcessor {
             SpectrumReply::Error(format!("no such spectrum {}", spectrum))
         }
     }
+    // Unfold a spectrum:
+
+    fn unfold_spectrum(&mut self, spectrum: &str) -> SpectrumReply {
+        if let Some(s) = self.dict.get(spectrum) {
+            if let Err(s) = s.borrow_mut().unfold() {
+                SpectrumReply::Error(format!("Failed to unfold spectrum {}: {}", spectrum, s))
+            } else {
+                SpectrumReply::Unfolded
+            }
+        } else {
+            SpectrumReply::Error(format!("no such spectrum {}", spectrum))
+        }
+    }
 
     // Public methods
     /// Construction
@@ -956,9 +969,7 @@ impl SpectrumProcessor {
                 spectrum_name,
                 condition_name,
             } => self.fold_spectrum(&spectrum_name, &condition_name, cdict),
-            SpectrumRequest::Unfold(spectrum) => {
-                SpectrumReply::Error(String::from("unimplemented"))
-            }
+            SpectrumRequest::Unfold(spectrum) => self.unfold_spectrum(&spectrum),
         }
     }
 }
