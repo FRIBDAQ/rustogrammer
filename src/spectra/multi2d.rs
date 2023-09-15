@@ -628,9 +628,9 @@ mod multi2d_tests {
 }
 #[cfg(test)]
 mod fold_tests {
-    use super::test_support::{make_params, make_simple_params, test_points};
+    use super::test_support::{make_params, test_points};
     use super::*;
-    use crate::conditions::cut::MultiCut;
+    use crate::conditions::cut::{Cut, MultiCut};
     use crate::conditions::twod::MultiContour;
     use crate::conditions::ConditionDictionary;
     use std::cell::RefCell;
@@ -651,5 +651,49 @@ mod fold_tests {
 
         spec.fold("gc", &gdict)
             .expect("Unable to fold multi2ds with multi contour.")
+    }
+    #[test]
+    fn fold_2() {
+        // Multi cut can also fold:
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("ga"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("ga", &gdict)
+            .expect("Could not fold multi2d with multicut");
+    }
+    #[test]
+    fn fold_3() {
+        // non folding conditions can't fold:
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let c = Cut::new(1, 100.0, 200.0);
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("cut"), Rc::new(RefCell::new(Box::new(c))));
+
+        assert!(spec.fold("cut", &gdict).is_err());
+    }
+    #[test]
+    fn fold_4() {
+        // can' fold a nonexistent condition:
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let gdict = ConditionDictionary::new();
+
+        assert!(spec.fold("cut", &gdict).is_err());
     }
 }
