@@ -136,8 +136,12 @@ impl Condition for MultiCut {
     fn invalidate_cache(&mut self) {
         self.cache = None;
     }
-}
-impl Fold for MultiCut {
+    
+
+    // fold:
+
+    fn is_fold(&self) -> bool {true}
+    
     fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
         let mut result = Vec::<u32>::new();
 

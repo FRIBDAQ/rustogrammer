@@ -467,8 +467,10 @@ impl Condition for MultiContour {
     fn invalidate_cache(&mut self) {
         self.cache = None;
     }
-}
-impl Fold for MultiContour {
+
+    // fold
+
+    fn is_fold(&self) -> bool {true}
     fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
         // All we need to do is
         // 1. evaluate_2
@@ -503,6 +505,7 @@ impl Fold for MultiContour {
         result
     }
 }
+
 #[cfg(test)]
 mod band_tests {
     use super::*;
@@ -1366,6 +1369,6 @@ mod multicontour_tests {
         fe.load_event(&e);
 
         let p = c.evaluate_2(&fe);
-        assert_eq!(vec![(1,2), (1,3)], p);
+        assert_eq!(vec![(1, 2), (1, 3)], p);
     }
 }

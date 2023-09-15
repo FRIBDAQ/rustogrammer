@@ -83,6 +83,8 @@ impl Condition for Not {
         Vec::<u32>::new()
     }
 }
+
+
 //  The ConditionList provides common structure and code for
 //  maintainng an arbitrary list of dependent conditions.
 //  A cache variable is also associated with the list so that
@@ -274,6 +276,7 @@ impl Condition for Or {
         }
     }
 }
+
 #[cfg(test)]
 mod not_tests {
     use super::*;
