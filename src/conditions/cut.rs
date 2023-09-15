@@ -141,7 +141,7 @@ impl Condition for MultiCut {
     // fold:
 
     fn is_fold(&self) -> bool {true}
-    
+
     fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
         let mut result = Vec::<u32>::new();
 
@@ -253,6 +253,11 @@ mod cut_tests {
         assert!(c.get_cached_value().is_some());
         assert!(!c.get_cached_value().unwrap());
     }
+    #[test]
+    fn foldable() {
+        let c = Cut::new(12, 100.0, 200.0);
+        assert!(!c.is_fold());
+    }
     // The next tests test cuts in dictionaries.
 
     #[test]
@@ -334,6 +339,7 @@ mod multicut_tests {
             },
             mcut
         );
+        assert!(mcut.is_fold());
     }
     #[test]
     fn inside_1() {

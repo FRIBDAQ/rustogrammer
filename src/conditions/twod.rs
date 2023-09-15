@@ -787,6 +787,12 @@ mod band_tests {
         e.load_event(&pts);
         assert!(b.check(&e));
     }
+    #[test]
+    fn foldable_1() {
+        let mut b = Band::new(1, 2, test_points()).unwrap();
+        assert!(!b.is_fold());
+    }
+
 }
 #[cfg(test)]
 mod contour_tests {
@@ -860,6 +866,18 @@ mod contour_tests {
         for (i, p) in pts.iter().enumerate() {
             assert_eq!(*p, cpts[i]);
         }
+    }
+    #[test]
+    fn foldable_1() {
+        let pts = vec![
+            Point::new(50.0, 0.0),
+            Point::new(0.0, 50.0),
+            Point::new(50.0, 100.0),
+        ];
+        let c = Contour::new(1, 2, pts.clone());
+        assert!(c.is_some());
+        let c = c.unwrap();
+        assert!(!c.is_fold());
     }
     #[test]
     fn check_1() {
@@ -1139,6 +1157,12 @@ mod contour_tests {
 
         c.invalidate_cache();
     }
+    #[test]
+    fn foldable() {
+        let mut c = Contour::new(1, 2, hourglass()).unwrap();
+
+        assert!(!c.is_fold());
+    }
 }
 #[cfg(test)]
 mod multicontour_tests {
@@ -1286,6 +1310,12 @@ mod multicontour_tests {
         assert_eq!(None, c.get_cached_value());
     }
     // tests of the Fold trait.
+
+    #[test]
+    fn foldable_1() {
+        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        assert!(c.is_fold());
+    }
 
     #[test]
     fn fold1_1() {
