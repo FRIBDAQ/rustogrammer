@@ -504,7 +504,8 @@ mod multi1d_tests {
 mod fold_tests {
     use super::test_support::make_default_parameters;
     use super::*;
-    use crate::conditions::{cut, ConditionDictionary, twod};
+    use crate::conditions::{cut, twod, ConditionDictionary};
+    use crate::parameters::{EventParameter, FlatEvent};
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gate/folds
 
@@ -562,14 +563,17 @@ mod fold_tests {
         // Make a Condition Dict and put a multicut into it.
 
         let mut gdict = ConditionDictionary::new();
-        let fold = twod::MultiContour::new(&vec![0,1,2,3], vec![
-            Point::new(2.0, 5.0),
-            Point::new(5.0, 5.0),
-            Point::new(10.0, 0.0),
-        ]).expect("Making multicontour");
+        let fold = twod::MultiContour::new(
+            &vec![0, 1, 2, 3],
+            vec![
+                Point::new(2.0, 5.0),
+                Point::new(5.0, 5.0),
+                Point::new(10.0, 0.0),
+            ],
+        )
+        .expect("Making multicontour");
         gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(fold))));
         assert!(spec.fold("gc", &gdict).is_ok());
-
     }
     #[test]
     fn unfold_1() {
@@ -589,5 +593,71 @@ mod fold_tests {
 
         spec.unfold().expect("Unfolding");
         assert!(!spec.applied_fold.is_fold());
+    }
+    #[test]
+    fn pid_1() {
+        // If not folded, parameter ids will be just the underlying set.
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_default_parameters(&mut pdict);
+        let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
+
+        let ev = FlatEvent::new();
+        let ps = spec.get_param_ids(&ev);
+        assert_eq!(spec.param_ids, ps);
+    }
+    #[test]
+    fn pid_2() {
+        // If folded but nothing is in the gate again, we get all parameters
+        // in the fold back (due to the intersection).
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_default_parameters(&mut pdict);
+        let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
+        let mut gdict = ConditionDictionary::new();
+        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
+
+        spec.fold("gs", &gdict).expect("Appling fold to spectrum");
+
+        let mut ev = FlatEvent::new();
+        let event = vec![
+            EventParameter::new(1, 5.0),
+            EventParameter::new(2, 20.0),
+            EventParameter::new(3, 202.0),
+        ];
+        ev.load_event(&event);
+
+        let mut ps = spec.get_param_ids(&ev);
+        ps.sort();
+        assert_eq!(vec![1, 2, 3], ps);
+    }
+    #[test]
+    fn pid_3() {
+        // If there are parameters in the gate, they are omited from get_param_ids
+
+        // If folded but nothing is in the gate again, we get all parameters
+        // in the fold back (due to the intersection).
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_default_parameters(&mut pdict);
+        let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
+        let mut gdict = ConditionDictionary::new();
+        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
+
+        spec.fold("gs", &gdict).expect("Appling fold to spectrum");
+
+        let mut ev = FlatEvent::new();
+        let event = vec![
+            EventParameter::new(1, 5.0),
+            EventParameter::new(2, 150.0),
+            EventParameter::new(3, 202.0),
+        ];
+        ev.load_event(&event);
+
+        let mut ps = spec.get_param_ids(&ev);
+        ps.sort();
+        assert_eq!(vec![1,  3], ps);
     }
 }
