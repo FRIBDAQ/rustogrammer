@@ -23,6 +23,7 @@ use ndhistogram::value::Sum;
 ///
 pub struct Multi1d {
     applied_gate: SpectrumGate,
+    applied_fold: SpectrumGate,
     name: String,
     histogram: H1DContainer,
     param_names: Vec<String>,
@@ -74,6 +75,24 @@ impl Spectrum for Multi1d {
     }
     fn get_histogram_2d(&self) -> Option<H2DContainer> {
         None
+    }
+    // Implement support for setting folds:
+
+    fn can_fold(&self) -> bool {
+        true
+    }
+    fn fold(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+        // We need to lookup the gate and determine if it is a fold:
+
+        if let Some(cond) = dict.get(name) {
+            if cond.borrow().is_fold() {
+                self.applied_fold.set_gate(name, dict)
+            } else {
+                Err(format!("{} cannot be used as a fold", name))
+            }
+        } else {
+            Err(format!("There is no condition named {}", name))
+        }
     }
 }
 
@@ -140,6 +159,7 @@ impl Multi1d {
         }
         Ok(Multi1d {
             applied_gate: SpectrumGate::new(),
+            applied_fold: SpectrumGate::new(),
             name: String::from(name),
             histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(xbins.unwrap() as usize, xlow.unwrap(), xmax.unwrap());

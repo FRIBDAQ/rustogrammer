@@ -453,12 +453,12 @@ mod twod_tests {
         let mut pdict = ParameterDictionary::new();
         pdict.add("x").unwrap();
         pdict.add("y").unwrap();
-        
+
         let px = pdict.lookup_mut("x").unwrap();
         px.set_limits(0.0, 1023.0);
         px.set_bins(512);
         px.set_description("Just some x parameter");
-        
+
         let py = pdict.lookup_mut("y").unwrap();
         py.set_limits(-1.0, 1.0);
         py.set_bins(100);

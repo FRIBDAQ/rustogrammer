@@ -791,7 +791,7 @@ mod band_tests {
     }
     #[test]
     fn foldable_1() {
-        let  b = Band::new(1, 2, test_points()).unwrap();
+        let b = Band::new(1, 2, test_points()).unwrap();
         assert!(!b.is_fold());
     }
 }
@@ -1160,7 +1160,7 @@ mod contour_tests {
     }
     #[test]
     fn foldable() {
-        let  c = Contour::new(1, 2, hourglass()).unwrap();
+        let c = Contour::new(1, 2, hourglass()).unwrap();
 
         assert!(!c.is_fold());
     }
@@ -1314,7 +1314,7 @@ mod multicontour_tests {
 
     #[test]
     fn foldable_1() {
-        let  c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
         assert!(c.is_fold());
     }
 
