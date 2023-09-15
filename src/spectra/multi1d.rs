@@ -192,15 +192,10 @@ impl Multi1d {
         }
     }
 }
-
 #[cfg(test)]
-mod multi1d_tests {
+mod test_support {
     use super::*;
-    // use ndhistogram::axis::*;
-    use std::cell::RefCell; // Needed in gating
-    use std::rc::Rc; // Needed in gating.
-
-    fn make_default_parameters(pdict: &mut ParameterDictionary) -> Vec<String> {
+    pub fn make_default_parameters(pdict: &mut ParameterDictionary) -> Vec<String> {
         let mut names = Vec::<String>::new();
         for i in 0..10 {
             let name = format!("param.{}", i);
@@ -213,6 +208,14 @@ mod multi1d_tests {
         }
         names
     }
+}
+#[cfg(test)]
+mod multi1d_tests {
+    use super::*;
+    // use ndhistogram::axis::*;
+    use super::test_support::make_default_parameters;
+    use std::cell::RefCell; // Needed in gating
+    use std::rc::Rc; // Needed in gating.
 
     #[test]
     fn new_1() {
