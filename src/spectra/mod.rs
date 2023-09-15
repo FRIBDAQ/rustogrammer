@@ -358,6 +358,9 @@ pub trait Spectrum {
             "Spectra of this type cannot have folds applied",
         ))
     }
+    fn unfold(&mut self) -> Result<(), String> {
+        Err(String::from("Spectra of this type can't have folds"))
+    }
 }
 
 // We also need some sort of repository in which spectra can be stored and looked up by name.

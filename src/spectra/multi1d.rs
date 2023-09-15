@@ -96,6 +96,10 @@ impl Spectrum for Multi1d {
             Err(format!("There is no condition named {}", name))
         }
     }
+    fn unfold(&mut self) -> Result<(), String> {
+        self.applied_fold.ungate();
+        Ok(())
+    }
 }
 
 impl Multi1d {
@@ -498,7 +502,72 @@ mod multi1d_tests {
 
 #[cfg(test)]
 mod fold_tests {
+    use super::test_support::make_default_parameters;
     use super::*;
+    use crate::conditions::{cut, ConditionDictionary};
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gate/folds
+
+    #[test]
+    fn fold_1() {
+        // Can fold with a multicut.
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_default_parameters(&mut pdict);
+        let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
+
+        // Make a Condition Dict and put a multicut into it.
+
+        let mut gdict = ConditionDictionary::new();
+        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
+
+        spec.fold("gs", &gdict).expect("Appling fold to spectrum");
+    }
+    #[test]
+    fn fold_2() {
+        // Normal cut cannot be used as a fold:
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_default_parameters(&mut pdict);
+        let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
+
+        // Make a Condition Dict and put a multicut into it.
+
+        let mut gdict = ConditionDictionary::new();
+        let cut = cut::Cut::new(1, 100.0, 200.0);
+        gdict.insert(String::from("cut"), Rc::new(RefCell::new(Box::new(cut))));
+        assert!(spec.fold("cut", &gdict).is_err());
+    }
+    #[test]
+    fn fold_3() {
+        // Attempting to fold nonexistent condition also fails:
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_default_parameters(&mut pdict);
+        let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
+
+        let gdict = ConditionDictionary::new();
+
+        assert!(spec.fold("nosuch", &gdict).is_err());
+    }
+    #[test]
+    fn unfold_1() {
+        // Can unfold a folded spectrum:
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_default_parameters(&mut pdict);
+        let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
+
+        // Make a Condition Dict and put a multicut into it.
+
+        let mut gdict = ConditionDictionary::new();
+        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
+
+        spec.fold("gs", &gdict).expect("Appling fold to spectrum");
+
+        spec.unfold().expect("Unfolding");
+        assert!(!spec.applied_fold.is_fold());
+    }
 }
