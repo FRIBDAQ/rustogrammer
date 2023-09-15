@@ -310,6 +310,18 @@ pub trait Spectrum {
 
         (xunder, yunder, xover, yover)
     }
+    // These functions are added to support folding:
+
+    ///  Override to return true if the spectrum can be folded.
+    ///
+    fn can_fold(&self) -> bool {
+        false
+    }
+    fn fold(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+        Err(String::from(
+            "Spectra of this type cannot have folds applied",
+        ))
+    }
 }
 
 // We also need some sort of repository in which spectra can be stored and looked up by name.
