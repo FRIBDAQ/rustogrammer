@@ -5781,6 +5781,52 @@ mod spproc_tests {
             false
         });
     }
+    #[test]
+    fn fold_1() {
+        let mut to = make_test_objs();
+
+        // Try to fold with no such spectrum:
+
+        to.conditions.insert(
+            String::from("true"),
+            Rc::new(RefCell::new(Box::new(True {}))),
+        );
+        let reply = to.processor.process_request(
+            SpectrumRequest::Fold {
+                spectrum_name: String::from("junk"),
+                condition_name: String::from("true"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn fold_2() {
+        // Have the spectrum (and it's even ok) but condition not defined is
+        // also an error:
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let mut spec = spectra::Multi1d::new(
+            "test",
+            vec![
+                String::from("param.0"),
+                String::from("param.1"),
+                String::from("param.2"),
+            ],
+            &to.parameters,
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+        )
+        .expect("Making spectrum");
+    }
 }
 #[cfg(test)]
 mod reqstruct_tests {
