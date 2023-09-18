@@ -100,6 +100,13 @@ impl Spectrum for Multi1d {
         self.applied_fold.ungate();
         Ok(())
     }
+    fn get_fold(&self) -> Option<String> {
+        if let Some(g) = self.applied_fold.gate.clone() {
+            Some(g.condition_name)
+        } else {
+            None
+        }
+    }
 }
 
 impl Multi1d {

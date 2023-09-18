@@ -105,6 +105,13 @@ impl Spectrum for Multi2d {
         self.applied_fold.ungate();
         Ok(())
     }
+    fn get_fold(&self) -> Option<String> {
+        if let Some(g) = self.applied_fold.gate.clone() {
+            Some(g.condition_name)
+        } else {
+            None
+        }
+    }
 }
 impl Multi2d {
     /// Create a multi2d spectrum.
