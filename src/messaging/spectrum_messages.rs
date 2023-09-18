@@ -54,6 +54,7 @@ pub struct SpectrumProperties {
     pub xaxis: Option<AxisSpecification>,
     pub yaxis: Option<AxisSpecification>,
     pub gate: Option<String>,
+    pub fold: Option<String>,
 }
 /// xunder, yunder, xover, yover from get stats.
 ///
@@ -500,6 +501,7 @@ impl SpectrumProcessor {
                 bins: xa.2,
             }),
             gate: s.get_gate(),
+            fold: s.get_fold(),
         }
     }
 
@@ -3237,6 +3239,7 @@ mod spproc_tests {
                     l[i].xaxis.expect("No x axis")
                 );
                 assert!(l[i].gate.is_none());
+                assert!(l[i].fold.is_none());
             }
         } else {
             panic!("listing failed");
@@ -6016,6 +6019,23 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert_eq!(SpectrumReply::Folded, reply);
+
+        // Get the name of the fold via listing:
+
+        let ls = to.processor.process_request(
+            SpectrumRequest::List(String::from("test")),
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        if let SpectrumReply::Listing(l) = ls {
+            assert_eq!(1, l.len());
+            let props = l[0].clone();
+            assert!(props.fold.is_some());
+            assert_eq!("slice", props.fold.unwrap());
+        } else {
+            assert!(false, "Incorrect reply from list_spectra");
+        }
     }
     #[test]
     fn fold_6() {
@@ -6705,7 +6725,8 @@ mod spectrum_api_tests {
                         bins: 1026
                     }),
                     yaxis: None,
-                    gate: None
+                    gate: None,
+                    fold: None
                 },
                 listing[0]
             );
@@ -6746,7 +6767,8 @@ mod spectrum_api_tests {
                         bins: 1026
                     }),
                     yaxis: None,
-                    gate: None
+                    gate: None,
+                    fold: None
                 },
                 l[0]
             );
@@ -6791,7 +6813,8 @@ mod spectrum_api_tests {
                         high: 1.0,
                         bins: 102
                     }),
-                    gate: None
+                    gate: None,
+                    fold: None
                 },
                 l[0]
             );
@@ -6843,7 +6866,8 @@ mod spectrum_api_tests {
                         high: 1.0,
                         bins: 102
                     }),
-                    gate: None
+                    gate: None,
+                    fold: None
                 },
                 l[0]
             );
@@ -6884,7 +6908,8 @@ mod spectrum_api_tests {
                     high: 1024.0,
                     bins: 1026
                 }),
-                gate: None
+                gate: None,
+                fold: None
             },
             l[0]
         );
@@ -6919,7 +6944,8 @@ mod spectrum_api_tests {
                     high: 1.0,
                     bins: 102
                 }),
-                gate: None
+                gate: None,
+                fold: None
             },
             l[0]
         );
@@ -6969,7 +6995,8 @@ mod spectrum_api_tests {
                     high: 1.0,
                     bins: 102
                 }),
-                gate: None
+                gate: None,
+                fold: None
             },
             l[0]
         );

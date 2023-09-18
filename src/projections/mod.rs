@@ -443,6 +443,7 @@ mod make_sum_tests {
             }),
             yaxis: None,
             gate: None,
+            fold: None,
         };
         assert!(make_sum_vector(&props, ProjectionDirection::X).is_err());
     }
@@ -461,6 +462,7 @@ mod make_sum_tests {
             }),
             yaxis: None,
             gate: None,
+            fold: None,
         };
         assert!(make_sum_vector(&props, ProjectionDirection::Y).is_err());
     }
@@ -480,6 +482,7 @@ mod make_sum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
 
         assert!(make_sum_vector(&props, ProjectionDirection::X).is_err());
@@ -505,6 +508,7 @@ mod make_sum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
         assert!(make_sum_vector(&props, ProjectionDirection::X).is_ok());
         assert!(make_sum_vector(&props, ProjectionDirection::Y).is_ok());
@@ -529,6 +533,7 @@ mod make_sum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
         let v = make_sum_vector(&props, ProjectionDirection::X)
             .expect("could not make x projection vector");
@@ -552,6 +557,7 @@ mod make_sum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
         let v = make_sum_vector(&props, ProjectionDirection::Y)
             .expect("could not make x projection vector");
@@ -580,6 +586,7 @@ mod project_spectrum_tests {
             }),
             yaxis: None,
             gate: None,
+            fold: None,
         };
         let contents = vec![];
         assert!(project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| true).is_err());
@@ -601,6 +608,7 @@ mod project_spectrum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
         let contents = vec![];
         assert!(project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| true).is_err());
@@ -626,6 +634,7 @@ mod project_spectrum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
         let contents = vec![];
 
@@ -652,6 +661,7 @@ mod project_spectrum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
         let contents = vec![];
 
@@ -688,6 +698,7 @@ mod project_spectrum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
         let contents = vec![];
         for (i, n) in project_spectrum(&props, &contents, ProjectionDirection::X, |_, _| true)
@@ -726,6 +737,7 @@ mod project_spectrum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
         let contents = vec![spectrum_messages::Channel {
             chan_type: spectrum_messages::ChannelType::Bin,
@@ -762,6 +774,7 @@ mod project_spectrum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
         let contents = vec![spectrum_messages::Channel {
             chan_type: spectrum_messages::ChannelType::Bin,
@@ -816,6 +829,7 @@ mod make_spectrum_tests {
             xaxis: None,
             yaxis: None,
             gate: None,
+            fold: None,
         };
         // Either direction is bad:
         assert!(
@@ -845,6 +859,7 @@ mod make_spectrum_tests {
                 bins: 1024,
             }),
             gate: None,
+            fold: None,
         };
         assert!(
             make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::X, vec![]).is_err()
@@ -870,6 +885,7 @@ mod make_spectrum_tests {
             }),
             yaxis: None, // must not be none to project y
             gate: None,
+            fold: None,
         };
         assert!(
             make_projection_spectrum(&sapi, "test", &desc, ProjectionDirection::Y, vec![]).is_err()
@@ -907,6 +923,7 @@ mod make_spectrum_tests {
                 bins: 514,
             }),
             gate: None,
+            fold: None,
         }
     }
 
@@ -1145,6 +1162,7 @@ mod make_spectrum_tests {
                 bins: 514,
             }),
             gate: None,
+            fold: None,
         }
     }
 
@@ -1345,6 +1363,7 @@ mod make_spectrum_tests {
                 bins: 514,
             }),
             gate: None,
+            fold: None,
         }
     }
     #[test]
@@ -1393,7 +1412,8 @@ mod make_spectrum_tests {
                     bins: 1026
                 }),
                 yaxis: None,
-                gate: None
+                gate: None,
+                fold: None
             },
             props
         );
@@ -1430,7 +1450,8 @@ mod make_spectrum_tests {
                     bins: 514
                 }),
                 yaxis: None,
-                gate: None
+                gate: None,
+                fold: None
             },
             props
         );
@@ -1532,6 +1553,7 @@ mod make_spectrum_tests {
                 bins: 514,
             }),
             gate: None,
+            fold: None,
         }
     }
     #[test]
@@ -1579,7 +1601,8 @@ mod make_spectrum_tests {
                     bins: 1026,
                 }),
                 yaxis: None,
-                gate: None
+                gate: None,
+                fold: None
             },
             props
         );
@@ -1615,7 +1638,8 @@ mod make_spectrum_tests {
                     bins: 514,
                 }),
                 yaxis: None,
-                gate: None
+                gate: None,
+                fold: None
             },
             props
         );
