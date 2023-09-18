@@ -105,6 +105,7 @@ impl Spectrum for Multi2d {
         self.applied_fold.ungate();
         Ok(())
     }
+
     fn get_fold(&self) -> Option<String> {
         if let Some(g) = self.applied_fold.gate.clone() {
             Some(g.condition_name)
@@ -722,6 +723,37 @@ mod fold_tests {
 
         assert!(spec.unfold().is_ok());
         assert!(!spec.applied_fold.is_fold());
+    }
+    #[test]
+    fn lsfold_1() {
+        // Unfolded spectra give None for fold name.
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        assert!(spec.get_fold().is_none());
+    }
+    #[test]
+    fn lsfold_2() {
+        // Folded spectra give the Some(fold-name).
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("gc", &gdict)
+            .expect("Unable to fold multi2ds with multi contour.");
+        let fold = spec.get_fold();
+        assert!(fold.is_some());
+        assert_eq!("gc", fold.unwrap());
+
     }
     #[test]
     fn getpairs_1() {
