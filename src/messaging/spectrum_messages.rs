@@ -6123,6 +6123,144 @@ mod spproc_tests {
         );
         assert_eq!(SpectrumReply::Folded, reply);
     }
+    // unfold tests
+
+    #[test]
+    fn unfold_0() {
+        // Cannot unfold a nonexistent spectrum.
+
+        let mut to = make_test_objs();
+        let reply = to.processor.process_request(
+            SpectrumRequest::Unfold(String::from("junk")),
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn unfold_1() {
+        // Cannot unfold 'ordinary spectra'
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.0"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Unfold(String::from("test")),
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn unfold_2() {
+        // Unfolding ok spectra without folds is ok.
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti1D {
+                name: String::from("test"),
+                params: vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2"),
+                ],
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Unfold(String::from("test")),
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Unfolded, reply);
+    }
+    #[test]
+    fn unfold_3() {
+        // Unfolding ok spectra with folds is ok and removes the fold.
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti1D {
+                name: String::from("test"),
+                params: vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2"),
+                ],
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert_eq!(SpectrumReply::Created, reply);
+        let cond = conditions::cut::MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        to.conditions
+            .insert(String::from("slice"), Rc::new(RefCell::new(Box::new(cond))));
+        let reply = to.processor.process_request(
+            SpectrumRequest::Fold {
+                spectrum_name: String::from("test"),
+                condition_name: String::from("slice"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Folded, reply);
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Unfold(String::from("test")),
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Unfolded, reply);
+    }
 }
 #[cfg(test)]
 mod reqstruct_tests {
