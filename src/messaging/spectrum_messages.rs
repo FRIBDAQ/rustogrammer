@@ -1680,7 +1680,7 @@ impl SpectrumMessageClient {
     ///
     /// ### Parameters
     ///  *    spectrum - name of the spectrum to unfold.
-    /// 
+    ///
     /// ### Returns:
     ///  *  SpectrumServerEmptyResult - nothing useful is returned on success.
     ///
@@ -1690,7 +1690,7 @@ impl SpectrumMessageClient {
         match self.transact(request) {
             SpectrumReply::Unfolded => Ok(()),
             SpectrumReply::Error(s) => Err(s),
-            _ => Err(String::from("Unexpected reply type in unfold_spectrum"))
+            _ => Err(String::from("Unexpected reply type in unfold_spectrum")),
         }
     }
 }
@@ -6599,6 +6599,14 @@ mod spectrum_api_tests {
                 Rc::new(RefCell::new(Box::new(conditions::False {}))),
             );
         }
+        cdict.insert(
+            String::from("multicut"),
+            Rc::new(RefCell::new(Box::new(conditions::MultiCut::new(
+                &vec![0, 1, 2],
+                100.0,
+                200.0,
+            )))),
+        );
         // process requests:
 
         let tracedb = trace::SharedTraceStore::new();
@@ -7284,6 +7292,100 @@ mod spectrum_api_tests {
         // 2d spectra need y channel value:
         assert!(api.set_channel_value("test", 128, None, 1245.0).is_err());
         assert!(api.get_channel_value("test", 128, None).is_err());
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn fold_1() {
+        // Correctly folding a spectrum.
+
+        let (jh, send) = start_server();
+        let sapi = SpectrumMessageClient::new(&send);
+
+        assert!(sapi
+            .create_spectrum_multi1d(
+                "test",
+                &vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2")
+                ],
+                0.0,
+                1024.0,
+                1024
+            )
+            .is_ok());
+
+        assert!(sapi.fold_spectrum("test", "multicut").is_ok());
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn fold_2() {
+        // Fold returning an error  - properly handled.
+        let (jh, send) = start_server();
+        let sapi = SpectrumMessageClient::new(&send);
+
+        // Make a legal fold condition:
+
+        assert!(sapi
+            .create_spectrum_multi1d(
+                "test",
+                &vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2")
+                ],
+                0.0,
+                1024.0,
+                1024
+            )
+            .is_ok());
+
+        assert!(sapi.fold_spectrum("test", "no-such-condition").is_err());
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn unfold_1() {
+        // Correctly unfolding a folded spectrum.
+
+        let (jh, send) = start_server();
+        let sapi = SpectrumMessageClient::new(&send);
+
+        assert!(sapi
+            .create_spectrum_multi1d(
+                "test",
+                &vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2")
+                ],
+                0.0,
+                1024.0,
+                1024
+            )
+            .is_ok());
+
+        assert!(sapi.fold_spectrum("test", "multicut").is_ok());
+        assert!(sapi.unfold_spectrum("test").is_ok());
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn unfold_2() {
+        // unfolding a bad spectrum error properly converted
+
+        let (jh, send) = start_server();
+        let sapi = SpectrumMessageClient::new(&send);
+
+        // Make a spectrum that can't be unfolded:
+
+        assert!(sapi
+            .create_spectrum_1d("test", "param.0", 0.0, 1024.0, 1024)
+            .is_ok());
+
+        assert!(sapi.unfold_spectrum("test").is_err());
 
         stop_server(jh, send);
     }
