@@ -1652,7 +1652,49 @@ impl SpectrumMessageClient {
             _ => Err(String::from("Unexpected reply type in set_channel_value")),
         }
     }
+    ///  Attempt to apply a fold to a spectrum.  It is the server's job
+    /// to verify the spectrum can be folded and that the specified condition
+    /// can, in fact, be a fold.
+    ///
+    /// ### Parameters
+    /// *    spectrum - name of the spectrum to fold
+    /// *    condition - Name of the condition to use as the fold.
+    ///
+    /// ### Returns
+    ///   SpectrumServerEmptyResult as there's no useful information
+    /// returned on success:
+    ///
+    pub fn fold_spectrum(&self, spectrum: &str, condition: &str) -> SpectrumServerEmptyResult {
+        let request = SpectrumRequest::Fold {
+            spectrum_name: String::from(spectrum),
+            condition_name: String::from(condition),
+        };
+        match self.transact(request) {
+            SpectrumReply::Folded => Ok(()),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("Unexpected reply type in fold_spectrum")),
+        }
+    }
+    /// Attempt to remove a fold from a spectrum.  Note that it is not an error,
+    /// but a no-op to remove a fold from a spectrum that is not folded.
+    ///
+    /// ### Parameters
+    ///  *    spectrum - name of the spectrum to unfold.
+    /// 
+    /// ### Returns:
+    ///  *  SpectrumServerEmptyResult - nothing useful is returned on success.
+    ///
+    pub fn unfold_spectrum(&self, spectrum: &str) -> SpectrumServerEmptyResult {
+        let request = SpectrumRequest::Unfold(String::from(spectrum));
+
+        match self.transact(request) {
+            SpectrumReply::Unfolded => Ok(()),
+            SpectrumReply::Error(s) => Err(s),
+            _ => Err(String::from("Unexpected reply type in unfold_spectrum"))
+        }
+    }
 }
+
 //--------------------------- Tests ------------------------------
 
 #[cfg(test)]
