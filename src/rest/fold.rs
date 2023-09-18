@@ -22,6 +22,7 @@
 //! *   remove - Removes a fold from the spectrum.
 //!
 use super::*;
+use crate::messaging::spectrum_messages;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 
 /// apply - unimplemented
@@ -32,12 +33,19 @@ use rocket::serde::{json::Json, Deserialize, Serialize};
 ///
 /// A GenericResponse is perfectly appropriate.
 ///
-#[get("/apply")]
-pub fn apply() -> Json<GenericResponse> {
-    Json(GenericResponse::err(
-        "/spectcl/fold/apply is not implemented",
-        "This is not SpecTcl",
-    ))
+#[get("/apply?<gate>&<spectrum>")]
+pub fn apply(
+    gate: String,
+    spectrum: String,
+    state: &State<SharedHistogramChannel>,
+) -> Json<GenericResponse> {
+    let client = spectrum_messages::SpectrumMessageClient::new(&state.inner().lock().unwrap());
+    let reply = if let Err(s) = client.fold_spectrum(&spectrum, &gate) {
+        GenericResponse::err("Could not fold spectrum", &s)
+    } else {
+        GenericResponse::ok("")
+    };
+    Json(reply)
 }
 
 //
@@ -122,19 +130,7 @@ mod fold_tests {
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
 
-        let client = Client::tracked(rocket).expect("Creating client");
-        let req = client.get("/apply");
-
-        let response = req
-            .dispatch()
-            .into_json::<GenericResponse>()
-            .expect("Decoding JSON");
-
-        assert_eq!(
-            "/spectcl/fold/apply is not implemented",
-            response.status.as_str()
-        );
-        assert_eq!("This is not SpecTcl", response.detail.as_str());
+        // Need to test apply.
 
         teardown(c, &papi, &bapi);
     }
