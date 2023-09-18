@@ -754,7 +754,6 @@ mod fold_tests {
 
         let mut pdict = ParameterDictionary::new();
         let _ = make_params(&mut pdict);
-        
 
         let mut pdict = ParameterDictionary::new();
         let pnames = make_params(&mut pdict);
@@ -787,7 +786,6 @@ mod fold_tests {
 
         let mut pdict = ParameterDictionary::new();
         let _ = make_params(&mut pdict);
-        
 
         let mut pdict = ParameterDictionary::new();
         let pnames = make_params(&mut pdict);

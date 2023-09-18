@@ -5872,7 +5872,7 @@ mod spproc_tests {
 
         // MultiCut condition:
 
-        let cond = conditions::MultiCut::new(&vec![1,2,3,4], 100.0, 200.0);
+        let cond = conditions::MultiCut::new(&vec![1, 2, 3, 4], 100.0, 200.0);
         to.conditions
             .insert(String::from("cut"), Rc::new(RefCell::new(Box::new(cond))));
 
@@ -5900,39 +5900,228 @@ mod spproc_tests {
         make_some_params(&mut to);
         let reply = to.processor.process_request(
             SpectrumRequest::CreateMulti1D {
-                name: String::from ("test"),
-                params: vec![String::from("param.0"), String::from("param.1"), String::from("param.2")],
-                axis: AxisSpecification  { low: 0.0, high: 1024.0, bins: 1024},
-                
-            }, &to.parameters, &mut to.conditions, &to.tracedb
+                name: String::from("test"),
+                params: vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2"),
+                ],
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
         );
         assert_eq!(SpectrumReply::Created, reply);
 
         let cond = conditions::True {};
-        to.conditions.insert(String::from("true"), Rc::new(RefCell::new(Box::new(cond))));
-        let reply = to.processor.process_request( SpectrumRequest::Fold {
-            spectrum_name: String::from("test"),
-            condition_name: String::from("true")
-        }, &to.parameters, &mut to.conditions, &to.tracedb);
+        to.conditions
+            .insert(String::from("true"), Rc::new(RefCell::new(Box::new(cond))));
+        let reply = to.processor.process_request(
+            SpectrumRequest::Fold {
+                spectrum_name: String::from("test"),
+                condition_name: String::from("true"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
         assert!(if let SpectrumReply::Error(_) = reply {
             true
-        } else { false });
+        } else {
+            false
+        });
     }
     #[test]
     fn fold_5() {
         // Right type of spectrum and condition succeeds (multi1/multislice)
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti1D {
+                name: String::from("test"),
+                params: vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2"),
+                ],
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let cond = conditions::cut::MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        to.conditions
+            .insert(String::from("slice"), Rc::new(RefCell::new(Box::new(cond))));
+        let reply = to.processor.process_request(
+            SpectrumRequest::Fold {
+                spectrum_name: String::from("test"),
+                condition_name: String::from("slice"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Folded, reply);
     }
     #[test]
     fn fold_6() {
         // right type of spectrum and condition succeeds (multi2/multislice)
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti2D {
+                name: String::from("test"),
+                params: vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2"),
+                ],
+
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 256,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 256,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let cond = conditions::cut::MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        to.conditions
+            .insert(String::from("slice"), Rc::new(RefCell::new(Box::new(cond))));
+        let reply = to.processor.process_request(
+            SpectrumRequest::Fold {
+                spectrum_name: String::from("test"),
+                condition_name: String::from("slice"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Folded, reply);
     }
     #[test]
     fn fold_7() {
         // right type of spectrum and condition succeeds (multi1/multicontour)
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti1D {
+                name: String::from("test"),
+                params: vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2"),
+                ],
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let cond = conditions::MultiContour::new(
+            &vec![1, 2, 3],
+            vec![
+                conditions::twod::Point::new(0.0, 0.0),
+                conditions::twod::Point::new(100.0, 0.0),
+                conditions::twod::Point::new(50.0, 100.0),
+            ],
+        )
+        .expect("Making multicontour");
+        to.conditions.insert(
+            String::from("contour"),
+            Rc::new(RefCell::new(Box::new(cond))),
+        );
+        let reply = to.processor.process_request(
+            SpectrumRequest::Fold {
+                spectrum_name: String::from("test"),
+                condition_name: String::from("contour"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Folded, reply);
     }
     #[test]
     fn fold_8() {
         // right type of spectrum and condition succeeds (multi2/multicontour)
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti2D {
+                name: String::from("test"),
+                params: vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2"),
+                ],
+
+                xaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 256,
+                },
+                yaxis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 256,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let cond = conditions::MultiContour::new(
+            &vec![1, 2, 3],
+            vec![
+                conditions::twod::Point::new(0.0, 0.0),
+                conditions::twod::Point::new(100.0, 0.0),
+                conditions::twod::Point::new(50.0, 100.0),
+            ],
+        )
+        .expect("Making multicontour");
+        to.conditions.insert(
+            String::from("contour"),
+            Rc::new(RefCell::new(Box::new(cond))),
+        );
+        let reply = to.processor.process_request(
+            SpectrumRequest::Fold {
+                spectrum_name: String::from("test"),
+                condition_name: String::from("contour"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Folded, reply);
     }
 }
 #[cfg(test)]
