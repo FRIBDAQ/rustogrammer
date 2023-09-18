@@ -658,7 +658,6 @@ mod fold_tests {
 
         let mut ps = spec.get_param_ids(&ev);
         ps.sort();
-        assert_eq!(vec![1,  3], ps);
+        assert_eq!(vec![1, 3], ps);
     }
-    
 }

@@ -5813,19 +5813,126 @@ mod spproc_tests {
 
         let mut to = make_test_objs();
         make_some_params(&mut to);
-        let mut spec = spectra::Multi1d::new(
-            "test",
-            vec![
-                String::from("param.0"),
-                String::from("param.1"),
-                String::from("param.2"),
-            ],
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti1D {
+                name: String::from("test"),
+                params: vec![
+                    String::from("param.0"),
+                    String::from("param.1"),
+                    String::from("param.2"),
+                ],
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
             &to.parameters,
-            Some(0.0),
-            Some(1024.0),
-            Some(1024),
-        )
-        .expect("Making spectrum");
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+        let reply = to.processor.process_request(
+            SpectrumRequest::Fold {
+                spectrum_name: String::from("test"),
+                condition_name: String::from("nosuch"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn fold_3() {
+        // Wrong type of spectrum, right type of condition is also an error.
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            // Ordinary 1d spectrum.
+            SpectrumRequest::Create1D {
+                name: String::from("test"),
+                parameter: String::from("param.2"),
+                axis: AxisSpecification {
+                    low: 0.0,
+                    high: 1024.0,
+                    bins: 1024,
+                },
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        // MultiCut condition:
+
+        let cond = conditions::MultiCut::new(&vec![1,2,3,4], 100.0, 200.0);
+        to.conditions
+            .insert(String::from("cut"), Rc::new(RefCell::new(Box::new(cond))));
+
+        let reply = to.processor.process_request(
+            SpectrumRequest::Fold {
+                spectrum_name: String::from("test"),
+                condition_name: String::from("cut"),
+            },
+            &to.parameters,
+            &mut to.conditions,
+            &to.tracedb,
+        );
+
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else {
+            false
+        });
+    }
+    #[test]
+    fn fold_4() {
+        // Right type of spectrum, wrong type of condition is an error.
+
+        let mut to = make_test_objs();
+        make_some_params(&mut to);
+        let reply = to.processor.process_request(
+            SpectrumRequest::CreateMulti1D {
+                name: String::from ("test"),
+                params: vec![String::from("param.0"), String::from("param.1"), String::from("param.2")],
+                axis: AxisSpecification  { low: 0.0, high: 1024.0, bins: 1024},
+                
+            }, &to.parameters, &mut to.conditions, &to.tracedb
+        );
+        assert_eq!(SpectrumReply::Created, reply);
+
+        let cond = conditions::True {};
+        to.conditions.insert(String::from("true"), Rc::new(RefCell::new(Box::new(cond))));
+        let reply = to.processor.process_request( SpectrumRequest::Fold {
+            spectrum_name: String::from("test"),
+            condition_name: String::from("true")
+        }, &to.parameters, &mut to.conditions, &to.tracedb);
+        assert!(if let SpectrumReply::Error(_) = reply {
+            true
+        } else { false });
+    }
+    #[test]
+    fn fold_5() {
+        // Right type of spectrum and condition succeeds (multi1/multislice)
+    }
+    #[test]
+    fn fold_6() {
+        // right type of spectrum and condition succeeds (multi2/multislice)
+    }
+    #[test]
+    fn fold_7() {
+        // right type of spectrum and condition succeeds (multi1/multicontour)
+    }
+    #[test]
+    fn fold_8() {
+        // right type of spectrum and condition succeeds (multi2/multicontour)
     }
 }
 #[cfg(test)]
