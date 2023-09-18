@@ -730,7 +730,7 @@ mod fold_tests {
 
         let mut pdict = ParameterDictionary::new();
         let pnames = make_params(&mut pdict);
-        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+        let spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
             .expect("Making spectrum");
 
         assert!(spec.get_fold().is_none());
@@ -753,7 +753,6 @@ mod fold_tests {
         let fold = spec.get_fold();
         assert!(fold.is_some());
         assert_eq!("gc", fold.unwrap());
-
     }
     #[test]
     fn getpairs_1() {

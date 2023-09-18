@@ -602,6 +602,33 @@ mod fold_tests {
         assert!(!spec.applied_fold.is_fold());
     }
     #[test]
+    fn lsfold_1() {
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_default_parameters(&mut pdict);
+        let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
+
+        // Make a Condition Dict and put a multicut into it.
+
+        let mut gdict = ConditionDictionary::new();
+        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
+
+        spec.fold("gs", &gdict).expect("Appling fold to spectrum");
+
+
+        let fold = spec.get_fold();
+        assert!(fold.is_some());
+        assert_eq!("gs", fold.unwrap());
+    }
+    #[test]
+    fn lsfold_2() {
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_default_parameters(&mut pdict);
+        let spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
+
+        assert!(spec.get_fold().is_none());
+    }
+    #[test]
     fn pid_1() {
         // If not folded, parameter ids will be just the underlying set.
 
