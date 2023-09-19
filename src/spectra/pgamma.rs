@@ -796,4 +796,38 @@ mod pgamma_tests {
             assert_eq!(0.0, c.value.get());
         }
     }
+    // Test the get_parameters method when a fold is applied.
+    // Note that the increment tests above already tested the unfolded path.
+    //
+
+    // Note this function just takes a set of x/y values and turns
+    // them into pairs.  Normall used to make parameter id pairs.
+    //
+
+    fn make_pairs(x: &[u32], y: &[u32]) -> Vec<(u32, u32)> {
+        let mut result = vec![];
+        for ix in x {
+            for iy in y {
+                result.push((*ix, *iy));
+            }
+        }
+        result
+    }
+    // produce the x/y parameter ids.
+    fn get_ids(s: &PGamma) -> (Vec<u32>, Vec<u32>) {
+        let mut x = vec![];
+        let mut y = vec![];
+        for xp in s.x_params.iter() {
+            x.push(*xp);
+        }
+        for yp in s.y_params.iter() {
+            y.push(*yp);
+        }
+        (x, y)
+    }
+
+    #[test]
+    fn getpars_1() {
+        // Given not pairs in the contour, all original pairs are returned.
+    }
 }
