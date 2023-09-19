@@ -90,6 +90,7 @@ pub fn remove() -> Json<GenericResponse> {
 mod fold_tests {
     use super::*;
     use crate::messaging;
+    use crate::messaging::{condition_messages, parameter_messages, spectrum_messages};
     use crate::processing;
     use crate::test::rest_common;
 
@@ -127,10 +128,66 @@ mod fold_tests {
 
     #[test]
     fn apply_1() {
+        // Successful application.
+
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
 
+        // Make a set of parameters, a multicut and Multi1d:
+        let parapi = parameter_messages::ParameterMessageClient::new(&c);
+        let capi = condition_messages::ConditionMessageClient::new(&c);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&c);
+
+        let mut params = vec![];
+        let mut param_ids = vec![];
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            parapi.create_parameter(&name).expect("Making a parameter");
+            params.push(name);
+            param_ids.push(i);
+        }
+        assert!(
+            match capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0) {
+                condition_messages::ConditionReply::Created => true,
+                _ => false,
+            },
+            "Making condition."
+        );
+        sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
+            .expect("Making spectrum");
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let req = client.get("/apply?spectrum=test&gate=mcut");
+        let response = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", response.status);
+
+        // See that we do have a fold applied to "test"
+
+        let l = sapi.list_spectra("test").expect("Listing spectra");
+
+        assert_eq!(1, l.len());
+        let desc = &l[0];
+        assert!(desc.fold.is_some());
+        assert_eq!("mcut", desc.fold.clone().unwrap());
         // Need to test apply.
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn apply_2() {
+        // Ensure error handling works:
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        let cl = Client::untracked(rocket).expect("Making rocket client");
+        let r = cl.get("/apply?spectrum=junk&gate=trash");
+        let reply = r.dispatch().into_json::<GenericResponse>().expect("Parsing JSON");
+
+        assert_eq!("Could not fold spectrum", reply.status);
 
         teardown(c, &papi, &bapi);
     }
