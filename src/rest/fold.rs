@@ -109,12 +109,16 @@ pub fn list(
 ///
 /// GenericResponse is appropriate.
 ///
-#[get("/remove")]
-pub fn remove() -> Json<GenericResponse> {
-    Json(GenericResponse::err(
-        "/spectcl/fold/remove is not implemented",
-        "This is not SpecTcl",
-    ))
+#[get("/remove?<spectrum>")]
+pub fn remove(spectrum: String, msg_chan: &State<SharedHistogramChannel>) -> Json<GenericResponse> {
+    let sapi = spectrum_messages::SpectrumMessageClient::new(&msg_chan.inner().lock().unwrap());
+
+    let reply = if let Err(s) = sapi.unfold_spectrum(&spectrum) {
+        GenericResponse::err("Failed to remove fold: ", &s)
+    } else {
+        GenericResponse::ok("")
+    };
+    Json(reply)
 }
 #[cfg(test)]
 mod fold_tests {
@@ -273,24 +277,29 @@ mod fold_tests {
         sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
             .expect("Making spectrum");
 
-
-        sapi.fold_spectrum(&"test", "mcut").expect("Folding spectrum");
+        sapi.fold_spectrum(&"test", "mcut")
+            .expect("Folding spectrum");
 
         let client = Client::untracked(rocket).expect("Making rocket client");
         let req = client.get("/list");
-        let result = req.dispatch().into_json::<FoldListResponse>().expect("parsing json");
+        let result = req
+            .dispatch()
+            .into_json::<FoldListResponse>()
+            .expect("parsing json");
 
         assert_eq!("OK", result.status);
         assert_eq!(1, result.detail.len());
         let props = &result.detail[0];
 
-        assert_eq!(FoldInfo {
-            spectrum: String::from("test"),
-            gate: String::from("mcut")
-        }, *props);
+        assert_eq!(
+            FoldInfo {
+                spectrum: String::from("test"),
+                gate: String::from("mcut")
+            },
+            *props
+        );
 
         teardown(c, &papi, &bapi);
-
     }
     #[test]
     fn list_3() {
@@ -322,21 +331,27 @@ mod fold_tests {
         sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
             .expect("Making spectrum");
 
-
-        sapi.fold_spectrum(&"test", "mcut").expect("Folding spectrum");
+        sapi.fold_spectrum(&"test", "mcut")
+            .expect("Folding spectrum");
 
         let client = Client::untracked(rocket).expect("Making rocket client");
         let req = client.get("/list?pattern=t*");
-        let result = req.dispatch().into_json::<FoldListResponse>().expect("parsing json");
+        let result = req
+            .dispatch()
+            .into_json::<FoldListResponse>()
+            .expect("parsing json");
 
         assert_eq!("OK", result.status);
         assert_eq!(1, result.detail.len());
         let props = &result.detail[0];
 
-        assert_eq!(FoldInfo {
-            spectrum: String::from("test"),
-            gate: String::from("mcut")
-        }, *props);
+        assert_eq!(
+            FoldInfo {
+                spectrum: String::from("test"),
+                gate: String::from("mcut")
+            },
+            *props
+        );
 
         teardown(c, &papi, &bapi);
     }
@@ -370,16 +385,19 @@ mod fold_tests {
         sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
             .expect("Making spectrum");
 
-
-        sapi.fold_spectrum(&"test", "mcut").expect("Folding spectrum");
+        sapi.fold_spectrum(&"test", "mcut")
+            .expect("Folding spectrum");
 
         let client = Client::untracked(rocket).expect("Making rocket client");
         let req = client.get("/list?pattern=q*");
-        let result = req.dispatch().into_json::<FoldListResponse>().expect("parsing json");
+        let result = req
+            .dispatch()
+            .into_json::<FoldListResponse>()
+            .expect("parsing json");
 
         assert_eq!("OK", result.status);
         assert_eq!(0, result.detail.len());
-        
+
         teardown(c, &papi, &bapi);
     }
     #[test]
