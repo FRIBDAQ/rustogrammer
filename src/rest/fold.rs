@@ -49,7 +49,7 @@ pub fn apply(
 }
 
 //
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(crate = "rocket::serde")]
 pub struct FoldInfo {
     spectrum: String,
@@ -65,7 +65,7 @@ pub struct FoldListResponse {
 ///  If implemented the _pattern_ query  parameter will filter out
 /// the listing to only inlcude the spectra with names that match the
 /// pattern.  The reply is a FoldListResponse shown above.
-#[get("/list/<pattern>")]
+#[get("/list?<pattern>")]
 pub fn list(
     pattern: OptionalString,
     msg_chan: &State<SharedHistogramChannel>,
@@ -226,6 +226,8 @@ mod fold_tests {
     }
     #[test]
     fn list_1() {
+        // Nothing to list.
+
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
 
@@ -236,12 +238,148 @@ mod fold_tests {
             .dispatch()
             .into_json::<FoldListResponse>()
             .expect("Decoding JSON");
-        assert_eq!(
-            "/spectcl/fold/list is not implemented - this is not SpecTcl",
-            response.status.as_str()
-        );
+        assert_eq!("OK", response.status);
         assert_eq!(0, response.detail.len());
 
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn list_2() {
+        // make a folded spectrum and list:
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        // Make a set of parameters, a multicut and Multi1d:
+        let parapi = parameter_messages::ParameterMessageClient::new(&c);
+        let capi = condition_messages::ConditionMessageClient::new(&c);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&c);
+
+        let mut params = vec![];
+        let mut param_ids = vec![];
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            parapi.create_parameter(&name).expect("Making a parameter");
+            params.push(name);
+            param_ids.push(i);
+        }
+        assert!(
+            match capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0) {
+                condition_messages::ConditionReply::Created => true,
+                _ => false,
+            },
+            "Making condition."
+        );
+        sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
+            .expect("Making spectrum");
+
+
+        sapi.fold_spectrum(&"test", "mcut").expect("Folding spectrum");
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let req = client.get("/list");
+        let result = req.dispatch().into_json::<FoldListResponse>().expect("parsing json");
+
+        assert_eq!("OK", result.status);
+        assert_eq!(1, result.detail.len());
+        let props = &result.detail[0];
+
+        assert_eq!(FoldInfo {
+            spectrum: String::from("test"),
+            gate: String::from("mcut")
+        }, *props);
+
+        teardown(c, &papi, &bapi);
+
+    }
+    #[test]
+    fn list_3() {
+        // listing honors pattern when there's a match:
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        // Make a set of parameters, a multicut and Multi1d:
+        let parapi = parameter_messages::ParameterMessageClient::new(&c);
+        let capi = condition_messages::ConditionMessageClient::new(&c);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&c);
+
+        let mut params = vec![];
+        let mut param_ids = vec![];
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            parapi.create_parameter(&name).expect("Making a parameter");
+            params.push(name);
+            param_ids.push(i);
+        }
+        assert!(
+            match capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0) {
+                condition_messages::ConditionReply::Created => true,
+                _ => false,
+            },
+            "Making condition."
+        );
+        sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
+            .expect("Making spectrum");
+
+
+        sapi.fold_spectrum(&"test", "mcut").expect("Folding spectrum");
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let req = client.get("/list?pattern=t*");
+        let result = req.dispatch().into_json::<FoldListResponse>().expect("parsing json");
+
+        assert_eq!("OK", result.status);
+        assert_eq!(1, result.detail.len());
+        let props = &result.detail[0];
+
+        assert_eq!(FoldInfo {
+            spectrum: String::from("test"),
+            gate: String::from("mcut")
+        }, *props);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn list_4() {
+        // listing when there's no pattern match:
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        // Make a set of parameters, a multicut and Multi1d:
+        let parapi = parameter_messages::ParameterMessageClient::new(&c);
+        let capi = condition_messages::ConditionMessageClient::new(&c);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&c);
+
+        let mut params = vec![];
+        let mut param_ids = vec![];
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            parapi.create_parameter(&name).expect("Making a parameter");
+            params.push(name);
+            param_ids.push(i);
+        }
+        assert!(
+            match capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0) {
+                condition_messages::ConditionReply::Created => true,
+                _ => false,
+            },
+            "Making condition."
+        );
+        sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
+            .expect("Making spectrum");
+
+
+        sapi.fold_spectrum(&"test", "mcut").expect("Folding spectrum");
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let req = client.get("/list?pattern=q*");
+        let result = req.dispatch().into_json::<FoldListResponse>().expect("parsing json");
+
+        assert_eq!("OK", result.status);
+        assert_eq!(0, result.detail.len());
+        
         teardown(c, &papi, &bapi);
     }
     #[test]
