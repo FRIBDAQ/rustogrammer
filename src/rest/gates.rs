@@ -37,6 +37,8 @@ fn rg_condition_to_spctl(rg_type: &str) -> String {
         "Band" => String::from("b"),
         "Contour" => String::from("c"),
         "Cut" => String::from("s"),
+        "MultiCut" => String::from("gs"),
+        "MultiContour" => String::from("gc"),
         _ => String::from("-unsupported-"),
     }
 }
@@ -210,7 +212,7 @@ pub fn delete_gate(name: String, state: &State<SharedHistogramChannel>) -> Json<
 // Validate the query parameters needed to make a slice gate and extract them
 //
 fn validate_slice_parameters(
-    parameter: OptionalString,
+    parameter: OptionalStringVec,
     low: Option<f64>,
     high: Option<f64>,
     state: &State<SharedHistogramChannel>,
@@ -220,6 +222,11 @@ fn validate_slice_parameters(
             "The parameter query parameter is required for slice gates",
         ));
     }
+    let parameter = parameter.unwrap();
+    if parameter.len() != 1 {
+        return Err(String::from("Slices must have exactly one parameter"));
+    }
+    let parameter_name = &parameter[0];
     if low.is_none() || high.is_none() {
         return Err(String::from(
             "Both the low and high query parameters are requried for slice gates",
@@ -227,7 +234,6 @@ fn validate_slice_parameters(
     }
     let low = low.unwrap();
     let high = high.unwrap();
-    let parameter_name = parameter.unwrap();
     let pid = find_parameter_by_name(&parameter_name, state);
     if pid.is_none() {
         return Err(format!("Parameter {} does not exist", parameter_name));
@@ -304,6 +310,80 @@ fn validate_2d_parameters(
     Ok((xpid, ypid, points))
 }
 
+// Validate the parameters for  multi slice:
+// - There must be a parameter array.
+// -  There must be a low, and a high.
+// - The parameters must be converted into ids.
+fn validate_multi1_parameters(
+    parameter: OptionalStringVec,
+    low: Option<f64>,
+    high: Option<f64>,
+    state: &State<SharedHistogramChannel>,
+) -> Result<(Vec<u32>, f64, f64), String> {
+    if low.is_none() || high.is_none() {
+        return Err(String::from(
+            "Both low and high must be present to make a multi  slice (gs)",
+        ));
+    }
+    if parameter.is_none() {
+        return Err(String::from("Multi 1d (gs) conditions require parameters"));
+    }
+    let mut ids = Vec::<u32>::new();
+
+    for name in parameter.unwrap().iter() {
+        if let Some(id) = find_parameter_by_name(name, state) {
+            ids.push(id);
+        } else {
+            return Err(format!("Parameter: {} does not exist", name));
+        }
+    }
+    Ok((ids, low.unwrap(), high.unwrap()))
+}
+// Validate the parameters for a multi parameter contour:
+
+fn validate_multi2_parameters(
+    parameter: OptionalStringVec,
+    xcoords: OptionalF64Vec,
+    ycoords: OptionalF64Vec,
+    state: &State<SharedHistogramChannel>
+) -> Result<(Vec<u32>, Vec<(f64, f64)>), String> {
+    // THere must be parameers, x and y coordinates:
+
+    if parameter.is_none() {
+        return Err(String::from("Parameters are required for a multi parameter contour"));
+    }
+    let parameter = parameter.unwrap();
+
+    if xcoords.is_none() {
+        return Err(String::from("xcoords are required for multi parameter contours"));
+    }
+    if ycoords.is_none() {
+        return Err(String::from("ycoords are required for multi parameters contous"));
+    }
+    let x = xcoords.unwrap();
+    let y = ycoords.unwrap();
+    if x.len() != y.len() {
+        return Err(String::from("There must be the same number of x and y coordinates."))
+    }
+    // Marshall the points:
+
+    let mut pts = vec![];
+    for (i, x) in x.iter().enumerate() {
+        pts.push((*x, y[i]));
+    }
+    // Marshall the parameters -> ids:
+
+    let mut ids = vec![];
+    for name in parameter.iter() {
+        if let Some(id) = find_parameter_by_name(name, state) {
+            ids.push(id);
+        } else {
+            return Err(format!("Parameter: {} does not exist", name));
+        }
+    }
+
+    Ok((ids, pts))
+}
 ///
 /// Create/edit a gate.  Note that creating a new gate and editing
 /// an existing gate.  If we 'edit' a new gate the gate is created
@@ -348,7 +428,7 @@ pub fn edit_gate(
     gate: OptionalStringVec,
     xparameter: OptionalString,
     yparameter: OptionalString,
-    parameter: OptionalString,
+    parameter: OptionalStringVec,
     xcoord: OptionalF64Vec,
     ycoord: OptionalF64Vec,
     low: Option<f64>,
@@ -410,7 +490,7 @@ pub fn edit_gate(
             }
         }
         "s" => {
-            // There must be a parameter, low and high.
+            // There must be one parameter, low and high.
 
             match validate_slice_parameters(parameter, low, high, state) {
                 Ok((pid, low, high)) => api.create_cut_condition(&name, pid, low, high),
@@ -424,6 +504,14 @@ pub fn edit_gate(
         "c" => match validate_2d_parameters(xparameter, yparameter, xcoord, ycoord, state) {
             Err(s) => ConditionReply::Error(s),
             Ok((xid, yid, points)) => api.create_contour_condition(&name, xid, yid, &points),
+        },
+        "gs" => match validate_multi1_parameters(parameter, low, high, state) {
+            Err(s) => ConditionReply::Error(s),
+            Ok((ids, low, high)) => api.create_multicut_condition(&name, &ids, low, high),
+        },
+        "gc" => match validate_multi2_parameters(parameter, xcoord, ycoord, state) {
+            Err(s) => ConditionReply::Error(s),
+            Ok((ids, points)) => api.create_multicontour_condition(&name, &ids, &points),
         },
         _ => ConditionReply::Error(format!("Unsupported gate type: {}", r#type)),
     };
@@ -484,6 +572,7 @@ mod gate_tests {
         let api = parameter_messages::ParameterMessageClient::new(c);
         api.create_parameter("p1").expect("Creating p1");
         api.create_parameter("p2").expect("Creating p2");
+        api.create_parameter("p3").expect("creating p3");
     }
 
     #[test]
@@ -778,6 +867,91 @@ mod gate_tests {
         assert_eq!(GatePoint { x: 10.0, y: 10.0 }, l.points[0]);
         assert_eq!(GatePoint { x: 15.0, y: 20.0 }, l.points[1]);
         assert_eq!(GatePoint { x: 100.0, y: 15.0 }, l.points[2]);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn list_10() {
+        // Make a multislice gate and see that it is listed:
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_multicut_condition("test", &[1, 2, 3], 100.0, 200.0);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("test", l.name);
+        assert_eq!("gs", l.type_name);
+        assert!(l.gates.is_empty());
+        assert_eq!(
+            vec![String::from("p1"), String::from("p2"), String::from("p3")],
+            l.parameters
+        );
+        assert_eq!(
+            vec![
+                GatePoint { x: 100.0, y: 0.0 },
+                GatePoint { x: 200.0, y: 0.0 }
+            ],
+            l.points
+        );
+        assert_eq!(100.0, l.low);
+        assert_eq!(200.0, l.high);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn list_11() {
+        // List a gc (MultiContour):
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        api.create_multicontour_condition(
+            "test",
+            &[1, 2, 3],
+            &[(100.0, 50.0), (200.0, 50.0), (150.0, 75.0)],
+        );
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/list");
+        let reply = req
+            .dispatch()
+            .into_json::<ListReply>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+
+        let l = &reply.detail[0];
+        assert_eq!("test", l.name);
+        assert_eq!("gc", l.type_name);
+        assert!(l.gates.is_empty());
+        assert_eq!(
+            vec![String::from("p1"), String::from("p2"), String::from("p3")],
+            l.parameters
+        );
+        assert_eq!(
+            vec![
+                GatePoint { x: 100.0, y: 50.0 },
+                GatePoint { x: 200.0, y: 50.0 },
+                GatePoint { x: 150.0, y: 75.0 }
+            ],
+            l.points
+        );
 
         teardown(c, &papi, &bapi);
     }
@@ -1481,6 +1655,118 @@ mod gate_tests {
         } else {
             false
         });
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn edit_24() {
+        // Good createion of multislice.
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+        make_test_objects(&c);
+
+        let client = Client::untracked(rocket).expect("Creating rocket client");
+        let req = client
+            .get("/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p3&low=100&high=200");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing Json");
+        assert_eq!("OK", reply.status);
+        assert_eq!("Created", reply.detail);
+
+        let api = condition_messages::ConditionMessageClient::new(&c);
+        let l = api.list_conditions("test");
+
+        assert_eq!(
+            condition_messages::ConditionReply::Listing(vec![
+                condition_messages::ConditionProperties {
+                    cond_name: String::from("test"),
+                    type_name: String::from("MultiCut"),
+                    points: vec![(100.0, 0.0), (200.0, 0.0)],
+                    gates: vec![],
+                    parameters: vec![1, 2, 3]
+                },
+            ]),
+            l
+        );
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn edit_25() {
+        // Missing parameters for multislice.
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating rocket client");
+        let req = client.get("/edit?name=test&type=gs&low=100&high=200");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate test", reply.status);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn edit_26() {
+        // Bad parameter for multi slice
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating rocket client");
+        let req = client.get(
+            "/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p333&low=100&high=200",
+        );
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate test", reply.status);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn edit_27() {
+        // missing high
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating rocket client");
+        let req =
+            client.get("/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p3&low=100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate test", reply.status);
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn edit_28() {
+        // missing low.
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating rocket client");
+        let req =
+            client.get("/edit?name=test&type=gs&parameter=p1&parameter=p2&parameter=p3&high=100");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Could not create/edit gate test", reply.status);
+
         teardown(c, &papi, &bapi);
     }
 }

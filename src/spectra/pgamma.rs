@@ -21,9 +21,11 @@
 //!
 use super::*;
 use ndhistogram::value::Sum;
+use std::collections::HashSet;
 
 // This struct defines a parameter for the spectrum:
 
+#[derive(Debug)]
 struct SpectrumParameter {
     name: String,
     id: u32,
@@ -37,6 +39,7 @@ struct SpectrumParameter {
 ///
 pub struct PGamma {
     applied_gate: SpectrumGate,
+    applied_fold: SpectrumGate,
     name: String,
     histogram: H2DContainer,
 
@@ -54,22 +57,19 @@ impl Spectrum for PGamma {
     // Increment for _all_ valid ids in the event:
     //
     fn increment(&mut self, e: &FlatEvent) {
+        let ppairs = self.get_parameters(e);
         let mut histogram = self.histogram.borrow_mut();
-        for xp in self.x_params.iter() {
-            for yp in self.y_params.iter() {
-                let xid = xp.id;
-                let yid = yp.id;
-
-                let x = e[xid];
-                let y = e[yid];
-                if let Some(x) = x {
-                    if let Some(y) = y {
-                        histogram.fill(&(x, y));
-                    }
+        for (ix, iy) in ppairs {
+            let x = e[ix];
+            let y = e[iy];
+            if let Some(x) = x {
+                if let Some(y) = y {
+                    histogram.fill(&(x, y));
                 }
             }
         }
     }
+
     fn get_name(&self) -> String {
         self.name.clone()
     }
@@ -110,6 +110,30 @@ impl Spectrum for PGamma {
     fn get_histogram_2d(&self) -> Option<H2DContainer> {
         Some(Rc::clone(&self.histogram))
     }
+    // Implement fold interface:
+
+    fn fold(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+        if let Some(cond) = dict.get(name) {
+            if cond.borrow().is_fold() {
+                self.applied_fold.set_gate(name, dict)
+            } else {
+                Err(format!("{} cannot be used as a fold", name))
+            }
+        } else {
+            Err(format!("There is no condition named {}", name))
+        }
+    }
+    fn unfold(&mut self) -> Result<(), String> {
+        self.applied_fold.ungate();
+        Ok(())
+    }
+    fn get_fold(&self) -> Option<String> {
+        if let Some(g) = self.applied_fold.gate.clone() {
+            Some(g.condition_name)
+        } else {
+            None
+        }
+    }
 }
 type ParameterDescription = (
     Option<f64>,
@@ -147,6 +171,36 @@ impl PGamma {
 
         Ok((x_min, x_max, x_bins, xp))
     }
+    // This method returns the set of parameter id pairs to try to increment
+    // over.  In the case where there's no fold, this is just all
+    // x/y parameter pairs.  If there's a fold it's the set of x/y parameter
+    // pairs that dont' fall inthe fold.
+
+    fn get_parameters(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
+        let mut result = vec![];
+        for px in self.x_params.iter() {
+            for py in self.y_params.iter() {
+                result.push((px.id, py.id));
+            }
+        }
+        if self.applied_fold.is_fold() {
+            let fold = self.applied_fold.fold_2d(e);
+            let fold_set = fold.into_iter().collect::<HashSet<(u32, u32)>>();
+            let mut raw_set = HashSet::<(u32, u32)>::new();
+            for pair in result {
+                raw_set.insert(pair);
+            }
+            let mut pairs = vec![];
+
+            for p in raw_set.intersection(&fold_set) {
+                pairs.push(*p);
+            }
+            pairs
+        } else {
+            result
+        }
+    }
+
     /// Create a new gamma spectrum.   
     /// *   name - the name of the new spectrum.
     /// *   xparams - Vector of x parameter names.
@@ -221,6 +275,7 @@ impl PGamma {
 
         Ok(PGamma {
             applied_gate: SpectrumGate::new(),
+            applied_fold: SpectrumGate::new(),
             name: String::from(name),
             histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(x_bins.unwrap() as usize, x_min.unwrap(), x_max.unwrap()),
@@ -235,6 +290,7 @@ impl PGamma {
 #[cfg(test)]
 mod pgamma_tests {
     use super::*;
+    use crate::conditions;
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gating.
 
@@ -742,5 +798,201 @@ mod pgamma_tests {
         for c in spec.histogram.borrow().iter() {
             assert_eq!(0.0, c.value.get());
         }
+    }
+    // Test the get_parameters method when a fold is applied.
+    // Note that the increment tests above already tested the unfolded path.
+    //
+
+    // Note this function just takes a set of x/y values and turns
+    // them into pairs.  Normall used to make parameter id pairs.
+    //
+
+    fn make_pairs(x: &[u32], y: &[u32]) -> Vec<(u32, u32)> {
+        let mut result = vec![];
+        for ix in x {
+            for iy in y {
+                result.push((*ix, *iy));
+            }
+        }
+        result
+    }
+    // produce the x/y parameter ids.
+    fn get_ids(s: &PGamma) -> (Vec<u32>, Vec<u32>) {
+        let mut x = vec![];
+        let mut y = vec![];
+        for xp in s.x_params.iter() {
+            x.push(xp.id);
+        }
+        for yp in s.y_params.iter() {
+            y.push(yp.id);
+        }
+        (x, y)
+    }
+
+    #[test]
+    fn getpars_1() {
+        // Given not pairs in the contour, all original pairs are returned.
+
+        let pdict = make_params(10, None, None);
+
+        let mut gdict = ConditionDictionary::new();
+        let fold = conditions::MultiContour::new(
+            &vec![0, 1, 2, 3, 4],
+            vec![
+                conditions::twod::Point::new(100.0, 100.0),
+                conditions::twod::Point::new(500.0, 100.0),
+                conditions::twod::Point::new(250.0, 250.0),
+            ],
+        )
+        .expect("Making contour");
+        gdict.insert(String::from("fold"), Rc::new(RefCell::new(Box::new(fold))));
+
+        let mut spec = PGamma::new(
+            "test",
+            &vec![
+                String::from("param.0"),
+                String::from("param.1"),
+                String::from("param.2"),
+            ],
+            &vec![String::from("param.4"), String::from("param.5")],
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+        )
+        .expect("Making spectrum");
+
+        // Make an event with all parameters outside the contour
+
+        let event = vec![
+            EventParameter::new(0, 10.0),
+            EventParameter::new(1, 15.0),
+            EventParameter::new(2, 20.0),
+            EventParameter::new(3, 25.0),
+            EventParameter::new(4, 30.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&event);
+        let pairs = spec.get_parameters(&fe);
+
+        // Generate our expectations:
+
+        let (xids, yids) = get_ids(&spec);
+        let expected_pairs = make_pairs(&xids, &yids);
+        assert_eq!(expected_pairs, pairs);
+    }
+    #[test]
+    fn getpars_2() {
+        // X/y pairs in the contour are removed:
+
+        let pdict = make_params(10, None, None);
+
+        let mut gdict = ConditionDictionary::new();
+        let fold = conditions::MultiContour::new(
+            &vec![1, 2, 3, 4, 5],
+            vec![
+                conditions::twod::Point::new(100.0, 100.0),
+                conditions::twod::Point::new(500.0, 100.0),
+                conditions::twod::Point::new(250.0, 250.0),
+            ],
+        )
+        .expect("Making contour");
+        gdict.insert(String::from("fold"), Rc::new(RefCell::new(Box::new(fold))));
+
+        let mut spec = PGamma::new(
+            "test",
+            &vec![
+                String::from("param.0"),
+                String::from("param.1"),
+                String::from("param.2"),
+            ],
+            &vec![String::from("param.3"), String::from("param.4")],
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+        )
+        .expect("Making spectrum");
+        spec.fold("fold", &gdict).expect("Folding");
+
+        // XY pair in the contour:
+
+        let event = vec![
+            EventParameter::new(1, 250.0),
+            EventParameter::new(2, 15.0),
+            EventParameter::new(3, 20.0),
+            EventParameter::new(4, 35.0),
+            EventParameter::new(5, 125.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&event);
+        let mut pairs = spec.get_parameters(&fe);
+        pairs.sort();
+
+        let expected_pairs = vec![(1, 4), (2, 4), (2, 5), (3, 4), (3, 5)];
+
+        assert_eq!(expected_pairs, pairs);
+    }
+    #[test]
+    fn getpars_3() {
+        // X/y pairs only are tested against the fold:
+
+        let pdict = make_params(10, None, None);
+
+        let mut gdict = ConditionDictionary::new();
+        let fold = conditions::MultiContour::new(
+            &vec![1, 2, 3, 4, 5],
+            vec![
+                conditions::twod::Point::new(100.0, 100.0),
+                conditions::twod::Point::new(500.0, 100.0),
+                conditions::twod::Point::new(250.0, 250.0),
+            ],
+        )
+        .expect("Making contour");
+        gdict.insert(String::from("fold"), Rc::new(RefCell::new(Box::new(fold))));
+
+        let mut spec = PGamma::new(
+            "test",
+            &vec![
+                String::from("param.0"),
+                String::from("param.1"),
+                String::from("param.2"),
+            ],
+            &vec![String::from("param.3"), String::from("param.4")],
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+        )
+        .expect("Making spectrum");
+        spec.fold("fold", &gdict).expect("Folding");
+
+        // XY pair in the contour:
+
+        let event = vec![
+            EventParameter::new(1, 250.0),
+            EventParameter::new(2, 125.0),
+            EventParameter::new(3, 20.0),
+            EventParameter::new(4, 35.0),
+            EventParameter::new(5, 30.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&event);
+        let mut pairs = spec.get_parameters(&fe);
+        pairs.sort();
+
+        let (xids, yids) = get_ids(&spec);
+        let expected_pairs = make_pairs(&xids, &yids);
+
+        assert_eq!(expected_pairs, pairs);
     }
 }

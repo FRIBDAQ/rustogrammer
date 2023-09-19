@@ -53,6 +53,17 @@ pub enum ConditionRequest {
         y_id: u32,
         points: Vec<(f64, f64)>,
     },
+    CreateMultiCut {
+        name: String,
+        ids: Vec<u32>,
+        low: f64,
+        high: f64,
+    },
+    CreateMultiContour {
+        name: String,
+        ids: Vec<u32>,
+        points: Vec<(f64, f64)>,
+    },
     DeleteCondition(String),
     List(String),
 }
@@ -150,19 +161,38 @@ impl ConditionMessageClient {
             points: points.to_owned(),
         }
     }
+    fn make_multicut_creation(name: &str, ids: &[u32], low: f64, high: f64) -> ConditionRequest {
+        ConditionRequest::CreateMultiCut {
+            name: String::from(name),
+            ids: ids.to_owned(),
+            low,
+            high,
+        }
+    }
+    fn make_multicontour_creation(
+        name: &str,
+        ids: &[u32],
+        points: &[(f64, f64)],
+    ) -> ConditionRequest {
+        ConditionRequest::CreateMultiContour {
+            name: String::from(name),
+            ids: ids.to_owned(),
+            points: points.to_owned(),
+        }
+    }
     fn make_delete(name: &str) -> ConditionRequest {
         ConditionRequest::DeleteCondition(String::from(name))
     }
     fn make_list(pattern: &str) -> ConditionRequest {
         ConditionRequest::List(String::from(pattern))
     }
-
     fn make_request(reply_channel: mpsc::Sender<Reply>, req: ConditionRequest) -> Request {
         Request {
             reply_channel,
             message: MessageType::Condition(req),
         }
     }
+
     // This method isolates all the messaging skulduggery from the rest of the
     // code.
 
@@ -354,6 +384,49 @@ impl ConditionMessageClient {
     ) -> ConditionReply {
         self.transaction(Self::make_contour_creation(name, x_id, y_id, points))
     }
+    /// create_multicut_condition
+    ///
+    /// Multi cuts are what SpecTcl called gamma slices.  They get an array
+    /// of parameters, and low, high limits:
+    ///
+    /// ###  Parameters
+    /// *  name - name of the new condition.
+    /// *  ids  - Array of parameter ids for the condition is set on.
+    /// *  low, high - the condition limits.
+    ///
+    /// ### Returns
+    ///    ConditionReply - this should be either Created or Replaced or Error.
+    ///
+    pub fn create_multicut_condition(
+        &self,
+        name: &str,
+        ids: &[u32],
+        low: f64,
+        high: f64,
+    ) -> ConditionReply {
+        self.transaction(Self::make_multicut_creation(name, ids, low, high))
+    }
+    ///
+    /// Creaet a multicontour
+    ///   MulitContours are analagous to SpecTcl gamma-contours.  They get an
+    /// array of ids and 2-d points:
+    ///
+    /// ### Parameters
+    ///  *   name - name of the new condition.
+    ///  *   ids - array of parameter ids.
+    ///  *   points - array of points.
+    ///
+    /// ### Returns:
+    ///   Condition reply which is hopefully either Created or Replaced
+    ///
+    pub fn create_multicontour_condition(
+        &self,
+        name: &str,
+        ids: &[u32],
+        points: &[(f64, f64)],
+    ) -> ConditionReply {
+        self.transaction(Self::make_multicontour_creation(name, ids, points))
+    }
     ///
     /// Deletes a condition.  The condition is removed fromt he dictionary.
     /// All remaining references are 'weak' by definition and will fail to promote
@@ -534,6 +607,34 @@ impl ConditionProcessor {
             ConditionReply::Error(String::from("Too few points for a contour"))
         }
     }
+
+    fn add_multicut(
+        &mut self,
+        name: &str,
+        ids: &[u32],
+        low: f64,
+        high: f64,
+        tracedb: &trace::SharedTraceStore,
+    ) -> ConditionReply {
+        self.add_condition(name, MultiCut::new(ids, low, high), tracedb)
+    }
+    fn add_multicontour(
+        &mut self,
+        name: &str,
+        ids: &[u32],
+        points: &[(f64, f64)],
+        tracedb: &trace::SharedTraceStore,
+    ) -> ConditionReply {
+        let mut pts = vec![];
+        for pt in points {
+            pts.push(Point::new(pt.0, pt.1));
+        }
+        if let Some(c) = MultiContour::new(ids, pts) {
+            self.add_condition(name, c, tracedb)
+        } else {
+            ConditionReply::Error(String::from("Unable to create multicontour"))
+        }
+    }
     fn remove_condition(
         &mut self,
         name: &str,
@@ -630,6 +731,15 @@ impl ConditionProcessor {
                 y_id,
                 points,
             } => self.add_contour(&name, x_id, y_id, points, tracedb),
+            ConditionRequest::CreateMultiCut {
+                name,
+                ids,
+                low,
+                high,
+            } => self.add_multicut(&name, &ids, low, high, tracedb),
+            ConditionRequest::CreateMultiContour { name, ids, points } => {
+                self.add_multicontour(&name, &ids, &points, tracedb)
+            }
             ConditionRequest::DeleteCondition(name) => self.remove_condition(&name, tracedb),
             ConditionRequest::List(pattern) => self.list_conditions(&pattern),
         }
@@ -830,6 +940,35 @@ mod cond_msg_tests {
         } else {
             panic!("make_list did not create a List request");
         }
+    }
+    #[test]
+    fn make_multicut_1() {
+        let mc = ConditionMessageClient::make_multicut_creation("name", &[1, 2, 3], 100.0, 200.0);
+        assert_eq!(
+            ConditionRequest::CreateMultiCut {
+                name: String::from("name"),
+                ids: vec![1, 2, 3],
+                low: 100.0,
+                high: 200.0
+            },
+            mc
+        )
+    }
+    #[test]
+    fn make_multicontour_1() {
+        let mc = ConditionMessageClient::make_multicontour_creation(
+            "name",
+            &vec![1, 2, 3],
+            &vec![(100.0, 100.0), (150.0, 100.0), (125.0, 150.0)],
+        );
+        assert_eq!(
+            ConditionRequest::CreateMultiContour {
+                name: String::from("name"),
+                ids: vec![1, 2, 3],
+                points: vec![(100.0, 100.0), (150.0, 100.0), (125.0, 150.0)]
+            },
+            mc
+        );
     }
 }
 #[cfg(test)]
@@ -1190,6 +1329,64 @@ mod cnd_processor_tests {
             assert!(false);
         }
     }
+    #[test]
+    fn create_multi1_1() {
+        let tracedb = trace::SharedTraceStore::new();
+        let mut cp = ConditionProcessor::new();
+        let rep = cp.process_request(
+            ConditionMessageClient::make_multicut_creation("test", &[1, 2, 3], 100.0, 200.0),
+            &tracedb,
+        );
+        assert_eq!(ConditionReply::Created, rep);
+
+        let item = cp.dict.get("test");
+        assert!(item.is_some());
+        assert_eq!(String::from("MultiCut"), item.unwrap().borrow().gate_type());
+    }
+    #[test]
+    fn create_multi2_1() {
+        // Create a multi-contour -no error.
+
+        let tracedb = trace::SharedTraceStore::new();
+        let mut cp = ConditionProcessor::new();
+        let rep = cp.process_request(
+            ConditionMessageClient::make_multicontour_creation(
+                "test",
+                &[1, 2, 3],
+                &vec![(100.0, 100.0), (150.0, 100.0), (125.0, 200.0)],
+            ),
+            &tracedb,
+        );
+        assert_eq!(ConditionReply::Created, rep);
+
+        let item = cp.dict.get("test");
+        assert!(item.is_some());
+        assert_eq!(
+            String::from("MultiContour"),
+            item.unwrap().borrow().gate_type()
+        );
+    }
+    #[test]
+    fn create_multi2_2() {
+        // Not enough pts -> error.
+
+        let tracedb = trace::SharedTraceStore::new();
+        let mut cp = ConditionProcessor::new();
+        let rep = cp.process_request(
+            ConditionMessageClient::make_multicontour_creation(
+                "test",
+                &[1, 2, 3],
+                &vec![(100.0, 100.0), (150.0, 100.0)],
+            ),
+            &tracedb,
+        );
+
+        assert!(if let ConditionReply::Error(_) = rep {
+            true
+        } else {
+            false
+        });
+    }
 }
 #[cfg(test)]
 mod cnd_api_tests {
@@ -1319,6 +1516,57 @@ mod cnd_api_tests {
         }
         stop_server(jh, send);
     }
+    #[test]
+    fn multi_cut_1() {
+        let (jh, send) = start_server();
+
+        let api = ConditionMessageClient::new(&send);
+        let reply = api.create_multicut_condition("test", &[1, 2, 3], 100.0, 200.0);
+        assert_eq!(ConditionReply::Created, reply);
+
+        let l = api.list_conditions("test");
+        assert_eq!(
+            ConditionReply::Listing(vec![ConditionProperties {
+                cond_name: String::from("test"),
+                type_name: String::from("MultiCut"),
+                points: vec![(100.0, 0.0), (200.0, 0.0)],
+                gates: vec![],
+                parameters: vec![1, 2, 3]
+            },]),
+            l
+        );
+
+        stop_server(jh, send);
+    }
+    #[test]
+    fn multi_cont_1() {
+        // Make a multi contour:
+
+        let (jh, send) = start_server();
+        let api = ConditionMessageClient::new(&send);
+
+        let reply = api.create_multicontour_condition(
+            "test",
+            &vec![1, 2, 3],
+            &vec![(10.0, 0.0), (20.0, 0.0), (15.0, 20.0)],
+        );
+        assert_eq!(ConditionReply::Created, reply);
+
+        let l = api.list_conditions("test");
+        assert_eq!(
+            ConditionReply::Listing(vec![ConditionProperties {
+                cond_name: String::from("test"),
+                type_name: String::from("MultiContour"),
+                points: vec![(10.0, 0.0), (20.0, 0.0), (15.0, 20.0)],
+                gates: vec![],
+                parameters: vec![1, 2, 3]
+            },]),
+            l
+        );
+
+        stop_server(jh, send);
+    }
+
     fn make_some_conditions(send: &Sender<Request>) {
         let api = ConditionMessageClient::new(send);
         for i in 0..5 {

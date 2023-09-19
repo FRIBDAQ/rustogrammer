@@ -580,6 +580,30 @@ mod twodsum_tests {
         );
         assert!(result.is_err());
     }
+    #[test]
+    fn foldable() {
+        let mut pd = ParameterDictionary::new();
+        let mut params = XYParameters::new();
+        for i in 0..5 {
+            let xname = format!("xparam.{}", i);
+            let yname = format!("yparam.{}", i);
+            params.push((xname.clone(), yname.clone()));
+            pd.add(&xname).expect("Could not add x parameter");
+            pd.add(&yname).expect("Could not add y parameter");
+
+            let px = pd.lookup_mut(&xname).expect("Failed to find xname");
+            px.set_limits(0.0, 1024.0);
+            px.set_bins(512);
+
+            let py = pd.lookup_mut(&yname).expect("Failed to find yname");
+            py.set_limits(0.0, 1024.0);
+            py.set_bins(512);
+        }
+
+        // try to make the spectrum.
+        let result = TwodSum::new("test", params, &pd, None, None, None, None, None, None);
+        assert!(!result.unwrap().can_fold());
+    }
     // Subsequent tests check increments.
     // We don't check overflows because we assume ndhistogram
     // works.  We check:

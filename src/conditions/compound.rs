@@ -83,6 +83,7 @@ impl Condition for Not {
         Vec::<u32>::new()
     }
 }
+
 //  The ConditionList provides common structure and code for
 //  maintainng an arbitrary list of dependent conditions.
 //  A cache variable is also associated with the list so that
@@ -274,6 +275,7 @@ impl Condition for Or {
         }
     }
 }
+
 #[cfg(test)]
 mod not_tests {
     use super::*;
@@ -304,6 +306,11 @@ mod not_tests {
         let mut not = Not::new(&c);
         let e = FlatEvent::new();
         assert!(not.check(&e));
+    }
+    #[test]
+    fn foldable_1() {
+        let f = False {};
+        assert!(!f.is_fold());
     }
 }
 #[cfg(test)]
@@ -436,6 +443,19 @@ mod and_tests {
         assert!(!a.check(&e));
         assert!(c2.borrow().get_cached_value().is_none());
     }
+    #[test]
+    fn foldable_1() {
+        let mut a = And::new();
+        let f = False {};
+        let c1: Container = Rc::new(RefCell::new(Box::new(f)));
+        let s = Cut::new(1, 100.0, 200.0);
+        let c2: Container = Rc::new(RefCell::new(Box::new(s)));
+
+        a.add_condition(&c1);
+        a.add_condition(&c2);
+
+        assert!(!a.is_fold());
+    }
 }
 #[cfg(test)]
 mod or_tests {
@@ -565,5 +585,18 @@ mod or_tests {
         o.add_condition(&cf2);
 
         assert!(!o.check(&e));
+    }
+    #[test]
+    fn foldable_1() {
+        let mut o = Or::new();
+        let f1 = False {};
+        let cf1: Container = Rc::new(RefCell::new(Box::new(f1)));
+        let f2 = False {};
+        let cf2: Container = Rc::new(RefCell::new(Box::new(f2)));
+
+        o.add_condition(&cf1);
+        o.add_condition(&cf2);
+
+        assert!(!o.is_fold());
     }
 }

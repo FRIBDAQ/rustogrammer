@@ -20,8 +20,11 @@
 use super::*;
 
 use ndhistogram::value::Sum;
+use std::collections::HashSet;
+
 pub struct Multi2d {
     applied_gate: SpectrumGate,
+    applied_fold: SpectrumGate,
     name: String,
     histogram: H2DContainer,
     param_names: Vec<String>,
@@ -37,15 +40,14 @@ impl Spectrum for Multi2d {
     }
 
     fn increment(&mut self, e: &FlatEvent) {
+        let pairs = self.get_parameter_pairs(e);
         let mut histogram = self.histogram.borrow_mut();
-        for a in 0..self.param_ids.len() {
-            for b in (a + 1)..self.param_ids.len() {
-                let x = e[self.param_ids[a]];
-                let y = e[self.param_ids[b]];
-                if let Some(x) = x {
-                    if let Some(y) = y {
-                        histogram.fill(&(x, y));
-                    }
+        for pair in pairs {
+            let x = e[pair.0];
+            let y = e[pair.1];
+            if let Some(x) = x {
+                if let Some(y) = y {
+                    histogram.fill(&(x, y));
                 }
             }
         }
@@ -81,6 +83,35 @@ impl Spectrum for Multi2d {
     }
     fn get_histogram_2d(&self) -> Option<H2DContainer> {
         Some(Rc::clone(&self.histogram))
+    }
+    // support applying a fold:
+
+    fn can_fold(&self) -> bool {
+        true
+    }
+
+    fn fold(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+        if let Some(cond) = dict.get(name) {
+            if cond.borrow().is_fold() {
+                self.applied_fold.set_gate(name, dict)
+            } else {
+                Err(format!("{} cannot be used as a fold", name))
+            }
+        } else {
+            Err(format!("There is no condition named {}", name))
+        }
+    }
+    fn unfold(&mut self) -> Result<(), String> {
+        self.applied_fold.ungate();
+        Ok(())
+    }
+
+    fn get_fold(&self) -> Option<String> {
+        if let Some(g) = self.applied_fold.gate.clone() {
+            Some(g.condition_name)
+        } else {
+            None
+        }
     }
 }
 impl Multi2d {
@@ -181,6 +212,7 @@ impl Multi2d {
         }
         Ok(Multi2d {
             applied_gate: SpectrumGate::new(),
+            applied_fold: SpectrumGate::new(),
             name: String::from(name),
             histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(
@@ -195,15 +227,42 @@ impl Multi2d {
             param_ids: pids,
         })
     }
+    // Get the parameter pairs to increment.
+    // If not folded this is just all pairs.
+    // If folded its the intersection of all pairs and
+    // the fold pairs.  Optimization is very possible - later.
+
+    fn get_parameter_pairs(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
+        let mut raw = vec![];
+        // Could precompute this...
+        for (i, p1) in self.param_ids.as_slice()[0..self.param_ids.len() - 1]
+            .iter()
+            .enumerate()
+        {
+            for p2 in self.param_ids.iter().skip(i + 1) {
+                raw.push((*p1, *p2));
+            }
+        }
+        if self.applied_fold.is_fold() {
+            let fold = self.applied_fold.fold_2d(e);
+            let fold_set = fold.into_iter().collect::<HashSet<(u32, u32)>>();
+            let raw_set = raw.into_iter().collect::<HashSet<(u32, u32)>>();
+            let mut result = vec![];
+            for pair in fold_set.intersection(&raw_set) {
+                result.push(*pair);
+            }
+            result
+        } else {
+            raw
+        }
+    }
 }
+
 #[cfg(test)]
-mod multi2d_tests {
-    use super::*;
-    use std::cell::RefCell;
-    use std::rc::Rc;
-    #[test]
-    fn new_1() {
-        let mut pdict = ParameterDictionary::new();
+mod test_support {
+    use crate::conditions::twod::{Point, Points};
+    use crate::parameters::ParameterDictionary;
+    pub fn make_params(pdict: &mut ParameterDictionary) -> Vec<String> {
         let mut pnames = Vec::<String>::new();
         for i in 0..10 {
             let pname = format!("param.{}", i);
@@ -214,6 +273,35 @@ mod multi2d_tests {
             p.set_bins(1024);
             pnames.push(pname);
         }
+        pnames
+    }
+    pub fn make_simple_params(pdict: &mut ParameterDictionary) -> Vec<String> {
+        let mut pnames = Vec::<String>::new();
+        for i in 0..10 {
+            let pname = format!("param.{}", i);
+            pdict.add(&pname).unwrap();
+            pnames.push(pname);
+        }
+        pnames
+    }
+    pub fn test_points() -> Points {
+        vec![
+            Point::new(200.0, 500.0),
+            Point::new(500.0, 500.0),
+            Point::new(250.0, 0.0),
+        ]
+    }
+}
+#[cfg(test)]
+mod multi2d_tests {
+    use super::test_support::{make_params, make_simple_params};
+    use super::*;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+    #[test]
+    fn new_1() {
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
         let result = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None);
         assert!(result.is_ok());
         let spec = result.unwrap();
@@ -247,16 +335,7 @@ mod multi2d_tests {
         // Override X axis definitions:
 
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let pnames = make_params(&mut pdict);
         let result = Multi2d::new(
             "test",
             pnames,
@@ -300,16 +379,7 @@ mod multi2d_tests {
         // Override y axis defs:
 
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let pnames = make_params(&mut pdict);
         let result = Multi2d::new(
             "test",
             pnames,
@@ -355,16 +425,7 @@ mod multi2d_tests {
         // A nonexistent parameter is in the parameter array:
 
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let mut pnames = make_params(&mut pdict);
         pnames.push(String::from("param.11"));
         let result = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None);
         assert!(result.is_err());
@@ -375,12 +436,7 @@ mod multi2d_tests {
         // Remember parameters supply both x/y defaults:
 
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            pnames.push(pname);
-        }
+        let pnames = make_simple_params(&mut pdict);
 
         let result = Multi2d::new(
             "test",
@@ -410,12 +466,7 @@ mod multi2d_tests {
     #[test]
     fn new_6() {
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            pnames.push(pname);
-        }
+        let pnames = make_simple_params(&mut pdict);
 
         let result = Multi2d::new(
             "test",
@@ -445,12 +496,7 @@ mod multi2d_tests {
     #[test]
     fn new_7() {
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            pnames.push(pname);
-        }
+        let pnames = make_simple_params(&mut pdict);
 
         let result = Multi2d::new(
             "test",
@@ -482,16 +528,7 @@ mod multi2d_tests {
     #[test]
     fn incr_1() {
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let pnames = make_params(&mut pdict);
         let mut spec =
             Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None).unwrap();
 
@@ -526,16 +563,7 @@ mod multi2d_tests {
     #[test]
     fn incr_2() {
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let pnames = make_params(&mut pdict);
         let mut spec =
             Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None).unwrap();
 
@@ -577,16 +605,7 @@ mod multi2d_tests {
     #[test]
     fn incr_3() {
         let mut pdict = ParameterDictionary::new();
-        let mut pnames = Vec::<String>::new();
-        for i in 0..10 {
-            let pname = format!("param.{}", i);
-            pdict.add(&pname).unwrap();
-            let p = pdict.lookup_mut(&pname).unwrap();
-
-            p.set_limits(0.0, 1024.0);
-            p.set_bins(1024);
-            pnames.push(pname);
-        }
+        let pnames = make_params(&mut pdict);
         let mut spec =
             Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None).unwrap();
 
@@ -613,5 +632,222 @@ mod multi2d_tests {
         for chan in spec.histogram.borrow().iter() {
             assert_eq!(0.0, chan.value.get());
         }
+    }
+}
+#[cfg(test)]
+mod fold_tests {
+    use super::test_support::{make_params, test_points};
+    use super::*;
+    use crate::conditions::cut::{Cut, MultiCut};
+    use crate::conditions::twod::MultiContour;
+    use crate::conditions::ConditionDictionary;
+    use crate::parameters::{EventParameter, FlatEvent};
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    #[test]
+    fn fold_1() {
+        // Can use a multicontour as a fold.
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("gc", &gdict)
+            .expect("Unable to fold multi2ds with multi contour.")
+    }
+    #[test]
+    fn fold_2() {
+        // Multi cut can also fold:
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("ga"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("ga", &gdict)
+            .expect("Could not fold multi2d with multicut");
+    }
+    #[test]
+    fn fold_3() {
+        // non folding conditions can't fold:
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let c = Cut::new(1, 100.0, 200.0);
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("cut"), Rc::new(RefCell::new(Box::new(c))));
+
+        assert!(spec.fold("cut", &gdict).is_err());
+    }
+    #[test]
+    fn fold_4() {
+        // can' fold a nonexistent condition:
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let gdict = ConditionDictionary::new();
+
+        assert!(spec.fold("cut", &gdict).is_err());
+    }
+    #[test]
+    fn unfold_1() {
+        // Can remove a fold from a specturml
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("gc", &gdict)
+            .expect("Unable to fold multi2ds with multi contour.");
+
+        assert!(spec.unfold().is_ok());
+        assert!(!spec.applied_fold.is_fold());
+    }
+    #[test]
+    fn lsfold_1() {
+        // Unfolded spectra give None for fold name.
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        assert!(spec.get_fold().is_none());
+    }
+    #[test]
+    fn lsfold_2() {
+        // Folded spectra give the Some(fold-name).
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("gc", &gdict)
+            .expect("Unable to fold multi2ds with multi contour.");
+        let fold = spec.get_fold();
+        assert!(fold.is_some());
+        assert_eq!("gc", fold.unwrap());
+    }
+    #[test]
+    fn getpairs_1() {
+        // the parameter pairs are just from raw if there's no fold:
+
+        let mut pdict = ParameterDictionary::new();
+        let _ = make_params(&mut pdict);
+        let mut spec = Multi2d::new(
+            "test",
+            vec![
+                String::from("param.0"),
+                String::from("param.1"),
+                String::from("param.2"),
+            ],
+            &pdict,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+        .expect("Making spectrum");
+
+        let rawe = vec![];
+        let mut ev = FlatEvent::new();
+        ev.load_event(&rawe);
+
+        let mut ps = spec.get_parameter_pairs(&ev);
+        ps.sort();
+
+        assert_eq!(vec![(1, 2), (1, 3), (2, 3)], ps);
+    }
+    #[test]
+    fn getpairs_2() {
+        // if there's a contour but none of the event is inside all params:
+
+        let mut pdict = ParameterDictionary::new();
+        let _ = make_params(&mut pdict);
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("gc", &gdict)
+            .expect("Unable to fold multi2ds with multi contour.");
+
+        let rawe = vec![
+            EventParameter::new(1, 50.0),
+            EventParameter::new(2, 70.0),
+            EventParameter::new(3, 1000.0),
+        ];
+        let mut ev = FlatEvent::new();
+        ev.load_event(&rawe);
+
+        let mut ps = spec.get_parameter_pairs(&ev);
+        ps.sort();
+
+        assert_eq!(vec![(1, 2), (1, 3), (2, 3)], ps);
+    }
+    #[test]
+    fn getpair_3() {
+        // Pair inside is removed
+
+        let mut pdict = ParameterDictionary::new();
+        let _ = make_params(&mut pdict);
+
+        let mut pdict = ParameterDictionary::new();
+        let pnames = make_params(&mut pdict);
+        let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
+            .expect("Making spectrum");
+
+        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let mut gdict = ConditionDictionary::new();
+        gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
+
+        spec.fold("gc", &gdict)
+            .expect("Unable to fold multi2ds with multi contour.");
+
+        let rawe = vec![
+            EventParameter::new(1, 50.0),
+            EventParameter::new(2, 250.0),
+            EventParameter::new(3, 400.0),
+        ];
+        let mut ev = FlatEvent::new();
+        ev.load_event(&rawe);
+
+        let mut ps = spec.get_parameter_pairs(&ev);
+        ps.sort();
+
+        assert_eq!(vec![(1, 2), (1, 3)], ps);
     }
 }

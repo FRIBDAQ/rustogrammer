@@ -281,6 +281,20 @@ mod oned_tests {
             result.err().unwrap()
         );
     }
+    #[test]
+    fn foldable_1() {
+        let mut d = ParameterDictionary::new();
+        d.add("test").unwrap();
+
+        let p = d.lookup_mut("test").unwrap();
+        p.set_limits(0.0, 1023.0);
+        p.set_bins(1024);
+        p.set_description("This is a test parameter");
+
+        let result =
+            Oned::new("test_spec", "test", &d, None, None, None).expect("Making 1d spectrum");
+        assert!(!result.can_fold());
+    }
     // There are many tests we need to see if a
     // Spectrum is incremented properly as well.
     // Under the assumption that a bin number is valid this

@@ -141,6 +141,42 @@ impl SpectrumGate {
             true
         }
     }
+    /// Support for fold: Is the gate a fold:
+
+    pub fn is_fold(&mut self) -> bool {
+        if let Some(g) = &self.gate {
+            if let Some(g) = g.gate.upgrade() {
+                g.borrow().is_fold()
+            } else {
+                self.ungate();
+                false
+            }
+        } else {
+            false
+        }
+    }
+    pub fn fold_1d(&mut self, e: &FlatEvent) -> Vec<u32> {
+        if let Some(g) = &self.gate {
+            if let Some(g) = g.gate.upgrade() {
+                g.borrow_mut().evaluate_1(e)
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        }
+    }
+    pub fn fold_2d(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
+        if let Some(g) = &self.gate {
+            if let Some(g) = g.gate.upgrade() {
+                g.borrow_mut().evaluate_2(e)
+            } else {
+                vec![]
+            }
+        } else {
+            vec![]
+        }
+    }
 }
 
 /// We have the following 1-d and 2-d spectra
@@ -309,6 +345,24 @@ pub trait Spectrum {
         }
 
         (xunder, yunder, xover, yover)
+    }
+    // These functions are added to support folding:
+
+    ///  Override to return true if the spectrum can be folded.
+    ///
+    fn can_fold(&self) -> bool {
+        false
+    }
+    fn fold(&mut self, _name: &str, _dict: &ConditionDictionary) -> Result<(), String> {
+        Err(String::from(
+            "Spectra of this type cannot have folds applied",
+        ))
+    }
+    fn unfold(&mut self) -> Result<(), String> {
+        Err(String::from("Spectra of this type can't have folds"))
+    }
+    fn get_fold(&self) -> Option<String> {
+        None
     }
 }
 
