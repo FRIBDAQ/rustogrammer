@@ -615,7 +615,6 @@ mod fold_tests {
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");
 
-
         let fold = spec.get_fold();
         assert!(fold.is_some());
         assert_eq!("gs", fold.unwrap());

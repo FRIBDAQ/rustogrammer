@@ -21,6 +21,7 @@
 //!
 use super::*;
 use ndhistogram::value::Sum;
+use std::collections::HashSet;
 
 // This struct defines a parameter for the spectrum:
 
@@ -37,6 +38,7 @@ struct SpectrumParameter {
 ///
 pub struct PGamma {
     applied_gate: SpectrumGate,
+    applied_fold: SpectrumGate,
     name: String,
     histogram: H2DContainer,
 
@@ -54,22 +56,19 @@ impl Spectrum for PGamma {
     // Increment for _all_ valid ids in the event:
     //
     fn increment(&mut self, e: &FlatEvent) {
+        let ppairs = self.get_parameters(e);
         let mut histogram = self.histogram.borrow_mut();
-        for xp in self.x_params.iter() {
-            for yp in self.y_params.iter() {
-                let xid = xp.id;
-                let yid = yp.id;
-
-                let x = e[xid];
-                let y = e[yid];
-                if let Some(x) = x {
-                    if let Some(y) = y {
-                        histogram.fill(&(x, y));
-                    }
+        for (ix, iy) in ppairs {
+            let x = e[ix];
+            let y = e[iy];
+            if let Some(x) = x {
+                if let Some(y) = y {
+                    histogram.fill(&(x, y));
                 }
             }
         }
     }
+
     fn get_name(&self) -> String {
         self.name.clone()
     }
@@ -110,6 +109,30 @@ impl Spectrum for PGamma {
     fn get_histogram_2d(&self) -> Option<H2DContainer> {
         Some(Rc::clone(&self.histogram))
     }
+    // Implement fold interface:
+
+    fn fold(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
+        if let Some(cond) = dict.get(name) {
+            if cond.borrow().is_fold() {
+                self.applied_fold.set_gate(name, dict)
+            } else {
+                Err(format!("{} cannot be used as a fold", name))
+            }
+        } else {
+            Err(format!("There is no condition named {}", name))
+        }
+    }
+    fn unfold(&mut self) -> Result<(), String> {
+        self.applied_fold.ungate();
+        Ok(())
+    }
+    fn get_fold(&self) -> Option<String> {
+        if let Some(g) = self.applied_fold.gate.clone() {
+            Some(g.condition_name)
+        } else {
+            None
+        }
+    }
 }
 type ParameterDescription = (
     Option<f64>,
@@ -147,6 +170,35 @@ impl PGamma {
 
         Ok((x_min, x_max, x_bins, xp))
     }
+    // This method returns the set of parameter id pairs to try to increment
+    // over.  In the case where there's no fold, this is just all
+    // x/y parameter pairs.  If there's a fold it's the set of x/y parameter
+    // pairs that dont' fall inthe fold.
+
+    fn get_parameters(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
+        let mut result = vec![];
+        for px in self.x_params.iter() {
+            for py in self.y_params.iter() {
+                result.push((px.id, py.id));
+            }
+        }
+        if self.applied_fold.is_fold() {
+            let fold = self.applied_fold.fold_2d(e);
+            let fold_set = fold.into_iter().collect::<HashSet<(u32, u32)>>();
+            let mut raw_set = HashSet::<(u32, u32)>::new();
+            for pair in result {
+                raw_set.insert(pair);
+            }
+            let mut pairs = vec![];
+            for p in raw_set.intersection(&fold_set) {
+                pairs.push(*p);
+            }
+            pairs
+        } else {
+            result
+        }
+    }
+
     /// Create a new gamma spectrum.   
     /// *   name - the name of the new spectrum.
     /// *   xparams - Vector of x parameter names.
@@ -221,6 +273,7 @@ impl PGamma {
 
         Ok(PGamma {
             applied_gate: SpectrumGate::new(),
+            applied_fold: SpectrumGate::new(),
             name: String::from(name),
             histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(x_bins.unwrap() as usize, x_min.unwrap(), x_max.unwrap()),
