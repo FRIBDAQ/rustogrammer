@@ -939,4 +939,60 @@ mod pgamma_tests {
 
         assert_eq!(expected_pairs, pairs);
     }
+    #[test]
+    fn getpars_3() {
+        // X/y pairs only are tested against the fold:
+
+        let pdict = make_params(10, None, None);
+
+        let mut gdict = ConditionDictionary::new();
+        let fold = conditions::MultiContour::new(
+            &vec![ 1, 2, 3, 4, 5],
+            vec![
+                conditions::twod::Point::new(100.0, 100.0),
+                conditions::twod::Point::new(500.0, 100.0),
+                conditions::twod::Point::new(250.0, 250.0),
+            ],
+        )
+        .expect("Making contour");
+        gdict.insert(String::from("fold"), Rc::new(RefCell::new(Box::new(fold))));
+
+        let mut spec = PGamma::new(
+            "test",
+            &vec![
+                String::from("param.0"),
+                String::from("param.1"),
+                String::from("param.2"),
+            ],
+            &vec![String::from("param.3"), String::from("param.4")],
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+        )
+        .expect("Making spectrum");
+        spec.fold("fold", &gdict).expect("Folding");
+
+        // XY pair in the contour:
+
+        let event = vec![
+            EventParameter::new(1, 250.0),
+            EventParameter::new(2, 125.0),
+            EventParameter::new(3, 20.0),
+            EventParameter::new(4, 35.0),
+            EventParameter::new(5, 30.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&event);
+        let mut pairs = spec.get_parameters(&fe);
+        pairs.sort();
+
+        let (xids, yids) = get_ids(&spec);
+        let expected_pairs = make_pairs(&xids, &yids);
+        
+        assert_eq!(expected_pairs, pairs);
+    }
 }
