@@ -177,6 +177,7 @@ impl SpectrumGate {
             vec![]
         }
     }
+    
 }
 
 /// We have the following 1-d and 2-d spectra
