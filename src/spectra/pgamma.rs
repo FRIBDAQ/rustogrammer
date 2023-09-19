@@ -288,6 +288,7 @@ impl PGamma {
 #[cfg(test)]
 mod pgamma_tests {
     use super::*;
+    use crate::conditions;
     use std::cell::RefCell; // Needed in gating
     use std::rc::Rc; // Needed in gating.
 
@@ -818,10 +819,10 @@ mod pgamma_tests {
         let mut x = vec![];
         let mut y = vec![];
         for xp in s.x_params.iter() {
-            x.push(*xp);
+            x.push(xp.id);
         }
         for yp in s.y_params.iter() {
-            y.push(*yp);
+            y.push(yp.id);
         }
         (x, y)
     }
@@ -829,5 +830,56 @@ mod pgamma_tests {
     #[test]
     fn getpars_1() {
         // Given not pairs in the contour, all original pairs are returned.
+
+        let pdict = make_params(10, None, None);
+
+        let mut gdict = ConditionDictionary::new();
+        let fold = conditions::MultiContour::new(
+            &vec![0, 1, 2, 3, 4],
+            vec![
+                conditions::twod::Point::new(100.0, 100.0),
+                conditions::twod::Point::new(500.0, 100.0),
+                conditions::twod::Point::new(250.0, 250.0),
+            ],
+        )
+        .expect("Making contour");
+        gdict.insert(String::from("fold"), Rc::new(RefCell::new(Box::new(fold))));
+
+        let mut spec = PGamma::new(
+            "test",
+            &vec![
+                String::from("param.0"),
+                String::from("param.1"),
+                String::from("param.2"),
+            ],
+            &vec![String::from("param.4"), String::from("param.5")],
+            &pdict,
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+            Some(0.0),
+            Some(1024.0),
+            Some(1024),
+        )
+        .expect("Making spectrum");
+
+        // Make an event with all parameters outside the contour
+
+        let event = vec![
+            EventParameter::new(0, 10.0),
+            EventParameter::new(1, 15.0),
+            EventParameter::new(2, 20.0),
+            EventParameter::new(3, 25.0),
+            EventParameter::new(4, 30.0),
+        ];
+        let mut fe = FlatEvent::new();
+        fe.load_event(&event);
+        let pairs = spec.get_parameters(&fe);
+
+        // Generate our expectations:
+
+        let (xids, yids) = get_ids(&spec);
+        let expected_pairs = make_pairs(&xids, &yids);
+        assert_eq!(expected_pairs, pairs);
     }
 }
