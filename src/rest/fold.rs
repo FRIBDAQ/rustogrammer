@@ -65,12 +65,34 @@ pub struct FoldListResponse {
 ///  If implemented the _pattern_ query  parameter will filter out
 /// the listing to only inlcude the spectra with names that match the
 /// pattern.  The reply is a FoldListResponse shown above.
-#[get("/list")]
-pub fn list() -> Json<FoldListResponse> {
-    Json(FoldListResponse {
-        status: String::from("/spectcl/fold/list is not implemented - this is not SpecTcl"),
-        detail: vec![],
-    })
+#[get("/list/<pattern>")]
+pub fn list(pattern: String, msg_chan: &State<SharedHistogramChannel>) -> Json<FoldListResponse> {
+    let hapi = spectrum_messages::SpectrumMessageClient::new(&msg_chan.inner().lock().unwrap());
+
+    let response = match hapi.list_spectra(&pattern) {
+        Ok(l) => {
+            let mut result = FoldListResponse {
+                status: String::from("OK"),
+                detail: vec![],
+            };
+
+            for props in l {
+                if props.fold.is_some() {
+                    result.detail.push(FoldInfo {
+                        spectrum: props.name.clone(),
+                        gate: props.fold.clone().unwrap().clone(),
+                    });
+                }
+            }
+            result
+        }
+        Err(s) => FoldListResponse {
+            status: format!("Failed to fetch spectrum list: {}", s),
+            detail: vec![],
+        },
+    };
+
+    Json(response)
 }
 /// remove - unimplemented
 ///
@@ -185,7 +207,10 @@ mod fold_tests {
 
         let cl = Client::untracked(rocket).expect("Making rocket client");
         let r = cl.get("/apply?spectrum=junk&gate=trash");
-        let reply = r.dispatch().into_json::<GenericResponse>().expect("Parsing JSON");
+        let reply = r
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
 
         assert_eq!("Could not fold spectrum", reply.status);
 
