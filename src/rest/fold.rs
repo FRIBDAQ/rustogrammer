@@ -66,10 +66,18 @@ pub struct FoldListResponse {
 /// the listing to only inlcude the spectra with names that match the
 /// pattern.  The reply is a FoldListResponse shown above.
 #[get("/list/<pattern>")]
-pub fn list(pattern: String, msg_chan: &State<SharedHistogramChannel>) -> Json<FoldListResponse> {
+pub fn list(
+    pattern: OptionalString,
+    msg_chan: &State<SharedHistogramChannel>,
+) -> Json<FoldListResponse> {
     let hapi = spectrum_messages::SpectrumMessageClient::new(&msg_chan.inner().lock().unwrap());
 
-    let response = match hapi.list_spectra(&pattern) {
+    let p = if let Some(pp) = pattern {
+        pp
+    } else {
+        String::from("*")
+    };
+    let response = match hapi.list_spectra(&p) {
         Ok(l) => {
             let mut result = FoldListResponse {
                 status: String::from("OK"),
