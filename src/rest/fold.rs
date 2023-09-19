@@ -114,7 +114,7 @@ pub fn remove(spectrum: String, msg_chan: &State<SharedHistogramChannel>) -> Jso
     let sapi = spectrum_messages::SpectrumMessageClient::new(&msg_chan.inner().lock().unwrap());
 
     let reply = if let Err(s) = sapi.unfold_spectrum(&spectrum) {
-        GenericResponse::err("Failed to remove fold: ", &s)
+        GenericResponse::err("Failed to remove fold", &s)
     } else {
         GenericResponse::ok("")
     };
@@ -402,22 +402,68 @@ mod fold_tests {
     }
     #[test]
     fn remove_1() {
+        // Success when there's a fold applied:
+
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
 
-        let client = Client::tracked(rocket).expect("Creating client");
-        let req = client.get("/remove");
+        // Make a set of parameters, a multicut and Multi1d:
+        let parapi = parameter_messages::ParameterMessageClient::new(&c);
+        let capi = condition_messages::ConditionMessageClient::new(&c);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(&c);
 
-        let response = req
+        let mut params = vec![];
+        let mut param_ids = vec![];
+        for i in 0..10 {
+            let name = format!("param.{}", i);
+            parapi.create_parameter(&name).expect("Making a parameter");
+            params.push(name);
+            param_ids.push(i);
+        }
+        assert!(
+            match capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0) {
+                condition_messages::ConditionReply::Created => true,
+                _ => false,
+            },
+            "Making condition."
+        );
+        sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
+            .expect("Making spectrum");
+
+        sapi.fold_spectrum(&"test", "mcut")
+            .expect("Folding spectrum");
+
+        let client = Client::untracked(rocket).expect("Making rocket client");
+        let req = client.get("/remove?spectrum=test");
+        let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
-            .expect("Decoding JSON");
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
 
-        assert_eq!(
-            "/spectcl/fold/remove is not implemented",
-            response.status.as_str()
-        );
-        assert_eq!("This is not SpecTcl", response.detail.as_str());
+        let l = sapi
+            .list_spectra("test")
+            .expect("Getting spectrum properties");
+        assert_eq!(1, l.len());
+        assert!(l[0].fold.is_none()); // Actually unfolded.
+
+        teardown(c, &papi, &bapi);
+    }
+    #[test]
+    fn remove_2() {
+        // Failure get mapped:
+
+        let rocket = setup();
+        let (c, papi, bapi) = get_state(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/remove?spectrum=junk");
+        let resp = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Failed to remove fold", resp.status);
 
         teardown(c, &papi, &bapi);
     }
