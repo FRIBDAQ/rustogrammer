@@ -518,7 +518,10 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(HashSet::from_iter([1, 2, 3].iter().cloned()), mcut.evaluate_1(&fevent));
+        assert_eq!(
+            HashSet::from_iter([1, 2, 3].iter().cloned()),
+            mcut.evaluate_1(&fevent)
+        );
     }
     #[test]
     fn fold1_3() {
@@ -532,7 +535,10 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(HashSet::from_iter([1, 3].iter().cloned()), mcut.evaluate_1(&fevent));
+        assert_eq!(
+            HashSet::from_iter([1, 3].iter().cloned()),
+            mcut.evaluate_1(&fevent)
+        );
     }
     #[test]
     fn fold2_1() {
@@ -562,7 +568,10 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(HashSet::from_iter([(2, 3)].iter().cloned()), mcut.evaluate_2(&fevent));
+        assert_eq!(
+            HashSet::from_iter([(2, 3)].iter().cloned()),
+            mcut.evaluate_2(&fevent)
+        );
     }
     #[test]
     fn fold2_3() {
@@ -577,6 +586,9 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(HashSet::from_iter([(1, 2), (1, 3), (2, 3)].iter().cloned()), mcut.evaluate_2(&fevent));
+        assert_eq!(
+            HashSet::from_iter([(1, 2), (1, 3), (2, 3)].iter().cloned()),
+            mcut.evaluate_2(&fevent)
+        );
     }
 }
