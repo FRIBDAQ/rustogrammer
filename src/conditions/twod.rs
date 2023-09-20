@@ -48,6 +48,8 @@ use super::*;
 use crate::parameters::*;
 use libm::{fmax, fmin};
 
+use std::collections::HashSet;
+
 /// Points are just x/y pairs that are used to represent the
 /// graphical exent of twod conditions.
 ///  These are defined in parameter space and, therefore, are a pair
@@ -473,22 +475,24 @@ impl Condition for MultiContour {
     fn is_fold(&self) -> bool {
         true
     }
-    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
+    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> HashSet<u32> {
         // All we need to do is
         // 1. evaluate_2
         // 2. Turn the vector of pairs into a single vector.
         // 3. Sort that vector
         // 4. Remove duplications:
 
+        
+
         let pairs = self.evaluate_2(event);
         let (mut v1, mut v2): (Vec<u32>, Vec<u32>) = pairs.iter().cloned().unzip();
         v1.append(&mut v2);
         v1.sort();
         v1.dedup();
-        v1
+        HashSet::from_iter(v1.iter().cloned())
     }
-    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> Vec<(u32, u32)> {
-        let mut result = Vec::<(u32, u32)>::new();
+    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> HashSet<(u32, u32)> {
+        let mut result = HashSet::<(u32, u32)>::new();
         for (i, p1) in self.parameters.as_slice()[0..self.parameters.len() - 1]
             .iter()
             .enumerate()
@@ -498,7 +502,7 @@ impl Condition for MultiContour {
                     let x = event[*p1].unwrap();
                     let y = event[*p2].unwrap();
                     if !self.contour.inside(x, y) {
-                        result.push((*p1, *p2));
+                        result.insert((*p1, *p2));
                     }
                 }
             }
@@ -1333,7 +1337,7 @@ mod multicontour_tests {
 
         let p = c.evaluate_1(&fe);
 
-        assert_eq!(Vec::<u32>::new(), p);
+        assert_eq!(HashSet::<u32>::new(), p);
     }
     #[test]
     fn fold1_2() {
@@ -1350,7 +1354,7 @@ mod multicontour_tests {
         fe.load_event(&e);
         let p = c.evaluate_1(&fe);
 
-        assert_eq!(vec![1, 2, 3], p);
+        assert_eq!(HashSet::from_iter(vec![1, 2, 3].iter().cloned()), p);
     }
     #[test]
     fn fold1_3() {
@@ -1366,7 +1370,7 @@ mod multicontour_tests {
         fe.load_event(&e);
         let p = c.evaluate_1(&fe);
 
-        assert_eq!(vec![1, 2, 3], p);
+        assert_eq!(HashSet::from_iter(vec![1, 2, 3].iter().cloned()), p);
     }
 
     #[test]
@@ -1384,7 +1388,7 @@ mod multicontour_tests {
 
         let p = c.evaluate_2(&fe);
 
-        assert_eq!(Vec::<(u32, u32)>::new(), p);
+        assert_eq!(HashSet::<(u32, u32)>::new(), p);
     }
     #[test]
     fn fold2_2() {
@@ -1400,6 +1404,6 @@ mod multicontour_tests {
         fe.load_event(&e);
 
         let p = c.evaluate_2(&fe);
-        assert_eq!(vec![(1, 2), (1, 3)], p);
+        assert_eq!(HashSet::from_iter([(1, 2), (1, 3)].iter().cloned()), p);
     }
 }

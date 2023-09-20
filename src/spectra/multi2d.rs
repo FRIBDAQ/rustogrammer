@@ -28,7 +28,6 @@ pub struct Multi2d {
     name: String,
     histogram: H2DContainer,
     param_names: Vec<String>,
-    param_ids: Vec<u32>,
     parameter_hash: HashSet<(u32, u32)>,
     parameter_pairs: Vec<(u32, u32)>,
 }
@@ -234,7 +233,6 @@ impl Multi2d {
                 Sum
             ))),
             param_names: pnames,
-            param_ids: pids,
             parameter_hash: param_hash,
             parameter_pairs: pairs,
         })
@@ -246,8 +244,7 @@ impl Multi2d {
 
     fn get_parameter_pairs(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
         if self.applied_fold.is_fold() {
-            let fold = self.applied_fold.fold_2d(e);
-            let fold_set = fold.into_iter().collect::<HashSet<(u32, u32)>>();
+            let fold_set = self.applied_fold.fold_2d(e);
             let mut result = vec![];
             for pair in fold_set.intersection(&self.parameter_hash) {
                 result.push(*pair);
@@ -322,13 +319,11 @@ mod multi2d_tests {
         assert_eq!(1024 + 2, y.num_bins());
 
         assert_eq!(10, spec.param_names.len());
-        assert_eq!(10, spec.param_ids.len());
+        assert_eq!(10 * 9 / 2, spec.parameter_pairs.len()); // # of unique pts n(n-1)/2
 
         for (i, name) in spec.param_names.iter().enumerate() {
             let sbname = format!("param.{}", i);
             assert_eq!(sbname, *name);
-            let p = pdict.lookup(name).unwrap();
-            assert_eq!(p.get_id(), spec.param_ids[i]);
         }
     }
     #[test]
@@ -366,13 +361,10 @@ mod multi2d_tests {
         assert_eq!(1024 + 2, y.num_bins());
 
         assert_eq!(10, spec.param_names.len());
-        assert_eq!(10, spec.param_ids.len());
 
         for (i, name) in spec.param_names.iter().enumerate() {
             let sbname = format!("param.{}", i);
             assert_eq!(sbname, *name);
-            let p = pdict.lookup(name).unwrap();
-            assert_eq!(p.get_id(), spec.param_ids[i]);
         }
     }
     #[test]
@@ -410,13 +402,10 @@ mod multi2d_tests {
         assert_eq!(2048 + 2, y.num_bins());
 
         assert_eq!(10, spec.param_names.len());
-        assert_eq!(10, spec.param_ids.len());
 
         for (i, name) in spec.param_names.iter().enumerate() {
             let sbname = format!("param.{}", i);
             assert_eq!(sbname, *name);
-            let p = pdict.lookup(name).unwrap();
-            assert_eq!(p.get_id(), spec.param_ids[i]);
         }
     }
     // These new tests test various failure cases.
@@ -536,7 +525,16 @@ mod multi2d_tests {
         let mut fe = FlatEvent::new();
         let mut e = Event::new();
 
-        for (i, pid) in spec.param_ids.iter().enumerate() {
+        // Make a list of parameter ids:
+
+        let mut param_ids = vec![];
+        for name in spec.param_names.clone() {
+            let p = pdict.lookup(&name).expect("Can't find parameter");
+            param_ids.push(p.get_id());
+        }
+        // Make an event with known ids and values
+
+        for (i, pid) in param_ids.iter().enumerate() {
             e.push(EventParameter::new(*pid, i as f64 * 10.0));
         }
         fe.load_event(&e);
@@ -544,10 +542,10 @@ mod multi2d_tests {
         // Without an applied gate:
 
         spec.handle_event(&fe);
-        for i in 0..spec.param_ids.len() {
-            for j in (i + 1)..spec.param_ids.len() {
-                let px = spec.param_ids[i];
-                let py = spec.param_ids[j];
+        for i in 0..param_ids.len() {
+            for j in (i + 1)..param_ids.len() {
+                let px = param_ids[i];
+                let py = param_ids[j];
                 let x = fe[px as u32].unwrap();
                 let y = fe[py as u32].unwrap();
                 let v = spec
@@ -571,7 +569,13 @@ mod multi2d_tests {
         let mut fe = FlatEvent::new();
         let mut e = Event::new();
 
-        for (i, pid) in spec.param_ids.iter().enumerate() {
+        let mut param_ids = vec![];
+        for name in spec.param_names.clone() {
+            let p = pdict.lookup(&name).expect("Can't find parameter");
+            param_ids.push(p.get_id());
+        }
+
+        for (i, pid) in param_ids.iter().enumerate() {
             e.push(EventParameter::new(*pid, i as f64 * 10.0));
         }
         fe.load_event(&e);
@@ -586,10 +590,10 @@ mod multi2d_tests {
         spec.gate("true", &cd)
             .expect("Unable to apply gate to spectrum");
         spec.handle_event(&fe);
-        for i in 0..spec.param_ids.len() {
-            for j in (i + 1)..spec.param_ids.len() {
-                let px = spec.param_ids[i];
-                let py = spec.param_ids[j];
+        for i in 0..param_ids.len() {
+            for j in (i + 1)..param_ids.len() {
+                let px = param_ids[i];
+                let py = param_ids[j];
                 let x = fe[px as u32].unwrap();
                 let y = fe[py as u32].unwrap();
                 let v = spec
@@ -613,7 +617,12 @@ mod multi2d_tests {
         let mut fe = FlatEvent::new();
         let mut e = Event::new();
 
-        for (i, pid) in spec.param_ids.iter().enumerate() {
+        let mut param_ids = vec![];
+        for name in spec.param_names.clone() {
+            let p = pdict.lookup(&name).expect("Can't find parameter");
+            param_ids.push(p.get_id());
+        }
+        for (i, pid) in param_ids.iter().enumerate() {
             e.push(EventParameter::new(*pid, i as f64 * 10.0));
         }
         fe.load_event(&e);

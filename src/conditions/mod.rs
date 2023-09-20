@@ -52,7 +52,7 @@
 use crate::parameters;
 use std::boxed::Box;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use std::rc::{Rc, Weak};
 // Re-exported module:
 
@@ -161,8 +161,8 @@ pub trait Condition {
     /// * If a 2-d AOI is evaluated it should return the parameters that
     /// are not in a pair that make the AOI true.
     ///
-    fn evaluate_1(&mut self, _event: &parameters::FlatEvent) -> Vec<u32> {
-        vec![]
+    fn evaluate_1(&mut self, _event: &parameters::FlatEvent) -> HashSet<u32> {
+        HashSet::<u32>::new()
     }
 
     /// Used to evaluate a fold applied to a 2d spectrum.
@@ -182,8 +182,8 @@ pub trait Condition {
     /// * IF a 2-d AOI is evaluated then it should return all paramter pairs
     /// that lie outside the AOI
     ///
-    fn evaluate_2(&mut self, _event: &parameters::FlatEvent) -> Vec<(u32, u32)> {
-        vec![]
+    fn evaluate_2(&mut self, _event: &parameters::FlatEvent) -> HashSet<(u32, u32)> {
+        HashSet::<(u32, u32)>::new()
     }
 }
 

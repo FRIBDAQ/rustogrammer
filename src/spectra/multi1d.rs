@@ -184,7 +184,7 @@ impl Multi1d {
             ))),
             param_names,
             param_ids,
-            param_id_hash:  hash
+            param_id_hash: hash,
         })
     }
     /// Determine the ids to be used for incrementing the spectra.
@@ -195,8 +195,7 @@ impl Multi1d {
     fn get_param_ids(&mut self, e: &FlatEvent) -> Vec<u32> {
         if self.applied_fold.is_fold() {
             // This branch can probably use some optimization
-            let fold_ids = self.applied_fold.fold_1d(e);
-            let fold_set = fold_ids.into_iter().collect::<HashSet<u32>>();
+            let fold_set = self.applied_fold.fold_1d(e);
             let mut result = vec![];
             for i in fold_set.intersection(&self.param_id_hash) {
                 result.push(*i);

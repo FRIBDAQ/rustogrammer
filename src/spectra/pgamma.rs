@@ -45,8 +45,8 @@ pub struct PGamma {
 
     x_params: Vec<SpectrumParameter>,
     y_params: Vec<SpectrumParameter>,
-    pairs : Vec<(u32, u32)>,
-    pair_hash : HashSet<(u32, u32)>
+    pairs: Vec<(u32, u32)>,
+    pair_hash: HashSet<(u32, u32)>,
 }
 // to make this a spectrum we need to implement this trait:
 
@@ -179,11 +179,8 @@ impl PGamma {
     // pairs that dont' fall inthe fold.
 
     fn get_parameters(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
-        
         if self.applied_fold.is_fold() {
-            let fold = self.applied_fold.fold_2d(e);
-            let fold_set = fold.into_iter().collect::<HashSet<(u32, u32)>>();
-            
+            let fold_set = self.applied_fold.fold_2d(e);
             let mut pairs = vec![];
 
             for p in self.pair_hash.intersection(&fold_set) {
@@ -267,7 +264,7 @@ impl PGamma {
         }
         // All good so we can create the return value:
 
-        let mut pairs= vec![];
+        let mut pairs = vec![];
         for x in xp.clone() {
             for y in yp.clone() {
                 pairs.push((x.id, y.id));
@@ -289,8 +286,7 @@ impl PGamma {
             x_params: xp,
             y_params: yp,
             pairs,
-            pair_hash: hash
-
+            pair_hash: hash,
         })
     }
 }
