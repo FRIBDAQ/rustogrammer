@@ -29,6 +29,8 @@ pub struct Multi2d {
     histogram: H2DContainer,
     param_names: Vec<String>,
     param_ids: Vec<u32>,
+    parameter_hash: HashSet<(u32, u32)>,
+    parameter_pairs: Vec<(u32, u32)>,
 }
 
 // The spectrum trait must be implemented to support
@@ -210,6 +212,14 @@ impl Multi2d {
         if y_bins.is_none() {
             return Err(String::from("Y axis binning cannot be defaulted"));
         }
+        let mut pairs = vec![];
+        for (i, p1) in pids[0..pids.len() - 1].iter().enumerate() {
+            for p2 in pids.iter().skip(i + 1) {
+                pairs.push((*p1, *p2));
+            }
+        }
+        let param_hash = pairs.clone().into_iter().collect::<HashSet<(u32, u32)>>();
+
         Ok(Multi2d {
             applied_gate: SpectrumGate::new(),
             applied_fold: SpectrumGate::new(),
@@ -225,6 +235,8 @@ impl Multi2d {
             ))),
             param_names: pnames,
             param_ids: pids,
+            parameter_hash: param_hash,
+            parameter_pairs: pairs,
         })
     }
     // Get the parameter pairs to increment.
@@ -233,27 +245,16 @@ impl Multi2d {
     // the fold pairs.  Optimization is very possible - later.
 
     fn get_parameter_pairs(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
-        let mut raw = vec![];
-        // Could precompute this...
-        for (i, p1) in self.param_ids.as_slice()[0..self.param_ids.len() - 1]
-            .iter()
-            .enumerate()
-        {
-            for p2 in self.param_ids.iter().skip(i + 1) {
-                raw.push((*p1, *p2));
-            }
-        }
         if self.applied_fold.is_fold() {
             let fold = self.applied_fold.fold_2d(e);
             let fold_set = fold.into_iter().collect::<HashSet<(u32, u32)>>();
-            let raw_set = raw.into_iter().collect::<HashSet<(u32, u32)>>();
             let mut result = vec![];
-            for pair in fold_set.intersection(&raw_set) {
+            for pair in fold_set.intersection(&self.parameter_hash) {
                 result.push(*pair);
             }
             result
         } else {
-            raw
+            self.parameter_pairs.clone()
         }
     }
 }
