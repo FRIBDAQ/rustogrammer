@@ -52,7 +52,7 @@
 use crate::parameters;
 use std::boxed::Box;
 use std::cell::RefCell;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::rc::{Rc, Weak};
 // Re-exported module:
 

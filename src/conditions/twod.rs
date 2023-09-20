@@ -482,8 +482,6 @@ impl Condition for MultiContour {
         // 3. Sort that vector
         // 4. Remove duplications:
 
-        
-
         let pairs = self.evaluate_2(event);
         let (mut v1, mut v2): (Vec<u32>, Vec<u32>) = pairs.iter().cloned().unzip();
         v1.append(&mut v2);
