@@ -13,6 +13,7 @@
 
 use super::*;
 use crate::parameters;
+use std::collections::HashSet;
 
 /// Cut
 ///  This struct implements the condition:
@@ -143,20 +144,20 @@ impl Condition for MultiCut {
         true
     }
 
-    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
-        let mut result = Vec::<u32>::new();
+    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> HashSet<u32> {
+        let mut result = HashSet::<u32>::new();
 
         for p in self.parameters.iter() {
             if let Some(value) = event[*p] {
                 if !self.inside(value) {
-                    result.push(*p);
+                    result.insert(*p);
                 }
             }
         }
         result
     }
-    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> Vec<(u32, u32)> {
-        let mut result = Vec::<(u32, u32)>::new();
+    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> HashSet<(u32, u32)> {
+        let mut result = HashSet::<(u32, u32)>::new();
 
         // iterate over pairs:
         // outer loop goes from [0 - last) index i
@@ -169,7 +170,7 @@ impl Condition for MultiCut {
                 if let Some(val1) = event[*p1] {
                     if let Some(val2) = event[*p2] {
                         if !self.inside(val1) && !self.inside(val2) {
-                            result.push((*p1, *p2));
+                            result.insert((*p1, *p2));
                         }
                     }
                 }
@@ -517,7 +518,7 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(vec![1, 2, 3], mcut.evaluate_1(&fevent));
+        assert_eq!(HashSet::from_iter([1, 2, 3].iter().cloned()), mcut.evaluate_1(&fevent));
     }
     #[test]
     fn fold1_3() {
@@ -531,7 +532,7 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(vec![1, 3], mcut.evaluate_1(&fevent));
+        assert_eq!(HashSet::from_iter([1, 3].iter().cloned()), mcut.evaluate_1(&fevent));
     }
     #[test]
     fn fold2_1() {
@@ -561,7 +562,7 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(vec![(2, 3)], mcut.evaluate_2(&fevent));
+        assert_eq!(HashSet::from_iter([(2, 3)].iter().cloned()), mcut.evaluate_2(&fevent));
     }
     #[test]
     fn fold2_3() {
@@ -576,6 +577,6 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(vec![(1, 2), (1, 3), (2, 3)], mcut.evaluate_2(&fevent));
+        assert_eq!(HashSet::from_iter([(1, 2), (1, 3), (2, 3)].iter().cloned()), mcut.evaluate_2(&fevent));
     }
 }

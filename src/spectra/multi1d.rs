@@ -29,6 +29,7 @@ pub struct Multi1d {
     histogram: H1DContainer,
     param_names: Vec<String>,
     param_ids: Vec<u32>,
+    param_id_hash: HashSet<u32>,
 }
 //
 impl Spectrum for Multi1d {
@@ -122,6 +123,8 @@ impl Multi1d {
     /// Default high is the largest of the paramete default highs.
     /// Default bins is the largest of the parameter default bins.
     ///
+    /// ###
+    ///
     pub fn new(
         name: &str,
         params: Vec<String>,
@@ -170,6 +173,7 @@ impl Multi1d {
         if xbins.is_none() {
             return Err(String::from("X axis binning cannot be defaulted"));
         }
+        let hash = param_ids.clone().into_iter().collect::<HashSet<u32>>();
         Ok(Multi1d {
             applied_gate: SpectrumGate::new(),
             applied_fold: SpectrumGate::new(),
@@ -180,6 +184,7 @@ impl Multi1d {
             ))),
             param_names,
             param_ids,
+            param_id_hash: hash,
         })
     }
     /// Determine the ids to be used for incrementing the spectra.
@@ -190,11 +195,9 @@ impl Multi1d {
     fn get_param_ids(&mut self, e: &FlatEvent) -> Vec<u32> {
         if self.applied_fold.is_fold() {
             // This branch can probably use some optimization
-            let fold_ids = self.applied_fold.fold_1d(e);
-            let fold_set = fold_ids.into_iter().collect::<HashSet<u32>>();
-            let param_set = self.param_ids.clone().into_iter().collect::<HashSet<u32>>();
+            let fold_set = self.applied_fold.fold_1d(e);
             let mut result = vec![];
-            for i in fold_set.intersection(&param_set) {
+            for i in fold_set.intersection(&self.param_id_hash) {
                 result.push(*i);
             }
             result

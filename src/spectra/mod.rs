@@ -45,7 +45,7 @@ use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 use ndhistogram::*;
 use std::cell::RefCell;
-use std::collections::{hash_map, HashMap};
+use std::collections::{hash_map, HashMap, HashSet};
 use std::rc::{Rc, Weak};
 
 // Re-exports
@@ -155,26 +155,26 @@ impl SpectrumGate {
             false
         }
     }
-    pub fn fold_1d(&mut self, e: &FlatEvent) -> Vec<u32> {
+    pub fn fold_1d(&mut self, e: &FlatEvent) -> HashSet<u32> {
         if let Some(g) = &self.gate {
             if let Some(g) = g.gate.upgrade() {
                 g.borrow_mut().evaluate_1(e)
             } else {
-                vec![]
+                HashSet::<u32>::new()
             }
         } else {
-            vec![]
+            HashSet::<u32>::new()
         }
     }
-    pub fn fold_2d(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
+    pub fn fold_2d(&mut self, e: &FlatEvent) -> HashSet<(u32, u32)> {
         if let Some(g) = &self.gate {
             if let Some(g) = g.gate.upgrade() {
                 g.borrow_mut().evaluate_2(e)
             } else {
-                vec![]
+                HashSet::<(u32, u32)>::new()
             }
         } else {
-            vec![]
+            HashSet::<(u32, u32)>::new()
         }
     }
 }
