@@ -52,7 +52,7 @@
 use crate::parameters;
 use std::boxed::Box;
 use std::cell::RefCell;
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 use std::rc::{Rc, Weak};
 // Re-exported module:
 
@@ -150,7 +150,7 @@ pub trait Condition {
     /// *  event - the event to check the fold against.
     ///
     /// ### Returns:
-    /// *  Vec<u32> - a vector if parameter ids that are outside the
+    /// *  HashSet<u32> - a vector if parameter ids that are outside the
     /// fold AOI.
     ///
     /// There are two cases: 1d and 2d AOIs (e.g. 2d AOI in another
@@ -173,7 +173,7 @@ pub trait Condition {
     /// *  event - the event to process through the fold.
     ///
     /// ### Returns:
-    ///  * Vec<(u32, u32)> - pairs of parameter ids that can increment
+    ///  * HashSet<(u32, u32)> - pairs of parameter ids that can increment
     /// the spectrum.
     ///
     /// The two cases above apply:
