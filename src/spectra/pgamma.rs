@@ -25,7 +25,7 @@ use std::collections::HashSet;
 
 // This struct defines a parameter for the spectrum:
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SpectrumParameter {
     name: String,
     id: u32,
@@ -45,6 +45,8 @@ pub struct PGamma {
 
     x_params: Vec<SpectrumParameter>,
     y_params: Vec<SpectrumParameter>,
+    pairs : Vec<(u32, u32)>,
+    pair_hash : HashSet<(u32, u32)>
 }
 // to make this a spectrum we need to implement this trait:
 
@@ -177,27 +179,19 @@ impl PGamma {
     // pairs that dont' fall inthe fold.
 
     fn get_parameters(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
-        let mut result = vec![];
-        for px in self.x_params.iter() {
-            for py in self.y_params.iter() {
-                result.push((px.id, py.id));
-            }
-        }
+        
         if self.applied_fold.is_fold() {
             let fold = self.applied_fold.fold_2d(e);
             let fold_set = fold.into_iter().collect::<HashSet<(u32, u32)>>();
-            let mut raw_set = HashSet::<(u32, u32)>::new();
-            for pair in result {
-                raw_set.insert(pair);
-            }
+            
             let mut pairs = vec![];
 
-            for p in raw_set.intersection(&fold_set) {
+            for p in self.pair_hash.intersection(&fold_set) {
                 pairs.push(*p);
             }
             pairs
         } else {
-            result
+            self.pairs.clone()
         }
     }
 
@@ -273,6 +267,16 @@ impl PGamma {
         }
         // All good so we can create the return value:
 
+        let mut pairs= vec![];
+        for x in xp.clone() {
+            for y in yp.clone() {
+                pairs.push((x.id, y.id));
+            }
+        }
+        let mut hash = HashSet::<(u32, u32)>::new();
+        for pair in pairs.iter() {
+            hash.insert(*pair);
+        }
         Ok(PGamma {
             applied_gate: SpectrumGate::new(),
             applied_fold: SpectrumGate::new(),
@@ -284,6 +288,9 @@ impl PGamma {
             ))),
             x_params: xp,
             y_params: yp,
+            pairs,
+            pair_hash: hash
+
         })
     }
 }
