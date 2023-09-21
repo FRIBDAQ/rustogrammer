@@ -6,7 +6,7 @@
 //!  *  The parameter value is in the range [low, high] for that
 //! event.
 //! Cut conditions are defined to support caching.  That is
-//! Having evaluated the condition for the gate, get_cached_value
+//! Having evaluated the condition for the condition, get_cached_value
 //! Will return Some containing the value of the last evaluation
 //! until the cache is explicitly invalidated.
 //!
@@ -384,7 +384,7 @@ mod multicut_tests {
     }
     #[test]
     fn eval_2() {
-        // Inside gate but not all params are present:
+        // Inside condition but not all params are present:
 
         let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event: Event = vec![EventParameter::new(2, 150.0)];
@@ -435,7 +435,7 @@ mod multicut_tests {
     }
     #[test]
     fn type_1() {
-        // Gate type should be "MultiCut"
+        // Condition type should be "MultiCut"
 
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         assert_eq!("MultiCut", mcut.gate_type());
@@ -447,7 +447,7 @@ mod multicut_tests {
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         assert_eq!(vec![(100.0, 0.0), (200.0, 0.0)], mcut.gate_points());
     }
-    // Dependent gatews and parameters are empty:
+    // Dependent conditionss and parameters are empty:
 
     #[test]
     fn dependencies_1() {

@@ -9,7 +9,7 @@
 //!
 //!  Each of these has its own requirements and definitions of
 //!  acceptance.  Since the computations required to compute if
-//!  A gate has been made may be time consuming, all of these
+//!  A condition has been made may be time consuming, all of these
 //!  conditions cache.
 //!
 //! ## Bands
@@ -410,7 +410,7 @@ impl MultiContour {
     /// Create a new contour.
     ///
     /// ### Parameters:
-    ///  *  parameters the parameters that are actually used for the gate/fold.
+    ///  *  parameters the parameters that are actually used for the condition/fold.
     ///  *  pts  - the points that define the contour.
     ///
     pub fn new(parameters: &[u32], pts: Points) -> Option<MultiContour> {
@@ -1250,10 +1250,10 @@ mod multicontour_tests {
         let pts = test_points();
         let c = MultiContour::new(&vec![1, 2, 3], pts.clone()).expect("making multicontour");
 
-        let gate_pts = c.gate_points();
-        assert_eq!(pts.len(), gate_pts.len());
+        let condition_pts = c.gate_points();
+        assert_eq!(pts.len(), condition_pts.len());
         for (i, p) in pts.iter().enumerate() {
-            assert_eq!((p.x, p.y), gate_pts[i], "Mismatch on {}", i);
+            assert_eq!((p.x, p.y), condition_pts[i], "Mismatch on {}", i);
         }
     }
     #[test]

@@ -86,7 +86,7 @@ fn generate_aoi(
                     }
                     _ => {
                         return Err(format!(
-                            "Unexpected response from getting gate properties for {}",
+                            "Unexpected response from getting condition properties for {}",
                             gate_name
                         ));
                     }
@@ -111,7 +111,7 @@ fn generate_aoi(
             if xcoord.is_some() || ycoord.is_some() {
                 return Err(String::from("For a 2d spectrum only the gate _OR_ the AOI coordinates are allowed, not both"));
             }
-            // Get gate information - must be a contour and we
+            // Get condition information - must be a contour and we
             // then reconstruct it to make it a 2d area of interest:
 
             match api.list_conditions(&gate_name) {
@@ -194,16 +194,16 @@ fn generate_aoi(
 /// query parameters depending on the type of integration being performed
 ///
 /// * spectrum (mandatory) - The spectrum to be integrated.
-/// * gate (optional) - If the gate can appear drawn on the spectrum,
-/// the integration will be over the interior of the gate.
+/// * gate (optional) - If the condition can appear drawn on the spectrum,
+/// the integration will be over the interior of the condition.
 /// * low - If the spectrum is one dimensional and the integration is
-/// not in a gate this is the low limit of the range of channels
+/// not in a condition this is the low limit of the range of channels
 /// over which to integrate.
 /// * high - if the spectrum is 1d the high limit over which to integerate.
 /// * xcoord - If the
-/// integration is not in a gate and in a 2d spectrum, these are
+/// integration is not in a condition and in a 2d spectrum, these are
 /// the X coordinates of a contour within which an integration is performed.
-/// * ycoord - if the integrations is not in a gate and  in a 2d spectrum,
+/// * ycoord - if the integrations is not in a condition and  in a 2d spectrum,
 /// these are the set of y coordinates of points that describe the
 /// contour within which the integration will be done.
 ///
@@ -479,7 +479,7 @@ mod integrate_tests {
     #[test]
     fn error_2() {
         // Spectrum is ok but condition name is nonexistent
-        // gate name.
+        // condition name.
 
         let r = setup();
         let (chan, p, b) = getstate(&r);
@@ -497,7 +497,7 @@ mod integrate_tests {
     }
     #[test]
     fn error_3() {
-        // Condition exists but is not a legal integration gate:
+        // Condition exists but is not a legal integration condition:
 
         let r = setup();
         let (chan, p, b) = getstate(&r);
@@ -533,7 +533,7 @@ mod integrate_tests {
     }
     #[test]
     fn error_5() {
-        // Same as error 4 but 2d spectrum with cut gate:
+        // Same as error 4 but 2d spectrum with cut condition:
 
         let r = setup();
         let (chan, p, b) = getstate(&r);
@@ -551,7 +551,7 @@ mod integrate_tests {
     }
     #[test]
     fn error_6() {
-        // oned integration can have gate or low/high but not both
+        // oned integration can have condition or low/high but not both
 
         let r = setup();
         let (chan, p, b) = getstate(&r);
@@ -586,7 +586,7 @@ mod integrate_tests {
     }
     #[test]
     fn oned_1() {
-        // Integrate 1d with no gate
+        // Integrate 1d with no condition
 
         let r = setup();
         let (chan, p, b) = getstate(&r);
@@ -712,7 +712,7 @@ mod integrate_tests {
     }
     #[test]
     fn twod_1() {
-        // 2d with no gate:
+        // 2d with no condition:
 
         let r = setup();
         let (chan, p, b) = getstate(&r);
