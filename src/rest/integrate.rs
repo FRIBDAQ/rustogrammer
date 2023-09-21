@@ -30,7 +30,7 @@ pub struct IntegrationResponse {
 fn is_1d(desc: &spectrum_messages::SpectrumProperties) -> bool {
     match desc.type_name.as_str() {
         "Multi1d" | "1D" => true,
-        "Multi2d" | "PGamma" | "Summary" | "2D" | "2DSum" => false,
+        "Multi2d" | "PGamma"  | "2D" | "2DSum" => false,
         _ => false, // Maybe this should return an Option.
     }
 }
