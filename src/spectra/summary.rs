@@ -65,9 +65,9 @@ impl Spectrum for Summary {
     fn get_yparams(&self) -> Vec<String> {
         vec![]
     }
-    fn get_xaxis(&self) -> Option<(f64, f64, u32)> {
-        None
-    }
+    //fn get_xaxis(&self) -> Option<(f64, f64, u32)> {
+    //    None
+    //}
 
     fn get_gate(&self) -> Option<String> {
         if let Some(g) = self.applied_gate.gate.clone() {
