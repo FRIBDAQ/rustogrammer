@@ -116,15 +116,19 @@ pub fn write_spectrum(fd: &mut dyn Write, spectra: &[SpectrumFileData]) -> Resul
         fdwrite(fd, &format!("\"{}\"", spectrum.definition.name))?;
         fdwrite(fd, " (")?;
         if let Some((_, _, bins)) = spectrum.definition.x_axis {
-            let bins = bins - 2;
-            fdwrite(fd, &bins.to_string())?;
+            if spectrum.definition.type_string != "s" {
+                let bins = bins - 2;
+                fdwrite(fd, &bins.to_string())?;
+            }
         }
         if let Some((_, _, bins)) = spectrum.definition.y_axis {
             let bins = bins - 2;
+            
             fdwrite(fd, &format!(" {}", &bins.to_string()))?;
             if spectrum.definition.type_string == "s" {
                 fdwrite(fd, " ")?;
             }
+        
         }
         fdwrite(fd, ") \n")?;
         // Date/time stamp.

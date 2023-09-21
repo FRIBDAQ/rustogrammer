@@ -1387,7 +1387,10 @@ mod spectrum_tests {
         assert_eq!(0.0, yaxis.low);
         assert_eq!(1024.0, yaxis.high);
         assert_eq!(256, yaxis.bins);
-        assert!(info.xaxis.is_none());
+        assert!(info.xaxis.is_some());
+        assert_eq!(0.0, info.xaxis.clone().unwrap().low);
+        assert_eq!(10.0, info.xaxis.clone().unwrap().high);
+        assert_eq!(10, info.xaxis.clone().unwrap().bins);
 
         // Twod is last:
 
@@ -2066,7 +2069,11 @@ mod spectrum_tests {
         assert_eq!("Summary", info.type_name);
         assert_eq!(4, info.xparams.len());
         assert_eq!(0, info.yparams.len());
-        assert!(info.xaxis.is_none());
+        assert!(info.xaxis.is_some());
+        assert_eq!(0.0, info.xaxis.clone().unwrap().low);
+        assert_eq!(4.0, info.xaxis.clone().unwrap().high);
+        assert_eq!(6, info.xaxis.clone().unwrap().bins);
+
         assert!(info.yaxis.is_some());
         assert!(info.gate.is_none());
 

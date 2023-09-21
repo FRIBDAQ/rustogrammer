@@ -2459,7 +2459,20 @@ mod spproc_tests {
         assert_eq!(String::from("Summary"), spec.get_type());
         assert_eq!(params, spec.get_xparams());
         assert_eq!(0, spec.get_yparams().len());
-        assert!(spec.get_xaxis().is_none());
+        assert!(spec.get_xaxis().is_some());
+        let x = spec.get_xaxis().expect("Missing x axis");
+        assert_eq!(
+            AxisSpecification {
+                low: 0.0,
+                high: 4.0,
+                bins: 6
+            },
+            AxisSpecification {
+                low: x.0,
+                high: x.1,
+                bins: x.2
+            }
+        );
         let y = spec.get_yaxis().expect("Missing y axis ");
         assert_eq!(
             AxisSpecification {
@@ -7018,7 +7031,11 @@ mod spectrum_api_tests {
                 type_name: String::from("Summary"),
                 xparams: params,
                 yparams: vec![],
-                xaxis: None,
+                xaxis: Some(AxisSpecification {
+                    low: 0.0,
+                    high: 5.0,
+                    bins: 7
+                }),
                 yaxis: Some(AxisSpecification {
                     low: 0.0,
                     high: 1024.0,

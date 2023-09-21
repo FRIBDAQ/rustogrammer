@@ -30,7 +30,7 @@ pub struct IntegrationResponse {
 fn is_1d(desc: &spectrum_messages::SpectrumProperties) -> bool {
     match desc.type_name.as_str() {
         "Multi1d" | "1D" => true,
-        "Multi2d" | "PGamma" | "Summary" | "2D" | "2DSum" => false,
+        "Multi2d" | "PGamma" | "2D" | "2DSum" => false,
         _ => false, // Maybe this should return an Option.
     }
 }
@@ -408,6 +408,25 @@ mod integrate_tests {
             }],
         )
         .expect("setting 2d contents");
+
+        // Make a summary spectrum with a spike at channel 3.0, 150.0:
+        let mut params = vec![];
+        for i in 0..10 {
+            params.push(format!("param.{}", i));
+        }
+        api.create_spectrum_summary("summary", &params, 0.0, 1024.0, 1024)
+            .expect("Making summary spectrum");
+        api.fill_spectrum(
+            "summary",
+            vec![spectrum_messages::Channel {
+                chan_type: spectrum_messages::ChannelType::Bin,
+                x: 3.0,
+                y: 150.0,
+                bin: 0,
+                value: 1111.0,
+            }],
+        )
+        .expect("Setting summary contents");
     }
     fn make_conditions(r: &Rocket<Build>) {
         // Make a slice and a diamond condition;  Note these, for fun, are on different
@@ -838,6 +857,31 @@ mod integrate_tests {
             reply.detail
         );
 
+        teardown(chan, p, b);
+    }
+    #[test]
+    fn summary_1() {
+        // Summary spectra integrate in 2-d:
+
+        let r = setup();
+        let (chan, p, b) = getstate(&r);
+
+        let client = Client::untracked(r).expect("Making client");
+        let req = client.get("/?name=summary");
+        let response = req
+            .dispatch()
+            .into_json::<IntegrationResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("OK", response.status);
+        assert_eq!(
+            IntegrationDetail {
+                centroid: vec![3.0, 150.0],
+                fwhm: vec![0.0, 0.0],
+                counts: 1111
+            },
+            response.detail
+        );
         teardown(chan, p, b);
     }
 }
