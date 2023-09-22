@@ -2,7 +2,7 @@
 //!  These are called *dependent conditions*.  Dependent conditions can be
 //!  Either primitive conditions, like cuts or contours, or they can be other
 //!  Compund conditions.  This nesting allows one to build up arbitrarily
-//!  Complex gate logic.  The compund conditions that we define are:
+//!  Complex condition logic.  The compund conditions that we define are:
 //!  
 //!  *  Not - takes a single condition and returns its boolean negation.
 //!  *  And - takes an arbitrary number of dependent conditions and
@@ -10,12 +10,12 @@
 //!  *  Or - takes an arbitrary number of dependent conditions and
 //! Requires at least one to be true.
 //!
-//!  Compound conditions make not promise that their dependent gates are
+//!  Compound conditions make not promise that their dependent conditions are
 //!  Fully evaluated.  It's perfectly fair game (and is the case) that
 //!  Short circuit logic can be used to reduce the number of conditions
 //!  that need to be evaluated until the truth or falsity of the
-//!  main condition is known. All of these gate cache as well which
-//!  further reduces the number of gate evaluation needed if a
+//!  main condition is known. All of these conditions cache as well which
+//!  further reduces the number of condition evaluation needed if a
 //!  compound condition is applied to more than one target.
 //!
 //!  And and Or conditions depend on a cache and a vector of dependent conditions,
@@ -70,13 +70,13 @@ impl Condition for Not {
             d.borrow_mut().invalidate_cache();
         }
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Not")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         vec![self.dependent.clone()]
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -152,7 +152,7 @@ impl And {
 }
 impl Condition for And {
     fn evaluate(&mut self, event: &FlatEvent) -> bool {
-        let mut result = true; // Failed gates will contradict this.
+        let mut result = true; // Failed conditions will contradict this.
 
         if let Some(c) = self.dependencies.cache {
             return c;
@@ -173,14 +173,14 @@ impl Condition for And {
         self.dependencies.cache = Some(result);
         result
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("And")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
 
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         self.dependencies.clone_conditions()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -250,14 +250,14 @@ impl Condition for Or {
         self.dependencies.cache = Some(result);
         result
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Or")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
 
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         self.dependencies.clone_conditions()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -325,7 +325,7 @@ mod and_tests {
     }
     #[test]
     fn add_1() {
-        // Add a T gate
+        // Add a T condition
 
         let t = True {};
         let c: Container = Rc::new(RefCell::new(Box::new(t)));
@@ -335,7 +335,7 @@ mod and_tests {
     }
     #[test]
     fn add_2() {
-        // add a t and an f gate:
+        // add a t and an f condition:
 
         let t = True {};
         let f = False {};
@@ -368,7 +368,7 @@ mod and_tests {
     }
     #[test]
     fn check_1() {
-        // And gates are true if there are no entries:
+        // And conditions are true if there are no entries:
 
         let mut a = And::new();
         let e = FlatEvent::new();
@@ -381,7 +381,7 @@ mod and_tests {
     }
     #[test]
     fn check_2() {
-        // a single T gate is true:
+        // a single T condition is true:
 
         let mut a = And::new();
         let e = FlatEvent::new();
@@ -508,7 +508,7 @@ mod or_tests {
     }
     #[test]
     fn check_1() {
-        // empty gate is true:
+        // empty condition is true:
 
         let mut o = Or::new();
         let e = FlatEvent::new();
@@ -516,7 +516,7 @@ mod or_tests {
     }
     #[test]
     fn check_2() {
-        //Single true gate gives true:
+        //Single true condition gives true:
 
         let mut o = Or::new();
         let e = FlatEvent::new();

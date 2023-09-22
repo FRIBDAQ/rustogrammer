@@ -108,7 +108,7 @@ pub struct TraceGetResponse {
 ///      *  The name of the spectrum added or deleted.
 ///  * gate - Each list contains:
 ///      *  The trace reason:  "add", "delete", "changed"
-///      *  The name of the gate that was affected.
+///      *  The name of the condition that was affected.
 ///  * binding - Each list contains:
 ///      *  The trace reason which is one of "add" (bind), "remove" (unbind)
 ///      *  Then name of the affected spectrum.

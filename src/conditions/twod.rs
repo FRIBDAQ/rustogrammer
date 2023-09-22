@@ -9,7 +9,7 @@
 //!
 //!  Each of these has its own requirements and definitions of
 //!  acceptance.  Since the computations required to compute if
-//!  A gate has been made may be time consuming, all of these
+//!  A condition has been made may be time consuming, all of these
 //!  conditions cache.
 //!
 //! ## Bands
@@ -199,10 +199,10 @@ impl Condition for Band {
             false
         }
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Band")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         let mut result = Vec::<(f64, f64)>::new();
         for p in self.points.iter() {
             result.push((p.x, p.y));
@@ -210,7 +210,7 @@ impl Condition for Band {
 
         result
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -359,10 +359,10 @@ impl Condition for Contour {
         self.cache = Some(result);
         result
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Contour")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         let mut result = Vec::<(f64, f64)>::new();
         for p in self.pts.iter() {
             result.push((p.x, p.y));
@@ -370,7 +370,7 @@ impl Condition for Contour {
 
         result
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -410,7 +410,7 @@ impl MultiContour {
     /// Create a new contour.
     ///
     /// ### Parameters:
-    ///  *  parameters the parameters that are actually used for the gate/fold.
+    ///  *  parameters the parameters that are actually used for the condition/fold.
     ///  *  pts  - the points that define the contour.
     ///
     pub fn new(parameters: &[u32], pts: Points) -> Option<MultiContour> {
@@ -451,13 +451,13 @@ impl Condition for MultiContour {
         self.cache = Some(false);
         false
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("MultiContour")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
-        self.contour.gate_points() // Can delegate.
+    fn condition_points(&self) -> Vec<(f64, f64)> {
+        self.contour.condition_points() // Can delegate.
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         vec![] // could delegate but this is simpler
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -1243,24 +1243,24 @@ mod multicontour_tests {
     #[test]
     fn type_1() {
         let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
-        assert_eq!("MultiContour", c.gate_type());
+        assert_eq!("MultiContour", c.condition_type());
     }
     #[test]
     fn points_1() {
         let pts = test_points();
         let c = MultiContour::new(&vec![1, 2, 3], pts.clone()).expect("making multicontour");
 
-        let gate_pts = c.gate_points();
-        assert_eq!(pts.len(), gate_pts.len());
+        let condition_pts = c.condition_points();
+        assert_eq!(pts.len(), condition_pts.len());
         for (i, p) in pts.iter().enumerate() {
-            assert_eq!((p.x, p.y), gate_pts[i], "Mismatch on {}", i);
+            assert_eq!((p.x, p.y), condition_pts[i], "Mismatch on {}", i);
         }
     }
     #[test]
     fn depcond_1() {
         let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
 
-        assert!(c.dependent_gates().is_empty());
+        assert!(c.dependent_conditions().is_empty());
     }
     #[test]
     fn deppars_1() {

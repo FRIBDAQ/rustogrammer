@@ -7,6 +7,8 @@
 //!  Multi1d spectra can have a gate as well which can conditionalize when
 //!  the spectrum is incremented.  
 //!
+//!  Multi1d spectra can also be folded.
+//!
 //!  Axis defaults are determined in a manner identical to the way
 //!  axis defaults for the y axis of a summary spectrum are determined.
 //!  
@@ -17,6 +19,7 @@ use std::collections::HashSet;
 
 ///
 /// *  applied_gate - is the gate that can conditionalize increments.
+/// *  applied_fold - is the fold, if any, applied to the spectrum.
 /// *  name         - is the name of the spectrum.
 /// *  histogram    - is the actual histogram object.
 /// *  param_names  - are the names of the parameters we're defined on.
@@ -644,7 +647,7 @@ mod fold_tests {
     }
     #[test]
     fn pid_2() {
-        // If folded but nothing is in the gate again, we get all parameters
+        // If folded but nothing is in the condition again, we get all parameters
         // in the fold back (due to the intersection).
 
         let mut pdict = ParameterDictionary::new();
@@ -670,9 +673,9 @@ mod fold_tests {
     }
     #[test]
     fn pid_3() {
-        // If there are parameters in the gate, they are omited from get_param_ids
+        // If there are parameters in the fold, they are omited from get_param_ids
 
-        // If folded but nothing is in the gate again, we get all parameters
+        // If folded but nothing is in the fold again, we get all parameters
         // in the fold back (due to the intersection).
 
         let mut pdict = ParameterDictionary::new();

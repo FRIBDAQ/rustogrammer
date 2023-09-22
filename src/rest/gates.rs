@@ -5,7 +5,7 @@
 //! just objects that can be evaluated, as needed for each event
 //! which return a true or false value.  
 //!
-//! A condition can the gate (verb) a spectrum to determine which
+//! A condition can gate (verb) a spectrum to determine which
 //! events are allowed to increment it.
 //!
 //! A nasty concern is that the condition type names supported
@@ -13,7 +13,7 @@
 //! where those in SpecTcl (and therefore the type-names expected
 //! by REST clients) have simpler names like T, F, s, * (slice).
 //! it is therefore necessary to map from Rustogramer
-//! Gate types to SpecTcl gate types in this domain of URLs.
+//! condition types to SpecTcl gate types in this domain of URLs.
 
 use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
@@ -22,7 +22,7 @@ use super::*;
 
 use crate::messaging::condition_messages::{ConditionMessageClient, ConditionReply};
 
-// Private mappings between SpecTcl <-> Rustogramer gate types:
+// Private mappings between SpecTcl <-> Rustogramer condition types:
 // Note making a static hashmap is possible but requires unsafe to access.
 // Making the hashmap each time is possible but slower
 // so we'll just use if chains.
@@ -63,7 +63,7 @@ pub struct GateProperties {
     points: Vec<GatePoint>,
     low: f64,
     high: f64,
-    // value : u32            // Note Rustogrammer has no support for mask gates.
+    // value : u32            // Note Rustogrammer has no support for mask conditions.
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -106,7 +106,7 @@ fn marshall_points(p: &mut GateProperties, raw_pts: &Vec<(f64, f64)>) {
 }
 
 /// list conditions that match an optional _pattern_ string.
-/// the default pattern, if not supplied is "*" which match all gates.
+/// the default pattern, if not supplied is "*" which match all conditions.
 /// The resulting Json has a status field, which is *OK* on success
 /// and an error string on faiure, and a detail string which is an
 ///  array of structs that contain the following fields:
@@ -114,17 +114,17 @@ fn marshall_points(p: &mut GateProperties, raw_pts: &Vec<(f64, f64)>) {
 /// *   name - name of a condition.
 /// *   type - Condition type in SpecTcl notation e.g. a Rustogramer *BAND*
 /// has type *b*
-/// *   gates - Possibly empty array of dependent gate names.  This will only
+/// *   gates - Possibly empty array of dependent condition names.  This will only
 /// be nonempty if the type string is one of _+_, _-_, or _*_
 /// *   parameters - Possibly empty array of parameters that must be
 /// present in order for the condition to be evaluated (does not include
 /// parameters in dependent conditions).  This will only be nonempty for
 /// types: _s_, _b_ or _c_ though see low, high below for _s_ conditions.
-/// *   low - The low limit of a _s_ gate - this is just the x coordinate of
+/// *   low - The low limit of a _s_ condition - this is just the x coordinate of
 /// the first point in points.
-/// *   high - the high limit of a _s_ gate - this is just the x coordinate
+/// *   high - the high limit of a _s_ condition - this is just the x coordinate
 /// of the second point in points.
-/// *   points for 2-d gates an array of {x,y} objects.
+/// *   points for 2-d conditions an array of {x,y} objects.
 ///
 /// The simplistic manner in which each GateProperties struct is filled in
 /// provides for the presence of data in fields where the SpecTcl REST
@@ -170,7 +170,7 @@ pub fn list_gates(
             r
         }
         ConditionReply::Error(s) => ListReply {
-            status: format!("Failed to list gates matching '{}' : {}", pat, s),
+            status: format!("Failed to list conditions matching '{}' : {}", pat, s),
             detail: Vec::<GateProperties>::new(),
         },
         _ => ListReply {
@@ -183,9 +183,9 @@ pub fn list_gates(
 //--------------------------------------------------------------------
 // Delete condition
 
-/// Delete a gate.
+/// Delete a condition.
 ///
-/// Requires the name of the gate as a query parameter.
+/// Requires the name of the condition as a query parameter.
 ///
 /// * Successful response has status = "OK" and detail an empty string.
 /// * Failure respons has status something like "Failed to delete conditions {}"
@@ -209,7 +209,7 @@ pub fn delete_gate(name: String, state: &State<SharedHistogramChannel>) -> Json<
 //--------------------------------------------------------------
 // Edit/create conditions:
 
-// Validate the query parameters needed to make a slice gate and extract them
+// Validate the query parameters needed to make a slice condition and extract them
 //
 fn validate_slice_parameters(
     parameter: OptionalStringVec,
@@ -219,7 +219,7 @@ fn validate_slice_parameters(
 ) -> Result<(u32, f64, f64), String> {
     if parameter.is_none() {
         return Err(String::from(
-            "The parameter query parameter is required for slice gates",
+            "The parameter query parameter is required for slice conditions",
         ));
     }
     let parameter = parameter.unwrap();
@@ -229,7 +229,7 @@ fn validate_slice_parameters(
     let parameter_name = &parameter[0];
     if low.is_none() || high.is_none() {
         return Err(String::from(
-            "Both the low and high query parameters are requried for slice gates",
+            "Both the low and high query parameters are requried for slice conditions",
         ));
     }
     let low = low.unwrap();
@@ -253,22 +253,22 @@ fn validate_2d_parameters(
 ) -> Result<TwodParameters, String> {
     if xpname.is_none() {
         return Err(String::from(
-            "xparameter is a mandatory query parameter for this gate type",
+            "xparameter is a mandatory query parameter for this condition type",
         ));
     }
     if ypname.is_none() {
         return Err(String::from(
-            "yparameter is a mandatory query parameter for this gate type",
+            "yparameter is a mandatory query parameter for this condition type",
         ));
     }
     if xcoord.is_none() {
         return Err(String::from(
-            "xcoord is a mandatory query parameter for this gate type",
+            "xcoord is a mandatory query parameter for this condition type",
         ));
     }
     if ycoord.is_none() {
         return Err(String::from(
-            "ycoord is a mandatory query parameter for this gate type",
+            "ycoord is a mandatory query parameter for this condition type",
         ));
     }
     // unwrap the parametesr from their options:
@@ -345,25 +345,33 @@ fn validate_multi2_parameters(
     parameter: OptionalStringVec,
     xcoords: OptionalF64Vec,
     ycoords: OptionalF64Vec,
-    state: &State<SharedHistogramChannel>
+    state: &State<SharedHistogramChannel>,
 ) -> Result<(Vec<u32>, Vec<(f64, f64)>), String> {
     // THere must be parameers, x and y coordinates:
 
     if parameter.is_none() {
-        return Err(String::from("Parameters are required for a multi parameter contour"));
+        return Err(String::from(
+            "Parameters are required for a multi parameter contour",
+        ));
     }
     let parameter = parameter.unwrap();
 
     if xcoords.is_none() {
-        return Err(String::from("xcoords are required for multi parameter contours"));
+        return Err(String::from(
+            "xcoords are required for multi parameter contours",
+        ));
     }
     if ycoords.is_none() {
-        return Err(String::from("ycoords are required for multi parameters contous"));
+        return Err(String::from(
+            "ycoords are required for multi parameters contous",
+        ));
     }
     let x = xcoords.unwrap();
     let y = ycoords.unwrap();
     if x.len() != y.len() {
-        return Err(String::from("There must be the same number of x and y coordinates."))
+        return Err(String::from(
+            "There must be the same number of x and y coordinates.",
+        ));
     }
     // Marshall the points:
 
@@ -385,29 +393,29 @@ fn validate_multi2_parameters(
     Ok((ids, pts))
 }
 ///
-/// Create/edit a gate.  Note that creating a new gate and editing
-/// an existing gate.  If we 'edit' a new gate the gate is created
-/// and saved in the condition dictionary.  If we 'edit' an existing gate,
+/// Create/edit a condition.  Note that creating a new condition and editing
+/// an existing condition are the same.  If we 'edit' a new condition the condition is created
+/// and saved in the condition dictionary.  If we 'edit' an existing condition,
 /// the condition replaces the old one and the server side
 /// return value indicates this.
 /// The required query parameters are:
 ///
-/// *   name - the name of the gate to create/edit.
-/// *   type - The SpecTcl type of the gate to create/edit.
+/// *   name - the name of the condition to create/edit.
+/// *   type - The SpecTcl type of the condition to create/edit.
 ///
-/// The other parameters required depend on the gate type:
+/// The other parameters required depend on the condition type:
 ///
-/// *  T, F gates require nothing else.
-/// *  + - * gates require gate - a list of gates the gate depends on.
-///These gates must already be defined.
+/// *  T, F conditions require nothing else.
+/// *  + - * conditions require condition - a list of conditions the condition depends on.
+///These conditions must already be defined.
 /// *  c, b require:
-///     -   xparameter, yparameter - the parameters the gate is set on.
-///     -   xcoord, ycoord - the x/y coordinates of the points that make up the gate.
+///     -   xparameter, yparameter - the parameters the condition is set on.
+///     -   xcoord, ycoord - the x/y coordinates of the points that make up the condition.
 /// * s requires:
 ///     - parameter for the parameter the condition is set on.
 ///     - low - low limit of the slice.
 ///     - high - high limit of the slice.
-/// Other gate types are not supported.
+/// Other condition types are not supported.
 ///
 /// The response is a GenericResponse.  On success,
 ///
@@ -441,52 +449,54 @@ pub fn edit_gate(
         "T" => api.create_true_condition(&name),
         "F" => api.create_false_condition(&name),
         "-" => {
-            // There must be exactly one gate:
+            // There must be exactly one condition:
 
             if let Some(gate) = gate {
                 if gate.len() == 1 {
                     api.create_not_condition(&name, &gate[0])
                 } else {
                     ConditionReply::Error(String::from(
-                        "Not gates can have at most one dependent gate",
+                        "Not conditions can have at most one dependent condition",
                     ))
                 }
             } else {
                 ConditionReply::Error(String::from(
-                    "gate is a required query parameter for not gates",
+                    "gate is a required query parameter for not conditions",
                 ))
             }
         }
         "*" => {
-            // There must be at least one gate:
+            // There must be at least one condition:
 
             if let Some(gate) = gate {
                 if !gate.is_empty() {
                     api.create_and_condition(&name, &gate)
                 } else {
                     ConditionReply::Error(String::from(
-                        "And gates require at least one dependent gate",
+                        "And conditions require at least one dependent condition",
                     ))
                 }
             } else {
                 ConditionReply::Error(String::from(
-                    "And gates require the 'gate' query parameters",
+                    "And conditions require the 'gate' query parameters",
                 ))
             }
         }
         "+" => {
-            // There must be at least one gate:
+            // There must be at least one condition:
 
-            if let Some(gate) = gate {
-                if !gate.is_empty() {
-                    api.create_or_condition(&name, &gate)
+            if let Some(condition) = gate {
+                if !condition.is_empty() {
+                    api.create_or_condition(&name, &condition)
                 } else {
                     ConditionReply::Error(String::from(
-                        "Or gates require at least one dependent gate",
+                        "Or conditions require at least one dependent condition",
                     ))
                 }
             } else {
-                ConditionReply::Error(String::from("Or gates require the 'gate' query parameters"))
+                ConditionReply::Error(String::from(
+                    "Or conditions require the 'gate' query parameters",
+                ))
             }
         }
         "s" => {
@@ -513,17 +523,17 @@ pub fn edit_gate(
             Err(s) => ConditionReply::Error(s),
             Ok((ids, points)) => api.create_multicontour_condition(&name, &ids, &points),
         },
-        _ => ConditionReply::Error(format!("Unsupported gate type: {}", r#type)),
+        _ => ConditionReply::Error(format!("Unsupported condition type: {}", r#type)),
     };
 
     let reply = match raw_result {
         ConditionReply::Created => GenericResponse::ok("Created"),
         ConditionReply::Replaced => GenericResponse::ok("Replaced"),
         ConditionReply::Error(s) => {
-            GenericResponse::err(&format!("Could not create/edit gate {}", name), &s)
+            GenericResponse::err(&format!("Could not create/edit condition {}", name), &s)
         }
         _ => GenericResponse::err(
-            &format!("Could not create/edit gate {}", name),
+            &format!("Could not create/edit condition {}", name),
             "Unexpected respones type from server",
         ),
     };
@@ -566,7 +576,7 @@ mod gate_tests {
         rest_common::get_state(r)
     }
     // Create parameters p1, p2
-    // which will be used to create gates that need parameters.
+    // which will be used to create conditions that need parameters.
     //
     fn make_test_objects(c: &mpsc::Sender<messaging::Request>) {
         let api = parameter_messages::ParameterMessageClient::new(c);
@@ -597,7 +607,7 @@ mod gate_tests {
     }
     #[test]
     fn list_2() {
-        // Make a T gate and make sure the right properties are present.
+        // Make a T condition and make sure the right properties are present.
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
@@ -628,7 +638,7 @@ mod gate_tests {
     }
     #[test]
     fn list_3() {
-        // Make an F gate ...
+        // Make an F condition ...
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
@@ -872,7 +882,7 @@ mod gate_tests {
     }
     #[test]
     fn list_10() {
-        // Make a multislice gate and see that it is listed:
+        // Make a multislice condition and see that it is listed:
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
@@ -913,7 +923,7 @@ mod gate_tests {
     }
     #[test]
     fn list_11() {
-        // List a gc (MultiContour):
+        // List a gc (MultiContour) condition:
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
@@ -955,11 +965,11 @@ mod gate_tests {
 
         teardown(c, &papi, &bapi);
     }
-    // Gate deletion:
+    // condition deletion:
 
     #[test]
     fn delete_1() {
-        // Delete a nonexistent gate:
+        // Delete a nonexistent condition:
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
@@ -997,13 +1007,13 @@ mod gate_tests {
         teardown(c, &papi, &bapi);
     }
 
-    // Note that edit is used to both create and modify gates.
-    // Except for the last test we'll be creating gates.
-    // The final edit_n test will modify an existing gate.
+    // Note that edit is used to both create and modify conditions.
+    // Except for the last test we'll be creating conditions.
+    // The final edit_n test will modify an existing condition.
 
     #[test]
     fn edit_1() {
-        // Create True gate:
+        // Create True condition:
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
@@ -1036,7 +1046,7 @@ mod gate_tests {
     }
     #[test]
     fn edit_2() {
-        // create a False gate:
+        // create a False condition:
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
@@ -1068,18 +1078,18 @@ mod gate_tests {
 
         teardown(c, &papi, &bapi);
     }
-    // Test not gates and error scenarios.  Note we assume that
-    // dependent gate existence is checked by the tests in condition_messages.
+    // Test not conditions and error scenarios.  Note we assume that
+    // dependent condition existence is checked by the tests in condition_messages.
 
     #[test]
     fn edit_3() {
-        // make  a not gate:
+        // make  a not condition:
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
-        api.create_true_condition("true"); // dependent gate:
+        api.create_true_condition("true"); // dependent condition:
 
         let client = Client::tracked(rocket).expect("Creating client");
         let req = client.get("/edit?name=not&type=-&gate=true");
@@ -1111,7 +1121,7 @@ mod gate_tests {
     }
     #[test]
     fn edit_4() {
-        // fail creation of not gate -- need a dependent gate:
+        // fail creation of not condition -- need a dependent condition:
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
@@ -1122,9 +1132,9 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate not", reply.status);
+        assert_eq!("Could not create/edit condition not", reply.status);
         assert_eq!(
-            "gate is a required query parameter for not gates",
+            "gate is a required query parameter for not conditions",
             reply.detail
         );
 
@@ -1132,7 +1142,7 @@ mod gate_tests {
     }
     #[test]
     fn edit_5() {
-        // Fail creation of not gate - must have only 1 dependent gate:
+        // Fail creation of not condition - must have only 1 dependent condition:
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
@@ -1143,15 +1153,15 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate not", reply.status);
+        assert_eq!("Could not create/edit condition not", reply.status);
         assert_eq!(
-            "Not gates can have at most one dependent gate",
+            "Not conditions can have at most one dependent condition",
             reply.detail
         );
 
         teardown(c, &papi, &bapi);
     }
-    // Test and gates and error scenarios.
+    // Test and conditions and error scenarios.
 
     #[test]
     fn edit_6() {
@@ -1160,10 +1170,10 @@ mod gate_tests {
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
 
-        // Make dependent gates:
+        // Make dependent conditions:
 
         let api = condition_messages::ConditionMessageClient::new(&c);
-        api.create_true_condition("true"); // dependent gate:
+        api.create_true_condition("true"); // dependent condition:
         api.create_false_condition("false");
 
         let client = Client::tracked(rocket).expect("Creating client");
@@ -1194,7 +1204,7 @@ mod gate_tests {
     }
     #[test]
     fn edit_7() {
-        // no dependent gates provided.
+        // no dependent conditions provided.
 
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
@@ -1206,15 +1216,15 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate and", reply.status);
+        assert_eq!("Could not create/edit condition and", reply.status);
         assert_eq!(
-            "And gates require the 'gate' query parameters",
+            "And conditions require the 'gate' query parameters",
             reply.detail
         );
 
         teardown(c, &papi, &bapi);
     }
-    // Tests for Or gates. Note the literal + is a stand-in for
+    // Tests for Or conditions. Note the literal + is a stand-in for
     // ' ' so we need to use the escap %2B instead.
 
     #[test]
@@ -1224,10 +1234,10 @@ mod gate_tests {
         let rocket = setup();
         let (c, papi, bapi) = get_state(&rocket);
 
-        // Make dependent gates:
+        // Make dependent conditions:
 
         let api = condition_messages::ConditionMessageClient::new(&c);
-        api.create_true_condition("true"); // dependent gate:
+        api.create_true_condition("true"); // dependent condition:
         api.create_false_condition("false");
 
         let client = Client::tracked(rocket).expect("Creating client");
@@ -1270,12 +1280,15 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate or", reply.status);
-        assert_eq!("Or gates require the 'gate' query parameters", reply.detail);
+        assert_eq!("Could not create/edit condition or", reply.status);
+        assert_eq!(
+            "Or conditions require the 'gate' query parameters",
+            reply.detail
+        );
 
         teardown(c, &papi, &bapi);
     }
-    // Slice gate tests:
+    // Slice condition tests:
 
     #[test]
     fn edit_10() {
@@ -1295,7 +1308,7 @@ mod gate_tests {
         assert_eq!("OK", reply.status);
         assert_eq!("Created", reply.detail);
 
-        // check the gate:
+        // check the condition:
 
         let api = condition_messages::ConditionMessageClient::new(&c);
         let listing = api.list_conditions("*");
@@ -1327,9 +1340,9 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate slice", reply.status);
+        assert_eq!("Could not create/edit condition slice", reply.status);
         assert_eq!(
-            "The parameter query parameter is required for slice gates",
+            "The parameter query parameter is required for slice conditions",
             reply.detail
         );
         teardown(c, &papi, &bapi);
@@ -1348,9 +1361,9 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate slice", reply.status);
+        assert_eq!("Could not create/edit condition slice", reply.status);
         assert_eq!(
-            "Both the low and high query parameters are requried for slice gates",
+            "Both the low and high query parameters are requried for slice conditions",
             reply.detail
         );
         teardown(c, &papi, &bapi);
@@ -1367,9 +1380,9 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate slice", reply.status);
+        assert_eq!("Could not create/edit condition slice", reply.status);
         assert_eq!(
-            "Both the low and high query parameters are requried for slice gates",
+            "Both the low and high query parameters are requried for slice conditions",
             reply.detail
         );
         teardown(c, &papi, &bapi);
@@ -1392,7 +1405,7 @@ mod gate_tests {
 
         assert_eq!("OK", reply.status);
 
-        // Check the gate was proprly made:
+        // Check the condition was proprly made:
 
         let api = condition_messages::ConditionMessageClient::new(&c);
         let l = api.list_conditions("*");
@@ -1429,9 +1442,9 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing json");
 
-        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!("Could not create/edit condition band", reply.status);
         assert_eq!(
-            "xparameter is a mandatory query parameter for this gate type",
+            "xparameter is a mandatory query parameter for this condition type",
             reply.detail
         );
 
@@ -1452,9 +1465,9 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing json");
 
-        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!("Could not create/edit condition band", reply.status);
         assert_eq!(
-            "yparameter is a mandatory query parameter for this gate type",
+            "yparameter is a mandatory query parameter for this condition type",
             reply.detail
         );
 
@@ -1476,9 +1489,9 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing json");
 
-        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!("Could not create/edit condition band", reply.status);
         assert_eq!(
-            "xcoord is a mandatory query parameter for this gate type",
+            "xcoord is a mandatory query parameter for this condition type",
             reply.detail
         );
 
@@ -1500,9 +1513,9 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing json");
 
-        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!("Could not create/edit condition band", reply.status);
         assert_eq!(
-            "ycoord is a mandatory query parameter for this gate type",
+            "ycoord is a mandatory query parameter for this condition type",
             reply.detail
         );
 
@@ -1525,7 +1538,7 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing json");
 
-        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!("Could not create/edit condition band", reply.status);
         assert_eq!(
             "xcoord array has 2 entries but ycoord array has 1 -they must be the same length",
             reply.detail
@@ -1549,7 +1562,7 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing json");
 
-        assert_eq!("Could not create/edit gate band", reply.status);
+        assert_eq!("Could not create/edit condition band", reply.status);
 
         teardown(c, &papi, &bapi);
     }
@@ -1613,7 +1626,7 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("parsing json");
 
-        assert_eq!("Could not create/edit gate contour", reply.status);
+        assert_eq!("Could not create/edit condition contour", reply.status);
 
         teardown(c, &papi, &bapi);
     }
@@ -1707,7 +1720,7 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate test", reply.status);
+        assert_eq!("Could not create/edit condition test", reply.status);
 
         teardown(c, &papi, &bapi);
     }
@@ -1727,7 +1740,7 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate test", reply.status);
+        assert_eq!("Could not create/edit condition test", reply.status);
 
         teardown(c, &papi, &bapi);
     }
@@ -1746,7 +1759,7 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate test", reply.status);
+        assert_eq!("Could not create/edit condition test", reply.status);
 
         teardown(c, &papi, &bapi);
     }
@@ -1765,7 +1778,7 @@ mod gate_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Could not create/edit gate test", reply.status);
+        assert_eq!("Could not create/edit condition test", reply.status);
 
         teardown(c, &papi, &bapi);
     }

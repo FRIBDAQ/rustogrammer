@@ -6,7 +6,7 @@
 //!  *  The parameter value is in the range [low, high] for that
 //! event.
 //! Cut conditions are defined to support caching.  That is
-//! Having evaluated the condition for the gate, get_cached_value
+//! Having evaluated the condition for the condition, get_cached_value
 //! Will return Some containing the value of the last evaluation
 //! until the cache is explicitly invalidated.
 //!
@@ -53,13 +53,13 @@ impl Condition for Cut {
         self.cache = Some(result);
         result
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Cut")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         vec![(self.low, 0.0), (self.high, 0.0)]
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn get_cached_value(&self) -> Option<bool> {
@@ -119,13 +119,13 @@ impl Condition for MultiCut {
         self.cache = Some(false);
         false
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("MultiCut")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         vec![(self.low, 0.0), (self.high, 0.0)]
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         vec![]
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -384,7 +384,7 @@ mod multicut_tests {
     }
     #[test]
     fn eval_2() {
-        // Inside gate but not all params are present:
+        // Inside condition but not all params are present:
 
         let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event: Event = vec![EventParameter::new(2, 150.0)];
@@ -435,24 +435,24 @@ mod multicut_tests {
     }
     #[test]
     fn type_1() {
-        // Gate type should be "MultiCut"
+        // Condition type should be "MultiCut"
 
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
-        assert_eq!("MultiCut", mcut.gate_type());
+        assert_eq!("MultiCut", mcut.condition_type());
     }
     #[test]
     fn points_1() {
-        // Test gate_points:
+        // Test condition_points:
 
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
-        assert_eq!(vec![(100.0, 0.0), (200.0, 0.0)], mcut.gate_points());
+        assert_eq!(vec![(100.0, 0.0), (200.0, 0.0)], mcut.condition_points());
     }
-    // Dependent gatews and parameters are empty:
+    // Dependent conditionss and parameters are empty:
 
     #[test]
     fn dependencies_1() {
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
-        assert!(mcut.dependent_gates().is_empty());
+        assert!(mcut.dependent_conditions().is_empty());
         assert_eq!(vec![1, 2, 3], mcut.dependent_parameters());
     }
     #[test]

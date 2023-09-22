@@ -160,7 +160,7 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
 /// *   yaxis - same as xaxis but for the Y axis specification, if any.
 /// *   chantype -- the data type of each channel in the spectrum.
 /// in rustogramer this is hardcoded to _f64_
-/// *    gate if not _null_ thisi s the name of the conditions that
+/// *    gate if not _null_ this is the name of the conditions that
 /// is applied as a gate to the spectrum.
 ///
 /// Note:  SpecTcl and Rustogrammer don't support knowing

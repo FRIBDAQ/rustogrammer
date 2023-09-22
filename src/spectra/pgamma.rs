@@ -14,6 +14,10 @@
 //!  of the spectrum.  That is the condition, applied as the gate must
 //!  be true for the event to be eligible to increment the spectrum.
 //!
+//!  Furthermore a fold can be applied to the spectrum, in which case every
+//!  parameter pair which satisfies the fold condition is removed from the
+//!  increment.
+//!
 //!  Default axis specification are derived indpendently from the
 //!  default axis specification fo the X and Y parameter sets.
 //!  The algorithm to choose from among the specification is the same
@@ -675,7 +679,7 @@ mod pgamma_tests {
     }
     #[test]
     fn incr_2() {
-        // gated on a True gate:
+        // gated on a True condition:
 
         let dict = make_params(10, Some((0.0, 1024.0)), Some(1024));
         let xp = vec![
