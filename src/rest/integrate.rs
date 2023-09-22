@@ -46,53 +46,53 @@ fn generate_aoi1d(
 
     if let Some(gate_name) = gate {
         if low.is_some() | high.is_some() {
-            return Err(String::from(
+            Err(String::from(
                 "1d spectra can only have either a gate name or limits",
-            ));
+            ))
         } else {
             // get the gate information.
 
             match api.list_conditions(&gate_name) {
                 condition_messages::ConditionReply::Listing(l) => {
+                    
                     if l.len() != 1 {
-                        return Err(format!("{} either is a non-existent condition or is pattern that has more than one match", gate_name));
-                    }
-                    let condition = l[0].clone();
-                    if condition.type_name == "Cut" {
-                        return Ok(integration::AreaOfInterest::Oned {
+                        Err(format!("{} either is a non-existent condition or is pattern that has more than one match", gate_name))
+                    } else if l[0].type_name == "Cut" {
+                        let condition = l[0].clone();
+                        Ok(integration::AreaOfInterest::Oned {
                             low: condition.points[0].0,
                             high: condition.points[1].0,
-                        });
+                        })
                     } else {
-                        return Err(format!(
+                        Err(format!(
                             "{} is not a Cut and must be for 1-d integrations",
                             gate_name
-                        ));
+                        ))
                     }
                 }
                 condition_messages::ConditionReply::Error(s) => {
-                    return Err(format!(
+                    Err(format!(
                         "Failed to get information about gate {}: {}",
                         gate_name, s
-                    ));
+                    ))
                 }
                 _ => {
-                    return Err(format!(
+                    Err(format!(
                         "Unexpected response from getting gate properties for {}",
                         gate_name
-                    ));
+                    ))
                 }
-            };
+            }
         }
     } else if low.is_some() && high.is_some() {
-        return Ok(integration::AreaOfInterest::Oned {
+        Ok(integration::AreaOfInterest::Oned {
             low: low.unwrap(),
             high: high.unwrap(),
-        });
+        })
     } else {
         // be nice and allow one but not the other to be all:
 
-        return Ok(integration::AreaOfInterest::All);
+        Ok(integration::AreaOfInterest::All)
     }
 }
 
