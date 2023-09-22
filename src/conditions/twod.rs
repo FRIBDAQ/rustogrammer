@@ -199,7 +199,7 @@ impl Condition for Band {
             false
         }
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Band")
     }
     fn gate_points(&self) -> Vec<(f64, f64)> {
@@ -359,7 +359,7 @@ impl Condition for Contour {
         self.cache = Some(result);
         result
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Contour")
     }
     fn gate_points(&self) -> Vec<(f64, f64)> {
@@ -451,7 +451,7 @@ impl Condition for MultiContour {
         self.cache = Some(false);
         false
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("MultiContour")
     }
     fn gate_points(&self) -> Vec<(f64, f64)> {
@@ -1243,7 +1243,7 @@ mod multicontour_tests {
     #[test]
     fn type_1() {
         let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
-        assert_eq!("MultiContour", c.gate_type());
+        assert_eq!("MultiContour", c.condition_type());
     }
     #[test]
     fn points_1() {

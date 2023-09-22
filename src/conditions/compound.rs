@@ -70,7 +70,7 @@ impl Condition for Not {
             d.borrow_mut().invalidate_cache();
         }
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Not")
     }
     fn gate_points(&self) -> Vec<(f64, f64)> {
@@ -173,7 +173,7 @@ impl Condition for And {
         self.dependencies.cache = Some(result);
         result
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("And")
     }
     fn gate_points(&self) -> Vec<(f64, f64)> {
@@ -250,7 +250,7 @@ impl Condition for Or {
         self.dependencies.cache = Some(result);
         result
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Or")
     }
     fn gate_points(&self) -> Vec<(f64, f64)> {

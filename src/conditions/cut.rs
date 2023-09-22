@@ -53,7 +53,7 @@ impl Condition for Cut {
         self.cache = Some(result);
         result
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Cut")
     }
     fn gate_points(&self) -> Vec<(f64, f64)> {
@@ -119,7 +119,7 @@ impl Condition for MultiCut {
         self.cache = Some(false);
         false
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("MultiCut")
     }
     fn gate_points(&self) -> Vec<(f64, f64)> {
@@ -438,7 +438,7 @@ mod multicut_tests {
         // Condition type should be "MultiCut"
 
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
-        assert_eq!("MultiCut", mcut.gate_type());
+        assert_eq!("MultiCut", mcut.condition_type());
     }
     #[test]
     fn points_1() {

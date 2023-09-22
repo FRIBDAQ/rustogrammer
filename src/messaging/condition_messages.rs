@@ -663,7 +663,7 @@ impl ConditionProcessor {
 
         ConditionProperties {
             cond_name: String::from(name),
-            type_name: c.borrow().gate_type(),
+            type_name: c.borrow().condition_type(),
             points: c.borrow().gate_points(),
             gates: d_names,
             parameters: c.borrow().dependent_parameters(),
@@ -997,7 +997,7 @@ mod cnd_processor_tests {
 
         let item = cp.dict.get("true-cond");
         assert!(item.is_some());
-        assert_eq!(String::from("True"), item.unwrap().borrow().gate_type());
+        assert_eq!(String::from("True"), item.unwrap().borrow().condition_type());
     }
     #[test]
     fn make_false_1() {
@@ -1011,7 +1011,7 @@ mod cnd_processor_tests {
 
         let item = cp.dict.get("false-cond");
         assert!(item.is_some());
-        assert_eq!(String::from("False"), item.unwrap().borrow().gate_type());
+        assert_eq!(String::from("False"), item.unwrap().borrow().condition_type());
     }
     #[test]
     fn make_not_1() {
@@ -1030,12 +1030,12 @@ mod cnd_processor_tests {
         let item = cp.dict.get("true");
         assert!(item.is_some());
         let cond = item.unwrap();
-        assert_eq!(String::from("Not"), cond.borrow().gate_type());
+        assert_eq!(String::from("Not"), cond.borrow().condition_type());
         let dep = cond.borrow().dependent_gates();
         assert_eq!(1, dep.len());
         assert_eq!(
             String::from("False"),
-            dep[0].upgrade().unwrap().borrow().gate_type()
+            dep[0].upgrade().unwrap().borrow().condition_type()
         );
     }
     #[test]
@@ -1057,17 +1057,17 @@ mod cnd_processor_tests {
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("and").unwrap();
-        assert_eq!(String::from("And"), cond.borrow().gate_type());
+        assert_eq!(String::from("And"), cond.borrow().condition_type());
         let deps = cond.borrow().dependent_gates();
 
         assert_eq!(2, deps.len());
         assert_eq!(
             String::from("True"),
-            deps[0].upgrade().unwrap().borrow().gate_type()
+            deps[0].upgrade().unwrap().borrow().condition_type()
         );
         assert_eq!(
             String::from("False"),
-            deps[1].upgrade().unwrap().borrow().gate_type()
+            deps[1].upgrade().unwrap().borrow().condition_type()
         );
     }
     #[test]
@@ -1089,17 +1089,17 @@ mod cnd_processor_tests {
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("or").unwrap();
-        assert_eq!(String::from("Or"), cond.borrow().gate_type());
+        assert_eq!(String::from("Or"), cond.borrow().condition_type());
         let deps = cond.borrow().dependent_gates();
 
         assert_eq!(2, deps.len());
         assert_eq!(
             String::from("True"),
-            deps[0].upgrade().unwrap().borrow().gate_type()
+            deps[0].upgrade().unwrap().borrow().condition_type()
         );
         assert_eq!(
             String::from("False"),
-            deps[1].upgrade().unwrap().borrow().gate_type()
+            deps[1].upgrade().unwrap().borrow().condition_type()
         );
     }
     #[test]
@@ -1113,7 +1113,7 @@ mod cnd_processor_tests {
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("cut").unwrap();
-        assert_eq!("Cut", cond.borrow().gate_type());
+        assert_eq!("Cut", cond.borrow().condition_type());
         let pts = cond.borrow().gate_points();
         assert_eq!(2, pts.len());
         assert_eq!(100.0, pts[0].0);
@@ -1131,7 +1131,7 @@ mod cnd_processor_tests {
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("band").unwrap();
-        assert_eq!(String::from("Band"), cond.borrow().gate_type());
+        assert_eq!(String::from("Band"), cond.borrow().condition_type());
         let pts = cond.borrow().gate_points();
         assert_eq!(condition_pts.len(), pts.len());
         for (i, p) in condition_pts.iter().enumerate() {
@@ -1151,7 +1151,7 @@ mod cnd_processor_tests {
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("contour").unwrap();
-        assert_eq!(String::from("Contour"), cond.borrow().gate_type());
+        assert_eq!(String::from("Contour"), cond.borrow().condition_type());
         let pts = cond.borrow().gate_points();
         assert_eq!(condition_pts.len(), pts.len());
         for (i, p) in condition_pts.iter().enumerate() {
@@ -1171,7 +1171,7 @@ mod cnd_processor_tests {
         );
 
         let cond = cp.dict.get("acondition").unwrap();
-        assert_eq!("True", cond.borrow().gate_type());
+        assert_eq!("True", cond.borrow().condition_type());
         let cond = Rc::downgrade(cond); // Weak now
 
         // Replacing the condition should happen transparently
@@ -1183,7 +1183,7 @@ mod cnd_processor_tests {
         );
         assert_eq!(ConditionReply::Replaced, result);
 
-        assert_eq!("False", cond.upgrade().unwrap().borrow().gate_type());
+        assert_eq!("False", cond.upgrade().unwrap().borrow().condition_type());
     }
 
     // Other requests.
@@ -1341,7 +1341,7 @@ mod cnd_processor_tests {
 
         let item = cp.dict.get("test");
         assert!(item.is_some());
-        assert_eq!(String::from("MultiCut"), item.unwrap().borrow().gate_type());
+        assert_eq!(String::from("MultiCut"), item.unwrap().borrow().condition_type());
     }
     #[test]
     fn create_multi2_1() {
@@ -1363,7 +1363,7 @@ mod cnd_processor_tests {
         assert!(item.is_some());
         assert_eq!(
             String::from("MultiContour"),
-            item.unwrap().borrow().gate_type()
+            item.unwrap().borrow().condition_type()
         );
     }
     #[test]
