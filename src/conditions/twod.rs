@@ -414,15 +414,13 @@ impl MultiContour {
     ///  *  pts  - the points that define the contour.
     ///
     pub fn new(parameters: &[u32], pts: Points) -> Option<MultiContour> {
-        if let Some(c) = Contour::new(0, 0, pts) {
-            Some(MultiContour {
+        Contour::new(0, 0, pts).map(|c| MultiContour {
                 contour: c, // Use dummy parameter ids
                 parameters: parameters.to_owned(),
                 cache: None,
-            })
-        } else {
-            None
-        }
+            }
+        )
+        
     }
 }
 impl Condition for MultiContour {

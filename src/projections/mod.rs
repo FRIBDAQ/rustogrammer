@@ -2060,7 +2060,7 @@ mod project_tests {
                 x: (i * 2) as f64,
                 y: 512.0,
                 bin: 0,
-                value: value,
+                value,
             });
             sum += value;
         }
@@ -2186,7 +2186,7 @@ mod project_tests {
             assert_eq!(
                 spectrum_messages::Channel {
                     chan_type: spectrum_messages::ChannelType::Bin,
-                    x: x,
+                    x,
                     y: 0.0,
                     bin: bin + 1,
                     value: (bin + 10) as f64
@@ -2220,10 +2220,10 @@ mod project_tests {
             }
             contents.push(spectrum_messages::Channel {
                 chan_type: spectrum_messages::ChannelType::Bin,
-                x: x,
+                x,
                 y: 512.0,
                 bin: 0,
-                value: value,
+                value,
             });
         }
         sapi.fill_spectrum("test", contents)
@@ -2307,10 +2307,10 @@ mod project_tests {
 
             contents.push(spectrum_messages::Channel {
                 chan_type: spectrum_messages::ChannelType::Bin,
-                x: x,
+                x,
                 y: 512.0,
                 bin: 0,
-                value: value,
+                value,
             });
         }
         sapi.fill_spectrum("test", contents)
@@ -2357,7 +2357,7 @@ mod project_tests {
             assert_eq!(
                 spectrum_messages::Channel {
                     chan_type: spectrum_messages::ChannelType::Bin,
-                    x: x,
+                    x,
                     y: 0.0,
                     bin: bin + 1,
                     value: (bin + 10) as f64
@@ -2415,10 +2415,10 @@ mod project_tests {
             }
             contents.push(spectrum_messages::Channel {
                 chan_type: spectrum_messages::ChannelType::Bin,
-                x: x,
+                x,
                 y: 512.0,
                 bin: 0,
-                value: value,
+                value,
             });
         }
         sapi.fill_spectrum("test", contents)

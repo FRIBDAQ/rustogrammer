@@ -92,18 +92,18 @@ fn generate_aoi(
                     }
                 };
             }
+        } else if low.is_some() && high.is_some() {
+            
+            return Ok(integration::AreaOfInterest::Oned {
+                low: low.unwrap(),
+                high: high.unwrap(),
+            });
         } else {
-            if low.is_some() && high.is_some() {
-                return Ok(integration::AreaOfInterest::Oned {
-                    low: low.unwrap(),
-                    high: high.unwrap(),
-                });
-            } else {
-                // be nice and allow one but not the other to be all:
+            // be nice and allow one but not the other to be all:
 
-                return Ok(integration::AreaOfInterest::All);
-            }
+            return Ok(integration::AreaOfInterest::All);
         }
+        
     } else {
         // 2d we're allowed to have gate or x/y coordinates of a contour.
 
@@ -149,41 +149,40 @@ fn generate_aoi(
                     ));
                 }
             }
-        } else {
-            if xcoord.is_some() && ycoord.is_some() {
-                let xcoord = xcoord.unwrap();
-                let ycoord = ycoord.unwrap();
-                if xcoord.len() != ycoord.len() {
-                    return Err(String::from(
-                        "The X and Y coordinate arrays must be the same length",
-                    ));
-                }
-                let mut pts = Vec::<(f64, f64)>::new();
-                for (i, x) in xcoord.iter().enumerate() {
-                    pts.push((*x, ycoord[i]));
-                }
-                let props = condition_messages::ConditionProperties {
-                    cond_name: String::from("junk"),
-                    type_name: String::from("Contour"),
-                    points: pts,
-                    gates: vec![],
-                    parameters: vec![0, 1],
-                };
-                match condition_messages::reconstitute_contour(props) {
-                    Ok(c) => {
-                        return Ok(integration::AreaOfInterest::Twod(c));
-                    }
-                    Err(s) => {
-                        return Err(format!("Could not make a contour from x/y points: {}", s));
-                    }
-                }
-            } else if xcoord.is_none() && ycoord.is_none() {
-                return Ok(integration::AreaOfInterest::All);
-            } else {
+        } else if xcoord.is_some() && ycoord.is_some() {
+            
+            let xcoord = xcoord.unwrap();
+            let ycoord = ycoord.unwrap();
+            if xcoord.len() != ycoord.len() {
                 return Err(String::from(
-                    "When specifying a 2d AOI with points both xcoord and ycoord must be present",
+                    "The X and Y coordinate arrays must be the same length",
                 ));
             }
+            let mut pts = Vec::<(f64, f64)>::new();
+            for (i, x) in xcoord.iter().enumerate() {
+                pts.push((*x, ycoord[i]));
+            }
+            let props = condition_messages::ConditionProperties {
+                cond_name: String::from("junk"),
+                type_name: String::from("Contour"),
+                points: pts,
+                gates: vec![],
+                parameters: vec![0, 1],
+            };
+            match condition_messages::reconstitute_contour(props) {
+                Ok(c) => {
+                    return Ok(integration::AreaOfInterest::Twod(c));
+                }
+                Err(s) => {
+                    return Err(format!("Could not make a contour from x/y points: {}", s));
+                }
+            }
+        } else if xcoord.is_none() && ycoord.is_none() {
+            return Ok(integration::AreaOfInterest::All);
+        } else {
+            return Err(String::from(
+                "When specifying a 2d AOI with points both xcoord and ycoord must be present",
+            ));
         }
     }
 }

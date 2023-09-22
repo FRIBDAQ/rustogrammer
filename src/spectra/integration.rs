@@ -352,7 +352,7 @@ mod integration_tests {
     fn make_spike_1d(x: f64, how_high: f64) -> SpectrumContents {
         vec![Channel {
             chan_type: ChannelType::Bin,
-            x: x,
+            x,
             y: 0.0,
             bin: 0,
             value: how_high,

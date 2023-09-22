@@ -386,7 +386,6 @@ pub const PARAMETER_DATA: u32 = 32770;
 #[cfg(test)]
 mod tests {
     use crate::ring_items::RingItem;
-    use humantime;
     use std::io::{Seek, Write};
     use std::mem;
     use std::ptr;

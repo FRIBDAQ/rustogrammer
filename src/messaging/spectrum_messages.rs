@@ -3039,7 +3039,7 @@ mod spproc_tests {
             let pname = format!("param.{}", i);
             let reply = to.processor.process_request(
                 SpectrumRequest::Create1D {
-                    name: name,
+                    name,
                     parameter: pname,
                     axis: AxisSpecification {
                         low: 0.0,
@@ -3075,7 +3075,7 @@ mod spproc_tests {
             let pname = format!("param.{}", i);
             let reply = to.processor.process_request(
                 SpectrumRequest::Create1D {
-                    name: name,
+                    name,
                     parameter: pname,
                     axis: AxisSpecification {
                         low: 0.0,
@@ -3113,7 +3113,7 @@ mod spproc_tests {
             let pname = format!("param.{}", i);
             let reply = to.processor.process_request(
                 SpectrumRequest::Create1D {
-                    name: name,
+                    name,
                     parameter: pname,
                     axis: AxisSpecification {
                         low: 0.0,
@@ -3161,7 +3161,7 @@ mod spproc_tests {
             let pname = format!("param.{}", i);
             let reply = to.processor.process_request(
                 SpectrumRequest::Create1D {
-                    name: name,
+                    name,
                     parameter: pname,
                     axis: AxisSpecification {
                         low: 0.0,
@@ -3225,7 +3225,7 @@ mod spproc_tests {
             let pname = format!("param.{}", i);
             let reply = to.processor.process_request(
                 SpectrumRequest::Create1D {
-                    name: name,
+                    name,
                     parameter: pname,
                     axis: AxisSpecification {
                         low: 0.0,
@@ -3298,7 +3298,7 @@ mod spproc_tests {
             let pname = format!("param.{}", i);
             let reply = to.processor.process_request(
                 SpectrumRequest::Create1D {
-                    name: name,
+                    name,
                     parameter: pname,
                     axis: AxisSpecification {
                         low: 0.0,
@@ -3537,7 +3537,7 @@ mod spproc_tests {
             let par = format!("param.{}", i);
             let reply = to.processor.process_request(
                 SpectrumRequest::Create1D {
-                    name: name,
+                    name,
                     parameter: par,
                     axis: AxisSpecification {
                         low: 0.0,
@@ -3639,7 +3639,7 @@ mod spproc_tests {
             let par = format!("param.{}", i);
             let reply = to.processor.process_request(
                 SpectrumRequest::Create1D {
-                    name: name,
+                    name,
                     parameter: par,
                     axis: AxisSpecification {
                         low: 0.0,
@@ -3706,7 +3706,7 @@ mod spproc_tests {
         for (name, chan) in with_counts {
             let reply = to.processor.process_request(
                 SpectrumRequest::GetContents {
-                    name: name,
+                    name,
                     xlow: 0.0,
                     xhigh: 1024.0,
                     ylow: 0.0,
@@ -3731,7 +3731,7 @@ mod spproc_tests {
         for name in no_counts {
             let reply = to.processor.process_request(
                 SpectrumRequest::GetContents {
-                    name: name,
+                    name,
                     xlow: 0.0,
                     xhigh: 1024.0,
                     ylow: 0.0,
@@ -3761,7 +3761,7 @@ mod spproc_tests {
             let par = format!("param.{}", i);
             let reply = to.processor.process_request(
                 SpectrumRequest::Create1D {
-                    name: name,
+                    name,
                     parameter: par,
                     axis: AxisSpecification {
                         low: 0.0,
@@ -6983,8 +6983,8 @@ mod spectrum_api_tests {
                 SpectrumProperties {
                     name: String::from("test"),
                     type_name: String::from("PGamma"),
-                    xparams: xparams,
-                    yparams: yparams,
+                    xparams,
+                    yparams,
                     xaxis: Some(AxisSpecification {
                         low: 0.0,
                         high: 1024.0,
@@ -7116,8 +7116,8 @@ mod spectrum_api_tests {
             SpectrumProperties {
                 name: String::from("test"),
                 type_name: String::from("2DSum"),
-                xparams: xparams,
-                yparams: yparams,
+                xparams,
+                yparams,
                 xaxis: Some(AxisSpecification {
                     low: 0.0,
                     high: 1024.0,
