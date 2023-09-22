@@ -172,8 +172,11 @@ mod request_tests {
         let mut req = RequestProcessor::new();
         let tracedb = trace::SharedTraceStore::new();
         let msg = MessageType::Parameter(ParameterRequest::Create(String::from("test")));
-        assert!(matches!(req.process_message(msg, &tracedb), messaging::Reply::Parameter(ParameterReply::Created)));
-            
+        assert!(matches!(
+            req.process_message(msg, &tracedb),
+            messaging::Reply::Parameter(ParameterReply::Created)
+        ));
+
         let d = req.parameters.get_dict();
         d.lookup("test").expect("failed to find 'test' parameters");
     }
@@ -182,8 +185,11 @@ mod request_tests {
         let mut req = RequestProcessor::new();
         let tracedb = trace::SharedTraceStore::new();
         let msg = MessageType::Condition(ConditionRequest::CreateTrue(String::from("true")));
-        assert!(matches!(req.process_message(msg, &tracedb), Reply::Condition(ConditionReply::Created)));
-            
+        assert!(matches!(
+            req.process_message(msg, &tracedb),
+            Reply::Condition(ConditionReply::Created)
+        ));
+
         let d = req.conditions.get_dict();
         d.get(&String::from("true")).expect("Failed gate lookup");
     }
@@ -195,8 +201,10 @@ mod request_tests {
         let mut req = RequestProcessor::new();
         let tracedb = trace::SharedTraceStore::new();
         let msg = MessageType::Spectrum(SpectrumRequest::Clear(String::from("*")));
-        assert!(matches!(req.process_message(msg, &tracedb), Reply::Spectrum(SpectrumReply::Cleared)));
-            
+        assert!(matches!(
+            req.process_message(msg, &tracedb),
+            Reply::Spectrum(SpectrumReply::Cleared)
+        ));
     }
     #[test]
     fn exit_1() {
@@ -213,6 +221,7 @@ mod hgrammer_tests {
     use crate::test::histogramer_common;
     use std::sync::mpsc;
     use std::thread;
+    use std::matches;
 
     fn setup() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
         let (req, jh) = histogramer_common::setup();
@@ -261,13 +270,8 @@ mod hgrammer_tests {
         let client = messaging::condition_messages::ConditionMessageClient::new(&ch);
 
         let reply = client.create_true_condition("true");
-        assert!(
-            if let messaging::condition_messages::ConditionReply::Created = reply {
-                true
-            } else {
-                false
-            }
-        );
+        assert!(matches!(reply, messaging::condition_messages::ConditionReply::Created));
+            
         let reply = client.list_conditions("*");
         assert!(
             if let messaging::condition_messages::ConditionReply::Listing(l) = reply {

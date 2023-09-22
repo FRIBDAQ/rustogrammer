@@ -415,12 +415,10 @@ impl MultiContour {
     ///
     pub fn new(parameters: &[u32], pts: Points) -> Option<MultiContour> {
         Contour::new(0, 0, pts).map(|c| MultiContour {
-                contour: c, // Use dummy parameter ids
-                parameters: parameters.to_owned(),
-                cache: None,
-            }
-        )
-        
+            contour: c, // Use dummy parameter ids
+            parameters: parameters.to_owned(),
+            cache: None,
+        })
     }
 }
 impl Condition for MultiContour {
@@ -1350,7 +1348,7 @@ mod multicontour_tests {
         fe.load_event(&e);
         let p = c.evaluate_1(&fe);
 
-        assert_eq!(HashSet::from_iter(vec![1, 2, 3].iter().cloned()), p);
+        assert_eq!(HashSet::from_iter([1, 2, 3].iter().cloned()), p);
     }
     #[test]
     fn fold1_3() {
@@ -1366,7 +1364,7 @@ mod multicontour_tests {
         fe.load_event(&e);
         let p = c.evaluate_1(&fe);
 
-        assert_eq!(HashSet::from_iter(vec![1, 2, 3].iter().cloned()), p);
+        assert_eq!(HashSet::from_iter([1, 2, 3].iter().cloned()), p);
     }
 
     #[test]

@@ -528,7 +528,6 @@ mod pprocessor_tests {
         pp.dict.add("test").expect("Failed to add to empty dict");
         let result = pp.process_request(create_req("test"), &tracedb);
         assert!(matches!(result, ParameterReply::Error(_)));
-        
     }
     #[test]
     fn add_3() {
@@ -620,11 +619,8 @@ mod pprocessor_tests {
         // Glob pattern syntax errors ->Error return.
         let mut pp = create_some_params();
         let tracedb = trace::SharedTraceStore::new();
-        if let ParameterReply::Error(_) = pp.process_request(list_req("p["), &tracedb) {
-            assert!(true);
-        } else {
-            panic!("Bad glob pattern was ok.")
-        }
+        assert!(matches!(pp.process_request(list_req("p["), &tracedb), ParameterReply::Error(_) ));
+        
     }
     #[test]
     fn modify_1() {
@@ -764,11 +760,13 @@ mod pprocessor_tests {
 
         let mut pp = create_some_params();
         let tracedb = trace::SharedTraceStore::new();
-        assert!(matches!(pp.process_request(
-            modify_req("no.such.parameter", None, None, None, None),
-            &tracedb,
-        ), ParameterReply::Error(_)));
-        
+        assert!(matches!(
+            pp.process_request(
+                modify_req("no.such.parameter", None, None, None, None),
+                &tracedb,
+            ),
+            ParameterReply::Error(_)
+        ));
     }
 }
 // Test tracing

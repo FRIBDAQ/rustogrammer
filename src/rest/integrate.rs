@@ -29,7 +29,6 @@ pub struct IntegrationResponse {
 
 fn is_1d(name: &str, api: &spectrum_messages::SpectrumMessageClient) -> bool {
     api.is_1d(name).expect("Getting spectrum dimensionality")
-    
 }
 
 // Aoi to integrate a 1d spectrum:
@@ -39,13 +38,14 @@ fn generate_aoi1d(
     gate: OptionalString,
     low: Option<f64>,
     high: Option<f64>,
-) -> Result<integration::AreaOfInterest, String>  {
+) -> Result<integration::AreaOfInterest, String> {
+    
     // x/ycoord must be none.  Only either gate or both of low, high can be some
     // gate if Some, must be a cut.  We'll return either AreaOfInterest::All
     // or AreaOfInterest::Oned.
 
     if let Some(gate_name) = gate {
-        if low.is_some() | high.is_some() {
+        if low.is_some() || high.is_some() {
             Err(String::from(
                 "1d spectra can only have either a gate name or limits",
             ))
@@ -54,7 +54,6 @@ fn generate_aoi1d(
 
             match api.list_conditions(&gate_name) {
                 condition_messages::ConditionReply::Listing(l) => {
-                    
                     if l.len() != 1 {
                         Err(format!("{} either is a non-existent condition or is pattern that has more than one match", gate_name))
                     } else if l[0].type_name == "Cut" {
@@ -70,25 +69,27 @@ fn generate_aoi1d(
                         ))
                     }
                 }
-                condition_messages::ConditionReply::Error(s) => {
-                    Err(format!(
-                        "Failed to get information about gate {}: {}",
-                        gate_name, s
-                    ))
-                }
-                _ => {
-                    Err(format!(
-                        "Unexpected response from getting gate properties for {}",
-                        gate_name
-                    ))
-                }
+                condition_messages::ConditionReply::Error(s) => Err(format!(
+                    "Failed to get information about gate {}: {}",
+                    gate_name, s
+                )),
+                _ => Err(format!(
+                    "Unexpected response from getting gate properties for {}",
+                    gate_name
+                )),
             }
         }
-    } else if low.is_some() && high.is_some() {
-        Ok(integration::AreaOfInterest::Oned {
-            low: low.unwrap(),
-            high: high.unwrap(),
-        })
+    } else if let Some(low) = low {
+        if let Some(high) = high {
+            Ok(integration::AreaOfInterest::Oned {
+                low: low,
+                high: high,
+            })
+        } else {
+            Err(String::from(
+                "If using limits both low and high must be provided",
+            ))
+        }
     } else {
         // be nice and allow one but not the other to be all:
 
@@ -106,7 +107,9 @@ fn generate_aoi2d(
 ) -> Result<integration::AreaOfInterest, String> {
     if let Some(gate_name) = gate {
         if xcoord.is_some() || ycoord.is_some() {
-            return Err(String::from("For a 2d spectrum only the gate _OR_ the AOI coordinates are allowed, not both"));
+            return Err(String::from(
+                "For a 2d spectrum only the gate _OR_ the AOI coordinates are allowed, not both",
+            ));
         }
         // Get gate information - must be a contour and we
         // then reconstruct it to make it a 2d area of interest:
@@ -121,57 +124,49 @@ fn generate_aoi2d(
                 }
 
                 match condition_messages::reconstitute_contour(l[0].clone()) {
-                    Ok(c) => {
-                        Ok(integration::AreaOfInterest::Twod(c))
-                    }
-                    Err(s) => {
-                        Err(format!(
-                            "Failed to construct a contour from {} : {}",
-                            gate_name, s
-                        ))
-                    }
+                    Ok(c) => Ok(integration::AreaOfInterest::Twod(c)),
+                    Err(s) => Err(format!(
+                        "Failed to construct a contour from {} : {}",
+                        gate_name, s
+                    )),
                 }
             }
 
-            condition_messages::ConditionReply::Error(s) => {
-                Err(format!(
-                    "Unable to get {} condition description: {}",
-                    gate_name, s
-                ))
-            }
-            _ => {
-                Err(format!(
-                    "Unexpected responses getting description of condition {}",
-                    gate_name
-                ))
-            }
+            condition_messages::ConditionReply::Error(s) => Err(format!(
+                "Unable to get {} condition description: {}",
+                gate_name, s
+            )),
+            _ => Err(format!(
+                "Unexpected responses getting description of condition {}",
+                gate_name
+            )),
         }
-    } else if xcoord.is_some() && ycoord.is_some() {
-        let xcoord = xcoord.unwrap();
-        let ycoord = ycoord.unwrap();
-        if xcoord.len() != ycoord.len() {
-            return Err(String::from(
-                "The X and Y coordinate arrays must be the same length",
-            ));
-        }
-        let mut pts = Vec::<(f64, f64)>::new();
-        for (i, x) in xcoord.iter().enumerate() {
-            pts.push((*x, ycoord[i]));
-        }
-        let props = condition_messages::ConditionProperties {
-            cond_name: String::from("junk"),
-            type_name: String::from("Contour"),
-            points: pts,
-            gates: vec![],
-            parameters: vec![0, 1],
-        };
-        match condition_messages::reconstitute_contour(props) {
-            Ok(c) => {
-                Ok(integration::AreaOfInterest::Twod(c))
+    } else if let Some(xcoord) = xcoord {
+        if let Some(ycoord) = ycoord {
+            if xcoord.len() != ycoord.len() {
+                return Err(String::from(
+                    "The X and Y coordinate arrays must be the same length",
+                ));
             }
-            Err(s) => {
-                Err(format!("Could not make a contour from x/y points: {}", s))
+            let mut pts = Vec::<(f64, f64)>::new();
+            for (i, x) in xcoord.iter().enumerate() {
+                pts.push((*x, ycoord[i]));
             }
+            let props = condition_messages::ConditionProperties {
+                cond_name: String::from("junk"),
+                type_name: String::from("Contour"),
+                points: pts,
+                gates: vec![],
+                parameters: vec![0, 1],
+            };
+            match condition_messages::reconstitute_contour(props) {
+                Ok(c) => Ok(integration::AreaOfInterest::Twod(c)),
+                Err(s) => Err(format!("Could not make a contour from x/y points: {}", s)),
+            }
+        } else {
+            Err(String::from(
+                "If providing AOI coordinates but xcoord and ycoord must be supplied",
+            ))
         }
     } else if xcoord.is_none() && ycoord.is_none() {
         Ok(integration::AreaOfInterest::All)
@@ -196,12 +191,10 @@ fn generate_aoi(
 ) -> Result<integration::AreaOfInterest, String> {
     if oned {
         generate_aoi1d(api, gate, low, high)
-        
     } else {
         // 2d we're allowed to have gate or x/y coordinates of a contour.
 
         generate_aoi2d(api, gate, xcoord, ycoord)
-        
     }
 }
 
@@ -704,7 +697,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=oned&low=100&high200");
+        let req = c.get("/?name=oned&low=100&high=200");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()

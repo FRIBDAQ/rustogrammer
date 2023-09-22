@@ -1968,11 +1968,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        if let SpectrumReply::Error(_) = reply {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn createmulti_3() {
@@ -2016,8 +2012,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(matches!(reply, SpectrumReply::Error(_)  ));
-        
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+
         assert!(to.processor.dict.exists("test"));
     }
     #[test]
@@ -2124,7 +2120,6 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert!(matches!(reply, SpectrumReply::Error(_)));
-        
     }
     #[test]
     fn createmult2_3() {
@@ -2176,8 +2171,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(matches!(reply,SpectrumReply::Error(_)  ));
-        
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+
         assert!(to.processor.dict.exists("test"));
     }
     #[test]
@@ -2292,11 +2287,7 @@ mod spproc_tests {
             &to.tracedb,
         );
         // maybe is more Rusty than the earlier efforts.
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn createpgamma_3() {
@@ -2401,11 +2392,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn crsummary_1() {
@@ -2499,11 +2486,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn crsummary_3() {
@@ -2546,11 +2529,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn cr2d_1() {
@@ -2647,11 +2626,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn cr2d_3() {
@@ -2679,11 +2654,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn cr2d_4() {
@@ -2731,11 +2702,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn cr2dsum_1() {
@@ -2857,11 +2824,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn cr2dsum_3() {
@@ -2904,11 +2867,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn cr2dsum_4() {
@@ -2972,11 +2931,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn del_1() {
@@ -3080,11 +3035,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn clear_1() {
@@ -3404,11 +3355,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn gate_3() {
@@ -3426,11 +3373,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
 
     #[test]
@@ -3504,11 +3447,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn events_1() {
@@ -4128,11 +4067,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn specstats_1() {
@@ -4524,11 +4459,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn getchan1_3() {
@@ -4561,12 +4492,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn getchan1_4() {
@@ -4749,11 +4675,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn getchan2_3() {
@@ -4792,11 +4714,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn getchan2_4() {
@@ -4835,11 +4753,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn getchan2_5() {
@@ -4878,11 +4792,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn getchan2_6() {
@@ -5120,11 +5030,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     // Channel setting --
     #[test]
@@ -5335,11 +5241,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn setchan1_5() {
@@ -5378,11 +5280,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     // Setchan for 2-d spectra:
 
@@ -5742,12 +5640,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn setchan2_7() {
@@ -5790,12 +5683,7 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn setchan2_8() {
@@ -5837,12 +5725,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+        
     }
     #[test]
     fn setchan2_9() {
@@ -5886,12 +5770,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+        
     }
     #[test]
     fn setchan2_10() {
@@ -5933,12 +5813,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+        
     }
     #[test]
     fn fold_1() {
@@ -5959,11 +5835,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+        
     }
     #[test]
     fn fold_2() {
@@ -6000,11 +5873,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+        
     }
     #[test]
     fn fold_3() {
@@ -6044,12 +5914,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+        
     }
     #[test]
     fn fold_4() {
@@ -6089,11 +5955,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+        
     }
     #[test]
     fn fold_5() {
@@ -6312,11 +6175,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+        
     }
     #[test]
     fn unfold_1() {
@@ -6347,11 +6207,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        assert!(if let SpectrumReply::Error(_) = reply {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+        
     }
     #[test]
     fn unfold_2() {
