@@ -93,7 +93,6 @@ fn generate_aoi(
                 };
             }
         } else if low.is_some() && high.is_some() {
-            
             return Ok(integration::AreaOfInterest::Oned {
                 low: low.unwrap(),
                 high: high.unwrap(),
@@ -103,7 +102,6 @@ fn generate_aoi(
 
             return Ok(integration::AreaOfInterest::All);
         }
-        
     } else {
         // 2d we're allowed to have gate or x/y coordinates of a contour.
 
@@ -150,7 +148,6 @@ fn generate_aoi(
                 }
             }
         } else if xcoord.is_some() && ycoord.is_some() {
-            
             let xcoord = xcoord.unwrap();
             let ycoord = ycoord.unwrap();
             if xcoord.len() != ycoord.len() {

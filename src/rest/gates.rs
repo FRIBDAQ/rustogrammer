@@ -234,7 +234,7 @@ fn validate_slice_parameters(
     }
     let low = low.unwrap();
     let high = high.unwrap();
-    let pid = find_parameter_by_name(&parameter_name, state);
+    let pid = find_parameter_by_name(parameter_name, state);
     if pid.is_none() {
         return Err(format!("Parameter {} does not exist", parameter_name));
     }
@@ -341,29 +341,39 @@ fn validate_multi1_parameters(
 }
 // Validate the parameters for a multi parameter contour:
 
+type ParameterIdAndCoords = (Vec<u32>, Vec<(f64, f64)>);
+
 fn validate_multi2_parameters(
     parameter: OptionalStringVec,
     xcoords: OptionalF64Vec,
     ycoords: OptionalF64Vec,
-    state: &State<SharedHistogramChannel>
-) -> Result<(Vec<u32>, Vec<(f64, f64)>), String> {
+    state: &State<SharedHistogramChannel>,
+) -> Result<ParameterIdAndCoords, String> {
     // THere must be parameers, x and y coordinates:
 
     if parameter.is_none() {
-        return Err(String::from("Parameters are required for a multi parameter contour"));
+        return Err(String::from(
+            "Parameters are required for a multi parameter contour",
+        ));
     }
     let parameter = parameter.unwrap();
 
     if xcoords.is_none() {
-        return Err(String::from("xcoords are required for multi parameter contours"));
+        return Err(String::from(
+            "xcoords are required for multi parameter contours",
+        ));
     }
     if ycoords.is_none() {
-        return Err(String::from("ycoords are required for multi parameters contous"));
+        return Err(String::from(
+            "ycoords are required for multi parameters contous",
+        ));
     }
     let x = xcoords.unwrap();
     let y = ycoords.unwrap();
     if x.len() != y.len() {
-        return Err(String::from("There must be the same number of x and y coordinates."))
+        return Err(String::from(
+            "There must be the same number of x and y coordinates.",
+        ));
     }
     // Marshall the points:
 
