@@ -98,7 +98,7 @@ pub fn apply_list(
         detail: Vec::new(),
     };
     for spectrum in listing {
-        let gate_name = if let Some(g) = spectrum.gate {
+        let condition_name = if let Some(g) = spectrum.gate {
             g
         } else {
             String::from("-none-")
@@ -106,7 +106,7 @@ pub fn apply_list(
 
         result.detail.push(Application {
             spectrum: spectrum.name,
-            gate: gate_name,
+            gate: condition_name,
         });
     }
     Json(result)

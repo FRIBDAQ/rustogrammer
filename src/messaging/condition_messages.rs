@@ -654,7 +654,7 @@ impl ConditionProcessor {
         let dependencies = c.borrow().dependent_gates();
         let mut d_names = Vec::<String>::new();
         for d in dependencies.iter() {
-            if let Some(s) = gate_name_from_ref(&self.dict, d) {
+            if let Some(s) = condition_name_from_ref(&self.dict, d) {
                 d_names.push(s)
             } else {
                 d_names.push(String::from("-deleted-"));

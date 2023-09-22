@@ -207,7 +207,7 @@ pub type ConditionDictionary = HashMap<String, Container>;
 ///  we iterate over all key value pairs and if we find one where the
 ///  RefCell's in the container point to the same underlying object, we
 ///  return its name.
-pub fn gate_name(dict: &ConditionDictionary, condition: &Container) -> Option<String> {
+pub fn condition_name(dict: &ConditionDictionary, condition: &Container) -> Option<String> {
     for (k, v) in dict.iter() {
         if condition.as_ptr() == v.as_ptr() {
             // Same underlying conditions.
@@ -216,12 +216,12 @@ pub fn gate_name(dict: &ConditionDictionary, condition: &Container) -> Option<St
     }
     None
 }
-pub fn gate_name_from_ref(
+pub fn condition_name_from_ref(
     dict: &ConditionDictionary,
     condition: &ContainerReference,
 ) -> Option<String> {
     if let Some(s) = condition.upgrade() {
-        gate_name(dict, &s)
+        condition_name(dict, &s)
     } else {
         None
     }
