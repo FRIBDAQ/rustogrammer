@@ -122,28 +122,28 @@ fn generate_aoi2d(
 
                 match condition_messages::reconstitute_contour(l[0].clone()) {
                     Ok(c) => {
-                        return Ok(integration::AreaOfInterest::Twod(c));
+                        Ok(integration::AreaOfInterest::Twod(c))
                     }
                     Err(s) => {
-                        return Err(format!(
+                        Err(format!(
                             "Failed to construct a contour from {} : {}",
                             gate_name, s
-                        ));
+                        ))
                     }
                 }
             }
 
             condition_messages::ConditionReply::Error(s) => {
-                return Err(format!(
+                Err(format!(
                     "Unable to get {} condition description: {}",
                     gate_name, s
-                ));
+                ))
             }
             _ => {
-                return Err(format!(
+                Err(format!(
                     "Unexpected responses getting description of condition {}",
                     gate_name
-                ));
+                ))
             }
         }
     } else if xcoord.is_some() && ycoord.is_some() {
@@ -167,18 +167,18 @@ fn generate_aoi2d(
         };
         match condition_messages::reconstitute_contour(props) {
             Ok(c) => {
-                return Ok(integration::AreaOfInterest::Twod(c));
+                Ok(integration::AreaOfInterest::Twod(c))
             }
             Err(s) => {
-                return Err(format!("Could not make a contour from x/y points: {}", s));
+                Err(format!("Could not make a contour from x/y points: {}", s))
             }
         }
     } else if xcoord.is_none() && ycoord.is_none() {
-        return Ok(integration::AreaOfInterest::All);
+        Ok(integration::AreaOfInterest::All)
     } else {
-        return Err(String::from(
+        Err(String::from(
             "When specifying a 2d AOI with points both xcoord and ycoord must be present",
-        ));
+        ))
     }
 }
 
