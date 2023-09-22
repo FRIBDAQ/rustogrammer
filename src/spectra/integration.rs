@@ -116,7 +116,7 @@ fn fwhm(
 ) -> (f64, f64) {
     let mut sqsums = (0.0_f64, 0.0_f64);
     for chan in contents {
-        let contribution = sum_channel(&chan, aoi);
+        let contribution = sum_channel(chan, aoi);
         sqsums.0 += contribution.contents * (chan.x - centroid.0) * (chan.x - centroid.0);
         sqsums.1 += contribution.contents * (chan.y - centroid.1) * (chan.y - centroid.1);
     }
