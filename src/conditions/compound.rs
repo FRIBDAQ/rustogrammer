@@ -76,7 +76,7 @@ impl Condition for Not {
     fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         vec![self.dependent.clone()]
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -180,7 +180,7 @@ impl Condition for And {
         Vec::<(f64, f64)>::new()
     }
 
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         self.dependencies.clone_conditions()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -257,7 +257,7 @@ impl Condition for Or {
         Vec::<(f64, f64)>::new()
     }
 
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         self.dependencies.clone_conditions()
     }
     fn dependent_parameters(&self) -> Vec<u32> {

@@ -651,7 +651,7 @@ impl ConditionProcessor {
 
     fn make_props(&self, name: &str, c: &Container) -> ConditionProperties {
         // Need to make the dependent conditions:
-        let dependencies = c.borrow().dependent_gates();
+        let dependencies = c.borrow().dependent_conditions();
         let mut d_names = Vec::<String>::new();
         for d in dependencies.iter() {
             if let Some(s) = condition_name_from_ref(&self.dict, d) {
@@ -1037,7 +1037,7 @@ mod cnd_processor_tests {
         assert!(item.is_some());
         let cond = item.unwrap();
         assert_eq!(String::from("Not"), cond.borrow().condition_type());
-        let dep = cond.borrow().dependent_gates();
+        let dep = cond.borrow().dependent_conditions();
         assert_eq!(1, dep.len());
         assert_eq!(
             String::from("False"),
@@ -1064,7 +1064,7 @@ mod cnd_processor_tests {
 
         let cond = cp.dict.get("and").unwrap();
         assert_eq!(String::from("And"), cond.borrow().condition_type());
-        let deps = cond.borrow().dependent_gates();
+        let deps = cond.borrow().dependent_conditions();
 
         assert_eq!(2, deps.len());
         assert_eq!(
@@ -1096,7 +1096,7 @@ mod cnd_processor_tests {
 
         let cond = cp.dict.get("or").unwrap();
         assert_eq!(String::from("Or"), cond.borrow().condition_type());
-        let deps = cond.borrow().dependent_gates();
+        let deps = cond.borrow().dependent_conditions();
 
         assert_eq!(2, deps.len());
         assert_eq!(

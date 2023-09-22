@@ -210,7 +210,7 @@ impl Condition for Band {
 
         result
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -370,7 +370,7 @@ impl Condition for Contour {
 
         result
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -457,7 +457,7 @@ impl Condition for MultiContour {
     fn condition_points(&self) -> Vec<(f64, f64)> {
         self.contour.condition_points() // Can delegate.
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         vec![] // could delegate but this is simpler
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -1260,7 +1260,7 @@ mod multicontour_tests {
     fn depcond_1() {
         let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
 
-        assert!(c.dependent_gates().is_empty());
+        assert!(c.dependent_conditions().is_empty());
     }
     #[test]
     fn deppars_1() {

@@ -86,7 +86,7 @@ pub trait Condition {
 
     fn condition_type(&self) -> String; // Type of Condition.
     fn condition_points(&self) -> Vec<(f64, f64)>;
-    fn dependent_gates(&self) -> Vec<ContainerReference>;
+    fn dependent_conditions(&self) -> Vec<ContainerReference>;
     fn dependent_parameters(&self) -> Vec<u32>;
 
     /// Optional methods:
@@ -253,7 +253,7 @@ impl Condition for True {
     fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -276,7 +276,7 @@ impl Condition for False {
     fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {

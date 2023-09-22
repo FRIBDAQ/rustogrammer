@@ -59,7 +59,7 @@ impl Condition for Cut {
     fn condition_points(&self) -> Vec<(f64, f64)> {
         vec![(self.low, 0.0), (self.high, 0.0)]
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn get_cached_value(&self) -> Option<bool> {
@@ -125,7 +125,7 @@ impl Condition for MultiCut {
     fn condition_points(&self) -> Vec<(f64, f64)> {
         vec![(self.low, 0.0), (self.high, 0.0)]
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         vec![]
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -452,7 +452,7 @@ mod multicut_tests {
     #[test]
     fn dependencies_1() {
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
-        assert!(mcut.dependent_gates().is_empty());
+        assert!(mcut.dependent_conditions().is_empty());
         assert_eq!(vec![1, 2, 3], mcut.dependent_parameters());
     }
     #[test]
