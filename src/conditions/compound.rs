@@ -73,7 +73,7 @@ impl Condition for Not {
     fn condition_type(&self) -> String {
         String::from("Not")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
     fn dependent_gates(&self) -> Vec<ContainerReference> {
@@ -176,7 +176,7 @@ impl Condition for And {
     fn condition_type(&self) -> String {
         String::from("And")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
 
@@ -253,7 +253,7 @@ impl Condition for Or {
     fn condition_type(&self) -> String {
         String::from("Or")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
 

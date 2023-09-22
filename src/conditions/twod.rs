@@ -202,7 +202,7 @@ impl Condition for Band {
     fn condition_type(&self) -> String {
         String::from("Band")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         let mut result = Vec::<(f64, f64)>::new();
         for p in self.points.iter() {
             result.push((p.x, p.y));
@@ -362,7 +362,7 @@ impl Condition for Contour {
     fn condition_type(&self) -> String {
         String::from("Contour")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         let mut result = Vec::<(f64, f64)>::new();
         for p in self.pts.iter() {
             result.push((p.x, p.y));
@@ -454,8 +454,8 @@ impl Condition for MultiContour {
     fn condition_type(&self) -> String {
         String::from("MultiContour")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
-        self.contour.gate_points() // Can delegate.
+    fn condition_points(&self) -> Vec<(f64, f64)> {
+        self.contour.condition_points() // Can delegate.
     }
     fn dependent_gates(&self) -> Vec<ContainerReference> {
         vec![] // could delegate but this is simpler
@@ -1250,7 +1250,7 @@ mod multicontour_tests {
         let pts = test_points();
         let c = MultiContour::new(&vec![1, 2, 3], pts.clone()).expect("making multicontour");
 
-        let condition_pts = c.gate_points();
+        let condition_pts = c.condition_points();
         assert_eq!(pts.len(), condition_pts.len());
         for (i, p) in pts.iter().enumerate() {
             assert_eq!((p.x, p.y), condition_pts[i], "Mismatch on {}", i);

@@ -664,7 +664,7 @@ impl ConditionProcessor {
         ConditionProperties {
             cond_name: String::from(name),
             type_name: c.borrow().condition_type(),
-            points: c.borrow().gate_points(),
+            points: c.borrow().condition_points(),
             gates: d_names,
             parameters: c.borrow().dependent_parameters(),
         }
@@ -997,7 +997,10 @@ mod cnd_processor_tests {
 
         let item = cp.dict.get("true-cond");
         assert!(item.is_some());
-        assert_eq!(String::from("True"), item.unwrap().borrow().condition_type());
+        assert_eq!(
+            String::from("True"),
+            item.unwrap().borrow().condition_type()
+        );
     }
     #[test]
     fn make_false_1() {
@@ -1011,7 +1014,10 @@ mod cnd_processor_tests {
 
         let item = cp.dict.get("false-cond");
         assert!(item.is_some());
-        assert_eq!(String::from("False"), item.unwrap().borrow().condition_type());
+        assert_eq!(
+            String::from("False"),
+            item.unwrap().borrow().condition_type()
+        );
     }
     #[test]
     fn make_not_1() {
@@ -1114,7 +1120,7 @@ mod cnd_processor_tests {
 
         let cond = cp.dict.get("cut").unwrap();
         assert_eq!("Cut", cond.borrow().condition_type());
-        let pts = cond.borrow().gate_points();
+        let pts = cond.borrow().condition_points();
         assert_eq!(2, pts.len());
         assert_eq!(100.0, pts[0].0);
         assert_eq!(200.0, pts[1].0);
@@ -1132,7 +1138,7 @@ mod cnd_processor_tests {
 
         let cond = cp.dict.get("band").unwrap();
         assert_eq!(String::from("Band"), cond.borrow().condition_type());
-        let pts = cond.borrow().gate_points();
+        let pts = cond.borrow().condition_points();
         assert_eq!(condition_pts.len(), pts.len());
         for (i, p) in condition_pts.iter().enumerate() {
             assert_eq!(p.0, pts[i].0);
@@ -1152,7 +1158,7 @@ mod cnd_processor_tests {
 
         let cond = cp.dict.get("contour").unwrap();
         assert_eq!(String::from("Contour"), cond.borrow().condition_type());
-        let pts = cond.borrow().gate_points();
+        let pts = cond.borrow().condition_points();
         assert_eq!(condition_pts.len(), pts.len());
         for (i, p) in condition_pts.iter().enumerate() {
             assert_eq!(p.0, pts[i].0);
@@ -1341,7 +1347,10 @@ mod cnd_processor_tests {
 
         let item = cp.dict.get("test");
         assert!(item.is_some());
-        assert_eq!(String::from("MultiCut"), item.unwrap().borrow().condition_type());
+        assert_eq!(
+            String::from("MultiCut"),
+            item.unwrap().borrow().condition_type()
+        );
     }
     #[test]
     fn create_multi2_1() {

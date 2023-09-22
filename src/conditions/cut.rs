@@ -56,7 +56,7 @@ impl Condition for Cut {
     fn condition_type(&self) -> String {
         String::from("Cut")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         vec![(self.low, 0.0), (self.high, 0.0)]
     }
     fn dependent_gates(&self) -> Vec<ContainerReference> {
@@ -122,7 +122,7 @@ impl Condition for MultiCut {
     fn condition_type(&self) -> String {
         String::from("MultiCut")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         vec![(self.low, 0.0), (self.high, 0.0)]
     }
     fn dependent_gates(&self) -> Vec<ContainerReference> {
@@ -442,10 +442,10 @@ mod multicut_tests {
     }
     #[test]
     fn points_1() {
-        // Test gate_points:
+        // Test condition_points:
 
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
-        assert_eq!(vec![(100.0, 0.0), (200.0, 0.0)], mcut.gate_points());
+        assert_eq!(vec![(100.0, 0.0), (200.0, 0.0)], mcut.condition_points());
     }
     // Dependent conditionss and parameters are empty:
 
