@@ -16,6 +16,10 @@
 //! As with any spectrum a condition can be applied as a gate on
 //! incrementing the spectrum.  Gated spectra will only be incremented
 //! for events for which the gating condition is true.
+//!
+//! Multi2d spectra can also have a fold applied.  If a fold is applied,
+//! Only the parameter pairs that don't make the fold condition true
+//! are allowed to increment the spectrum.
 
 use super::*;
 

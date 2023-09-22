@@ -493,8 +493,6 @@ mod summary_tests {
     fn incr_3() {
         // Add False gate and the increments don't happen.
 
-        // add a T gate - should still increment:
-
         let mut pd = ParameterDictionary::new();
         let mut names = Vec::<String>::new();
         for i in 0..10 {
