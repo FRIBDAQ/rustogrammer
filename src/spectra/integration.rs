@@ -24,7 +24,7 @@ use libm::sqrt;
 
 /// Multiplier from deviance to FWHM under Gaussian assumption:
 
-const GAMMA: f64 = 2.3548200450309493820231386529194; // 2.0_f64 * sqrt(2.0_f64 * 2.0_f64.ln());
+const GAMMA: f64 = 2.3548200450309494; // 2.0_f64 * sqrt(2.0_f64 * 2.0_f64.ln());
 
 ///  This is the payload of a sum.  It's the same for 1-d and 2d integrations:
 struct SumElement {
@@ -96,7 +96,7 @@ fn centroid(
     let mut counts = 0.0_f64;
 
     for chan in contents {
-        let contribution = sum_channel(&chan, aoi);
+        let contribution = sum_channel(chan, aoi);
         counts += contribution.contents;
         wsums.0 += contribution.wsum.0;
         wsums.1 += contribution.wsum.1;

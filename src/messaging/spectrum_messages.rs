@@ -1736,6 +1736,7 @@ mod spproc_tests {
     use crate::parameters::*;
     use crate::trace;
     use std::cmp::Ordering;
+    use std::matches;
 
     #[test]
     fn new_1() {
@@ -1841,11 +1842,7 @@ mod spproc_tests {
         );
         // Checking the error string is brittle so:
 
-        if let SpectrumReply::Error(_) = reply {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        assert!(matches!(reply, SpectrumReply::Error(_)));
     }
     #[test]
     fn create1d_3() {
@@ -1884,11 +1881,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        if let SpectrumReply::Error(_) = reply {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+
         // spectrum is still in dict:
 
         assert!(to.processor.dict.exists("test"));
@@ -2022,11 +2016,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        if let SpectrumReply::Error(_) = reply {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        assert!(matches!(reply, SpectrumReply::Error(_)  ));
+        
         assert!(to.processor.dict.exists("test"));
     }
     #[test]
@@ -2132,11 +2123,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        if let SpectrumReply::Error(_) = reply {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        assert!(matches!(reply, SpectrumReply::Error(_)));
+        
     }
     #[test]
     fn createmult2_3() {
@@ -2188,11 +2176,8 @@ mod spproc_tests {
             &mut to.conditions,
             &to.tracedb,
         );
-        if let SpectrumReply::Error(_) = reply {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        assert!(matches!(reply,SpectrumReply::Error(_)  ));
+        
         assert!(to.processor.dict.exists("test"));
     }
     #[test]
@@ -4092,7 +4077,7 @@ mod spproc_tests {
             &to.tracedb,
         ) {
             SpectrumReply::Flag(b) => assert!(b),
-            _ => assert!(false, "Should have gotten Flag(true)"),
+            _ => panic!("Should have gotten Flag(true)"),
         }
     }
     #[test]

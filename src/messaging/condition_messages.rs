@@ -958,8 +958,8 @@ mod cond_msg_tests {
     fn make_multicontour_1() {
         let mc = ConditionMessageClient::make_multicontour_creation(
             "name",
-            &vec![1, 2, 3],
-            &vec![(100.0, 100.0), (150.0, 100.0), (125.0, 150.0)],
+            &[1, 2, 3],
+            &[(100.0, 100.0), (150.0, 100.0), (125.0, 150.0)],
         );
         assert_eq!(
             ConditionRequest::CreateMultiContour {
@@ -976,6 +976,7 @@ mod cnd_processor_tests {
     use super::*;
     use crate::trace;
     use std::collections::HashMap;
+    use std::matches;
 
     #[test]
     fn new_1() {
@@ -1050,7 +1051,7 @@ mod cnd_processor_tests {
         let rep = cp.process_request(
             ConditionMessageClient::make_and_creation(
                 "and",
-                &vec![String::from("true"), String::from("false")],
+                &[String::from("true"), String::from("false")],
             ),
             &tracedb,
         );
@@ -1082,7 +1083,7 @@ mod cnd_processor_tests {
         let rep = cp.process_request(
             ConditionMessageClient::make_or_creation(
                 "or",
-                &vec![String::from("true"), String::from("false")],
+                &[String::from("true"), String::from("false")],
             ),
             &tracedb,
         );
@@ -1216,11 +1217,7 @@ mod cnd_processor_tests {
         let tracedb = trace::SharedTraceStore::new();
         cp.process_request(ConditionMessageClient::make_true_creation("true"), &tracedb);
         let reply = cp.process_request(ConditionMessageClient::make_delete("false"), &tracedb);
-        if let ConditionReply::Error(_) = reply {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        assert!(matches!(reply, ConditionReply::Error(_)));
     }
     fn make_list_conditions() -> ConditionProcessor {
         let mut cp = ConditionProcessor::new();
@@ -1237,7 +1234,7 @@ mod cnd_processor_tests {
         cp.process_request(
             ConditionMessageClient::make_and_creation(
                 "fake",
-                &vec![String::from("true"), String::from("t-cut")],
+                &[String::from("true"), String::from("t-cut")],
             ),
             &tracedb,
         );
@@ -1323,11 +1320,7 @@ mod cnd_processor_tests {
         let mut cp = make_list_conditions();
         let tracedb = trace::SharedTraceStore::new();
         let reply = cp.process_request(ConditionMessageClient::make_list("[Astuff"), &tracedb);
-        if let ConditionReply::Error(_) = reply {
-            assert!(true);
-        } else {
-            assert!(false);
-        }
+        assert!(matches!(reply, ConditionReply::Error(_)));
     }
     #[test]
     fn create_multi1_1() {
@@ -1353,7 +1346,7 @@ mod cnd_processor_tests {
             ConditionMessageClient::make_multicontour_creation(
                 "test",
                 &[1, 2, 3],
-                &vec![(100.0, 100.0), (150.0, 100.0), (125.0, 200.0)],
+                &[(100.0, 100.0), (150.0, 100.0), (125.0, 200.0)],
             ),
             &tracedb,
         );
@@ -1376,16 +1369,11 @@ mod cnd_processor_tests {
             ConditionMessageClient::make_multicontour_creation(
                 "test",
                 &[1, 2, 3],
-                &vec![(100.0, 100.0), (150.0, 100.0)],
+                &[(100.0, 100.0), (150.0, 100.0)],
             ),
             &tracedb,
         );
-
-        assert!(if let ConditionReply::Error(_) = rep {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(rep, ConditionReply::Error(_)));
     }
 }
 #[cfg(test)]
@@ -1547,8 +1535,8 @@ mod cnd_api_tests {
 
         let reply = api.create_multicontour_condition(
             "test",
-            &vec![1, 2, 3],
-            &vec![(10.0, 0.0), (20.0, 0.0), (15.0, 20.0)],
+            &[1, 2, 3],
+            &[(10.0, 0.0), (20.0, 0.0), (15.0, 20.0)],
         );
         assert_eq!(ConditionReply::Created, reply);
 

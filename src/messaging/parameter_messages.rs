@@ -437,10 +437,11 @@ mod param_msg_tests {
 mod pprocessor_tests {
     use super::*;
     use std::collections::HashSet;
+    use std::matches;
     fn create_req(name: &str) -> ParameterRequest {
         let result = ParameterMessageClient::make_create_request(name);
         if let MessageType::Parameter(req) = result {
-            return req;
+            req
         } else {
             panic!("make_create_request did not make a ParameterRequest object");
         }
@@ -448,7 +449,7 @@ mod pprocessor_tests {
     fn list_req(patt: &str) -> ParameterRequest {
         let result = ParameterMessageClient::make_list_request(patt);
         if let MessageType::Parameter(req) = result {
-            return req;
+            req
         } else {
             panic!("make_list_request did not make a ParameterRequest object");
         }
@@ -463,7 +464,7 @@ mod pprocessor_tests {
         let result =
             ParameterMessageClient::make_modify_request(name, bins, limits, units, description);
         if let MessageType::Parameter(req) = result {
-            return req;
+            req
         } else {
             panic!("make_mdify_request did not make a parameter request object");
         }
@@ -526,11 +527,8 @@ mod pprocessor_tests {
 
         pp.dict.add("test").expect("Failed to add to empty dict");
         let result = pp.process_request(create_req("test"), &tracedb);
-        if let ParameterReply::Error(_) = result {
-            assert!(true); // Correct result.
-        } else {
-            assert!(false); // shouild have been an error.
-        }
+        assert!(matches!(result, ParameterReply::Error(_)));
+        
     }
     #[test]
     fn add_3() {
@@ -766,14 +764,11 @@ mod pprocessor_tests {
 
         let mut pp = create_some_params();
         let tracedb = trace::SharedTraceStore::new();
-        if let ParameterReply::Error(_) = pp.process_request(
+        assert!(matches!(pp.process_request(
             modify_req("no.such.parameter", None, None, None, None),
             &tracedb,
-        ) {
-            assert!(true);
-        } else {
-            panic!("Return for modifying no such parameter is not an error!");
-        }
+        ), ParameterReply::Error(_)));
+        
     }
 }
 // Test tracing
@@ -787,7 +782,7 @@ mod parameter_traces {
     fn create_req(name: &str) -> ParameterRequest {
         let result = ParameterMessageClient::make_create_request(name);
         if let MessageType::Parameter(req) = result {
-            return req;
+            req
         } else {
             panic!("make_create_request did not make a ParameterRequest object");
         }
@@ -802,7 +797,7 @@ mod parameter_traces {
         let result =
             ParameterMessageClient::make_modify_request(name, bins, limits, units, description);
         if let MessageType::Parameter(req) = result {
-            return req;
+            req
         } else {
             panic!("make_mdify_request did not make a parameter request object");
         }
