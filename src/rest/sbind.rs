@@ -385,7 +385,7 @@ mod sbind_tests {
         param_api.create_parameter("p1").expect("making p1");
         param_api.create_parameter("p2").expect("Making p2");
 
-        let spec_api = spectrum_messages::SpectrumMessageClient::new(&req);
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(req);
 
         spec_api
             .create_spectrum_1d("oned", "p1", 0.0, 1024.0, 1024)
