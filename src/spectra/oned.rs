@@ -324,8 +324,7 @@ mod oned_tests {
         let pid = s.parameter_id; // so we know how to fill in flat event:
 
         let mut fe = FlatEvent::new();
-        let mut e = Event::new();
-        e.push(EventParameter::new(pid, 511.0));
+        let e = vec![EventParameter::new(pid, 511.0)];
         fe.load_event(&e);
 
         s.handle_event(&fe);
@@ -348,8 +347,7 @@ mod oned_tests {
         //Now make the event -- should increment with a True gate:
 
         let mut fe = FlatEvent::new();
-        let mut e = Event::new();
-        e.push(EventParameter::new(pid, 511.0));
+        let e = vec![EventParameter::new(pid, 511.0)];
         fe.load_event(&e);
 
         s.handle_event(&fe);
@@ -372,8 +370,7 @@ mod oned_tests {
         //Now make the event -- should increment with a True gate:
 
         let mut fe = FlatEvent::new();
-        let mut e = Event::new();
-        e.push(EventParameter::new(pid, 511.0));
+        let e = vec![EventParameter::new(pid, 511.0)];
         fe.load_event(&e);
 
         s.handle_event(&fe);
@@ -392,8 +389,7 @@ mod oned_tests {
         let pid = s.parameter_id; // so we know how to fill in flat event:
 
         let mut fe = FlatEvent::new();
-        let mut e = Event::new();
-        e.push(EventParameter::new(pid + 1, 511.0)); // not ours...
+        let e = vec![EventParameter::new(pid + 1, 511.0)]; // not ours...
         fe.load_event(&e);
 
         s.handle_event(&fe);
@@ -415,8 +411,7 @@ mod oned_tests {
         let pid = s.parameter_id; // so we know how to fill in flat event:
 
         let mut fe = FlatEvent::new();
-        let mut e = Event::new();
-        e.push(EventParameter::new(pid, 1023.0)); // just overflows I think:
+        let e = vec![EventParameter::new(pid, 1023.0)]; // just overflows I think:
         fe.load_event(&e);
 
         s.handle_event(&fe);
@@ -431,8 +426,7 @@ mod oned_tests {
         let pid = s.parameter_id; // so we know how to fill in flat event:
 
         let mut fe = FlatEvent::new();
-        let mut e = Event::new();
-        e.push(EventParameter::new(pid, -0.001)); // just underflows I think.
+        let e = vec![EventParameter::new(pid, -0.001)];
         fe.load_event(&e);
 
         s.handle_event(&fe);
@@ -448,8 +442,7 @@ mod oned_tests {
         let pid = s.parameter_id; // so we know how to fill in flat event:
 
         let mut fe = FlatEvent::new();
-        let mut e = Event::new();
-        e.push(EventParameter::new(pid, 511.0)); //Back to middle.
+        let e = vec![EventParameter::new(pid, 511.0)]; //Back to middle.
         fe.load_event(&e);
 
         for _ in 0..100 {
@@ -463,8 +456,7 @@ mod oned_tests {
         let pid = s.parameter_id; // so we know how to fill in flat event:
 
         let mut fe = FlatEvent::new();
-        let mut e = Event::new();
-        e.push(EventParameter::new(pid, 511.0)); //Back to middle.
+        let e = vec![EventParameter::new(pid, 511.0)]; //Back to middle.
         fe.load_event(&e);
 
         for _ in 0..100 {

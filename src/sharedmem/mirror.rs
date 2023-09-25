@@ -827,10 +827,10 @@ mod directory_tests {
         let mut dir = Directory::new();
         // stock it:
 
-        let hosts = vec!["host1", "host2", "host3"];
-        let keys = vec!["file1", "file2", "file3"];
+        let hosts = ["host1", "host2", "host3"];
+        let keys = ["file1", "file2", "file3"];
         for (i, h) in hosts.iter().enumerate() {
-            dir.add(h, &keys[i]).expect("add failed");
+            dir.add(h, keys[i]).expect("add failed");
         }
 
         let mut contents = Vec::<DirectoryEntry>::new();
@@ -854,7 +854,7 @@ mod directory_tests {
         let key = "file:/some/key";
         let mut dir = Directory::new();
 
-        let r = dir.remove(&host, &key);
+        let r = dir.remove(host, key);
         assert!(r.is_err());
 
         assert_eq!(
@@ -867,17 +867,17 @@ mod directory_tests {
         // Remove from amongst some.
 
         let mut dir = Directory::new();
-        let hosts = vec!["host1", "host2", "host3"];
-        let keys = vec!["file1", "file2", "file3"];
+        let hosts = ["host1", "host2", "host3"];
+        let keys = ["file1", "file2", "file3"];
         for (i, h) in hosts.iter().enumerate() {
-            dir.add(h, &keys[i]).expect("add failed");
+            dir.add(h, keys[i]).expect("add failed");
         }
 
         // remove the first one:
 
-        dir.remove(&hosts[0], &keys[0])
+        dir.remove(hosts[0], keys[0])
             .expect("Remove should have worked.");
-        let lookup = Directory::compute_index(&hosts[0], &keys[0]);
+        let lookup = Directory::compute_index(hosts[0], keys[0]);
         assert!(!dir.items.contains_key(&lookup));
     }
 }
@@ -1047,7 +1047,7 @@ mod mirror_server_tests {
         (shm, sender)
     }
     fn connect_server(port_offset: u16) -> TcpStream {
-        TcpStream::connect(&format!("127.0.0.1:{}", SERVER_PORT + port_offset))
+        TcpStream::connect(format!("127.0.0.1:{}", SERVER_PORT + port_offset))
             .expect("Connecting to mirror server")
     }
 
