@@ -39,7 +39,6 @@ fn generate_aoi1d(
     low: Option<f64>,
     high: Option<f64>,
 ) -> Result<integration::AreaOfInterest, String> {
-    
     // x/ycoord must be none.  Only either gate or both of low, high can be some
     // gate if Some, must be a cut.  We'll return either AreaOfInterest::All
     // or AreaOfInterest::Oned.
@@ -81,10 +80,7 @@ fn generate_aoi1d(
         }
     } else if let Some(low) = low {
         if let Some(high) = high {
-            Ok(integration::AreaOfInterest::Oned {
-                low: low,
-                high: high,
-            })
+            Ok(integration::AreaOfInterest::Oned { low, high })
         } else {
             Err(String::from(
                 "If using limits both low and high must be provided",

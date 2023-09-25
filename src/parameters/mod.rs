@@ -925,7 +925,7 @@ mod paramap_test {
 
         let ine: Event = vec![
             EventParameter::new(10, 1.234),
-            EventParameter::new(7, 3.1416), // should vanish
+            EventParameter::new(7, 3.1122), // should vanish
             EventParameter::new(12, 5.5),
             EventParameter::new(5, 5.231),
         ];
@@ -1001,7 +1001,7 @@ mod parflatevt_test {
         ev.load_event(&e);
         assert_eq!(2, ev.generation);
         assert_eq!(5, ev.event.len());
-        for i in vec![1, 2, 4] {
+        for i in [1, 2, 4] {
             assert!(ev[i].is_some());
             assert_eq!(2.0 * i as f64, ev[i].unwrap());
         }
@@ -1018,7 +1018,7 @@ mod parflatevt_test {
         ];
         ev.load_event(&e);
 
-        for i in vec![0, 3] {
+        for i in [0, 3] {
             assert!(ev[i].is_none());
         }
     }
