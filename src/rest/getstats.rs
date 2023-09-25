@@ -145,8 +145,8 @@ mod getstats_tests {
     ) {
         rest_common::get_state(r)
     }
-    fn sortdetail(inp: &Vec<SpectrumStatistics>) -> Vec<SpectrumStatistics> {
-        let mut result = inp.clone();
+    fn sortdetail(inp: &[SpectrumStatistics]) -> Vec<SpectrumStatistics> {
+        let mut result = inp.to_owned();
         result.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
         result
     }
@@ -154,21 +154,20 @@ mod getstats_tests {
         // We make events that make 1 underflow, 2 overflows in p1
         // and 2 underflows and 1 overflow in p2
 
-        let mut result: Vec<Event> = vec![];
-        result.push(vec![
-            EventParameter::new(1, -1.0), // p1 underflow.
-            EventParameter::new(2, -1.0), // p2 underflow.
-        ]);
-        result.push(vec![
-            EventParameter::new(1, 2000.0), // p1 overflow.
-            EventParameter::new(2, -1.0),   // p2 underflow.
-        ]);
-        result.push(vec![
-            EventParameter::new(1, 2000.0), // p1 overflow
-            EventParameter::new(2, 2000.0), // p2 overflow
-        ]);
-
-        return result;
+        vec![
+            vec![
+                EventParameter::new(1, -1.0), // p1 underflow.
+                EventParameter::new(2, -1.0), // p2 underflow.
+            ],
+            vec![
+                EventParameter::new(1, 2000.0), // p1 overflow.
+                EventParameter::new(2, -1.0),   // p2 underflow.
+            ],
+            vec![
+                EventParameter::new(1, 2000.0), // p1 overflow
+                EventParameter::new(2, 2000.0), // p2 overflow
+            ],
+        ]
     }
     #[test]
     fn getstats_1() {

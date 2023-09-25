@@ -462,7 +462,7 @@ mod integrate_tests {
             "good-contour",
             4,
             5,
-            &vec![
+            &[
                 (100.0, 100.0),
                 (500.0, 100.0),
                 (500.0, 500.0),
@@ -477,7 +477,7 @@ mod integrate_tests {
             "empty-contour",
             4,
             5,
-            &vec![(0.0, 0.0), (50.0, 0.0), (50.0, 50.0), (0.0, 50.0)],
+            &[(0.0, 0.0), (50.0, 0.0), (50.0, 50.0), (0.0, 50.0)],
         ) {
             condition_messages::ConditionReply::Created => {}
             _ => panic!("Bad reply from true creation."),
