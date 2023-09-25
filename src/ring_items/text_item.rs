@@ -365,8 +365,8 @@ mod text_tests {
         assert_eq!(1, item.offset_divisor);
         assert!(item.original_sid.is_none());
         assert_eq!(strings.len(), item.strings.len());
-        for i in 0..strings.len() {
-            assert_eq!(strings[i], item.strings[i]);
+        for (i, s) in strings.iter().enumerate() {
+            assert_eq!(*s, item.strings[i]);
         }
     }
     #[test]
@@ -406,8 +406,8 @@ mod text_tests {
         assert_eq!(1, item.offset_divisor);
         assert!(item.original_sid.is_none());
         assert_eq!(strings.len(), item.strings.len());
-        for i in 0..strings.len() {
-            assert_eq!(strings[i], item.strings[i]);
+        for (i, s) in strings.iter().enumerate() {
+            assert_eq!(*s, item.strings[i]);
         }
     }
     #[test]
@@ -449,8 +449,8 @@ mod text_tests {
         assert!(item.original_sid.is_some());
         assert_eq!(5, item.original_sid.unwrap());
         assert_eq!(strings.len(), item.strings.len());
-        for i in 0..strings.len() {
-            assert_eq!(strings[i], item.strings[i]);
+        for (i, s) in strings.iter().enumerate() {
+            assert_eq!(*s, item.strings[i]);
         }
     }
     // test getters:
@@ -576,12 +576,12 @@ mod text_tests {
         );
 
         let next = "One more string";
-        item.add(&next);
+        item.add(next);
         strings.push(String::from(next));
 
         assert_eq!(strings.len(), item.get_string_count());
-        for i in 0..strings.len() {
-            assert_eq!(strings[i], item.get_string(i).unwrap());
+        for (i, s) in strings.iter().enumerate() {
+            assert_eq!(*s, item.get_string(i).unwrap());
         }
         assert!(item.get_string(strings.len()).is_none());
     }
@@ -610,7 +610,7 @@ mod text_tests {
         );
 
         let next = "One more string";
-        let n = item.add(&next).get_string_count();
+        let n = item.add(next).get_string_count();
         strings.push(String::from(next));
         assert_eq!(strings.len(), n);
     }
@@ -905,8 +905,8 @@ mod text_tests {
 
         // strings start here:
 
-        for i in 0..strings.len() {
-            assert_eq!(strings[i], get_c_string(&mut offset, p));
+        for s in strings.iter() {
+            assert_eq!(*s, get_c_string(&mut offset, p));
         }
 
         // Should be at the item end
@@ -985,8 +985,8 @@ mod text_tests {
 
         // strings start here:
 
-        for i in 0..strings.len() {
-            assert_eq!(strings[i], get_c_string(&mut offset, p));
+        for s in strings.iter() {
+            assert_eq!(*s, get_c_string(&mut offset, p));
         }
 
         // Should be at the item end
@@ -1074,8 +1074,8 @@ mod text_tests {
 
         // strings start here:
 
-        for i in 0..strings.len() {
-            assert_eq!(strings[i], get_c_string(&mut offset, p));
+        for s in strings.iter() {
+            assert_eq!(*s, get_c_string(&mut offset, p));
         }
 
         // Should be at the item end

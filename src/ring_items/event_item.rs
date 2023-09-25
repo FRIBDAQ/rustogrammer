@@ -313,9 +313,7 @@ mod test_event {
 
         let mut item = PhysicsEvent::new(None);
 
-        item.add(0xa5_u8)
-            .add(0xa5a5_u16)
-            .add(0xa5a5a5a5_u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
 
         let got = item.get::<u8>();
         assert!(got.is_some());
@@ -375,9 +373,7 @@ mod test_event {
     fn body_size_1() {
         let mut item = PhysicsEvent::new(None);
 
-        item.add(0xa5_u8)
-            .add(0xa5a5_u16)
-            .add(0xa5a5a5a5_u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
 
         assert_eq!(item.event_data.len(), item.body_size());
     }
@@ -416,9 +412,7 @@ mod test_event {
         // no body header but contents:
 
         let mut item = PhysicsEvent::new(None);
-        item.add(0xa5_u8)
-            .add(0xa5a5_u16)
-            .add(0xa5a5a5a5_u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
         let raw = item.to_raw();
         assert_eq!(
             size_of::<u32>() + size_of::<u16>() + size_of::<u8>(),
@@ -451,9 +445,7 @@ mod test_event {
             source_id: 2,
             barrier_type: 0,
         }));
-        item.add(0xa5_u8)
-            .add(0xa5a5_u16)
-            .add(0xa5a5a5a5_u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
         let raw = item.to_raw();
 
         assert_eq!(
@@ -517,9 +509,7 @@ mod test_event {
         // no body header but a payload:
 
         let mut item = PhysicsEvent::new(None);
-        item.add(0xa5_u8)
-            .add(0xa5a5_u16)
-            .add(0xa5a5a5a5_u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
         let raw = item.to_raw();
         let event: Option<PhysicsEvent> = raw.to_specific(RingVersion::V11);
         assert!(event.is_some());
