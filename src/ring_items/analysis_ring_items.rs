@@ -506,12 +506,9 @@ mod test_paramdefs {
         item.add_definition(ParameterDefinition::new(1, "item1"))
             .add_definition(ParameterDefinition::new(2, "item2"));
 
-        let mut i = 0;
-        for p in item.iter() {
+        for (i, p) in item.iter().enumerate() {
             assert_eq!(item.defs[i].id(), p.id());
             assert_eq!(item.defs[i].name(), p.name());
-
-            i += 1;
         }
     }
 }
@@ -523,8 +520,8 @@ mod test_vars {
 
     #[test]
     fn newvar_1() {
-        let val = VariableValue::new(3.1416, "Angle", "radians");
-        assert_eq!(3.1416, val.value());
+        let val = VariableValue::new(3.1122, "Angle", "radians");
+        assert_eq!(3.1122, val.value());
         assert_eq!(String::from("Angle"), val.name());
         assert_eq!(String::from("radians"), val.units());
     }
@@ -536,11 +533,11 @@ mod test_vars {
     #[test]
     fn add_1() {
         let mut vars = VariableValues::new();
-        vars.add_def(VariableValue::new(3.1416, "Angle", "radians"))
+        vars.add_def(VariableValue::new(3.1122, "Angle", "radians"))
             .add_def(VariableValue::new(1.5, "Measure", "mm"));
         assert_eq!(2, vars.defs.len());
 
-        assert_eq!(3.1416, vars.defs[0].value());
+        assert_eq!(3.1122, vars.defs[0].value());
         assert_eq!(String::from("Angle"), vars.defs[0].name());
         assert_eq!(String::from("radians"), vars.defs[0].units());
 
@@ -551,16 +548,13 @@ mod test_vars {
     #[test]
     fn iter_1() {
         let mut vars = VariableValues::new();
-        vars.add_def(VariableValue::new(3.1416, "Angle", "radians"))
+        vars.add_def(VariableValue::new(3.1122, "Angle", "radians"))
             .add_def(VariableValue::new(1.5, "Measure", "mm"));
 
-        let mut i = 0;
-        for v in vars.iter() {
+        for (i, v) in vars.iter().enumerate() {
             assert_eq!(vars.defs[i].value(), v.value());
             assert_eq!(vars.defs[i].name(), v.name());
             assert_eq!(vars.defs[i].units(), v.units());
-
-            i += 1;
         }
     }
     #[test]
@@ -581,7 +575,7 @@ mod test_vars {
         // Item with def/values:
 
         let mut vars = VariableValues::new();
-        vars.add_def(VariableValue::new(3.1416, "Angle", "radians"))
+        vars.add_def(VariableValue::new(3.1122, "Angle", "radians"))
             .add_def(VariableValue::new(1.5, "Measure", "mm"));
 
         let raw = vars.to_raw();
@@ -598,9 +592,9 @@ mod test_vars {
             );
             offset += size_of::<f64>();
             let mut o = offset; // units are fixed size:
-            assert_eq!(vars.defs[i].units(), get_c_string(&mut o, &p));
+            assert_eq!(vars.defs[i].units(), get_c_string(&mut o, p));
             offset += MAX_UNITS_LENGTH;
-            assert_eq!(vars.defs[i].name(), get_c_string(&mut offset, &p));
+            assert_eq!(vars.defs[i].name(), get_c_string(&mut offset, p));
         }
     }
 
@@ -622,7 +616,7 @@ mod test_vars {
     fn from_raw_2() {
         // with defs.
         let mut vars = VariableValues::new();
-        vars.add_def(VariableValue::new(3.1416, "Angle", "radians"))
+        vars.add_def(VariableValue::new(3.1122, "Angle", "radians"))
             .add_def(VariableValue::new(1.5, "Measure", "mm"));
 
         let raw = vars.to_raw();
@@ -677,12 +671,12 @@ mod param_tests {
     #[test]
     fn add_1() {
         let mut item = ParameterItem::new(2345);
-        item.add(1, 3.14);
+        item.add(1, 3.1122);
         item.add(3, 5.7);
 
         assert_eq!(2, item.parameters.len());
         assert_eq!(1, item.parameters[0].id());
-        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3.1122, item.parameters[0].value());
         assert_eq!(3, item.parameters[1].id());
         assert_eq!(5.7, item.parameters[1].value());
     }
@@ -691,11 +685,11 @@ mod param_tests {
         // chaining adds:
 
         let mut item = ParameterItem::new(234560);
-        item.add(1, 3.14).add(3, 5.7);
+        item.add(1, 3.1122).add(3, 5.7);
 
         assert_eq!(2, item.parameters.len());
         assert_eq!(1, item.parameters[0].id());
-        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3.1122, item.parameters[0].value());
         assert_eq!(3, item.parameters[1].id());
         assert_eq!(5.7, item.parameters[1].value());
     }
@@ -705,12 +699,12 @@ mod param_tests {
     fn add_3() {
         let mut item = ParameterItem::new(111);
 
-        item.add_parameter(ParameterValue::new(1, 3.14));
+        item.add_parameter(ParameterValue::new(1, 3.1122));
         item.add_parameter(ParameterValue::new(3, 5.7));
 
         assert_eq!(2, item.parameters.len());
         assert_eq!(1, item.parameters[0].id());
-        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3.1122, item.parameters[0].value());
         assert_eq!(3, item.parameters[1].id());
         assert_eq!(5.7, item.parameters[1].value());
     }
@@ -720,12 +714,12 @@ mod param_tests {
 
         let mut item = ParameterItem::new(111);
 
-        item.add_parameter(ParameterValue::new(1, 3.14))
+        item.add_parameter(ParameterValue::new(1, 3.1122))
             .add_parameter(ParameterValue::new(3, 5.7));
 
         assert_eq!(2, item.parameters.len());
         assert_eq!(1, item.parameters[0].id());
-        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3.1122, item.parameters[0].value());
         assert_eq!(3, item.parameters[1].id());
         assert_eq!(5.7, item.parameters[1].value());
     }
@@ -735,11 +729,12 @@ mod param_tests {
 
         let mut item = ParameterItem::new(111);
 
-        item.add_parameter(ParameterValue::new(1, 3.14)).add(3, 5.7);
+        item.add_parameter(ParameterValue::new(1, 3.1122))
+            .add(3, 5.7);
 
         assert_eq!(2, item.parameters.len());
         assert_eq!(1, item.parameters[0].id());
-        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3.1122, item.parameters[0].value());
         assert_eq!(3, item.parameters[1].id());
         assert_eq!(5.7, item.parameters[1].value());
     }
@@ -749,11 +744,12 @@ mod param_tests {
 
         let mut item = ParameterItem::new(111);
 
-        item.add(1, 3.14).add_parameter(ParameterValue::new(3, 5.7));
+        item.add(1, 3.1122)
+            .add_parameter(ParameterValue::new(3, 5.7));
 
         assert_eq!(2, item.parameters.len());
         assert_eq!(1, item.parameters[0].id());
-        assert_eq!(3.14, item.parameters[0].value());
+        assert_eq!(3.1122, item.parameters[0].value());
         assert_eq!(3, item.parameters[1].id());
         assert_eq!(5.7, item.parameters[1].value());
     }
@@ -761,13 +757,12 @@ mod param_tests {
     fn iter() {
         let mut item = ParameterItem::new(111);
 
-        item.add(1, 3.14).add_parameter(ParameterValue::new(3, 5.7));
-        let mut i = 0;
+        item.add(1, 3.1122)
+            .add_parameter(ParameterValue::new(3, 5.7));
 
-        for p in item.iter() {
+        for (i, p) in item.iter().enumerate() {
             assert_eq!(item.parameters[i].id(), p.id());
             assert_eq!(item.parameters[i].value(), p.value());
-            i += 1;
         }
     }
     // Tests for to_raw;  Once that workw we can test fraw using to_raw
@@ -799,7 +794,8 @@ mod param_tests {
     #[test]
     fn to_raw_2() {
         let mut item = ParameterItem::new(111);
-        item.add(1, 3.14).add_parameter(ParameterValue::new(3, 5.7));
+        item.add(1, 3.1122)
+            .add_parameter(ParameterValue::new(3, 5.7));
         let raw = item.to_raw();
 
         let p = raw.payload().as_slice();
