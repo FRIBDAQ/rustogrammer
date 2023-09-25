@@ -711,7 +711,7 @@ mod gate_tests {
         let api = condition_messages::ConditionMessageClient::new(&c);
         api.create_false_condition("FALSE");
         api.create_true_condition("TRUE");
-        api.create_and_condition("AND", &vec![String::from("FALSE"), String::from("TRUE")]);
+        api.create_and_condition("AND", &[String::from("FALSE"), String::from("TRUE")]);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/list?pattern=AND");
@@ -743,7 +743,7 @@ mod gate_tests {
         let api = condition_messages::ConditionMessageClient::new(&c);
         api.create_false_condition("FALSE");
         api.create_true_condition("TRUE");
-        api.create_or_condition("OR", &vec![String::from("FALSE"), String::from("TRUE")]);
+        api.create_or_condition("OR", &[String::from("FALSE"), String::from("TRUE")]);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/list?pattern=OR");
@@ -813,7 +813,7 @@ mod gate_tests {
             "band",
             1,
             2,
-            &vec![(10.0, 10.0), (15.0, 20.0), (100.0, 15.0)],
+            &[(10.0, 10.0), (15.0, 20.0), (100.0, 15.0)],
         );
 
         let client = Client::tracked(rocket).expect("making client");
@@ -853,7 +853,7 @@ mod gate_tests {
             "contour",
             1,
             2,
-            &vec![(10.0, 10.0), (15.0, 20.0), (100.0, 15.0)],
+            &[(10.0, 10.0), (15.0, 20.0), (100.0, 15.0)],
         );
 
         let client = Client::tracked(rocket).expect("making client");
@@ -1639,11 +1639,7 @@ mod gate_tests {
 
         let api = condition_messages::ConditionMessageClient::new(&c);
         let cr = api.create_true_condition("existing");
-        assert!(if let ConditionReply::Created = cr {
-            true
-        } else {
-            false
-        }); // I had to get Created back.
+        assert!(matches!(cr, ConditionReply::Created));
 
         let client = Client::tracked(rocket).expect("Creating client");
         let request = client.get("/edit?name=existing&type=F"); // flip to false condition.
