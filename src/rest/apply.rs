@@ -228,13 +228,10 @@ mod apply_tests {
         param_api
             .create_parameter("test")
             .expect("Making parameter");
-        assert!(if let condition_messages::ConditionReply::Created =
-            cnd_api.create_true_condition("True")
-        {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(
+            cnd_api.create_true_condition("True"), condition_messages::ConditionReply::Created)
+        );
+            
         spec_api
             .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
             .expect("making spectrum");
@@ -306,13 +303,8 @@ mod apply_tests {
         param_api
             .create_parameter("test")
             .expect("Making parameter");
-        assert!(if let condition_messages::ConditionReply::Created =
-            cnd_api.create_true_condition("True")
-        {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(cnd_api.create_true_condition("True"), condition_messages::ConditionReply::Created));
+        
         spec_api
             .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
             .expect("making spectrum");
@@ -362,13 +354,8 @@ mod apply_tests {
         param_api
             .create_parameter("test")
             .expect("Making parameter");
-        assert!(if let condition_messages::ConditionReply::Created =
-            cnd_api.create_true_condition("True")
-        {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(cnd_api.create_true_condition("True"), condition_messages::ConditionReply::Created));
+        
         spec_api
             .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
             .expect("making spectrum");
@@ -416,13 +403,8 @@ mod apply_tests {
         param_api
             .create_parameter("test")
             .expect("Making parameter");
-        assert!(if let condition_messages::ConditionReply::Created =
-            cnd_api.create_true_condition("True")
-        {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(cnd_api.create_true_condition("True"), condition_messages::ConditionReply::Created));
+        
         spec_api
             .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
             .expect("making spectrum");
@@ -493,13 +475,8 @@ mod apply_tests {
         param_api
             .create_parameter("test")
             .expect("Making parameter");
-        assert!(if let condition_messages::ConditionReply::Created =
-            cnd_api.create_true_condition("True")
-        {
-            true
-        } else {
-            false
-        });
+        assert!(matches!(cnd_api.create_true_condition("True"), condition_messages::ConditionReply::Created));
+        
         spec_api
             .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
             .expect("making spectrum");
