@@ -287,7 +287,7 @@ mod shm_tests {
             (usage.free_bytes + usage.used_bytes) / (1024 * 1024),
             vars.display_megabytes
         );
-        assert_eq!(false, vars.online);
+        assert!(!vars.online);
         assert_eq!(batching, vars.event_list_size);
         assert_eq!(get_instdir(), vars.instdir);
         assert_eq!("None", vars.display_type);

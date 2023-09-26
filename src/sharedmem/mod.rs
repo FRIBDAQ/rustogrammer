@@ -622,7 +622,7 @@ mod allocator_tests {
         for i in 0..10 {
             arena
                 .allocate(2)
-                .expect(&format!("Allocation {} failed", i));
+                .unwrap_or_else(|| panic!("Allocation {} failed", i));
         }
         assert_eq!(10, arena.allocated_extents.len());
     }
@@ -662,7 +662,7 @@ mod allocator_tests {
             extents.push((
                 arena
                     .allocate(2)
-                    .expect(&format!("Allocation {} failed", i)),
+                    .unwrap_or_else(|| panic!("Allocation {} failed", i)),
                 2,
             ));
         }
@@ -675,7 +675,7 @@ mod allocator_tests {
         {
             arena
                 .free(even.0, even.1)
-                .expect(&format!("failed to delete allocation {}", i));
+                .unwrap_or_else(|_| panic!("failed to delete allocation {}", i));
         }
 
         // Last one is 8 which is not contiguous with the remaining
@@ -692,7 +692,7 @@ mod allocator_tests {
             extents.push((
                 arena
                     .allocate(2)
-                    .expect(&format!("Allocation {} failed", i)),
+                    .unwrap_or_else(|| panic!("Allocation {} failed", i)),
                 2,
             ));
         }
@@ -705,7 +705,7 @@ mod allocator_tests {
         {
             arena
                 .free(even.0, even.1)
-                .expect(&format!("failed to delete allocation {}", i));
+                .unwrap_or_else(|_| panic!("failed to delete allocation {}", i));
         }
 
         // Last one is 8 which is not contiguous with the remaining

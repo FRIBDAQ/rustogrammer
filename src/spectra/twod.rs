@@ -292,7 +292,7 @@ mod twod_tests {
         assert_eq!(256 + 2, xaxis.num_bins()); // 512 + under/overflow.
         assert_eq!(-2.0, *yaxis.low());
         assert_eq!(2.0, *yaxis.high());
-        assert_eq!(200 as usize + 2, yaxis.num_bins()); // 100 + under/overflow bins.
+        assert_eq!(200_usize + 2, yaxis.num_bins()); // 100 + under/overflow bins.
     }
     #[test]
     fn new_4() {
@@ -509,12 +509,11 @@ mod twod_tests {
 
         spec.handle_event(&e);
 
-        let v = spec
+        let v = *spec
             .histogram
             .borrow()
             .value(&(0.0, 0.0))
-            .expect("Value not defined")
-            .clone();
+            .expect("Value not defined");
 
         assert_eq!(1.0, v.get());
     }
@@ -539,12 +538,11 @@ mod twod_tests {
 
         spec.handle_event(&e);
 
-        let v = spec
+        let v = *spec
             .histogram
             .borrow()
             .value(&(0.0, 0.0))
-            .expect("Value should exist")
-            .clone();
+            .expect("Value should exist");
 
         assert_eq!(1.0, v.get());
     }
@@ -569,12 +567,11 @@ mod twod_tests {
 
         spec.handle_event(&e);
 
-        let v = spec
+        let v = *spec
             .histogram
             .borrow()
             .value(&(0.0, 0.0))
-            .expect("Value should exist")
-            .clone();
+            .expect("Value should exist");
 
         assert_eq!(0.0, v.get());
     }
@@ -630,12 +627,11 @@ mod twod_tests {
 
         // Just try to get the undeflow x channel:
 
-        let v = spec
+        let v = *spec
             .histogram
             .borrow()
             .value(&(-512.01, 0.0))
-            .expect("Value should exist")
-            .clone();
+            .expect("Value should exist");
 
         assert_eq!(1.0, v.get());
     }
@@ -655,12 +651,11 @@ mod twod_tests {
 
         // Just try to get the undeflow x channel:
 
-        let v = spec
+        let v = *spec
             .histogram
             .borrow()
             .value(&(512.0, 0.0))
-            .expect("Value should exist")
-            .clone();
+            .expect("Value should exist");
 
         assert_eq!(1.0, v.get());
     }
@@ -680,12 +675,11 @@ mod twod_tests {
 
         // Just try to get the undeflow x channel:
 
-        let v = spec
+        let v = *spec
             .histogram
             .borrow()
             .value(&(0.0, -2.01))
-            .expect("Value should exist")
-            .clone();
+            .expect("Value should exist");
 
         assert_eq!(1.0, v.get());
     }
@@ -719,12 +713,11 @@ mod twod_tests {
             spec.handle_event(&e);
         }
 
-        let v = spec
+        let v = *spec
             .histogram
             .borrow()
             .value(&(0.0, 0.0))
-            .expect("Value should exist")
-            .clone();
+            .expect("Value should exist");
 
         assert_eq!(100.0, v.get());
     }
@@ -742,22 +735,20 @@ mod twod_tests {
             spec.handle_event(&e);
         }
 
-        let v = spec
+        let v = *spec
             .histogram
             .borrow()
             .value(&(0.0, 0.0))
-            .expect("Value should exist")
-            .clone();
+            .expect("Value should exist");
 
         assert_eq!(100.0, v.get());
 
         spec.clear();
-        let v = spec
+        let v = *spec
             .histogram
             .borrow()
             .value(&(0.0, 0.0))
-            .expect("Value should exist")
-            .clone();
+            .expect("Value should exist");
 
         assert_eq!(0.0, v.get());
     }

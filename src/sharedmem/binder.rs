@@ -1016,11 +1016,11 @@ mod sbind_client_tests {
         for i in 0..10 {
             let name = format!("par.{}", i);
             papi.create_parameter(&name)
-                .expect(&format!("Could not create param {}", name));
+                .unwrap_or_else(|_| panic!("Could not create param {}", name));
             sapi.create_spectrum_1d(&name, &name, 0.0, 1024.0, 1024)
-                .expect(&format!("Could not create spectrum {}", name));
+                .unwrap_or_else(|_| panic!("Could not create spectrum {}", name));
             bapi.bind(&name)
-                .expect(&format!("could not bind spectrum {}", name));
+                .unwrap_or_else(|_| panic!("could not bind spectrum {}", name));
         }
         bapi.unbind_all().expect("Could not unbind all");
         let listing = bapi.list_bindings("*").expect("failed to list bindings");
@@ -1185,7 +1185,7 @@ mod sbind_trace_tests {
 
         let token = tracedb.new_client(Duration::from_secs(10));
         let bapi = BindingApi::new(&binder_req);
-        bapi.bind(&"test").expect("Binding 'test'");
+        bapi.bind("test").expect("Binding 'test'");
 
         // Should be a trace and it should be a SpectrumBound request with the
         // correct name - we don't care about the binding id - as we can't really
@@ -1223,7 +1223,7 @@ mod sbind_trace_tests {
         // Now a client to the tracedb events and bind test:
 
         let bapi = BindingApi::new(&binder_req);
-        bapi.bind(&"test").expect("Binding 'test'");
+        bapi.bind("test").expect("Binding 'test'");
 
         // Be a trace client an unbind:
 
@@ -1260,7 +1260,7 @@ mod sbind_trace_tests {
         let names = vec!["eeny", "meeny", "miney", "moe", "tigers", "aaa"];
         for n in names.iter() {
             papi.create_parameter(n).expect("Making parameter");
-            sapi.create_spectrum_1d(n, &n, 0.0, 1024.0, 256)
+            sapi.create_spectrum_1d(n, n, 0.0, 1024.0, 256)
                 .expect("Making spectrum");
             bapi.bind(n).expect("Binding spectrum");
         }

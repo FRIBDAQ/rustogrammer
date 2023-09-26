@@ -124,8 +124,8 @@ mod unbind_tests {
         // Make parameters p.0 .. p.9 and a 1d for each.  The spectrum
         // type doesn't really matter as that is/was tested in the sharedmem
         // tests.
-        let papi = parameter_messages::ParameterMessageClient::new(&chan);
-        let sapi = spectrum_messages::SpectrumMessageClient::new(&chan);
+        let papi = parameter_messages::ParameterMessageClient::new(chan);
+        let sapi = spectrum_messages::SpectrumMessageClient::new(chan);
         for i in 0..10 {
             let name = format!("p.{}", i);
             papi.create_parameter(&name).expect("making a parameter");

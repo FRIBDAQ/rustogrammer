@@ -211,7 +211,7 @@ mod test_event {
     fn add_1() {
         let mut item = PhysicsEvent::new(None);
 
-        item.add(0xa5 as u8);
+        item.add(0xa5_u8);
 
         assert_eq!(1, item.event_data.len());
         assert_eq!(0xa5, item.event_data[0]);
@@ -220,11 +220,11 @@ mod test_event {
     fn add_2() {
         let mut item = PhysicsEvent::new(None);
 
-        item.add(0xa5a5 as u16);
+        item.add(0xa5a5_u16);
         assert_eq!(size_of::<u16>(), item.event_data.len());
         let s = item.event_data.as_slice();
         assert_eq!(
-            0xa5a5 as u16,
+            0xa5a5_u16,
             u16::from_ne_bytes(s[0..size_of::<u16>()].try_into().unwrap())
         );
     }
@@ -232,11 +232,11 @@ mod test_event {
     fn add_3() {
         let mut item = PhysicsEvent::new(None);
 
-        item.add(0xa5a5a5a5 as u32);
+        item.add(0xa5a5a5a5_u32);
         assert_eq!(size_of::<u32>(), item.event_data.len());
         let s = item.event_data.as_slice();
         assert_eq!(
-            0xa5a5a5a5 as u32,
+            0xa5a5a5a5_u32,
             u32::from_ne_bytes(s[0..size_of::<u32>()].try_into().unwrap())
         );
     }
@@ -246,26 +246,24 @@ mod test_event {
 
         let mut item = PhysicsEvent::new(None);
 
-        item.add(0xa5 as u8)
-            .add(0xa5a5 as u16)
-            .add(0xa5a5a5a5 as u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
         assert_eq!(
             size_of::<u8>() + size_of::<u16>() + size_of::<u32>(),
             item.event_data.len()
         );
 
         let mut offset = 0;
-        assert_eq!(0xa5 as u8, item.event_data[offset]);
+        assert_eq!(0xa5_u8, item.event_data[offset]);
         offset += size_of::<u8>();
         let s = item.event_data.as_slice();
 
         assert_eq!(
-            0xa5a5 as u16,
+            0xa5a5_u16,
             u16::from_ne_bytes(s[offset..offset + size_of::<u16>()].try_into().unwrap())
         );
         offset += size_of::<u16>();
         assert_eq!(
-            0xa5a5a5a5 as u32,
+            0xa5a5a5a5_u32,
             u32::from_ne_bytes(s[offset..offset + size_of::<u32>()].try_into().unwrap())
         );
     }
@@ -279,33 +277,33 @@ mod test_event {
     #[test]
     fn get_2() {
         let mut item = PhysicsEvent::new(None);
-        item.add(0xa5 as u8);
+        item.add(0xa5_u8);
         let gotten = item.get::<u8>();
         assert!(gotten.is_some());
         let gotten = gotten.unwrap();
-        assert_eq!(0xa5 as u8, gotten);
+        assert_eq!(0xa5_u8, gotten);
         assert!(item.get::<u8>().is_none()); // Nothing more to get.
         assert_eq!(item.event_data.len(), item.get_cursor);
     }
     #[test]
     fn get_3() {
         let mut item = PhysicsEvent::new(None);
-        item.add(0xa5a5 as u16);
+        item.add(0xa5a5_u16);
         let gotten = item.get::<u16>();
         assert!(gotten.is_some());
         let gotten = gotten.unwrap();
-        assert_eq!(0xa5a5 as u16, gotten);
+        assert_eq!(0xa5a5_u16, gotten);
         assert!(item.get::<u8>().is_none()); // Nothing more to get.
         assert_eq!(item.event_data.len(), item.get_cursor);
     }
     #[test]
     fn get_4() {
         let mut item = PhysicsEvent::new(None);
-        item.add(0xa5a5a5a5 as u32);
+        item.add(0xa5a5a5a5_u32);
         let gotten = item.get::<u32>();
         assert!(gotten.is_some());
         let gotten = gotten.unwrap();
-        assert_eq!(0xa5a5a5a5 as u32, gotten);
+        assert_eq!(0xa5a5a5a5_u32, gotten);
         assert!(item.get::<u8>().is_none()); // Nothing more to get.
         assert_eq!(item.event_data.len(), item.get_cursor);
     }
@@ -315,21 +313,19 @@ mod test_event {
 
         let mut item = PhysicsEvent::new(None);
 
-        item.add(0xa5 as u8)
-            .add(0xa5a5 as u16)
-            .add(0xa5a5a5a5 as u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
 
         let got = item.get::<u8>();
         assert!(got.is_some());
-        assert_eq!(0xa5 as u8, got.unwrap());
+        assert_eq!(0xa5_u8, got.unwrap());
 
         let got = item.get::<u16>();
         assert!(got.is_some());
-        assert_eq!(0xa5a5 as u16, got.unwrap());
+        assert_eq!(0xa5a5_u16, got.unwrap());
 
         let got = item.get::<u32>();
         assert!(got.is_some());
-        assert_eq!(0xa5a5a5a5 as u32, got.unwrap());
+        assert_eq!(0xa5a5a5a5_u32, got.unwrap());
 
         // Nothing left:
 
@@ -341,7 +337,7 @@ mod test_event {
 
         let mut item = PhysicsEvent::new(None);
 
-        item.add(1 as u8).add(2 as u16).add(3 as u32);
+        item.add(1_u8).add(2_u16).add(3_u32);
 
         // Consume the data:
 
@@ -352,7 +348,7 @@ mod test_event {
         item.rewind(); // Reset the cursor.
         let got = item.get::<u8>();
         assert!(got.is_some());
-        assert_eq!(1 as u8, got.unwrap());
+        assert_eq!(1_u8, got.unwrap());
     }
     #[test]
     fn get_bodyheader_1() {
@@ -369,7 +365,7 @@ mod test_event {
         let bh = item.get_bodyheader();
         assert!(bh.is_some());
         let bh = bh.unwrap();
-        assert_eq!(0x1234567890 as u64, bh.timestamp);
+        assert_eq!(0x1234567890_u64, bh.timestamp);
         assert_eq!(2, bh.source_id);
         assert_eq!(0, bh.barrier_type);
     }
@@ -377,9 +373,7 @@ mod test_event {
     fn body_size_1() {
         let mut item = PhysicsEvent::new(None);
 
-        item.add(0xa5 as u8)
-            .add(0xa5a5 as u16)
-            .add(0xa5a5a5a5 as u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
 
         assert_eq!(item.event_data.len(), item.body_size());
     }
@@ -418,9 +412,7 @@ mod test_event {
         // no body header but contents:
 
         let mut item = PhysicsEvent::new(None);
-        item.add(0xa5 as u8)
-            .add(0xa5a5 as u16)
-            .add(0xa5a5a5a5 as u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
         let raw = item.to_raw();
         assert_eq!(
             size_of::<u32>() + size_of::<u16>() + size_of::<u8>(),
@@ -430,17 +422,17 @@ mod test_event {
         let mut offset = 0;
         let p = raw.payload().as_slice();
         assert_eq!(
-            0xa5 as u8,
+            0xa5_u8,
             u8::from_ne_bytes(p[offset..offset + size_of::<u8>()].try_into().unwrap())
         );
         offset += size_of::<u8>();
         assert_eq!(
-            0xa5a5 as u16,
+            0xa5a5_u16,
             u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
         );
         offset += size_of::<u16>();
         assert_eq!(
-            0xa5a5a5a5 as u32,
+            0xa5a5a5a5_u32,
             u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
         );
     }
@@ -453,9 +445,7 @@ mod test_event {
             source_id: 2,
             barrier_type: 0,
         }));
-        item.add(0xa5 as u8)
-            .add(0xa5a5 as u16)
-            .add(0xa5a5a5a5 as u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
         let raw = item.to_raw();
 
         assert_eq!(
@@ -465,17 +455,17 @@ mod test_event {
         let mut offset = body_header_size();
         let p = raw.payload().as_slice();
         assert_eq!(
-            0xa5 as u8,
+            0xa5_u8,
             u8::from_ne_bytes(p[offset..offset + size_of::<u8>()].try_into().unwrap())
         );
         offset += size_of::<u8>();
         assert_eq!(
-            0xa5a5 as u16,
+            0xa5a5_u16,
             u16::from_ne_bytes(p[offset..offset + size_of::<u16>()].try_into().unwrap())
         );
         offset += size_of::<u16>();
         assert_eq!(
-            0xa5a5a5a5 as u32,
+            0xa5a5a5a5_u32,
             u32::from_ne_bytes(p[offset..offset + size_of::<u32>()].try_into().unwrap())
         );
     }
@@ -519,9 +509,7 @@ mod test_event {
         // no body header but a payload:
 
         let mut item = PhysicsEvent::new(None);
-        item.add(0xa5 as u8)
-            .add(0xa5a5 as u16)
-            .add(0xa5a5a5a5 as u32);
+        item.add(0xa5_u8).add(0xa5a5_u16).add(0xa5a5a5a5_u32);
         let raw = item.to_raw();
         let event: Option<PhysicsEvent> = raw.to_specific(RingVersion::V11);
         assert!(event.is_some());
@@ -531,9 +519,9 @@ mod test_event {
             size_of::<u8>() + size_of::<u16>() + size_of::<u32>(),
             event.event_data.len()
         );
-        assert_eq!(0xa5 as u8, event.get::<u8>().unwrap());
-        assert_eq!(0xa5a5 as u16, event.get::<u16>().unwrap());
-        assert_eq!(0xa5a5a5a5 as u32, event.get::<u32>().unwrap());
+        assert_eq!(0xa5_u8, event.get::<u8>().unwrap());
+        assert_eq!(0xa5a5_u16, event.get::<u16>().unwrap());
+        assert_eq!(0xa5a5a5a5_u32, event.get::<u32>().unwrap());
         assert!(event.get::<u8>().is_none());
     }
     #[test]
@@ -545,7 +533,7 @@ mod test_event {
             source_id: 2,
             barrier_type: 5,
         }));
-        item.add(0x1 as u8).add(0x2 as u16).add(0x3 as u32);
+        item.add(0x1_u8).add(0x2_u16).add(0x3_u32);
         let raw = item.to_raw();
         let event: Option<PhysicsEvent> = raw.to_specific(RingVersion::V11);
         assert!(event.is_some());
@@ -555,9 +543,9 @@ mod test_event {
             size_of::<u8>() + size_of::<u16>() + size_of::<u32>(),
             event.event_data.len()
         );
-        assert_eq!(1 as u8, event.get::<u8>().unwrap());
-        assert_eq!(2 as u16, event.get::<u16>().unwrap());
-        assert_eq!(3 as u32, event.get::<u32>().unwrap());
+        assert_eq!(1_u8, event.get::<u8>().unwrap());
+        assert_eq!(2_u16, event.get::<u16>().unwrap());
+        assert_eq!(3_u32, event.get::<u32>().unwrap());
         assert!(event.get::<u8>().is_none());
     }
     #[test]

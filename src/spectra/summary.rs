@@ -427,14 +427,15 @@ mod summary_tests {
 
         for i in 0..10 {
             let x = i as f64;
-            let v = s
-                .histogram
-                .borrow()
-                .value(&(x, 512.0))
-                .expect("Value should exist")
-                .clone();
 
-            assert_eq!(1.0, v.get());
+            assert_eq!(
+                1.0,
+                s.histogram
+                    .borrow()
+                    .value(&(x, 512.0))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -479,14 +480,15 @@ mod summary_tests {
 
         for i in 0..10 {
             let x = i as f64;
-            let v = s
-                .histogram
-                .borrow()
-                .value(&(x, 512.0))
-                .expect("Value should exist")
-                .clone();
 
-            assert_eq!(1.0, v.get());
+            assert_eq!(
+                1.0,
+                s.histogram
+                    .borrow()
+                    .value(&(x, 512.0))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -531,14 +533,15 @@ mod summary_tests {
 
         for i in 0..10 {
             let x = i as f64;
-            let v = s
-                .histogram
-                .borrow()
-                .value(&(x, 512.0))
-                .expect("Value should exist")
-                .clone();
 
-            assert_eq!(0.0, v.get());
+            assert_eq!(
+                0.0,
+                s.histogram
+                    .borrow()
+                    .value(&(x, 512.0))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -576,14 +579,15 @@ mod summary_tests {
         for i in 0..10 {
             let x = i as f64;
             let y = x * 5.0;
-            let v = s
-                .histogram
-                .borrow()
-                .value(&(x, y))
-                .expect("Value should exist")
-                .clone();
 
-            assert_eq!(1.0, v.get());
+            assert_eq!(
+                1.0,
+                s.histogram
+                    .borrow()
+                    .value(&(x, y))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -625,25 +629,27 @@ mod summary_tests {
             let x = i as f64;
             if i % 2 == 0 {
                 let y = x * 5.0;
-                let v = s
-                    .histogram
-                    .borrow()
-                    .value(&(x, y))
-                    .expect("Value should exist")
-                    .clone();
 
-                assert_eq!(1.0, v.get());
-            } else {
-                for j in 0..1023 {
-                    let y = j as f64;
-                    let v = s
-                        .histogram
+                assert_eq!(
+                    1.0,
+                    s.histogram
                         .borrow()
                         .value(&(x, y))
                         .expect("Value should exist")
-                        .clone();
+                        .get()
+                );
+            } else {
+                for j in 0..1023 {
+                    let y = j as f64;
 
-                    assert_eq!(0.0, v.get());
+                    assert_eq!(
+                        0.0,
+                        s.histogram
+                            .borrow()
+                            .value(&(x, y))
+                            .expect("Value should exist")
+                            .get()
+                    );
                 }
             }
         }

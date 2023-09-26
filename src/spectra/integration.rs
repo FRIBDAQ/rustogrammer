@@ -24,7 +24,7 @@ use libm::sqrt;
 
 /// Multiplier from deviance to FWHM under Gaussian assumption:
 
-const GAMMA: f64 = 2.3548200450309493820231386529194; // 2.0_f64 * sqrt(2.0_f64 * 2.0_f64.ln());
+const GAMMA: f64 = 2.3548200450309494; // 2.0_f64 * sqrt(2.0_f64 * 2.0_f64.ln());
 
 ///  This is the payload of a sum.  It's the same for 1-d and 2d integrations:
 struct SumElement {
@@ -96,7 +96,7 @@ fn centroid(
     let mut counts = 0.0_f64;
 
     for chan in contents {
-        let contribution = sum_channel(&chan, aoi);
+        let contribution = sum_channel(chan, aoi);
         counts += contribution.contents;
         wsums.0 += contribution.wsum.0;
         wsums.1 += contribution.wsum.1;
@@ -116,7 +116,7 @@ fn fwhm(
 ) -> (f64, f64) {
     let mut sqsums = (0.0_f64, 0.0_f64);
     for chan in contents {
-        let contribution = sum_channel(&chan, aoi);
+        let contribution = sum_channel(chan, aoi);
         sqsums.0 += contribution.contents * (chan.x - centroid.0) * (chan.x - centroid.0);
         sqsums.1 += contribution.contents * (chan.y - centroid.1) * (chan.y - centroid.1);
     }
@@ -352,7 +352,7 @@ mod integration_tests {
     fn make_spike_1d(x: f64, how_high: f64) -> SpectrumContents {
         vec![Channel {
             chan_type: ChannelType::Bin,
-            x: x,
+            x,
             y: 0.0,
             bin: 0,
             value: how_high,

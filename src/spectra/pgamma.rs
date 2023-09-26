@@ -306,7 +306,7 @@ mod pgamma_tests {
         for i in 0..n {
             let name = format!("param.{}", i);
             dict.add(&name)
-                .expect(&format!("Failed to add parameter {}", name));
+                .unwrap_or_else(|_| panic!("Failed to add parameter {}", name));
             let p = dict.lookup_mut(&name).unwrap();
             if let Some((low, high)) = lh {
                 p.set_limits(low, high);
@@ -666,14 +666,14 @@ mod pgamma_tests {
                 let x = i as f64 * 10.0;
                 let y = (j + 5) as f64 * 10.0;
 
-                let v = spec
-                    .histogram
-                    .borrow()
-                    .value(&(x, y))
-                    .expect("Value should exist")
-                    .clone();
-
-                assert_eq!(1.0, v.get());
+                assert_eq!(
+                    1.0,
+                    spec.histogram
+                        .borrow()
+                        .value(&(x, y))
+                        .expect("Value should exist")
+                        .get()
+                );
             }
         }
     }
@@ -736,14 +736,14 @@ mod pgamma_tests {
                 let x = i as f64 * 10.0;
                 let y = (j + 5) as f64 * 10.0;
 
-                let v = spec
-                    .histogram
-                    .borrow()
-                    .value(&(x, y))
-                    .expect("Value should exist")
-                    .clone();
-
-                assert_eq!(1.0, v.get());
+                assert_eq!(
+                    1.0,
+                    spec.histogram
+                        .borrow()
+                        .value(&(x, y))
+                        .expect("Value should exist")
+                        .get()
+                );
             }
         }
     }
@@ -844,7 +844,7 @@ mod pgamma_tests {
 
         let mut gdict = ConditionDictionary::new();
         let fold = conditions::MultiContour::new(
-            &vec![0, 1, 2, 3, 4],
+            &[0, 1, 2, 3, 4],
             vec![
                 conditions::twod::Point::new(100.0, 100.0),
                 conditions::twod::Point::new(500.0, 100.0),
@@ -856,12 +856,12 @@ mod pgamma_tests {
 
         let mut spec = PGamma::new(
             "test",
-            &vec![
+            &[
                 String::from("param.0"),
                 String::from("param.1"),
                 String::from("param.2"),
             ],
-            &vec![String::from("param.4"), String::from("param.5")],
+            &[String::from("param.4"), String::from("param.5")],
             &pdict,
             Some(0.0),
             Some(1024.0),
@@ -899,7 +899,7 @@ mod pgamma_tests {
 
         let mut gdict = ConditionDictionary::new();
         let fold = conditions::MultiContour::new(
-            &vec![1, 2, 3, 4, 5],
+            &[1, 2, 3, 4, 5],
             vec![
                 conditions::twod::Point::new(100.0, 100.0),
                 conditions::twod::Point::new(500.0, 100.0),
@@ -911,12 +911,12 @@ mod pgamma_tests {
 
         let mut spec = PGamma::new(
             "test",
-            &vec![
+            &[
                 String::from("param.0"),
                 String::from("param.1"),
                 String::from("param.2"),
             ],
-            &vec![String::from("param.3"), String::from("param.4")],
+            &[String::from("param.3"), String::from("param.4")],
             &pdict,
             Some(0.0),
             Some(1024.0),
@@ -954,7 +954,7 @@ mod pgamma_tests {
 
         let mut gdict = ConditionDictionary::new();
         let fold = conditions::MultiContour::new(
-            &vec![1, 2, 3, 4, 5],
+            &[1, 2, 3, 4, 5],
             vec![
                 conditions::twod::Point::new(100.0, 100.0),
                 conditions::twod::Point::new(500.0, 100.0),
@@ -966,12 +966,12 @@ mod pgamma_tests {
 
         let mut spec = PGamma::new(
             "test",
-            &vec![
+            &[
                 String::from("param.0"),
                 String::from("param.1"),
                 String::from("param.2"),
             ],
-            &vec![String::from("param.3"), String::from("param.4")],
+            &[String::from("param.3"), String::from("param.4")],
             &pdict,
             Some(0.0),
             Some(1024.0),

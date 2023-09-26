@@ -851,7 +851,7 @@ mod read_tests {
         assert_eq!("1D", sp.type_name);
         assert_eq!(1, sp.xparams.len());
         assert_eq!("parameters.05", sp.xparams[0]);
-        let x = sp.xaxis.clone().expect("Unwraping 1's x axis");
+        let x = sp.xaxis.expect("Unwraping 1's x axis");
         assert_eq!(0.0, x.low);
         assert_eq!(1024.0, x.high);
         assert_eq!(1026, x.bins);
@@ -1138,7 +1138,7 @@ mod read_tests {
         assert_eq!("1D", sp.type_name);
         assert_eq!(1, sp.xparams.len());
         assert_eq!("parameters.05", sp.xparams[0]);
-        let x = sp.xaxis.clone().expect("Unwraping 1's x axis");
+        let x = sp.xaxis.expect("Unwraping 1's x axis");
         assert_eq!(0.0, x.low);
         assert_eq!(1024.0, x.high);
         assert_eq!(1026, x.bins);
@@ -1342,7 +1342,7 @@ mod swrite_tests {
             .expect("Create 'oned'");
         sapi.create_spectrum_multi1d(
             "gamma1",
-            &vec![
+            &[
                 String::from("p.0"),
                 String::from("p.1"),
                 String::from("p.2"),
@@ -1361,7 +1361,7 @@ mod swrite_tests {
         .expect("Making multi-1d spectrum");
         sapi.create_spectrum_multi2d(
             "gamma2",
-            &vec![
+            &[
                 String::from("p.0"),
                 String::from("p.1"),
                 String::from("p.2"),
@@ -1383,14 +1383,14 @@ mod swrite_tests {
         .expect("Multi 2d spectrum");
         sapi.create_spectrum_pgamma(
             "particle-gamma",
-            &vec![
+            &[
                 String::from("p.0"),
                 String::from("p.1"),
                 String::from("p.2"),
                 String::from("p.3"),
                 String::from("p.4"),
             ],
-            &vec![
+            &[
                 String::from("p.5"),
                 String::from("p.6"),
                 String::from("p.7"),
@@ -1407,7 +1407,7 @@ mod swrite_tests {
         .expect("particle-gamma spectrum");
         sapi.create_spectrum_summary(
             "summary",
-            &vec![
+            &[
                 String::from("p.0"),
                 String::from("p.1"),
                 String::from("p.2"),
@@ -1428,14 +1428,14 @@ mod swrite_tests {
             .expect("Making twod");
         sapi.create_spectrum_2dsum(
             "2d-sum",
-            &vec![
+            &[
                 String::from("p.0"),
                 String::from("p.1"),
                 String::from("p.2"),
                 String::from("p.3"),
                 String::from("p.4"),
             ],
-            &vec![
+            &[
                 String::from("p.5"),
                 String::from("p.6"),
                 String::from("p.7"),
@@ -2381,7 +2381,7 @@ mod swrite_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
         assert_eq!("OK", write_response.status);
-        
+
         let read_uri = format!("/sread?format=ascii&bind=false&filename={}", filename);
         let read_req = client.get(&read_uri);
         let read_response = read_req
@@ -2411,8 +2411,7 @@ mod swrite_tests {
         assert_eq!(o.xaxis, c.xaxis);
         assert_eq!(o.yaxis, c.yaxis);
         assert_eq!(Some(String::from("_snapshot_condition_")), c.gate);
-        
-    
+
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
     }
@@ -2436,7 +2435,7 @@ mod swrite_tests {
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
         assert_eq!("OK", write_response.status);
-        
+
         let read_uri = format!("/sread?format=ascii&bind=false&filename={}", filename);
         let read_req = client.get(&read_uri);
         let read_response = read_req
@@ -2456,7 +2455,7 @@ mod swrite_tests {
             .expect("getting 'summary_0 contents");
         //assert_eq!(original_contents, copy_contents);
         assert_eq!(original_contents, copy_contents);
-        
+
         std::fs::remove_file(&filename).expect("removing test file");
         teardown(chan, &papi, &bind_api);
     }

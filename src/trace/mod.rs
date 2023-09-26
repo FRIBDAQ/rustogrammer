@@ -258,7 +258,7 @@ mod trace_store_tests {
         let store = SharedTraceStore::new();
         let inner = store.store.lock().unwrap();
         assert_eq!(0, inner.next_client);
-        assert_eq!(false, inner.stop_prune_thread);
+        assert!(!inner.stop_prune_thread);
         assert!(inner.client_traces.is_empty());
     }
     #[test]
@@ -272,7 +272,7 @@ mod trace_store_tests {
 
         let c = cloned.store.lock().unwrap();
         assert_eq!(1234, c.next_client);
-        assert_eq!(true, c.stop_prune_thread);
+        assert!(c.stop_prune_thread);
     }
     #[test]
     fn ts_add_client_1() {

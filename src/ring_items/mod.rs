@@ -91,7 +91,8 @@ impl RingItem {
 
     fn write_long<T: Write>(f: &mut T, l: u32) -> std::io::Result<usize> {
         let buf = l.to_ne_bytes();
-        f.write(&buf)
+        f.write_all(&buf)?;
+        Ok(mem::size_of::<u32>())
     }
 
     ///
@@ -230,11 +231,11 @@ impl RingItem {
     pub fn write_item<T: Write>(&self, file: &mut T) -> std::io::Result<usize> {
         let mut bytes_written: usize = 0;
 
-        bytes_written += file.write(&u32::to_ne_bytes(self.size))?;
-        bytes_written += file.write(&u32::to_ne_bytes(self.type_id))?;
-        bytes_written += file.write(&u32::to_ne_bytes(self.body_header_size))?;
-        bytes_written += file.write(&self.payload)?;
-
+        file.write_all(&u32::to_ne_bytes(self.size))?;
+        file.write_all(&u32::to_ne_bytes(self.type_id))?;
+        file.write_all(&u32::to_ne_bytes(self.body_header_size))?;
+        file.write_all(&self.payload)?;
+        bytes_written += self.size as usize;
         Ok(bytes_written)
     }
 }
@@ -386,7 +387,6 @@ pub const PARAMETER_DATA: u32 = 32770;
 #[cfg(test)]
 mod tests {
     use crate::ring_items::RingItem;
-    use humantime;
     use std::io::{Seek, Write};
     use std::mem;
     use std::ptr;
@@ -433,10 +433,8 @@ mod tests {
         let item = RingItem::new(1234);
         assert_eq!(item.size, item.size());
         assert_eq!(item.type_id, item.type_id());
-        assert_eq!(false, item.has_body_header());
-        if let Some(_bh) = item.get_bodyheader() {
-            assert!(false);
-        }
+        assert!(!item.has_body_header());
+        assert!(item.get_bodyheader().is_none());
     }
     #[test]
     fn getters_2() {
@@ -452,68 +450,68 @@ mod tests {
     #[test]
     fn payload_2() {
         let mut item = RingItem::new(2134);
-        assert!(ptr::eq(&mut item.payload, item.payload_mut()));
+        assert!(ptr::eq(&item.payload, item.payload_mut()));
     }
     #[test]
     fn add_1() {
         let mut item = RingItem::new(1234);
-        item.add(0xa5 as u8);
+        item.add(0xa5_u8);
         let s = mem::size_of::<u8>();
         assert_eq!(s, item.payload.len());
-        assert_eq!(0xa5 as u8, item.payload[0]);
+        assert_eq!(0xa5_u8, item.payload[0]);
     }
     #[test]
     fn add_2() {
         let mut item = RingItem::new(1234);
-        item.add(0xa55a as u16);
+        item.add(0xa55a_u16);
         let s = mem::size_of::<u16>();
         assert_eq!(s, item.payload.len());
         assert_eq!(
-            0xa55a as u16,
+            0xa55a_u16,
             u16::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
         );
     }
     #[test]
     fn add_3() {
         let mut item = RingItem::new(1234);
-        item.add(0x12345678 as u32);
+        item.add(0x12345678_u32);
         let s = mem::size_of::<u32>();
         assert_eq!(s, item.payload.len());
         assert_eq!(
-            0x12345678 as u32,
+            0x12345678_u32,
             u32::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
         );
     }
     #[test]
     fn add_4() {
         let mut item = RingItem::new(1234);
-        item.add(0x1234567876543210 as u64);
+        item.add(0x1234567876543210_u64);
         let s = mem::size_of::<u64>();
         assert_eq!(s, item.payload.len());
         assert_eq!(
-            0x1234567876543210 as u64,
+            0x1234567876543210_u64,
             u64::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
         );
     }
     #[test]
     fn add_5() {
         let mut item = RingItem::new(1234);
-        item.add(3.14159 as f32);
+        item.add(3.1122_f32);
         let s = mem::size_of::<f32>();
         assert_eq!(s, item.payload.len());
         assert_eq!(
-            3.14159 as f32,
+            3.1122_f32,
             f32::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
         );
     }
     #[test]
     fn add_6() {
         let mut item = RingItem::new(1234);
-        item.add(2.71828182 as f64);
+        item.add(2.7654321_f64);
         let s = mem::size_of::<f64>();
         assert_eq!(s, item.payload.len());
         assert_eq!(
-            2.71828182 as f64,
+            2.7654321_f64,
             f64::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
         );
     }
@@ -540,16 +538,16 @@ mod tests {
         let size = u32::to_ne_bytes(3 * mem::size_of::<u32>() as u32);
         let item_type = u32::to_ne_bytes(1);
         let bh = u32::to_ne_bytes(mem::size_of::<u32>() as u32);
-        file.write(&size).unwrap();
-        file.write(&item_type).unwrap();
-        file.write(&bh).unwrap();
+        file.write_all(&size).unwrap();
+        file.write_all(&item_type).unwrap();
+        file.write_all(&bh).unwrap();
         file.rewind().unwrap();
 
         let res = RingItem::read_item(&mut file);
         assert!(res.is_ok());
         let item = res.ok().unwrap();
         assert_eq!(3 * mem::size_of::<u32>() as u32, item.size);
-        assert_eq!(1 as u32, item.type_id);
+        assert_eq!(1_u32, item.type_id);
         assert_eq!(mem::size_of::<u32>() as u32, item.body_header_size);
     }
     #[test]
@@ -564,12 +562,12 @@ mod tests {
         let sid = u32::to_ne_bytes(5);
         let btype = u32::to_ne_bytes(0);
 
-        file.write(&size).unwrap();
-        file.write(&item_type).unwrap();
-        file.write(&bhsize).unwrap();
-        file.write(&tstamp).unwrap();
-        file.write(&sid).unwrap();
-        file.write(&btype).unwrap();
+        file.write_all(&size).unwrap();
+        file.write_all(&item_type).unwrap();
+        file.write_all(&bhsize).unwrap();
+        file.write_all(&tstamp).unwrap();
+        file.write_all(&sid).unwrap();
+        file.write_all(&btype).unwrap();
         file.rewind().unwrap();
 
         let read_status = RingItem::read_item(&mut file);
@@ -587,17 +585,17 @@ mod tests {
         );
         let s1 = mem::size_of::<u64>();
         assert_eq!(
-            0x1234567812345678 as u64,
+            0x1234567812345678_u64,
             u64::from_ne_bytes(item.payload.as_slice()[0..s1].try_into().unwrap())
         );
         let s2 = s1 + mem::size_of::<u32>();
         assert_eq!(
-            5 as u32,
+            5_u32,
             u32::from_ne_bytes(item.payload.as_slice()[s1..s2].try_into().unwrap())
         );
         let s3 = s2 + mem::size_of::<u32>();
         assert_eq!(
-            0 as u32,
+            0_u32,
             u32::from_ne_bytes(item.payload.as_slice()[s2..s3].try_into().unwrap())
         );
     }
@@ -610,11 +608,11 @@ mod tests {
         out_item.add_byte_vec(&payload);
 
         let mut file = tempfile().unwrap();
-        file.write(&u32::to_ne_bytes(out_item.size)).unwrap();
-        file.write(&u32::to_ne_bytes(out_item.type_id)).unwrap();
-        file.write(&u32::to_ne_bytes(out_item.body_header_size))
+        file.write_all(&u32::to_ne_bytes(out_item.size)).unwrap();
+        file.write_all(&u32::to_ne_bytes(out_item.type_id)).unwrap();
+        file.write_all(&u32::to_ne_bytes(out_item.body_header_size))
             .unwrap();
-        file.write(&out_item.payload).unwrap();
+        file.write_all(&out_item.payload).unwrap();
         file.rewind().unwrap();
 
         let item = RingItem::read_item(&mut file).unwrap();
@@ -631,11 +629,11 @@ mod tests {
         let payload: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8];
         out_item.add_byte_vec(&payload);
         let mut file = tempfile().unwrap();
-        file.write(&u32::to_ne_bytes(out_item.size)).unwrap();
-        file.write(&u32::to_ne_bytes(out_item.type_id)).unwrap();
-        file.write(&u32::to_ne_bytes(out_item.body_header_size))
+        file.write_all(&u32::to_ne_bytes(out_item.size)).unwrap();
+        file.write_all(&u32::to_ne_bytes(out_item.type_id)).unwrap();
+        file.write_all(&u32::to_ne_bytes(out_item.body_header_size))
             .unwrap();
-        file.write(&out_item.payload).unwrap();
+        file.write_all(&out_item.payload).unwrap();
         file.rewind().unwrap();
 
         let item = RingItem::read_item(&mut file).unwrap();

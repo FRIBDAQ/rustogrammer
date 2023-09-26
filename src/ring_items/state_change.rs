@@ -284,7 +284,7 @@ mod state_tests {
         ); // will be a later time.
 
         assert_eq!(StateChangeType::Begin, item.change_type);
-        assert_eq!(false, item.has_body_header());
+        assert!(!item.has_body_header());
         assert_eq!(12, item.run_number);
         assert_eq!(0, item.time_offset);
         assert_eq!(1, item.offset_divisor);
@@ -313,7 +313,7 @@ mod state_tests {
             None,
         );
         assert_eq!(StateChangeType::End, item.change_type);
-        assert_eq!(true, item.body_header.is_some());
+        assert!(item.body_header.is_some());
         let ibh = item.body_header.unwrap();
         assert_eq!(bh.timestamp, ibh.timestamp);
         assert_eq!(bh.source_id, ibh.source_id);
@@ -347,7 +347,7 @@ mod state_tests {
             Some(5),
         );
         assert_eq!(StateChangeType::End, item.change_type);
-        assert_eq!(true, item.body_header.is_some());
+        assert!(item.body_header.is_some());
         let ibh = item.body_header.unwrap();
         assert_eq!(bh.timestamp, ibh.timestamp);
         assert_eq!(bh.source_id, ibh.source_id);

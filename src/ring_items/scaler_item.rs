@@ -354,8 +354,8 @@ mod scaler_tests {
         let item = ScalerItem::new(Some(bh), 1, 10, t, 2, true, Some(5), &mut scalers);
 
         let values = item.get_scaler_values();
-        for i in 0..values.len() {
-            assert_eq!((i + 1) as u32, values[i]);
+        for (i, v) in values.iter().enumerate() {
+            assert_eq!((i + 1) as u32, *v);
         }
     }
     #[test]
@@ -930,8 +930,8 @@ mod scaler_tests {
         assert!(recons.is_incremental());
         assert!(recons.original_sid().is_none());
         assert_eq!(6, recons.len()); // 6 scalers:
-        for i in 0..recons.len() {
-            assert_eq!(scalers[i], recons.get_scaler_values()[i]);
+        for (i, s) in recons.get_scaler_values().iter().enumerate() {
+            assert_eq!(scalers[i], *s);
         }
     }
     #[test]
@@ -968,8 +968,8 @@ mod scaler_tests {
         assert!(recons.is_incremental());
         assert!(recons.original_sid().is_none());
         assert_eq!(6, recons.len()); // 6 scalers:
-        for i in 0..recons.len() {
-            assert_eq!(scalers[i], recons.get_scaler_values()[i]);
+        for (i, r) in recons.get_scaler_values().iter().enumerate() {
+            assert_eq!(scalers[i], *r);
         }
     }
     #[test]
@@ -1005,8 +1005,8 @@ mod scaler_tests {
         assert!(recons.original_sid().is_some());
         assert_eq!(5, recons.original_sid().unwrap());
         assert_eq!(6, recons.len()); // 6 scalers:
-        for i in 0..recons.len() {
-            assert_eq!(scalers[i], recons.get_scaler_values()[i]);
+        for (i, r) in recons.get_scaler_values().iter().enumerate() {
+            assert_eq!(scalers[i], *r);
         }
     }
     #[test]

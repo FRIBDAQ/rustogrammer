@@ -403,14 +403,14 @@ mod multi1d_tests {
         spec.handle_event(&fe);
 
         for i in 0..10 {
-            let vo = spec
-                .histogram
-                .borrow()
-                .value(&(i as f64 * 10.0))
-                .expect("Value should exist")
-                .clone();
-
-            assert_eq!(1.0, vo.get());
+            assert_eq!(
+                1.0,
+                spec.histogram
+                    .borrow()
+                    .value(&(i as f64 * 10.0))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -441,14 +441,12 @@ mod multi1d_tests {
         spec.handle_event(&fe);
 
         for i in 0..10 {
-            let vo = spec
+            
+            assert_eq!(1.0, spec
                 .histogram
                 .borrow()
                 .value(&(i as f64 * 10.0))
-                .expect("Value should exist")
-                .clone();
-
-            assert_eq!(1.0, vo.get());
+                .expect("Value should exist").get());
         }
     }
     #[test]
@@ -479,14 +477,14 @@ mod multi1d_tests {
         spec.handle_event(&fe);
 
         for i in 0..10 {
-            let vo = spec
-                .histogram
-                .borrow()
-                .value(&(i as f64 * 10.0))
-                .expect("Value should exist")
-                .clone();
-
-            assert_eq!(0.0, vo.get());
+            assert_eq!(
+                0.0,
+                spec.histogram
+                    .borrow()
+                    .value(&(i as f64 * 10.0))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -533,7 +531,7 @@ mod fold_tests {
         // Make a Condition Dict and put a multicut into it.
 
         let mut gdict = ConditionDictionary::new();
-        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        let mcut = cut::MultiCut::new(&[0, 1, 2, 3], 100.0, 200.0);
         gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");
@@ -577,7 +575,7 @@ mod fold_tests {
 
         let mut gdict = ConditionDictionary::new();
         let fold = twod::MultiContour::new(
-            &vec![0, 1, 2, 3],
+            &[0, 1, 2, 3],
             vec![
                 Point::new(2.0, 5.0),
                 Point::new(5.0, 5.0),
@@ -599,7 +597,7 @@ mod fold_tests {
         // Make a Condition Dict and put a multicut into it.
 
         let mut gdict = ConditionDictionary::new();
-        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        let mcut = cut::MultiCut::new(&[0, 1, 2, 3], 100.0, 200.0);
         gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");
@@ -616,7 +614,7 @@ mod fold_tests {
         // Make a Condition Dict and put a multicut into it.
 
         let mut gdict = ConditionDictionary::new();
-        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        let mcut = cut::MultiCut::new(&[0, 1, 2, 3], 100.0, 200.0);
         gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");
@@ -654,7 +652,7 @@ mod fold_tests {
         let pnames = make_default_parameters(&mut pdict);
         let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
         let mut gdict = ConditionDictionary::new();
-        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        let mcut = cut::MultiCut::new(&[0, 1, 2, 3], 100.0, 200.0);
         gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");
@@ -682,7 +680,7 @@ mod fold_tests {
         let pnames = make_default_parameters(&mut pdict);
         let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
         let mut gdict = ConditionDictionary::new();
-        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        let mcut = cut::MultiCut::new(&[0, 1, 2, 3], 100.0, 200.0);
         gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");
