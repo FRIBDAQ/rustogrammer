@@ -9,6 +9,7 @@
 //!
 use super::*;
 use crate::messaging::{condition_messages, spectrum_messages};
+use crate::spectra;
 use crate::spectra::integration;
 use rocket::serde::{json::Json, Deserialize, Serialize};
 
@@ -50,7 +51,6 @@ fn generate_aoi1d(
             ))
         } else {
             // get the gate information.
-
 
             match api.list_conditions(&gate_name) {
                 condition_messages::ConditionReply::Listing(l) => {

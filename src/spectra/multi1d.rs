@@ -441,12 +441,14 @@ mod multi1d_tests {
         spec.handle_event(&fe);
 
         for i in 0..10 {
-            
-            assert_eq!(1.0, spec
-                .histogram
-                .borrow()
-                .value(&(i as f64 * 10.0))
-                .expect("Value should exist").get());
+            assert_eq!(
+                1.0,
+                spec.histogram
+                    .borrow()
+                    .value(&(i as f64 * 10.0))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
