@@ -1,5 +1,5 @@
 //!  Supplies the spectcl/apply domain of URIs.
-//!  This set of URIs has to do with the application of gates
+//!  This set of URIs has to do with the application of conditions
 //!  (conditions) to spectra and provides the following:
 //!
 //!  *  apply - applies a condition to a spectrum so that it can only
@@ -24,20 +24,20 @@ pub struct GateApplicationResponse {
     detail: Vec<(String, String)>,
 }
 
-///  Apply a gate to a spectrum.
+///  Apply a condition to a spectrum.
 ///  Query parameters are:
 ///
 /// *   gate (mandatory) - name of the condition
 /// *   spectrum (mandatory) - name of the spectrum to which
-/// to apply the gate.  The SpecTcl version of this only accepts a
+/// to apply the condition.  The SpecTcl version of this only accepts a
 /// single spectrum.   We accept any number of spectra, applying the
-/// gate to all.
+/// condition to all.
 ///
 /// On success a GateApplicationResponse is returned. With an empty
 /// array in the detail (status of course is _OK_).  On failure
 /// the message is "Failed to apply {gatename} to some spectra"
 /// and the detail is an array of the spectrum for which we could not
-/// apply the gate.
+/// apply the condition.
 ///
 #[get("/apply?<gate>&<spectrum>")]
 pub fn apply_gate(
@@ -98,7 +98,7 @@ pub fn apply_list(
         detail: Vec::new(),
     };
     for spectrum in listing {
-        let gate_name = if let Some(g) = spectrum.gate {
+        let condition_name = if let Some(g) = spectrum.gate {
             g
         } else {
             String::from("-none-")
@@ -106,7 +106,7 @@ pub fn apply_list(
 
         result.detail.push(Application {
             spectrum: spectrum.name,
-            gate: gate_name,
+            gate: condition_name,
         });
     }
     Json(result)
@@ -189,7 +189,7 @@ mod apply_tests {
         let rocket = setup();
         let (chan, papi, bapi) = get_state(&rocket);
 
-        // No spectra so applying a gate will fail:
+        // No spectra so applying a condition will fail:
 
         let c = Client::tracked(rocket).unwrap();
         let r = c.get("/apply?gate=g&spectrum=spec");
@@ -209,7 +209,7 @@ mod apply_tests {
     }
     #[test]
     fn apply_gate_2() {
-        // need to make a parameter a spectrum and a gate to
+        // need to make a parameter a spectrum and a condition to
         // test success.
 
         let rocket = setup();
@@ -243,7 +243,7 @@ mod apply_tests {
         let r = c.get("/apply?gate=True&spectrum=test_spec");
         let reply = r.dispatch();
 
-        // Should get success and the gate should be applied:
+        // Should get success and the condition should be applied:
 
         let json = reply
             .into_json::<GateApplicationResponse>()
@@ -267,7 +267,7 @@ mod apply_tests {
         let rocket = setup();
         let (chan, papi, bapi) = get_state(&rocket);
 
-        // No spectra so applying a gate will fail:
+        // No spectra so applying a condition will fail:
 
         let c = Client::tracked(rocket).unwrap();
         let r = c.get("/list"); // no pattern/
@@ -285,7 +285,7 @@ mod apply_tests {
     fn apply_list_2() {
         // List no pattern but one listing.
 
-        // need to make a parameter a spectrum and a gate to
+        // need to make a parameter a spectrum and a condition to
         // test success.
 
         let rocket = setup();
@@ -313,7 +313,7 @@ mod apply_tests {
             .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
             .expect("making spectrum");
 
-        // apply the gate the easy way:
+        // apply the condition the easy way:
 
         spec_api
             .gate_spectrum("test_spec", "True")
@@ -339,7 +339,7 @@ mod apply_tests {
     fn apply_list_3() {
         // list pattern but does not match
 
-        // need to make a parameter a spectrum and a gate to
+        // need to make a parameter a spectrum and a condition to
         // test success.
 
         let rocket = setup();
@@ -367,7 +367,7 @@ mod apply_tests {
             .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
             .expect("making spectrum");
 
-        // apply the gate the easy way:
+        // apply the condition the easy way:
 
         spec_api
             .gate_spectrum("test_spec", "True")
@@ -391,7 +391,7 @@ mod apply_tests {
     fn apply_list_4() {
         // List with pattern which does match.
 
-        // need to make a parameter a spectrum and a gate to
+        // need to make a parameter a spectrum and a condition to
         // test success.
 
         let rocket = setup();
@@ -419,7 +419,7 @@ mod apply_tests {
             .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
             .expect("making spectrum");
 
-        // apply the gate the easy way:
+        // apply the condition the easy way:
 
         spec_api
             .gate_spectrum("test_spec", "True")
@@ -494,7 +494,7 @@ mod apply_tests {
             .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
             .expect("making spectrum");
 
-        // apply the gate the easy way:
+        // apply the condition the easy way:
 
         spec_api
             .gate_spectrum("test_spec", "True")

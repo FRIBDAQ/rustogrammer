@@ -99,9 +99,9 @@ impl SpectrumGate {
         SpectrumGate { gate: None }
     }
     /// Set a new gate:
-    /// If the gate does not exist Err is returned.
+    /// If the condition does not exist Err is returned.
     /// Otherwise self.gate is Some(name, downgraded gate container).
-    /// Note that if the gate cannot be found, the prior
+    /// Note that if the condition cannot be found, the prior
     /// value remains.
     ///
     pub fn set_gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
@@ -122,9 +122,9 @@ impl SpectrumGate {
     /// Evaluate the gate for an event  The following cases and results
     /// are considered
     /// *   self.gate.is_none() - the spectrum is ungated, true is returned.
-    /// *   upgrading the gate to an RC gives None - the underlying gate
+    /// *   upgrading the gate to an RC gives None - the underlying condition
     ///     was deleted:
-    ///     The gate has been deleted from the dict, we're now ungated
+    ///     The condition has been deleted from the dict, we're now ungated
     ///     return true.
     /// *   Upgrading gave Some - evaluate the resulting gate.
     ///
@@ -687,7 +687,7 @@ mod gate_tests {
     }
     #[test]
     fn spgate_ungate1() {
-        // can ungate an ugate - still none:
+        // can ungate an ungated - still none:
 
         let mut g = SpectrumGate::new();
         g.ungate();
@@ -719,7 +719,7 @@ mod gate_tests {
     // - Gated gives the result of the gate.
     //   *  True gate.
     //   *  False gate.
-    // - Gated but the gate was deleted is always true...and ungates us.
+    // - Gated but the condition was deleted is always true...and ungates us.
     //
     #[test]
     fn spgate_check1() {
@@ -781,7 +781,7 @@ mod gate_tests {
         let e = FlatEvent::new();
         assert!(!g.check(&e));
 
-        // Now kill off the gate from the dict:
+        // Now kill off the condition from the dict:
         // The {} ensures the container is dropped.
         {
             dict.remove(&String::from("false"))

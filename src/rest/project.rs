@@ -210,7 +210,7 @@ mod project_rest_tests {
             }
             _ => panic!("Failed to create contour"),
         };
-        // A simple gate that can be applied to the spectrum if desired.
+        // A simple condition that can be applied to the spectrum if desired.
 
         match capi.create_cut_condition("cut", 2, 100.0, 200.0) {
             condition_messages::ConditionReply::Created => {}
@@ -492,7 +492,7 @@ mod project_rest_tests {
 
         teardown(hch, &papi, &bapi);
     }
-    // Projetions within a contour gate the resulting spectrum on
+    // Projetions within a contour condition the resulting spectrum on
     // the contour - if there are no other things that infulence.
 
     #[test]

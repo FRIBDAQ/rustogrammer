@@ -222,9 +222,9 @@ impl ConditionMessageClient {
     ///  *  name - name of the true condition to create.
     ///
     /// Returns ConditionReply.   On success this is either
-    /// *   Created - this was a new gate.
-    /// *   Replaced - An exsting gate by that name was replaced by
-    /// this true gate.
+    /// *   Created - this was a new condition.
+    /// *   Replaced - An exsting condition by that name was replaced by
+    /// this true condition.
     ///
     /// Other returns are errors.
     pub fn create_true_condition(&self, name: &str) -> ConditionReply {
@@ -234,9 +234,9 @@ impl ConditionMessageClient {
     ///  *  name - name of the false condition to create.
     ///
     /// Returns ConditionReply.   On success this is either
-    /// *   Created - this was a new gate.
-    /// *   Replaced - An exsting gate by that name was replaced by
-    /// this true gate.
+    /// *   Created - this was a new condition.
+    /// *   Replaced - An exsting condition by that name was replaced by
+    /// this true condition.
     ///
     /// Other returns are errors.
     pub fn create_false_condition(&self, name: &str) -> ConditionReply {
@@ -248,9 +248,9 @@ impl ConditionMessageClient {
     ///  *  dependent - name of the condition that will be negated by this
     /// condition.
     /// Returns ConditionReply.   On success this is either
-    /// *   Created - this was a new gate.
-    /// *   Replaced - An exsting gate by that name was replaced by
-    /// this true gate.
+    /// *   Created - this was a new condition.
+    /// *   Replaced - An exsting condition by that name was replaced by
+    /// this true condition.
     ///
     /// Other returns are errors.  Note that a very simple error is that the
     /// dependent condition does not yet exist.
@@ -266,9 +266,9 @@ impl ConditionMessageClient {
     /// the new condition true.
     ///
     /// Returns ConditionReply.   On success this is either
-    /// *   Created - this was a new gate.
-    /// *   Replaced - An exsting gate by that name was replaced by
-    /// this true gate.
+    /// *   Created - this was a new condition.
+    /// *   Replaced - An exsting condition by that name was replaced by
+    /// this true condition.
     ///
     /// Other returns are errors.  Note that a very simple error is that the
     /// one or more of the dependent conditions does not exist.
@@ -284,9 +284,9 @@ impl ConditionMessageClient {
     /// be true to make the new condition true.
     ///
     /// Returns ConditionReply.   On success this is either
-    /// *   Created - this was a new gate.
-    /// *   Replaced - An exsting gate by that name was replaced by
-    /// this new gate.
+    /// *   Created - this was a new condition.
+    /// *   Replaced - An exsting condition by that name was replaced by
+    /// this new condition.
     ///
     /// Other returns are errors.  Note that a very simple error is that the
     /// one or more of the dependent conditions does not exist.
@@ -302,9 +302,9 @@ impl ConditionMessageClient {
     ///  *  high - Cut high limit.
     ///
     /// Returns ConditionReply.   On success this is either
-    /// *   Created - this was a new gate.
-    /// *   Replaced - An exsting gate by that name was replaced by
-    /// this new gate.
+    /// *   Created - this was a new condition.
+    /// *   Replaced - An exsting condition by that name was replaced by
+    /// this new condition.
     ///
     /// Other returns are errors.  Note that the caller must have gotten the parameter_id
     /// in some way that makes it valid (e.g. from a list request to the
@@ -330,9 +330,9 @@ impl ConditionMessageClient {
     ///  *  points - The points that define the polyline events are checked against.
     ///
     /// Returns ConditionReply.   On success this is either
-    /// *   Created - this was a new gate.
-    /// *   Replaced - An exsting gate by that name was replaced by
-    /// this new gate.
+    /// *   Created - this was a new condition.
+    /// *   Replaced - An exsting condition by that name was replaced by
+    /// this new condition.
     ///
     /// Other returns are errors.  Note that the caller must have gotten parameer ids
     /// in some way that makes them valid (e.g. from a list request to the
@@ -365,9 +365,9 @@ impl ConditionMessageClient {
     /// checked against.
     ///
     /// Returns ConditionReply.   On success this is either
-    /// *   Created - this was a new gate.
-    /// *   Replaced - An exsting gate by that name was replaced by
-    /// this new gate.
+    /// *   Created - this was a new condition.
+    /// *   Replaced - An exsting condition by that name was replaced by
+    /// this new condition.
     ///
     /// Other returns are errors.  Note that the caller must have gotten parameer ids
     /// in some way that makes them valid (e.g. from a list request to the
@@ -514,7 +514,7 @@ impl ConditionProcessor {
             let n = Not::new(d);
             self.add_condition(name, n, tracedb)
         } else {
-            ConditionReply::Error(format!("Dependent gate {} not found", dependent))
+            ConditionReply::Error(format!("Dependent condition {} not found", dependent))
         }
     }
     fn add_and(
@@ -530,7 +530,7 @@ impl ConditionProcessor {
             if let Some(c) = self.dict.get(&n) {
                 a.add_condition(c);
             } else {
-                return ConditionReply::Error(format!("Dependent gate {} not found", name));
+                return ConditionReply::Error(format!("Dependent condition {} not found", name));
             }
         }
         self.add_condition(name, a, tracedb)
@@ -549,7 +549,7 @@ impl ConditionProcessor {
             if let Some(c) = self.dict.get(&n) {
                 o.add_condition(c);
             } else {
-                return ConditionReply::Error(format!("Dependent gate {} not found", name));
+                return ConditionReply::Error(format!("Dependent condition {} not found", name));
             }
         }
         self.add_condition(name, o, tracedb)
@@ -650,11 +650,11 @@ impl ConditionProcessor {
     // make CondtionPropreties from a condition and its name.
 
     fn make_props(&self, name: &str, c: &Container) -> ConditionProperties {
-        // Need to make the dependent gates:
-        let dependencies = c.borrow().dependent_gates();
+        // Need to make the dependent conditions:
+        let dependencies = c.borrow().dependent_conditions();
         let mut d_names = Vec::<String>::new();
         for d in dependencies.iter() {
-            if let Some(s) = gate_name_from_ref(&self.dict, d) {
+            if let Some(s) = condition_name_from_ref(&self.dict, d) {
                 d_names.push(s)
             } else {
                 d_names.push(String::from("-deleted-"));
@@ -663,8 +663,8 @@ impl ConditionProcessor {
 
         ConditionProperties {
             cond_name: String::from(name),
-            type_name: c.borrow().gate_type(),
-            points: c.borrow().gate_points(),
+            type_name: c.borrow().condition_type(),
+            points: c.borrow().condition_points(),
             gates: d_names,
             parameters: c.borrow().dependent_parameters(),
         }
@@ -998,7 +998,10 @@ mod cnd_processor_tests {
 
         let item = cp.dict.get("true-cond");
         assert!(item.is_some());
-        assert_eq!(String::from("True"), item.unwrap().borrow().gate_type());
+        assert_eq!(
+            String::from("True"),
+            item.unwrap().borrow().condition_type()
+        );
     }
     #[test]
     fn make_false_1() {
@@ -1012,7 +1015,10 @@ mod cnd_processor_tests {
 
         let item = cp.dict.get("false-cond");
         assert!(item.is_some());
-        assert_eq!(String::from("False"), item.unwrap().borrow().gate_type());
+        assert_eq!(
+            String::from("False"),
+            item.unwrap().borrow().condition_type()
+        );
     }
     #[test]
     fn make_not_1() {
@@ -1031,12 +1037,12 @@ mod cnd_processor_tests {
         let item = cp.dict.get("true");
         assert!(item.is_some());
         let cond = item.unwrap();
-        assert_eq!(String::from("Not"), cond.borrow().gate_type());
-        let dep = cond.borrow().dependent_gates();
+        assert_eq!(String::from("Not"), cond.borrow().condition_type());
+        let dep = cond.borrow().dependent_conditions();
         assert_eq!(1, dep.len());
         assert_eq!(
             String::from("False"),
-            dep[0].upgrade().unwrap().borrow().gate_type()
+            dep[0].upgrade().unwrap().borrow().condition_type()
         );
     }
     #[test]
@@ -1058,17 +1064,17 @@ mod cnd_processor_tests {
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("and").unwrap();
-        assert_eq!(String::from("And"), cond.borrow().gate_type());
-        let deps = cond.borrow().dependent_gates();
+        assert_eq!(String::from("And"), cond.borrow().condition_type());
+        let deps = cond.borrow().dependent_conditions();
 
         assert_eq!(2, deps.len());
         assert_eq!(
             String::from("True"),
-            deps[0].upgrade().unwrap().borrow().gate_type()
+            deps[0].upgrade().unwrap().borrow().condition_type()
         );
         assert_eq!(
             String::from("False"),
-            deps[1].upgrade().unwrap().borrow().gate_type()
+            deps[1].upgrade().unwrap().borrow().condition_type()
         );
     }
     #[test]
@@ -1090,17 +1096,17 @@ mod cnd_processor_tests {
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("or").unwrap();
-        assert_eq!(String::from("Or"), cond.borrow().gate_type());
-        let deps = cond.borrow().dependent_gates();
+        assert_eq!(String::from("Or"), cond.borrow().condition_type());
+        let deps = cond.borrow().dependent_conditions();
 
         assert_eq!(2, deps.len());
         assert_eq!(
             String::from("True"),
-            deps[0].upgrade().unwrap().borrow().gate_type()
+            deps[0].upgrade().unwrap().borrow().condition_type()
         );
         assert_eq!(
             String::from("False"),
-            deps[1].upgrade().unwrap().borrow().gate_type()
+            deps[1].upgrade().unwrap().borrow().condition_type()
         );
     }
     #[test]
@@ -1114,8 +1120,8 @@ mod cnd_processor_tests {
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("cut").unwrap();
-        assert_eq!("Cut", cond.borrow().gate_type());
-        let pts = cond.borrow().gate_points();
+        assert_eq!("Cut", cond.borrow().condition_type());
+        let pts = cond.borrow().condition_points();
         assert_eq!(2, pts.len());
         assert_eq!(100.0, pts[0].0);
         assert_eq!(200.0, pts[1].0);
@@ -1124,18 +1130,18 @@ mod cnd_processor_tests {
     fn make_band_1() {
         let mut cp = ConditionProcessor::new();
         let tracedb = trace::SharedTraceStore::new();
-        let gate_pts = vec![(0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)];
+        let condition_pts = vec![(0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)];
         let rep = cp.process_request(
-            ConditionMessageClient::make_band_creation("band", 10, 15, &gate_pts),
+            ConditionMessageClient::make_band_creation("band", 10, 15, &condition_pts),
             &tracedb,
         );
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("band").unwrap();
-        assert_eq!(String::from("Band"), cond.borrow().gate_type());
-        let pts = cond.borrow().gate_points();
-        assert_eq!(gate_pts.len(), pts.len());
-        for (i, p) in gate_pts.iter().enumerate() {
+        assert_eq!(String::from("Band"), cond.borrow().condition_type());
+        let pts = cond.borrow().condition_points();
+        assert_eq!(condition_pts.len(), pts.len());
+        for (i, p) in condition_pts.iter().enumerate() {
             assert_eq!(p.0, pts[i].0);
             assert_eq!(p.1, pts[i].1);
         }
@@ -1144,18 +1150,18 @@ mod cnd_processor_tests {
     fn make_contour_1() {
         let mut cp = ConditionProcessor::new();
         let tracedb = trace::SharedTraceStore::new();
-        let gate_pts = vec![(0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)];
+        let condition_pts = vec![(0.0, 100.0), (50.0, 200.0), (100.0, 50.0), (200.0, 25.0)];
         let rep = cp.process_request(
-            ConditionMessageClient::make_contour_creation("contour", 10, 15, &gate_pts),
+            ConditionMessageClient::make_contour_creation("contour", 10, 15, &condition_pts),
             &tracedb,
         );
         assert_eq!(ConditionReply::Created, rep);
 
         let cond = cp.dict.get("contour").unwrap();
-        assert_eq!(String::from("Contour"), cond.borrow().gate_type());
-        let pts = cond.borrow().gate_points();
-        assert_eq!(gate_pts.len(), pts.len());
-        for (i, p) in gate_pts.iter().enumerate() {
+        assert_eq!(String::from("Contour"), cond.borrow().condition_type());
+        let pts = cond.borrow().condition_points();
+        assert_eq!(condition_pts.len(), pts.len());
+        for (i, p) in condition_pts.iter().enumerate() {
             assert_eq!(p.0, pts[i].0);
             assert_eq!(p.1, pts[i].1);
         }
@@ -1167,24 +1173,24 @@ mod cnd_processor_tests {
         let mut cp = ConditionProcessor::new();
         let tracedb = trace::SharedTraceStore::new();
         cp.process_request(
-            ConditionMessageClient::make_true_creation("agate"),
+            ConditionMessageClient::make_true_creation("acondition"),
             &tracedb,
         );
 
-        let cond = cp.dict.get("agate").unwrap();
-        assert_eq!("True", cond.borrow().gate_type());
+        let cond = cp.dict.get("acondition").unwrap();
+        assert_eq!("True", cond.borrow().condition_type());
         let cond = Rc::downgrade(cond); // Weak now
 
-        // Replacing the gate should happen transparently
+        // Replacing the condition should happen transparently
         // to our cond:
 
         let result = cp.process_request(
-            ConditionMessageClient::make_false_creation("agate"),
+            ConditionMessageClient::make_false_creation("acondition"),
             &tracedb,
         );
         assert_eq!(ConditionReply::Replaced, result);
 
-        assert_eq!("False", cond.upgrade().unwrap().borrow().gate_type());
+        assert_eq!("False", cond.upgrade().unwrap().borrow().condition_type());
     }
 
     // Other requests.
@@ -1199,7 +1205,7 @@ mod cnd_processor_tests {
             &tracedb,
         );
 
-        // Delete the true gate
+        // Delete the true condition
 
         let reply = cp.process_request(ConditionMessageClient::make_delete("true"), &tracedb);
         assert_eq!(ConditionReply::Deleted, reply); // Success.
@@ -1243,7 +1249,7 @@ mod cnd_processor_tests {
     }
     #[test]
     fn list_1() {
-        // List all gates:
+        // List all conditions:
         let mut cp = make_list_conditions();
         let tracedb = trace::SharedTraceStore::new();
         let reply = cp.process_request(ConditionMessageClient::make_list("*"), &tracedb);
@@ -1282,7 +1288,7 @@ mod cnd_processor_tests {
     }
     #[test]
     fn list_2() {
-        // List gates whose names start with "f"
+        // List conditions whose names start with "f"
 
         let mut cp = make_list_conditions();
         let tracedb = trace::SharedTraceStore::new();
@@ -1334,7 +1340,10 @@ mod cnd_processor_tests {
 
         let item = cp.dict.get("test");
         assert!(item.is_some());
-        assert_eq!(String::from("MultiCut"), item.unwrap().borrow().gate_type());
+        assert_eq!(
+            String::from("MultiCut"),
+            item.unwrap().borrow().condition_type()
+        );
     }
     #[test]
     fn create_multi2_1() {
@@ -1356,7 +1365,7 @@ mod cnd_processor_tests {
         assert!(item.is_some());
         assert_eq!(
             String::from("MultiContour"),
-            item.unwrap().borrow().gate_type()
+            item.unwrap().borrow().condition_type()
         );
     }
     #[test]

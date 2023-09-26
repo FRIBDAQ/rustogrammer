@@ -2,7 +2,7 @@
 //!  interfaces to spectra in the histogrammer.
 //!  Messages allow us to:
 //! *   Create and delete histograms of various sorts
-//! *   Apply gates to histograms.  These gates must be
+//! *   Apply conditions to histograms as gates.  These conditions must be
 //! conditions that are defined in a ConditionProcessor's dictionary.
 //! *   Ungate histograms.
 //! *   Clear the contents of individual or groups of histograms
@@ -1463,15 +1463,15 @@ impl SpectrumMessageClient {
             _ => Err(String::from("Unexpected server result for list request")),
         }
     }
-    /// Apply a gate to a spectrum:
+    /// Apply a condition to a spectrum:
     ///
     /// * spectrum -name of the spectrum.
-    /// * gate - name of the gate to apply.
+    /// * condition - name of the condition to apply.
     ///
     /// Retuns: SpectrumServerEmptyResult.
     ///
-    pub fn gate_spectrum(&self, spectrum: &str, gate: &str) -> SpectrumServerEmptyResult {
-        let reply = self.transact(Self::gate_request(spectrum, gate));
+    pub fn gate_spectrum(&self, spectrum: &str, condition: &str) -> SpectrumServerEmptyResult {
+        let reply = self.transact(Self::gate_request(spectrum, condition));
         if let SpectrumReply::Error(s) = reply {
             Err(s)
         } else {
@@ -3253,7 +3253,7 @@ mod spproc_tests {
         }
     }
 
-    // For our gate test we need some gates:
+    // For our gate test we need some conditions:
 
     fn make_some_gates(cd: &mut ConditionDictionary) {
         for i in 0..10 {
@@ -3312,7 +3312,7 @@ mod spproc_tests {
     }
     #[test]
     fn gate_2() {
-        // No such gate:
+        // No such condition:
         let mut to = make_test_objs();
         make_some_params(&mut to);
         make_some_gates(&mut to.conditions);

@@ -2,7 +2,7 @@
 //!  be the sum of several two d spectra with the same gate applied.
 //!
 //!  The spectrum is defined over an arbitrary set of x/y parameter
-//!  pairs.  If the applied gate is satisfied, the spectrum is incremented
+//!  pairs.  The spectrum is incremented
 //!  for each of those pairs which have a value in the event.
 //!
 //!  Suppose, for example, the spectrum is defined on the following (x,y)

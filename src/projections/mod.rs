@@ -240,13 +240,13 @@ pub fn make_projection_spectrum(
         status
     }
 }
-/// Create the gate appropriate to a projection spectcrum.  See
+/// Create the condition appropriate to a projection spectcrum.  See
 /// the description of project below for how this is derived.
 ///
 /// ### Parameters:
-///   *  gapi- Gate API instance reference.
+///   *  gapi- condition API instance reference.
 ///   *  dest_name -  destination spectrum name - used to generate
-/// the and gate if needed ("_dest_name_projection_gate_")
+/// the and condition if needed ("_dest_name_projection_gate_")
 ///   *  source_desc - References the description of the source spectrum.
 ///   *  contour - If Some the payload is the name of the AOI contour
 ///   *  snapshot - If true the specturm is a snapshot spectrum.
@@ -267,18 +267,18 @@ fn create_projection_gate(
     if source_desc.gate.is_none() && contour.is_none() {
         return None;
     }
-    // If there is a contour but no gate the contour rules:
+    // If there is a contour but no condition the contour rules:
 
     if contour.is_some() && source_desc.gate.is_none() {
         return Some(contour.clone().unwrap());
     }
 
-    // If there is no contour and a gate, that's the gate:
+    // If there is no contour and a condition, that's the condition:
 
     if contour.is_none() && source_desc.gate.is_some() {
         return Some(source_desc.gate.clone().unwrap());
     }
-    // If there is a contour and a gate we need to make and condition
+    // If there is a contour and a condition we need to make and condition
     // of the two of them.
     //
     if contour.is_some() && source_desc.gate.is_some() {
@@ -1750,7 +1750,7 @@ mod project_tests {
         {
             panic!("Failed to create contour : {}", s);
         }
-        // True gate we can put on the spectrum if we need to for testing:
+        // True condition we can put on the spectrum if we need to for testing:
 
         if let condition_messages::ConditionReply::Error(s) = capi.create_true_condition("true") {
             panic!("Failed to create true condition {}", s);
@@ -2366,7 +2366,7 @@ mod project_tests {
             );
         }
 
-        // See that the gate is correct:
+        // See that the condition is correct:
 
         match gapi.list_conditions("_proj_projection_gate_") {
             condition_messages::ConditionReply::Error(s) => panic!("{}", s),
@@ -2473,7 +2473,7 @@ mod project_tests {
             condition_messages::ConditionReply::Error(s) => panic!("{}", s),
             condition_messages::ConditionReply::Listing(v) => {
                 assert_eq!(1, v.len());
-                let gate = v[0].clone();
+                let condition = v[0].clone();
                 assert_eq!(
                     condition_messages::ConditionProperties {
                         cond_name: String::from("_proj_projection_gate_"),
@@ -2482,7 +2482,7 @@ mod project_tests {
                         gates: vec![String::from("true"), String::from("contour")],
                         parameters: vec![]
                     },
-                    gate
+                    condition
                 );
             }
             _ => panic!("Unexpected return type from gate list"),

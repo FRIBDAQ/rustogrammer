@@ -191,7 +191,8 @@ mod request_tests {
         ));
 
         let d = req.conditions.get_dict();
-        d.get(&String::from("true")).expect("Failed gate lookup");
+        d.get(&String::from("true"))
+            .expect("Failed condition lookup");
     }
     #[test]
     fn spec_clear_1() {
