@@ -546,16 +546,17 @@ mod multi2d_tests {
             for j in (i + 1)..param_ids.len() {
                 let px = param_ids[i];
                 let py = param_ids[j];
-                let x = fe[px as u32].unwrap();
-                let y = fe[py as u32].unwrap();
-                let v = spec
-                    .histogram
-                    .borrow()
-                    .value(&(x, y))
-                    .expect("Value should exist")
-                    .clone();
+                let x = fe[px].unwrap();
+                let y = fe[py].unwrap();
 
-                assert_eq!(1.0, v.get());
+                assert_eq!(
+                    1.0,
+                    spec.histogram
+                        .borrow()
+                        .value(&(x, y))
+                        .expect("Value should exist")
+                        .get()
+                );
             }
         }
     }
@@ -594,16 +595,17 @@ mod multi2d_tests {
             for j in (i + 1)..param_ids.len() {
                 let px = param_ids[i];
                 let py = param_ids[j];
-                let x = fe[px as u32].unwrap();
-                let y = fe[py as u32].unwrap();
-                let v = spec
-                    .histogram
-                    .borrow()
-                    .value(&(x, y))
-                    .expect("Value should exist")
-                    .clone();
+                let x = fe[px].unwrap();
+                let y = fe[py].unwrap();
 
-                assert_eq!(1.0, v.get());
+                assert_eq!(
+                    1.0,
+                    spec.histogram
+                        .borrow()
+                        .value(&(x, y))
+                        .expect("Value should exist")
+                        .get()
+                );
             }
         }
     }
@@ -664,7 +666,7 @@ mod fold_tests {
         let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
             .expect("Making spectrum");
 
-        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let m2 = MultiContour::new(&[1, 2, 3], test_points()).expect("Making contour");
         let mut gdict = ConditionDictionary::new();
         gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
 
@@ -680,7 +682,7 @@ mod fold_tests {
         let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
             .expect("Making spectrum");
 
-        let m2 = MultiCut::new(&vec![1, 2, 3], 100.0, 200.0);
+        let m2 = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let mut gdict = ConditionDictionary::new();
         gdict.insert(String::from("ga"), Rc::new(RefCell::new(Box::new(m2))));
 
@@ -724,7 +726,7 @@ mod fold_tests {
         let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
             .expect("Making spectrum");
 
-        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let m2 = MultiContour::new(&[1, 2, 3], test_points()).expect("Making contour");
         let mut gdict = ConditionDictionary::new();
         gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
 
@@ -754,7 +756,7 @@ mod fold_tests {
         let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
             .expect("Making spectrum");
 
-        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let m2 = MultiContour::new(&[1, 2, 3], test_points()).expect("Making contour");
         let mut gdict = ConditionDictionary::new();
         gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
 
@@ -808,7 +810,7 @@ mod fold_tests {
         let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
             .expect("Making spectrum");
 
-        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let m2 = MultiContour::new(&[1, 2, 3], test_points()).expect("Making contour");
         let mut gdict = ConditionDictionary::new();
         gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
 
@@ -840,7 +842,7 @@ mod fold_tests {
         let mut spec = Multi2d::new("test", pnames, &pdict, None, None, None, None, None, None)
             .expect("Making spectrum");
 
-        let m2 = MultiContour::new(&vec![1, 2, 3], test_points()).expect("Making contour");
+        let m2 = MultiContour::new(&[1, 2, 3], test_points()).expect("Making contour");
         let mut gdict = ConditionDictionary::new();
         gdict.insert(String::from("gc"), Rc::new(RefCell::new(Box::new(m2))));
 

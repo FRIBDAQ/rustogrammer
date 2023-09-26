@@ -1180,7 +1180,7 @@ mod spec_storage_tests {
         let p2 = pdict.lookup("param.2").expect("param.2 should be created");
         let p3 = pdict.lookup("param.3").expect("param3. should be created");
 
-        let idvec = vec![p1.get_id(), p2.get_id(), p3.get_id()];
+        let idvec = [p1.get_id(), p2.get_id(), p3.get_id()];
 
         // Easiest to do the increments prior to insertion for this test:
 
@@ -1188,8 +1188,8 @@ mod spec_storage_tests {
         for _ in 0..100 {
             let mut event = Event::new();
             let mut fe = FlatEvent::new();
-            for j in 0..idvec.len() {
-                event.push(EventParameter::new(idvec[j], counter));
+            for j in &idvec {
+                event.push(EventParameter::new(*j, counter));
                 counter += 1.0;
             }
             fe.load_event(&event);
@@ -1255,15 +1255,15 @@ mod spec_storage_tests {
         let p2 = pdict.lookup("param.2").expect("param.2 should be created");
         let p3 = pdict.lookup("param.3").expect("param3. should be created");
 
-        let idvec = vec![p1.get_id(), p2.get_id(), p3.get_id()];
+        let idvec = [p1.get_id(), p2.get_id(), p3.get_id()];
 
         // Make and process some events:
 
         let mut counter = 0.0;
         for _ in 0..100 {
             let mut event = Event::new();
-            for j in 0..idvec.len() {
-                event.push(EventParameter::new(idvec[j], counter));
+            for j in &idvec {
+                event.push(EventParameter::new(*j, counter));
                 counter += 1.0;
             }
 
@@ -1363,15 +1363,15 @@ mod spec_storage_tests {
         let p2 = pdict.lookup("param.2").expect("param.2 should be created");
         let p3 = pdict.lookup("param.3").expect("param3. should be created");
 
-        let idvec = vec![p1.get_id(), p2.get_id(), p3.get_id()];
+        let idvec = [p1.get_id(), p2.get_id(), p3.get_id()];
 
         // Make and process some events:
 
         let mut counter = 0.0;
         for _ in 0..100 {
             let mut event = Event::new();
-            for j in 0..idvec.len() {
-                event.push(EventParameter::new(idvec[j], counter));
+            for j in &idvec {
+                event.push(EventParameter::new(*j, counter));
                 counter += 1.0;
             }
 

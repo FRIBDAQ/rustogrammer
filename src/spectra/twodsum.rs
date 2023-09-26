@@ -661,14 +661,15 @@ mod twodsum_tests {
 
         for i in 0..5 {
             let xy = i as f64 * 10.0;
-            let v = spec
-                .histogram
-                .borrow()
-                .value(&(xy, xy))
-                .expect("Value should exist")
-                .clone();
 
-            assert_eq!(1.0, v.get());
+            assert_eq!(
+                1.0,
+                spec.histogram
+                    .borrow()
+                    .value(&(xy, xy))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -732,14 +733,15 @@ mod twodsum_tests {
 
         for i in 0..5 {
             let xy = i as f64 * 10.0;
-            let v = spec
-                .histogram
-                .borrow()
-                .value(&(xy, xy))
-                .expect("Value should exist")
-                .clone();
 
-            assert_eq!(1.0, v.get());
+            assert_eq!(
+                1.0,
+                spec.histogram
+                    .borrow()
+                    .value(&(xy, xy))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -859,15 +861,17 @@ mod twodsum_tests {
 
         for i in 0..5 {
             let xy = i as f64 * 10.0;
-            let v = spec
-                .histogram
-                .borrow()
-                .value(&(xy, xy))
-                .expect("Value should exist")
-                .clone();
+
             let expected_value = if i % 2 == 0 { 1.0 } else { 0.0 };
 
-            assert_eq!(expected_value, v.get());
+            assert_eq!(
+                expected_value,
+                spec.histogram
+                    .borrow()
+                    .value(&(xy, xy))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -922,15 +926,17 @@ mod twodsum_tests {
 
         for i in 0..5 {
             let xy = i as f64 * 10.0;
-            let v = spec
-                .histogram
-                .borrow()
-                .value(&(xy, xy))
-                .expect("Value should exist")
-                .clone();
+
             let expected_value = if i % 2 == 0 { 1.0 } else { 0.0 };
 
-            assert_eq!(expected_value, v.get());
+            assert_eq!(
+                expected_value,
+                spec.histogram
+                    .borrow()
+                    .value(&(xy, xy))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
         // there are only 3 non zeros in the histogram 0,0,
 
@@ -994,15 +1000,17 @@ mod twodsum_tests {
 
         for i in 0..5 {
             let xy = i as f64 * 10.0;
-            let v = spec
-                .histogram
-                .borrow()
-                .value(&(xy, xy))
-                .expect("Value should exist")
-                .clone();
+
             let expected_value = if i % 2 == 0 { 1.0 } else { 0.0 };
 
-            assert_eq!(expected_value, v.get());
+            assert_eq!(
+                expected_value,
+                spec.histogram
+                    .borrow()
+                    .value(&(xy, xy))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
         // there are only 3 non zeros in the histogram 0,0,
 
