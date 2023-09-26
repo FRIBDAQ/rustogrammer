@@ -143,6 +143,7 @@ pub enum SpectrumRequest {
         condition_name: String,
     },
     Unfold(String),
+    Is1D(String),
 }
 
 /// Defines the replies the spectrum par tof the histogram
@@ -163,6 +164,7 @@ pub enum SpectrumReply {
     ChannelSet,                       // SetChan
     Folded,
     Unfolded,
+    Flag(bool),
 }
 /// Convert a coordinate to a bin:
 ///
@@ -884,6 +886,15 @@ impl SpectrumProcessor {
             SpectrumReply::Error(format!("no such spectrum {}", spectrum))
         }
     }
+    // determine if a spectrum is 1d:
+
+    fn is_1d(&mut self, spectrum: &str) -> SpectrumReply {
+        if let Some(s) = self.dict.get(spectrum) {
+            SpectrumReply::Flag(s.borrow().is_1d())
+        } else {
+            SpectrumReply::Error(format!("no such spectrum {}", spectrum))
+        }
+    }
 
     // Public methods
     /// Construction
@@ -972,6 +983,7 @@ impl SpectrumProcessor {
                 condition_name,
             } => self.fold_spectrum(&spectrum_name, &condition_name, cdict),
             SpectrumRequest::Unfold(spectrum) => self.unfold_spectrum(&spectrum),
+            SpectrumRequest::Is1D(spectrum) => self.is_1d(&spectrum),
         }
     }
 }
@@ -999,6 +1011,10 @@ pub type SpectrumServerStatisticsResult = Result<SpectrumStatistics, String>;
 /// Result from the GetChan:
 
 pub type SpectrumChannelResult = Result<f64, String>;
+
+// Results for abool:
+
+pub type SpectrumFlagResult = Result<bool, String>;
 
 ///
 /// This struct provides a container for the channel used to
@@ -1652,6 +1668,19 @@ impl SpectrumMessageClient {
             SpectrumReply::ChannelSet => Ok(()),
             SpectrumReply::Error(s) => Err(s),
             _ => Err(String::from("Unexpected reply type in set_channel_value")),
+        }
+    }
+    /// Determine if a spectrum is 1d:
+    ///
+    /// ### Parameters:
+    ///   * spectrum - name of the spectrum.
+    ///
+    /// ### Returns SpectrumFlagResult
+    ///
+    pub fn is_1d(&self, name: &str) -> SpectrumFlagResult {
+        match self.transact(SpectrumRequest::Is1D(String::from(name))) {
+            SpectrumReply::Flag(b) => Ok(b),
+            _ => Err(String::from("Unexpected replytype in is_1d")),
         }
     }
     ///  Attempt to apply a fold to a spectrum.  It is the server's job
