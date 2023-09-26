@@ -434,7 +434,7 @@ mod tests {
         assert_eq!(item.size, item.size());
         assert_eq!(item.type_id, item.type_id());
         assert!(!item.has_body_header());
-        assert!(!matches!(item.get_bodyheader(), Some(_)));
+        assert!(item.get_bodyheader().is_none());
     }
     #[test]
     fn getters_2() {
@@ -496,22 +496,22 @@ mod tests {
     #[test]
     fn add_5() {
         let mut item = RingItem::new(1234);
-        item.add(3.14159_f32);
+        item.add(3.1122_f32);
         let s = mem::size_of::<f32>();
         assert_eq!(s, item.payload.len());
         assert_eq!(
-            3.14159_f32,
+            3.1122_f32,
             f32::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
         );
     }
     #[test]
     fn add_6() {
         let mut item = RingItem::new(1234);
-        item.add(2.71828182_f64);
+        item.add(2.7654321_f64);
         let s = mem::size_of::<f64>();
         assert_eq!(s, item.payload.len());
         assert_eq!(
-            2.71828182_f64,
+            2.7654321_f64,
             f64::from_ne_bytes(item.payload.as_slice()[0..s].try_into().unwrap())
         );
     }

@@ -180,7 +180,10 @@ mod fold_tests {
             params.push(name);
             param_ids.push(i);
         }
-        assert!(matches!(capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0), condition_messages::ConditionReply::Created));
+        assert!(matches!(
+            capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0),
+            condition_messages::ConditionReply::Created
+        ));
 
         sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
             .expect("Making spectrum");
@@ -262,7 +265,10 @@ mod fold_tests {
             params.push(name);
             param_ids.push(i);
         }
-        assert!(matches!(capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0), condition_messages::ConditionReply::Created));
+        assert!(matches!(
+            capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0),
+            condition_messages::ConditionReply::Created
+        ));
 
         sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
             .expect("Making spectrum");
@@ -406,17 +412,12 @@ mod fold_tests {
             params.push(name);
             param_ids.push(i);
         }
-        assert!(
-            match capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0) {
-                condition_messages::ConditionReply::Created => true,
-                _ => false,
-            },
-            "Making condition."
-        );
+        assert!(matches!(capi.create_multicut_condition("mcut", &param_ids, 100.0, 200.0), condition_messages::ConditionReply::Created ));
+        
         sapi.create_spectrum_multi1d("test", &params, 0.0, 1024.0, 1024)
             .expect("Making spectrum");
 
-        sapi.fold_spectrum(&"test", "mcut")
+        sapi.fold_spectrum("test", "mcut")
             .expect("Folding spectrum");
 
         let client = Client::untracked(rocket).expect("Making rocket client");

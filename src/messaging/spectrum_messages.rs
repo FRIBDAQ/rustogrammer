@@ -2327,7 +2327,6 @@ mod spproc_tests {
             &to.tracedb,
         );
         assert!(matches!(reply, SpectrumReply::Error(_)));
-        
     }
     #[test]
     fn createpgamma_4() {
@@ -3183,9 +3182,7 @@ mod spproc_tests {
             assert_eq!(10, l.len());
 
             // There's no ordering so order by name:
-            l.sort_by(|a, b| {
-                a.name.cmp(&b.name)
-            });
+            l.sort_by(|a, b| a.name.cmp(&b.name));
 
             // /The listing comes in an arbitrary order so:
 
@@ -4105,13 +4102,15 @@ mod spproc_tests {
         });
         // IF we use the wrong name:
 
-        assert!(matches!(to.processor.process_request(
+        assert!(matches!(
+            to.processor.process_request(
                 SpectrumRequest::GetStats(String::from("none")),
                 &to.parameters,
                 &mut to.conditions,
                 &to.tracedb
-            ), SpectrumReply::Error(_)));
-            
+            ),
+            SpectrumReply::Error(_)
+        ));
     }
     #[test]
     fn load_1() {
@@ -5989,7 +5988,7 @@ mod spproc_tests {
             assert!(props.fold.is_some());
             assert_eq!("slice", props.fold.unwrap());
         } else {
-            panic!( "Incorrect reply from list_spectra");
+            panic!("Incorrect reply from list_spectra");
         }
     }
     #[test]
@@ -6501,7 +6500,7 @@ mod reqstruct_tests {
             vec![EventParameter::new(1, 2.0), EventParameter::new(7, 100.)],
             vec![
                 EventParameter::new(12, 1.345),
-                EventParameter::new(77, 3.1416),
+                EventParameter::new(77, 3.112233),
             ],
             vec![
                 EventParameter::new(1, 2.0),
@@ -6649,8 +6648,11 @@ mod spectrum_api_tests {
 
         // Create the spectrum:
 
-        assert!(matches!(api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024,), Ok(())));
-            
+        assert!(matches!(
+            api.create_spectrum_1d("test", "param.1", 0.0, 1024.0, 1024,),
+            Ok(())
+        ));
+
         // See if the server knows it:
 
         assert!(if let Ok(listing) = api.list_spectra("*",) {

@@ -315,7 +315,7 @@ mod triggers_test {
             10,
             u32::from_ne_bytes(p[offset..offset + u32s].try_into().unwrap())
         );
-        offset = offset + u32s;
+        offset += u32s;
 
         assert_eq!(
             1,

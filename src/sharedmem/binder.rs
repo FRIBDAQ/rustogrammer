@@ -1223,7 +1223,7 @@ mod sbind_trace_tests {
         // Now a client to the tracedb events and bind test:
 
         let bapi = BindingApi::new(&binder_req);
-        bapi.bind(&"test").expect("Binding 'test'");
+        bapi.bind("test").expect("Binding 'test'");
 
         // Be a trace client an unbind:
 

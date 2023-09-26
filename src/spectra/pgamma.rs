@@ -840,7 +840,7 @@ mod pgamma_tests {
 
         let mut gdict = ConditionDictionary::new();
         let fold = conditions::MultiContour::new(
-            &vec![0, 1, 2, 3, 4],
+            &[0, 1, 2, 3, 4],
             vec![
                 conditions::twod::Point::new(100.0, 100.0),
                 conditions::twod::Point::new(500.0, 100.0),

@@ -2338,7 +2338,7 @@ mod project_tests {
         assert_eq!("param.0", desc.xparams[0]);
         assert_eq!(0, desc.yparams.len());
         assert!(desc.xaxis.is_some());
-        let xaxis = desc.xaxis.clone().unwrap();
+        let xaxis = desc.xaxis.unwrap();
         assert_eq!(0.0, xaxis.low);
         assert_eq!(1024.0, xaxis.high);
         assert_eq!(514, xaxis.bins); // over/underflow chans.
@@ -2369,7 +2369,7 @@ mod project_tests {
         // See that the gate is correct:
 
         match gapi.list_conditions("_proj_projection_gate_") {
-            condition_messages::ConditionReply::Error(s) => assert!(false, "{}", s),
+            condition_messages::ConditionReply::Error(s) => panic!("{}", s),
             condition_messages::ConditionReply::Listing(v) => {
                 assert_eq!(1, v.len());
                 let gate = v[0].clone();
@@ -2470,7 +2470,7 @@ mod project_tests {
         );
 
         match gapi.list_conditions("_proj_projection_gate_") {
-            condition_messages::ConditionReply::Error(s) => assert!(false, "{}", s),
+            condition_messages::ConditionReply::Error(s) => panic!("{}", s),
             condition_messages::ConditionReply::Listing(v) => {
                 assert_eq!(1, v.len());
                 let gate = v[0].clone();

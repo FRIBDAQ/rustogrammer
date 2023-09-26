@@ -1138,7 +1138,7 @@ mod read_tests {
         assert_eq!("1D", sp.type_name);
         assert_eq!(1, sp.xparams.len());
         assert_eq!("parameters.05", sp.xparams[0]);
-        let x = sp.xaxis.clone().expect("Unwraping 1's x axis");
+        let x = sp.xaxis.expect("Unwraping 1's x axis");
         assert_eq!(0.0, x.low);
         assert_eq!(1024.0, x.high);
         assert_eq!(1026, x.bins);

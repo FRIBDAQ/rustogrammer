@@ -292,7 +292,7 @@ mod twod_tests {
         assert_eq!(256 + 2, xaxis.num_bins()); // 512 + under/overflow.
         assert_eq!(-2.0, *yaxis.low());
         assert_eq!(2.0, *yaxis.high());
-        assert_eq!(200 as usize + 2, yaxis.num_bins()); // 100 + under/overflow bins.
+        assert_eq!(200_usize + 2, yaxis.num_bins()); // 100 + under/overflow bins.
     }
     #[test]
     fn new_4() {

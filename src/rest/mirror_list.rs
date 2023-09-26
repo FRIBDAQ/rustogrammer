@@ -111,7 +111,7 @@ mod mirror_list_tests {
         let rocket = setup();
         let dir = get_directory(&rocket);
 
-        let hosts = vec!["host1", "host2", "host3"]; // alpha oredered hosts.
+        let hosts = ["host1", "host2", "host3"]; // alpha oredered hosts.
         let mems = ["memory1", "memory2", "memory3"];
         assert_eq!(hosts.len(), mems.len()); // defensive
         for (i, h) in hosts.iter().enumerate() {
