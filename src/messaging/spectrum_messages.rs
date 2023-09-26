@@ -143,7 +143,6 @@ pub enum SpectrumRequest {
         condition_name: String,
     },
     Unfold(String),
-    Is1D(String),
 }
 
 /// Defines the replies the spectrum par tof the histogram
@@ -164,7 +163,6 @@ pub enum SpectrumReply {
     ChannelSet,                       // SetChan
     Folded,
     Unfolded,
-    Flag(bool), // E.g. Is1D
 }
 /// Convert a coordinate to a bin:
 ///
@@ -886,13 +884,6 @@ impl SpectrumProcessor {
             SpectrumReply::Error(format!("no such spectrum {}", spectrum))
         }
     }
-    fn is_oned(&mut self, name: &str) -> SpectrumReply {
-        if let Some(s) = self.dict.get(name) {
-            SpectrumReply::Flag(s.borrow().is_1d())
-        } else {
-            SpectrumReply::Error(format!("No such spectrum {}", name))
-        }
-    }
 
     // Public methods
     /// Construction
@@ -981,7 +972,6 @@ impl SpectrumProcessor {
                 condition_name,
             } => self.fold_spectrum(&spectrum_name, &condition_name, cdict),
             SpectrumRequest::Unfold(spectrum) => self.unfold_spectrum(&spectrum),
-            SpectrumRequest::Is1D(name) => self.is_oned(&name),
         }
     }
 }
@@ -1009,10 +999,6 @@ pub type SpectrumServerStatisticsResult = Result<SpectrumStatistics, String>;
 /// Result from the GetChan:
 
 pub type SpectrumChannelResult = Result<f64, String>;
-
-/// Result from things tha treturn a bool (e.g. Is_Oned):
-
-pub type SpectrumServerFlagResult = Result<bool, String>;
 
 ///
 /// This struct provides a container for the channel used to
@@ -1707,22 +1693,6 @@ impl SpectrumMessageClient {
             SpectrumReply::Unfolded => Ok(()),
             SpectrumReply::Error(s) => Err(s),
             _ => Err(String::from("Unexpected reply type in unfold_spectrum")),
-        }
-    }
-    /// Determine if a spectrum is 1-d
-    ///
-    /// ### Parameters
-    /// * name - spectrum name.
-    ///
-    /// ### Returns
-    ///   SpectrumServerFlagResult - Ok has the bool value, Err has am
-    /// message string
-    ///
-    pub fn is_1d(&self, name: &str) -> SpectrumServerFlagResult {
-        match self.transact(SpectrumRequest::Is1D(String::from(name))) {
-            SpectrumReply::Flag(b) => Ok(b),
-            SpectrumReply::Error(s) => Err(s),
-            _ => Err(String::from("Unexpected reply type in is_oned")),
         }
     }
 }
@@ -3975,6 +3945,7 @@ mod spproc_tests {
         });
     }
     #[test]
+
     fn is1d_1() {
         // It is a oned
 
@@ -7361,51 +7332,6 @@ mod spectrum_api_tests {
             .is_ok());
 
         assert!(sapi.unfold_spectrum("test").is_err());
-
-        stop_server(jh, send);
-    }
-    #[test]
-    fn is1d_1() {
-        // Spectrum created is 1d.
-        let (jh, send) = start_server();
-        let sapi = SpectrumMessageClient::new(&send);
-
-        // Make a 1d spectrum
-
-        assert!(sapi
-            .create_spectrum_1d("test", "param.0", 0.0, 1024.0, 1024)
-            .is_ok());
-
-        let reply = sapi.is_1d("test");
-        assert!(reply.is_ok());
-        assert!(reply.unwrap());
-
-        stop_server(jh, send);
-    }
-    #[test]
-    fn is1d_2() {
-        // Spectrum created is not 1d
-
-        let (jh, send) = start_server();
-        let sapi = SpectrumMessageClient::new(&send);
-
-        assert!(sapi
-            .create_spectrum_2d("test", "param.0", "param.1", 0.0, 1024.0, 1024, 0.0, 1024.0, 1204)
-            .is_ok());
-
-        let reply = sapi.is_1d("test");
-        assert!(reply.is_ok());
-        assert!(!reply.unwrap());
-
-        stop_server(jh, send);
-    }
-    #[test]
-    fn is1d_3() {
-        // No such spectrum.
-        let (jh, send) = start_server();
-        let sapi = SpectrumMessageClient::new(&send);
-
-        assert!(sapi.is_1d("test").is_err());
 
         stop_server(jh, send);
     }
