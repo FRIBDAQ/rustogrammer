@@ -240,13 +240,13 @@ pub fn make_projection_spectrum(
         status
     }
 }
-/// Create the gate appropriate to a projection spectcrum.  See
+/// Create the condition appropriate to a projection spectcrum.  See
 /// the description of project below for how this is derived.
 ///
 /// ### Parameters:
-///   *  gapi- Gate API instance reference.
+///   *  gapi- condition API instance reference.
 ///   *  dest_name -  destination spectrum name - used to generate
-/// the and gate if needed ("_dest_name_projection_gate_")
+/// the and condition if needed ("_dest_name_projection_gate_")
 ///   *  source_desc - References the description of the source spectrum.
 ///   *  contour - If Some the payload is the name of the AOI contour
 ///   *  snapshot - If true the specturm is a snapshot spectrum.
@@ -267,18 +267,18 @@ fn create_projection_gate(
     if source_desc.gate.is_none() && contour.is_none() {
         return None;
     }
-    // If there is a contour but no gate the contour rules:
+    // If there is a contour but no condition the contour rules:
 
     if contour.is_some() && source_desc.gate.is_none() {
         return Some(contour.clone().unwrap());
     }
 
-    // If there is no contour and a gate, that's the gate:
+    // If there is no contour and a condition, that's the condition:
 
     if contour.is_none() && source_desc.gate.is_some() {
         return Some(source_desc.gate.clone().unwrap());
     }
-    // If there is a contour and a gate we need to make and condition
+    // If there is a contour and a condition we need to make and condition
     // of the two of them.
     //
     if contour.is_some() && source_desc.gate.is_some() {
@@ -904,7 +904,7 @@ mod make_spectrum_tests {
         chan: &mpsc::Sender<messaging::Request>,
     ) -> spectrum_messages::SpectrumProperties {
         let api = parameter_messages::ParameterMessageClient::new(chan);
-        for name in vec!["p1", "p2", "p3"] {
+        for name in ["p1", "p2", "p3"] {
             api.create_parameter(name).expect("making parameters");
         }
         spectrum_messages::SpectrumProperties {
@@ -984,7 +984,7 @@ mod make_spectrum_tests {
         assert_eq!("test1", created_props.name);
         assert_eq!("Multi1d", created_props.type_name);
         assert_eq!(3, created_props.xparams.len());
-        for (i, expected) in vec!["p1", "p2", "p3"].iter().enumerate() {
+        for (i, expected) in ["p1", "p2", "p3"].iter().enumerate() {
             assert_eq!(
                 *expected, created_props.xparams[i],
                 "Param name mismatch: {} {:?}",
@@ -1035,7 +1035,7 @@ mod make_spectrum_tests {
         assert_eq!("test1", created_props.name);
         assert_eq!("Multi1d", created_props.type_name);
         assert_eq!(3, created_props.xparams.len());
-        for (i, expected) in vec!["p1", "p2", "p3"].iter().enumerate() {
+        for (i, expected) in ["p1", "p2", "p3"].iter().enumerate() {
             assert_eq!(
                 *expected, created_props.xparams[i],
                 "Param name mismatch: {} {:?}",
@@ -1085,8 +1085,8 @@ mod make_spectrum_tests {
 
         // Looks like stuff comes out in order.
         assert_eq!(properties.xaxis.unwrap().bins - 2, contents.len() as u32);
-        for i in 0..contents.len() {
-            assert_eq!((i + 1) as f64, contents[i].value);
+        for (i, item) in contents.iter().enumerate() {
+            assert_eq!((i + 1) as f64, item.value);
         }
         teardown(ch, jh);
     }
@@ -1120,8 +1120,8 @@ mod make_spectrum_tests {
 
         // Looks like stuff comes out in order.
         assert_eq!(properties.yaxis.unwrap().bins - 2, contents.len() as u32);
-        for i in 0..contents.len() {
-            assert_eq!((i + 1) as f64, contents[i].value);
+        for (i, item) in contents.iter().enumerate() {
+            assert_eq!((i + 1) as f64, item.value);
         }
         teardown(ch, jh);
     }
@@ -1138,7 +1138,7 @@ mod make_spectrum_tests {
         ];
         let yparams = vec![String::from("yp1"), String::from("yp2")];
 
-        let papi = parameter_messages::ParameterMessageClient::new(&chan);
+        let papi = parameter_messages::ParameterMessageClient::new(chan);
         for xp in xparams.iter() {
             papi.create_parameter(xp).expect("Making x param");
         }
@@ -1207,7 +1207,7 @@ mod make_spectrum_tests {
         assert_eq!("test1", props.name);
         assert_eq!("Multi1d", props.type_name);
         assert_eq!(6, props.xparams.len());
-        let expected_xparams = vec!["xp1", "xp2", "xp3", "xp1", "xp2", "xp3"];
+        let expected_xparams = ["xp1", "xp2", "xp3", "xp1", "xp2", "xp3"];
         for (i, p) in expected_xparams.iter().enumerate() {
             assert_eq!(*p, props.xparams[i].clone(), "Mismatch on parm {}", i);
         }
@@ -1248,7 +1248,7 @@ mod make_spectrum_tests {
         assert_eq!("test1", props.name);
         assert_eq!("Multi1d", props.type_name);
         assert_eq!(6, props.xparams.len());
-        let expected_xparams = vec!["yp1", "yp2", "yp1", "yp2", "yp1", "yp2"];
+        let expected_xparams = ["yp1", "yp2", "yp1", "yp2", "yp1", "yp2"];
         for (i, p) in expected_xparams.iter().enumerate() {
             assert_eq!(*p, props.xparams[i].clone(), "Mismatch on parm {}", i);
         }
@@ -1275,7 +1275,7 @@ mod make_spectrum_tests {
         // Some data:
 
         let mut data = vec![];
-        for i in 0..props.xaxis.clone().unwrap().bins {
+        for i in 0..props.xaxis.unwrap().bins {
             data.push((i + 10) as f64);
         }
 
@@ -1310,7 +1310,7 @@ mod make_spectrum_tests {
         // Some data:
 
         let mut data = vec![];
-        for i in 0..props.yaxis.clone().unwrap().bins {
+        for i in 0..props.yaxis.unwrap().bins {
             data.push((i + 10) as f64);
         }
 
@@ -1530,10 +1530,10 @@ mod make_spectrum_tests {
         // Make some parameters - 2dsums require the same number of x/y parameters.
 
         let papi = parameter_messages::ParameterMessageClient::new(ch);
-        for x in vec!["x1", "x2", "x3"] {
+        for x in ["x1", "x2", "x3"] {
             papi.create_parameter(x).expect("Making an x parameter");
         }
-        for y in vec!["y1", "y2", "y3"] {
+        for y in ["y1", "y2", "y3"] {
             papi.create_parameter(y).expect("making a y parameter");
         }
 
@@ -1750,7 +1750,7 @@ mod project_tests {
         {
             panic!("Failed to create contour : {}", s);
         }
-        // True gate we can put on the spectrum if we need to for testing:
+        // True condition we can put on the spectrum if we need to for testing:
 
         if let condition_messages::ConditionReply::Error(s) = capi.create_true_condition("true") {
             panic!("Failed to create true condition {}", s);
@@ -1949,7 +1949,7 @@ mod project_tests {
             assert_eq!("true", cond.gates[0]);
             assert_eq!("contour", cond.gates[1]);
         } else {
-            assert!(false, "Failed to get projection gate information");
+            panic!("Failed to get projection gate information");
         }
 
         teardown(ch, jh);
@@ -2005,7 +2005,7 @@ mod project_tests {
         assert_eq!("param.0", desc.xparams[0]);
         assert_eq!(0, desc.yparams.len());
         assert!(desc.xaxis.is_some());
-        let xaxis = desc.xaxis.clone().unwrap();
+        let xaxis = desc.xaxis.unwrap();
         assert_eq!(0.0, xaxis.low);
         assert_eq!(1024.0, xaxis.high);
         assert_eq!(514, xaxis.bins); // over/underflow chans.
@@ -2021,7 +2021,7 @@ mod project_tests {
 
         // Assuming the contents come out in channel order:
 
-        for i in 0..512 {
+        for (i, c) in contents.iter().enumerate() {
             assert_eq!(
                 spectrum_messages::Channel {
                     chan_type: spectrum_messages::ChannelType::Bin,
@@ -2030,10 +2030,10 @@ mod project_tests {
                     bin: i + 1, // +1 for underflow channel
                     value: (i + 10) as f64,
                 },
-                contents[i],
+                *c,
                 "Mismatch at {}: {:?}",
                 i,
-                contents[i]
+                c
             );
         }
 
@@ -2060,7 +2060,7 @@ mod project_tests {
                 x: (i * 2) as f64,
                 y: 512.0,
                 bin: 0,
-                value: value,
+                value,
             });
             sum += value;
         }
@@ -2091,7 +2091,7 @@ mod project_tests {
         assert_eq!("param.1", desc.xparams[0]);
         assert_eq!(0, desc.yparams.len());
         assert!(desc.xaxis.is_some());
-        let xaxis = desc.xaxis.clone().unwrap();
+        let xaxis = desc.xaxis.unwrap();
         assert_eq!(0.0, xaxis.low);
         assert_eq!(1024.0, xaxis.high);
         assert_eq!(514, xaxis.bins); // over/underflow chans.
@@ -2167,7 +2167,7 @@ mod project_tests {
         assert_eq!("param.0", desc.xparams[0]);
         assert_eq!(0, desc.yparams.len());
         assert!(desc.xaxis.is_some());
-        let xaxis = desc.xaxis.clone().unwrap();
+        let xaxis = desc.xaxis.unwrap();
         assert_eq!(0.0, xaxis.low);
         assert_eq!(1024.0, xaxis.high);
         assert_eq!(514, xaxis.bins); // over/underflow chans.
@@ -2180,18 +2180,18 @@ mod project_tests {
             .expect("Getting contents");
         assert_eq!(50, data.len(), "Size mismatch: {:?}", data);
         let x0 = 102.0; // start point of the ROI.
-        for i in 0..50 {
+        for (i, d) in data.iter().enumerate() {
             let x = x0 + (i * 2) as f64;
             let bin = (x / 2.0) as usize;
             assert_eq!(
                 spectrum_messages::Channel {
                     chan_type: spectrum_messages::ChannelType::Bin,
-                    x: x,
+                    x,
                     y: 0.0,
                     bin: bin + 1,
                     value: (bin + 10) as f64
                 },
-                data[i]
+                *d
             )
         }
         teardown(ch, jh);
@@ -2220,10 +2220,10 @@ mod project_tests {
             }
             contents.push(spectrum_messages::Channel {
                 chan_type: spectrum_messages::ChannelType::Bin,
-                x: x,
+                x,
                 y: 512.0,
                 bin: 0,
-                value: value,
+                value,
             });
         }
         sapi.fill_spectrum("test", contents)
@@ -2251,7 +2251,7 @@ mod project_tests {
         assert_eq!("param.1", desc.xparams[0]);
         assert_eq!(0, desc.yparams.len());
         assert!(desc.xaxis.is_some());
-        let xaxis = desc.xaxis.clone().unwrap();
+        let xaxis = desc.xaxis.unwrap();
         assert_eq!(0.0, xaxis.low);
         assert_eq!(1024.0, xaxis.high);
         assert_eq!(514, xaxis.bins); // over/underflow chans.
@@ -2307,10 +2307,10 @@ mod project_tests {
 
             contents.push(spectrum_messages::Channel {
                 chan_type: spectrum_messages::ChannelType::Bin,
-                x: x,
+                x,
                 y: 512.0,
                 bin: 0,
-                value: value,
+                value,
             });
         }
         sapi.fill_spectrum("test", contents)
@@ -2338,7 +2338,7 @@ mod project_tests {
         assert_eq!("param.0", desc.xparams[0]);
         assert_eq!(0, desc.yparams.len());
         assert!(desc.xaxis.is_some());
-        let xaxis = desc.xaxis.clone().unwrap();
+        let xaxis = desc.xaxis.unwrap();
         assert_eq!(0.0, xaxis.low);
         assert_eq!(1024.0, xaxis.high);
         assert_eq!(514, xaxis.bins); // over/underflow chans.
@@ -2351,25 +2351,25 @@ mod project_tests {
             .expect("Getting contents");
         assert_eq!(50, data.len(), "Size mismatch: {:?}", data);
         let x0 = 102.0; // start point of the ROI.
-        for i in 0..50 {
+        for (i, d) in data.iter().enumerate() {
             let x = x0 + (i * 2) as f64;
             let bin = (x / 2.0) as usize;
             assert_eq!(
                 spectrum_messages::Channel {
                     chan_type: spectrum_messages::ChannelType::Bin,
-                    x: x,
+                    x,
                     y: 0.0,
                     bin: bin + 1,
                     value: (bin + 10) as f64
                 },
-                data[i]
+                *d
             );
         }
 
-        // See that the gate is correct:
+        // See that the condition is correct:
 
         match gapi.list_conditions("_proj_projection_gate_") {
-            condition_messages::ConditionReply::Error(s) => assert!(false, "{}", s),
+            condition_messages::ConditionReply::Error(s) => panic!("{}", s),
             condition_messages::ConditionReply::Listing(v) => {
                 assert_eq!(1, v.len());
                 let gate = v[0].clone();
@@ -2384,7 +2384,7 @@ mod project_tests {
                     gate
                 );
             }
-            _ => assert!(false, "Unexpected return type from gate list"),
+            _ => panic!("Unexpected return type from gate list"),
         };
 
         teardown(ch, jh);
@@ -2415,10 +2415,10 @@ mod project_tests {
             }
             contents.push(spectrum_messages::Channel {
                 chan_type: spectrum_messages::ChannelType::Bin,
-                x: x,
+                x,
                 y: 512.0,
                 bin: 0,
-                value: value,
+                value,
             });
         }
         sapi.fill_spectrum("test", contents)
@@ -2446,7 +2446,7 @@ mod project_tests {
         assert_eq!("param.1", desc.xparams[0]);
         assert_eq!(0, desc.yparams.len());
         assert!(desc.xaxis.is_some());
-        let xaxis = desc.xaxis.clone().unwrap();
+        let xaxis = desc.xaxis.unwrap();
         assert_eq!(0.0, xaxis.low);
         assert_eq!(1024.0, xaxis.high);
         assert_eq!(514, xaxis.bins); // over/underflow chans.
@@ -2470,10 +2470,10 @@ mod project_tests {
         );
 
         match gapi.list_conditions("_proj_projection_gate_") {
-            condition_messages::ConditionReply::Error(s) => assert!(false, "{}", s),
+            condition_messages::ConditionReply::Error(s) => panic!("{}", s),
             condition_messages::ConditionReply::Listing(v) => {
                 assert_eq!(1, v.len());
-                let gate = v[0].clone();
+                let condition = v[0].clone();
                 assert_eq!(
                     condition_messages::ConditionProperties {
                         cond_name: String::from("_proj_projection_gate_"),
@@ -2482,10 +2482,10 @@ mod project_tests {
                         gates: vec![String::from("true"), String::from("contour")],
                         parameters: vec![]
                     },
-                    gate
+                    condition
                 );
             }
-            _ => assert!(false, "Unexpected return type from gate list"),
+            _ => panic!("Unexpected return type from gate list"),
         }
         teardown(ch, jh);
     }

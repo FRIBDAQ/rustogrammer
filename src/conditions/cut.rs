@@ -6,13 +6,14 @@
 //!  *  The parameter value is in the range [low, high] for that
 //! event.
 //! Cut conditions are defined to support caching.  That is
-//! Having evaluated the condition for the gate, get_cached_value
+//! Having evaluated the condition for the condition, get_cached_value
 //! Will return Some containing the value of the last evaluation
 //! until the cache is explicitly invalidated.
 //!
 
 use super::*;
 use crate::parameters;
+use std::collections::HashSet;
 
 /// Cut
 ///  This struct implements the condition:
@@ -52,13 +53,13 @@ impl Condition for Cut {
         self.cache = Some(result);
         result
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Cut")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         vec![(self.low, 0.0), (self.high, 0.0)]
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn get_cached_value(&self) -> Option<bool> {
@@ -118,13 +119,13 @@ impl Condition for MultiCut {
         self.cache = Some(false);
         false
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("MultiCut")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         vec![(self.low, 0.0), (self.high, 0.0)]
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         vec![]
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -143,20 +144,20 @@ impl Condition for MultiCut {
         true
     }
 
-    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
-        let mut result = Vec::<u32>::new();
+    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> HashSet<u32> {
+        let mut result = HashSet::<u32>::new();
 
         for p in self.parameters.iter() {
             if let Some(value) = event[*p] {
                 if !self.inside(value) {
-                    result.push(*p);
+                    result.insert(*p);
                 }
             }
         }
         result
     }
-    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> Vec<(u32, u32)> {
-        let mut result = Vec::<(u32, u32)>::new();
+    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> HashSet<(u32, u32)> {
+        let mut result = HashSet::<(u32, u32)>::new();
 
         // iterate over pairs:
         // outer loop goes from [0 - last) index i
@@ -169,7 +170,7 @@ impl Condition for MultiCut {
                 if let Some(val1) = event[*p1] {
                     if let Some(val2) = event[*p2] {
                         if !self.inside(val1) && !self.inside(val2) {
-                            result.push((*p1, *p2));
+                            result.insert((*p1, *p2));
                         }
                     }
                 }
@@ -383,7 +384,7 @@ mod multicut_tests {
     }
     #[test]
     fn eval_2() {
-        // Inside gate but not all params are present:
+        // Inside condition but not all params are present:
 
         let mut mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
         let event: Event = vec![EventParameter::new(2, 150.0)];
@@ -434,24 +435,24 @@ mod multicut_tests {
     }
     #[test]
     fn type_1() {
-        // Gate type should be "MultiCut"
+        // Condition type should be "MultiCut"
 
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
-        assert_eq!("MultiCut", mcut.gate_type());
+        assert_eq!("MultiCut", mcut.condition_type());
     }
     #[test]
     fn points_1() {
-        // Test gate_points:
+        // Test condition_points:
 
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
-        assert_eq!(vec![(100.0, 0.0), (200.0, 0.0)], mcut.gate_points());
+        assert_eq!(vec![(100.0, 0.0), (200.0, 0.0)], mcut.condition_points());
     }
-    // Dependent gatews and parameters are empty:
+    // Dependent conditionss and parameters are empty:
 
     #[test]
     fn dependencies_1() {
         let mcut = MultiCut::new(&[1, 2, 3], 100.0, 200.0);
-        assert!(mcut.dependent_gates().is_empty());
+        assert!(mcut.dependent_conditions().is_empty());
         assert_eq!(vec![1, 2, 3], mcut.dependent_parameters());
     }
     #[test]
@@ -517,7 +518,10 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(vec![1, 2, 3], mcut.evaluate_1(&fevent));
+        assert_eq!(
+            HashSet::from_iter([1, 2, 3].iter().cloned()),
+            mcut.evaluate_1(&fevent)
+        );
     }
     #[test]
     fn fold1_3() {
@@ -531,7 +535,10 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(vec![1, 3], mcut.evaluate_1(&fevent));
+        assert_eq!(
+            HashSet::from_iter([1, 3].iter().cloned()),
+            mcut.evaluate_1(&fevent)
+        );
     }
     #[test]
     fn fold2_1() {
@@ -561,7 +568,10 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(vec![(2, 3)], mcut.evaluate_2(&fevent));
+        assert_eq!(
+            HashSet::from_iter([(2, 3)].iter().cloned()),
+            mcut.evaluate_2(&fevent)
+        );
     }
     #[test]
     fn fold2_3() {
@@ -576,6 +586,9 @@ mod multicut_tests {
         let mut fevent = FlatEvent::new();
         fevent.load_event(&event);
 
-        assert_eq!(vec![(1, 2), (1, 3), (2, 3)], mcut.evaluate_2(&fevent));
+        assert_eq!(
+            HashSet::from_iter([(1, 2), (1, 3), (2, 3)].iter().cloned()),
+            mcut.evaluate_2(&fevent)
+        );
     }
 }

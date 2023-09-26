@@ -7,6 +7,8 @@
 //!  Multi1d spectra can have a gate as well which can conditionalize when
 //!  the spectrum is incremented.  
 //!
+//!  Multi1d spectra can also be folded.
+//!
 //!  Axis defaults are determined in a manner identical to the way
 //!  axis defaults for the y axis of a summary spectrum are determined.
 //!  
@@ -17,6 +19,7 @@ use std::collections::HashSet;
 
 ///
 /// *  applied_gate - is the gate that can conditionalize increments.
+/// *  applied_fold - is the fold, if any, applied to the spectrum.
 /// *  name         - is the name of the spectrum.
 /// *  histogram    - is the actual histogram object.
 /// *  param_names  - are the names of the parameters we're defined on.
@@ -29,6 +32,7 @@ pub struct Multi1d {
     histogram: H1DContainer,
     param_names: Vec<String>,
     param_ids: Vec<u32>,
+    param_id_hash: HashSet<u32>,
 }
 //
 impl Spectrum for Multi1d {
@@ -122,6 +126,8 @@ impl Multi1d {
     /// Default high is the largest of the paramete default highs.
     /// Default bins is the largest of the parameter default bins.
     ///
+    /// ###
+    ///
     pub fn new(
         name: &str,
         params: Vec<String>,
@@ -170,6 +176,7 @@ impl Multi1d {
         if xbins.is_none() {
             return Err(String::from("X axis binning cannot be defaulted"));
         }
+        let hash = param_ids.clone().into_iter().collect::<HashSet<u32>>();
         Ok(Multi1d {
             applied_gate: SpectrumGate::new(),
             applied_fold: SpectrumGate::new(),
@@ -180,6 +187,7 @@ impl Multi1d {
             ))),
             param_names,
             param_ids,
+            param_id_hash: hash,
         })
     }
     /// Determine the ids to be used for incrementing the spectra.
@@ -190,11 +198,9 @@ impl Multi1d {
     fn get_param_ids(&mut self, e: &FlatEvent) -> Vec<u32> {
         if self.applied_fold.is_fold() {
             // This branch can probably use some optimization
-            let fold_ids = self.applied_fold.fold_1d(e);
-            let fold_set = fold_ids.into_iter().collect::<HashSet<u32>>();
-            let param_set = self.param_ids.clone().into_iter().collect::<HashSet<u32>>();
+            let fold_set = self.applied_fold.fold_1d(e);
             let mut result = vec![];
-            for i in fold_set.intersection(&param_set) {
+            for i in fold_set.intersection(&self.param_id_hash) {
                 result.push(*i);
             }
             result
@@ -397,14 +403,14 @@ mod multi1d_tests {
         spec.handle_event(&fe);
 
         for i in 0..10 {
-            let vo = spec
-                .histogram
-                .borrow()
-                .value(&(i as f64 * 10.0))
-                .expect("Value should exist")
-                .clone();
-
-            assert_eq!(1.0, vo.get());
+            assert_eq!(
+                1.0,
+                spec.histogram
+                    .borrow()
+                    .value(&(i as f64 * 10.0))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -435,14 +441,14 @@ mod multi1d_tests {
         spec.handle_event(&fe);
 
         for i in 0..10 {
-            let vo = spec
-                .histogram
-                .borrow()
-                .value(&(i as f64 * 10.0))
-                .expect("Value should exist")
-                .clone();
-
-            assert_eq!(1.0, vo.get());
+            assert_eq!(
+                1.0,
+                spec.histogram
+                    .borrow()
+                    .value(&(i as f64 * 10.0))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -473,14 +479,14 @@ mod multi1d_tests {
         spec.handle_event(&fe);
 
         for i in 0..10 {
-            let vo = spec
-                .histogram
-                .borrow()
-                .value(&(i as f64 * 10.0))
-                .expect("Value should exist")
-                .clone();
-
-            assert_eq!(0.0, vo.get());
+            assert_eq!(
+                0.0,
+                spec.histogram
+                    .borrow()
+                    .value(&(i as f64 * 10.0))
+                    .expect("Value should exist")
+                    .get()
+            );
         }
     }
     #[test]
@@ -527,7 +533,7 @@ mod fold_tests {
         // Make a Condition Dict and put a multicut into it.
 
         let mut gdict = ConditionDictionary::new();
-        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        let mcut = cut::MultiCut::new(&[0, 1, 2, 3], 100.0, 200.0);
         gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");
@@ -571,7 +577,7 @@ mod fold_tests {
 
         let mut gdict = ConditionDictionary::new();
         let fold = twod::MultiContour::new(
-            &vec![0, 1, 2, 3],
+            &[0, 1, 2, 3],
             vec![
                 Point::new(2.0, 5.0),
                 Point::new(5.0, 5.0),
@@ -593,7 +599,7 @@ mod fold_tests {
         // Make a Condition Dict and put a multicut into it.
 
         let mut gdict = ConditionDictionary::new();
-        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        let mcut = cut::MultiCut::new(&[0, 1, 2, 3], 100.0, 200.0);
         gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");
@@ -610,7 +616,7 @@ mod fold_tests {
         // Make a Condition Dict and put a multicut into it.
 
         let mut gdict = ConditionDictionary::new();
-        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        let mcut = cut::MultiCut::new(&[0, 1, 2, 3], 100.0, 200.0);
         gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");
@@ -641,14 +647,14 @@ mod fold_tests {
     }
     #[test]
     fn pid_2() {
-        // If folded but nothing is in the gate again, we get all parameters
+        // If folded but nothing is in the condition again, we get all parameters
         // in the fold back (due to the intersection).
 
         let mut pdict = ParameterDictionary::new();
         let pnames = make_default_parameters(&mut pdict);
         let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
         let mut gdict = ConditionDictionary::new();
-        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        let mcut = cut::MultiCut::new(&[0, 1, 2, 3], 100.0, 200.0);
         gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");
@@ -667,16 +673,16 @@ mod fold_tests {
     }
     #[test]
     fn pid_3() {
-        // If there are parameters in the gate, they are omited from get_param_ids
+        // If there are parameters in the fold, they are omited from get_param_ids
 
-        // If folded but nothing is in the gate again, we get all parameters
+        // If folded but nothing is in the fold again, we get all parameters
         // in the fold back (due to the intersection).
 
         let mut pdict = ParameterDictionary::new();
         let pnames = make_default_parameters(&mut pdict);
         let mut spec = Multi1d::new("Testing", pnames, &pdict, None, None, None).unwrap();
         let mut gdict = ConditionDictionary::new();
-        let mcut = cut::MultiCut::new(&vec![0, 1, 2, 3], 100.0, 200.0);
+        let mcut = cut::MultiCut::new(&[0, 1, 2, 3], 100.0, 200.0);
         gdict.insert(String::from("gs"), Rc::new(RefCell::new(Box::new(mcut))));
 
         spec.fold("gs", &gdict).expect("Appling fold to spectrum");

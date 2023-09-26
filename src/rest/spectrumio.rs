@@ -600,8 +600,8 @@ fn enter_spectra(
     let parameter_api =
         parameter_messages::ParameterMessageClient::new(&hg_chan.inner().lock().unwrap());
     let mut parameters = make_parameter_set(&parameter_api)?;
-    // snapshots require a _snapshot_condition_ gate.  No harm to
-    // make it again so just undonditionally make it:
+    // snapshots require a _snapshot_condition_ gate.  This is a False
+    // condition.  No harm to make it again so just unconditionally make it:
     if as_snapshot {
         let condition_api =
             condition_messages::ConditionMessageClient::new(&hg_chan.inner().lock().unwrap());
@@ -613,7 +613,7 @@ fn enter_spectra(
 
         make_parameters(&s.definition, &mut parameters, &parameter_api)?;
 
-        // Create the spectrum and, if necessary gate it on our False gate.
+        // Create the spectrum and, if necessary gate it on our False condition.
 
         let actual_name = enter_spectrum(&s.definition, replace, &spectrum_api)?;
         if as_snapshot {
@@ -677,7 +677,7 @@ fn fix_json_bins(input: Vec<SpectrumFileData>) -> Vec<SpectrumFileData> {
 /// *  filename - (mandatory) path to the file to read.
 /// *  format - (mandatory) spectrum format.  json and ascii are supported in
 /// a case blind way.
-/// *  snapshot - (optional) if true (default is yes), a _False_ gate is
+/// *  snapshot - (optional) if true (default is yes), a _False_ condition is
 /// set on the spectrum that's read in.  If necessary a _False_ condition named
 /// _snapshot_condition_ is created.  If snapshot is false, then the spectrum
 /// will increment if new data is processed.
@@ -851,7 +851,7 @@ mod read_tests {
         assert_eq!("1D", sp.type_name);
         assert_eq!(1, sp.xparams.len());
         assert_eq!("parameters.05", sp.xparams[0]);
-        let x = sp.xaxis.clone().expect("Unwraping 1's x axis");
+        let x = sp.xaxis.expect("Unwraping 1's x axis");
         assert_eq!(0.0, x.low);
         assert_eq!(1024.0, x.high);
         assert_eq!(1026, x.bins);
@@ -1138,7 +1138,7 @@ mod read_tests {
         assert_eq!("1D", sp.type_name);
         assert_eq!(1, sp.xparams.len());
         assert_eq!("parameters.05", sp.xparams[0]);
-        let x = sp.xaxis.clone().expect("Unwraping 1's x axis");
+        let x = sp.xaxis.expect("Unwraping 1's x axis");
         assert_eq!(0.0, x.low);
         assert_eq!(1024.0, x.high);
         assert_eq!(1026, x.bins);
@@ -1342,7 +1342,7 @@ mod swrite_tests {
             .expect("Create 'oned'");
         sapi.create_spectrum_multi1d(
             "gamma1",
-            &vec![
+            &[
                 String::from("p.0"),
                 String::from("p.1"),
                 String::from("p.2"),
@@ -1361,7 +1361,7 @@ mod swrite_tests {
         .expect("Making multi-1d spectrum");
         sapi.create_spectrum_multi2d(
             "gamma2",
-            &vec![
+            &[
                 String::from("p.0"),
                 String::from("p.1"),
                 String::from("p.2"),
@@ -1383,14 +1383,14 @@ mod swrite_tests {
         .expect("Multi 2d spectrum");
         sapi.create_spectrum_pgamma(
             "particle-gamma",
-            &vec![
+            &[
                 String::from("p.0"),
                 String::from("p.1"),
                 String::from("p.2"),
                 String::from("p.3"),
                 String::from("p.4"),
             ],
-            &vec![
+            &[
                 String::from("p.5"),
                 String::from("p.6"),
                 String::from("p.7"),
@@ -1407,7 +1407,7 @@ mod swrite_tests {
         .expect("particle-gamma spectrum");
         sapi.create_spectrum_summary(
             "summary",
-            &vec![
+            &[
                 String::from("p.0"),
                 String::from("p.1"),
                 String::from("p.2"),
@@ -1428,14 +1428,14 @@ mod swrite_tests {
             .expect("Making twod");
         sapi.create_spectrum_2dsum(
             "2d-sum",
-            &vec![
+            &[
                 String::from("p.0"),
                 String::from("p.1"),
                 String::from("p.2"),
                 String::from("p.3"),
                 String::from("p.4"),
             ],
-            &vec![
+            &[
                 String::from("p.5"),
                 String::from("p.6"),
                 String::from("p.7"),
@@ -1513,7 +1513,7 @@ mod swrite_tests {
         let copy = sapi.list_spectra("oned_0").expect("Listing oned_0");
 
         // Spectrum descriptions must match execpt for the gate
-        // which is the snapshot gate since we did not turn that off.
+        // which is the snapshot condition since we did not turn that off.
 
         assert_eq!(1, original.len());
         let o = &original[0];
@@ -1615,8 +1615,8 @@ mod swrite_tests {
         let original = sapi.list_spectra("oned").expect("Listing oned");
         let copy = sapi.list_spectra("oned_0").expect("Listing oned_0");
 
-        // Spectrum descriptions must match execpt for the gate
-        // which is the snapshot gate since we did not turn that off.
+        // Spectrum descriptions must match except for the gate
+        // which is the snapshot condition since we did not turn that off.
 
         assert_eq!(1, original.len());
         let o = &original[0];

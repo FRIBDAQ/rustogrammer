@@ -9,9 +9,9 @@
 //!  defined by this module.
 //!
 //!  For spectra to have a condition applied to them, they need
-//!  some reference to a gate which is evaluated over each event
+//!  some reference to a condition which is evaluated over each event
 //!  polymorphically.  In the case of SpecTcl this is handled using
-//!  C++ virtual functions and gate container pointer-like objects.
+//!  C++ virtual functions and condition container pointer-like objects.
 //!  For Rust, the mechanism of dynamic dispatch requires the use
 //!  of *trait objects*   A trait object is a pointer like container
 //!  (e.g. Rc or Box) which is defined to contain/reference an
@@ -22,7 +22,7 @@
 //!  In our case, in order to support transparent replacement, we'll use
 //!  `Rc<dyn Condition>`.  These get cloned to pass them to
 //!  spectra where Rc::downgrade() turns them into Weak references.
-//!  This trick will get around the SpecTcl problem of *etnernal gates*
+//!  This trick will get around the SpecTcl problem of *eternal gates*
 //!  Since it's too much trouble, in general, to track down all
 //!  references to a conition, in SpecTcl, gates are never deleted, but
 //!  turned into False  gates.  This provide known behavior but some
@@ -52,7 +52,7 @@
 use crate::parameters;
 use std::boxed::Box;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::{Rc, Weak};
 // Re-exported module:
 
@@ -65,7 +65,7 @@ pub mod twod;
 pub use twod::*;
 
 /// The Container trait defines the interface to a condition through
-/// a gate container.   This interface includes:
+/// a Condition container.   This interface includes:
 /// *  Support for an evaluation of the condition for a flattened
 /// event
 /// *  Support for caching the evaluation of the condition
@@ -82,11 +82,11 @@ pub trait Condition {
     ///
     fn evaluate(&mut self, event: &parameters::FlatEvent) -> bool;
 
-    // Stuff to describe a gate:
+    // Stuff to describe a condition:
 
-    fn gate_type(&self) -> String; // Type of gate.
-    fn gate_points(&self) -> Vec<(f64, f64)>;
-    fn dependent_gates(&self) -> Vec<ContainerReference>;
+    fn condition_type(&self) -> String; // Type of Condition.
+    fn condition_points(&self) -> Vec<(f64, f64)>;
+    fn dependent_conditions(&self) -> Vec<ContainerReference>;
     fn dependent_parameters(&self) -> Vec<u32>;
 
     /// Optional methods:
@@ -97,7 +97,7 @@ pub trait Condition {
     }
     fn invalidate_cache(&mut self) {}
     ///
-    /// The method that really sould be called to check a gate:
+    /// The method that really sould be called to check a condition:
     /// If the object has a cached value, the cached value
     /// is returned, otherwise the evaluate, required method is
     /// invoked to force condition evaluation.
@@ -150,7 +150,7 @@ pub trait Condition {
     /// *  event - the event to check the fold against.
     ///
     /// ### Returns:
-    /// *  Vec<u32> - a vector if parameter ids that are outside the
+    /// *  HashSet<u32> - a vector if parameter ids that are outside the
     /// fold AOI.
     ///
     /// There are two cases: 1d and 2d AOIs (e.g. 2d AOI in another
@@ -161,8 +161,8 @@ pub trait Condition {
     /// * If a 2-d AOI is evaluated it should return the parameters that
     /// are not in a pair that make the AOI true.
     ///
-    fn evaluate_1(&mut self, _event: &parameters::FlatEvent) -> Vec<u32> {
-        vec![]
+    fn evaluate_1(&mut self, _event: &parameters::FlatEvent) -> HashSet<u32> {
+        HashSet::<u32>::new()
     }
 
     /// Used to evaluate a fold applied to a 2d spectrum.
@@ -173,7 +173,7 @@ pub trait Condition {
     /// *  event - the event to process through the fold.
     ///
     /// ### Returns:
-    ///  * Vec<(u32, u32)> - pairs of parameter ids that can increment
+    ///  * HashSet<(u32, u32)> - pairs of parameter ids that can increment
     /// the spectrum.
     ///
     /// The two cases above apply:
@@ -182,8 +182,8 @@ pub trait Condition {
     /// * IF a 2-d AOI is evaluated then it should return all paramter pairs
     /// that lie outside the AOI
     ///
-    fn evaluate_2(&mut self, _event: &parameters::FlatEvent) -> Vec<(u32, u32)> {
-        vec![]
+    fn evaluate_2(&mut self, _event: &parameters::FlatEvent) -> HashSet<(u32, u32)> {
+        HashSet::<(u32, u32)>::new()
     }
 }
 
@@ -207,18 +207,21 @@ pub type ConditionDictionary = HashMap<String, Container>;
 ///  we iterate over all key value pairs and if we find one where the
 ///  RefCell's in the container point to the same underlying object, we
 ///  return its name.
-pub fn gate_name(dict: &ConditionDictionary, gate: &Container) -> Option<String> {
+pub fn condition_name(dict: &ConditionDictionary, condition: &Container) -> Option<String> {
     for (k, v) in dict.iter() {
-        if gate.as_ptr() == v.as_ptr() {
-            // Same underlying gates.
+        if condition.as_ptr() == v.as_ptr() {
+            // Same underlying conditions.
             return Some(k.clone());
         }
     }
     None
 }
-pub fn gate_name_from_ref(dict: &ConditionDictionary, gate: &ContainerReference) -> Option<String> {
-    if let Some(s) = gate.upgrade() {
-        gate_name(dict, &s)
+pub fn condition_name_from_ref(
+    dict: &ConditionDictionary,
+    condition: &ContainerReference,
+) -> Option<String> {
+    if let Some(s) = condition.upgrade() {
+        condition_name(dict, &s)
     } else {
         None
     }
@@ -235,22 +238,22 @@ pub fn invalidate_cache(d: &mut ConditionDictionary) {
     }
 }
 
-/// The True gate is implemented in this module and returns True
+/// The True condition is implemented in this module and returns True
 /// no matter what the event contains.  It serves as a trival example
 /// of how conditions can be implemented.  No caching is required
-/// for the True gate:
+/// for the True condition:
 pub struct True {}
 impl Condition for True {
     fn evaluate(&mut self, _event: &parameters::FlatEvent) -> bool {
         true
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("True")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -267,13 +270,13 @@ impl Condition for False {
     fn evaluate(&mut self, _event: &parameters::FlatEvent) -> bool {
         false
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("False")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         Vec::<(f64, f64)>::new()
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {

@@ -160,7 +160,7 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
 /// *   yaxis - same as xaxis but for the Y axis specification, if any.
 /// *   chantype -- the data type of each channel in the spectrum.
 /// in rustogramer this is hardcoded to _f64_
-/// *    gate if not _null_ thisi s the name of the conditions that
+/// *    gate if not _null_ this is the name of the conditions that
 /// is applied as a gate to the spectrum.
 ///
 /// Note:  SpecTcl and Rustogrammer don't support knowing
@@ -1025,7 +1025,7 @@ mod spectrum_tests {
             .expect("oned");
         sapi.create_spectrum_multi1d(
             "m1d",
-            &vec![
+            &[
                 String::from("parameter.0"),
                 String::from("parameter.1"),
                 String::from("parameter.2"),
@@ -1040,7 +1040,7 @@ mod spectrum_tests {
         .expect("m1d");
         sapi.create_spectrum_multi2d(
             "m2d",
-            &vec![
+            &[
                 String::from("parameter.0"),
                 String::from("parameter.1"),
                 String::from("parameter.2"),
@@ -1058,7 +1058,7 @@ mod spectrum_tests {
         .expect("m2d");
         sapi.create_spectrum_pgamma(
             "pgamma",
-            &vec![
+            &[
                 String::from("parameter.0"),
                 String::from("parameter.1"),
                 String::from("parameter.2"),
@@ -1066,7 +1066,7 @@ mod spectrum_tests {
                 String::from("parameter.4"),
                 String::from("parameter.5"),
             ],
-            &vec![
+            &[
                 String::from("parameter.4"),
                 String::from("parameter.5"),
                 String::from("parameter.6"),
@@ -1084,7 +1084,7 @@ mod spectrum_tests {
         .expect("pgamma");
         sapi.create_spectrum_summary(
             "summary",
-            &vec![
+            &[
                 String::from("parameter.0"),
                 String::from("parameter.1"),
                 String::from("parameter.2"),
@@ -1115,8 +1115,8 @@ mod spectrum_tests {
         .expect("twod");
         sapi.create_spectrum_2dsum(
             "2dsum",
-            &vec![String::from("parameter.0"), String::from("parameter.1")],
-            &vec![String::from("parameter.2"), String::from("parameter.3")],
+            &[String::from("parameter.0"), String::from("parameter.1")],
+            &[String::from("parameter.2"), String::from("parameter.3")],
             0.0,
             1024.0,
             256,
@@ -1216,7 +1216,7 @@ mod spectrum_tests {
             vec![String::from("parameter.0"), String::from("parameter.1")].len(),
             info.xparameters.len()
         );
-        for (i, s) in vec![String::from("parameter.0"), String::from("parameter.1")]
+        for (i, s) in [String::from("parameter.0"), String::from("parameter.1")]
             .iter()
             .enumerate()
         {
@@ -1226,7 +1226,7 @@ mod spectrum_tests {
             vec![String::from("parameter.2"), String::from("parameter.3")].len(),
             info.yparameters.len()
         );
-        for (i, s) in vec![String::from("parameter.2"), String::from("parameter.3")]
+        for (i, s) in [String::from("parameter.2"), String::from("parameter.3")]
             .iter()
             .enumerate()
         {
@@ -1387,7 +1387,10 @@ mod spectrum_tests {
         assert_eq!(0.0, yaxis.low);
         assert_eq!(1024.0, yaxis.high);
         assert_eq!(256, yaxis.bins);
-        assert!(info.xaxis.is_none());
+        assert!(info.xaxis.is_some());
+        assert_eq!(0.0, info.xaxis.clone().unwrap().low);
+        assert_eq!(10.0, info.xaxis.clone().unwrap().high);
+        assert_eq!(10, info.xaxis.clone().unwrap().bins);
 
         // Twod is last:
 
@@ -1546,7 +1549,7 @@ mod spectrum_tests {
         assert_eq!("parameter.0", info.xparams[0]);
         assert_eq!(0, info.yparams.len());
         assert!(info.xaxis.is_some());
-        let x = info.xaxis.clone().unwrap();
+        let x = info.xaxis.unwrap();
         assert_eq!(-1.0, x.low);
         assert_eq!(1.0, x.high);
         assert_eq!(514, x.bins); // underflow and overflow.
@@ -1641,11 +1644,11 @@ mod spectrum_tests {
         assert!(info.xaxis.is_some());
         assert!(info.yaxis.is_some());
         assert!(info.gate.is_none());
-        let x = info.xaxis.clone().unwrap();
+        let x = info.xaxis.unwrap();
         assert_eq!(0.0, x.low);
         assert_eq!(100.0, x.high);
         assert_eq!(102, x.bins);
-        let y = info.yaxis.clone().unwrap();
+        let y = info.yaxis.unwrap();
         assert_eq!(-1.0, y.low);
         assert_eq!(1.0, y.high);
         assert_eq!(102, y.bins);
@@ -1787,7 +1790,7 @@ mod spectrum_tests {
         assert_eq!("Multi1d", info.type_name);
         assert_eq!(4, info.xparams.len());
         assert_eq!(0, info.yparams.len());
-        let params = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        let params = ["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
         for (i, s) in params.iter().enumerate() {
             assert_eq!(*s, info.xparams[i]);
         }
@@ -1796,7 +1799,7 @@ mod spectrum_tests {
         assert!(info.yaxis.is_none());
         assert!(info.gate.is_none());
 
-        let xaxis = info.xaxis.clone().unwrap();
+        let xaxis = info.xaxis.unwrap();
         assert_eq!(0.0, xaxis.low);
         assert_eq!(100.0, xaxis.high);
         assert_eq!(102, xaxis.bins);
@@ -1870,17 +1873,17 @@ mod spectrum_tests {
         assert!(info.yaxis.is_some());
         assert!(info.gate.is_none());
 
-        let params = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        let params = ["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
         for (i, s) in params.iter().enumerate() {
             assert_eq!(*s, info.xparams[i]);
         }
 
-        let x = info.xaxis.clone().unwrap();
+        let x = info.xaxis.unwrap();
         assert_eq!(0.0, x.low);
         assert_eq!(100.0, x.high);
         assert_eq!(102, x.bins);
 
-        let y = info.yaxis.clone().unwrap();
+        let y = info.yaxis.unwrap();
         assert_eq!(0.0, y.low);
         assert_eq!(100.0, y.high);
         assert_eq!(102, y.bins);
@@ -1949,20 +1952,20 @@ mod spectrum_tests {
         assert!(info.yaxis.is_some());
         assert!(info.gate.is_none());
 
-        let xpars = vec!["parameter.0", "parameter.1", "parameter.2"];
+        let xpars = ["parameter.0", "parameter.1", "parameter.2"];
         for (i, s) in xpars.iter().enumerate() {
             assert_eq!(*s, info.xparams[i]);
         }
-        let ypars = vec!["parameter.3", "parameter.4"];
+        let ypars = ["parameter.3", "parameter.4"];
         for (i, s) in ypars.iter().enumerate() {
             assert_eq!(*s, info.yparams[i]);
         }
-        let x = info.xaxis.clone().unwrap();
+        let x = info.xaxis.unwrap();
         assert_eq!(0.0, x.low);
         assert_eq!(100.0, x.high);
         assert_eq!(102, x.bins);
 
-        let y = info.yaxis.clone().unwrap();
+        let y = info.yaxis.unwrap();
         assert_eq!(-1.0, y.low);
         assert_eq!(1.0, y.high);
         assert_eq!(202, y.bins);
@@ -2066,15 +2069,19 @@ mod spectrum_tests {
         assert_eq!("Summary", info.type_name);
         assert_eq!(4, info.xparams.len());
         assert_eq!(0, info.yparams.len());
-        assert!(info.xaxis.is_none());
+        assert!(info.xaxis.is_some());
+        assert_eq!(0.0, info.xaxis.unwrap().low);
+        assert_eq!(4.0, info.xaxis.unwrap().high);
+        assert_eq!(6, info.xaxis.unwrap().bins);
+
         assert!(info.yaxis.is_some());
         assert!(info.gate.is_none());
 
-        let pars = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        let pars = ["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
         for (i, p) in pars.iter().enumerate() {
             assert_eq!(*p, info.xparams[i]);
         }
-        let y = info.yaxis.clone().unwrap();
+        let y = info.yaxis.unwrap();
         assert_eq!(-1.0, y.low);
         assert_eq!(1.0, y.high);
         assert_eq!(102, y.bins);
@@ -2164,20 +2171,20 @@ mod spectrum_tests {
         assert!(info.xaxis.is_some());
         assert!(info.yaxis.is_some());
         assert!(info.gate.is_none());
-        let xpars = vec!["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
-        let ypars = vec!["parameter.4", "parameter.5", "parameter.6", "parameter.7"];
+        let xpars = ["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
+        let ypars = ["parameter.4", "parameter.5", "parameter.6", "parameter.7"];
         // this loop takes advantage of the fact the param lists are same lengths.
         for (i, s) in xpars.iter().enumerate() {
             assert_eq!(*s, info.xparams[i]);
             assert_eq!(ypars[i], info.yparams[i]);
         }
 
-        let x = info.xaxis.clone().unwrap();
+        let x = info.xaxis.unwrap();
         assert_eq!(0.0, x.low);
         assert_eq!(10.0, x.high);
         assert_eq!(102, x.bins);
 
-        let y = info.yaxis.clone().unwrap();
+        let y = info.yaxis.unwrap();
         assert_eq!(-1.0, y.low);
         assert_eq!(1.0, y.high);
         assert_eq!(252, y.bins);

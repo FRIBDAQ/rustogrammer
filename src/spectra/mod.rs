@@ -45,7 +45,7 @@ use ndhistogram::axis::*;
 use ndhistogram::value::Sum;
 use ndhistogram::*;
 use std::cell::RefCell;
-use std::collections::{hash_map, HashMap};
+use std::collections::{hash_map, HashMap, HashSet};
 use std::rc::{Rc, Weak};
 
 // Re-exports
@@ -99,9 +99,9 @@ impl SpectrumGate {
         SpectrumGate { gate: None }
     }
     /// Set a new gate:
-    /// If the gate does not exist Err is returned.
+    /// If the condition does not exist Err is returned.
     /// Otherwise self.gate is Some(name, downgraded gate container).
-    /// Note that if the gate cannot be found, the prior
+    /// Note that if the condition cannot be found, the prior
     /// value remains.
     ///
     pub fn set_gate(&mut self, name: &str, dict: &ConditionDictionary) -> Result<(), String> {
@@ -122,9 +122,9 @@ impl SpectrumGate {
     /// Evaluate the gate for an event  The following cases and results
     /// are considered
     /// *   self.gate.is_none() - the spectrum is ungated, true is returned.
-    /// *   upgrading the gate to an RC gives None - the underlying gate
+    /// *   upgrading the gate to an RC gives None - the underlying condition
     ///     was deleted:
-    ///     The gate has been deleted from the dict, we're now ungated
+    ///     The condition has been deleted from the dict, we're now ungated
     ///     return true.
     /// *   Upgrading gave Some - evaluate the resulting gate.
     ///
@@ -155,26 +155,26 @@ impl SpectrumGate {
             false
         }
     }
-    pub fn fold_1d(&mut self, e: &FlatEvent) -> Vec<u32> {
+    pub fn fold_1d(&mut self, e: &FlatEvent) -> HashSet<u32> {
         if let Some(g) = &self.gate {
             if let Some(g) = g.gate.upgrade() {
                 g.borrow_mut().evaluate_1(e)
             } else {
-                vec![]
+                HashSet::<u32>::new()
             }
         } else {
-            vec![]
+            HashSet::<u32>::new()
         }
     }
-    pub fn fold_2d(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
+    pub fn fold_2d(&mut self, e: &FlatEvent) -> HashSet<(u32, u32)> {
         if let Some(g) = &self.gate {
             if let Some(g) = g.gate.upgrade() {
                 g.borrow_mut().evaluate_2(e)
             } else {
-                vec![]
+                HashSet::<(u32, u32)>::new()
             }
         } else {
-            vec![]
+            HashSet::<(u32, u32)>::new()
         }
     }
 }
@@ -687,7 +687,7 @@ mod gate_tests {
     }
     #[test]
     fn spgate_ungate1() {
-        // can ungate an ugate - still none:
+        // can ungate an ungated - still none:
 
         let mut g = SpectrumGate::new();
         g.ungate();
@@ -719,7 +719,7 @@ mod gate_tests {
     // - Gated gives the result of the gate.
     //   *  True gate.
     //   *  False gate.
-    // - Gated but the gate was deleted is always true...and ungates us.
+    // - Gated but the condition was deleted is always true...and ungates us.
     //
     #[test]
     fn spgate_check1() {
@@ -781,7 +781,7 @@ mod gate_tests {
         let e = FlatEvent::new();
         assert!(!g.check(&e));
 
-        // Now kill off the gate from the dict:
+        // Now kill off the condition from the dict:
         // The {} ensures the container is dropped.
         {
             dict.remove(&String::from("false"))
@@ -1180,7 +1180,7 @@ mod spec_storage_tests {
         let p2 = pdict.lookup("param.2").expect("param.2 should be created");
         let p3 = pdict.lookup("param.3").expect("param3. should be created");
 
-        let idvec = vec![p1.get_id(), p2.get_id(), p3.get_id()];
+        let idvec = [p1.get_id(), p2.get_id(), p3.get_id()];
 
         // Easiest to do the increments prior to insertion for this test:
 
@@ -1188,8 +1188,8 @@ mod spec_storage_tests {
         for _ in 0..100 {
             let mut event = Event::new();
             let mut fe = FlatEvent::new();
-            for j in 0..idvec.len() {
-                event.push(EventParameter::new(idvec[j], counter));
+            for j in &idvec {
+                event.push(EventParameter::new(*j, counter));
                 counter += 1.0;
             }
             fe.load_event(&event);
@@ -1255,15 +1255,15 @@ mod spec_storage_tests {
         let p2 = pdict.lookup("param.2").expect("param.2 should be created");
         let p3 = pdict.lookup("param.3").expect("param3. should be created");
 
-        let idvec = vec![p1.get_id(), p2.get_id(), p3.get_id()];
+        let idvec = [p1.get_id(), p2.get_id(), p3.get_id()];
 
         // Make and process some events:
 
         let mut counter = 0.0;
         for _ in 0..100 {
             let mut event = Event::new();
-            for j in 0..idvec.len() {
-                event.push(EventParameter::new(idvec[j], counter));
+            for j in &idvec {
+                event.push(EventParameter::new(*j, counter));
                 counter += 1.0;
             }
 
@@ -1363,15 +1363,15 @@ mod spec_storage_tests {
         let p2 = pdict.lookup("param.2").expect("param.2 should be created");
         let p3 = pdict.lookup("param.3").expect("param3. should be created");
 
-        let idvec = vec![p1.get_id(), p2.get_id(), p3.get_id()];
+        let idvec = [p1.get_id(), p2.get_id(), p3.get_id()];
 
         // Make and process some events:
 
         let mut counter = 0.0;
         for _ in 0..100 {
             let mut event = Event::new();
-            for j in 0..idvec.len() {
-                event.push(EventParameter::new(idvec[j], counter));
+            for j in &idvec {
+                event.push(EventParameter::new(*j, counter));
                 counter += 1.0;
             }
 

@@ -9,7 +9,7 @@
 //!
 //!  Each of these has its own requirements and definitions of
 //!  acceptance.  Since the computations required to compute if
-//!  A gate has been made may be time consuming, all of these
+//!  A condition has been made may be time consuming, all of these
 //!  conditions cache.
 //!
 //! ## Bands
@@ -47,6 +47,8 @@
 use super::*;
 use crate::parameters::*;
 use libm::{fmax, fmin};
+
+use std::collections::HashSet;
 
 /// Points are just x/y pairs that are used to represent the
 /// graphical exent of twod conditions.
@@ -197,10 +199,10 @@ impl Condition for Band {
             false
         }
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Band")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         let mut result = Vec::<(f64, f64)>::new();
         for p in self.points.iter() {
             result.push((p.x, p.y));
@@ -208,7 +210,7 @@ impl Condition for Band {
 
         result
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -357,10 +359,10 @@ impl Condition for Contour {
         self.cache = Some(result);
         result
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("Contour")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
+    fn condition_points(&self) -> Vec<(f64, f64)> {
         let mut result = Vec::<(f64, f64)>::new();
         for p in self.pts.iter() {
             result.push((p.x, p.y));
@@ -368,7 +370,7 @@ impl Condition for Contour {
 
         result
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         Vec::<ContainerReference>::new()
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -408,19 +410,15 @@ impl MultiContour {
     /// Create a new contour.
     ///
     /// ### Parameters:
-    ///  *  parameters the parameters that are actually used for the gate/fold.
+    ///  *  parameters the parameters that are actually used for the condition/fold.
     ///  *  pts  - the points that define the contour.
     ///
     pub fn new(parameters: &[u32], pts: Points) -> Option<MultiContour> {
-        if let Some(c) = Contour::new(0, 0, pts) {
-            Some(MultiContour {
-                contour: c, // Use dummy parameter ids
-                parameters: parameters.to_owned(),
-                cache: None,
-            })
-        } else {
-            None
-        }
+        Contour::new(0, 0, pts).map(|c| MultiContour {
+            contour: c, // Use dummy parameter ids
+            parameters: parameters.to_owned(),
+            cache: None,
+        })
     }
 }
 impl Condition for MultiContour {
@@ -449,13 +447,13 @@ impl Condition for MultiContour {
         self.cache = Some(false);
         false
     }
-    fn gate_type(&self) -> String {
+    fn condition_type(&self) -> String {
         String::from("MultiContour")
     }
-    fn gate_points(&self) -> Vec<(f64, f64)> {
-        self.contour.gate_points() // Can delegate.
+    fn condition_points(&self) -> Vec<(f64, f64)> {
+        self.contour.condition_points() // Can delegate.
     }
-    fn dependent_gates(&self) -> Vec<ContainerReference> {
+    fn dependent_conditions(&self) -> Vec<ContainerReference> {
         vec![] // could delegate but this is simpler
     }
     fn dependent_parameters(&self) -> Vec<u32> {
@@ -473,7 +471,7 @@ impl Condition for MultiContour {
     fn is_fold(&self) -> bool {
         true
     }
-    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> Vec<u32> {
+    fn evaluate_1(&mut self, event: &parameters::FlatEvent) -> HashSet<u32> {
         // All we need to do is
         // 1. evaluate_2
         // 2. Turn the vector of pairs into a single vector.
@@ -485,10 +483,10 @@ impl Condition for MultiContour {
         v1.append(&mut v2);
         v1.sort();
         v1.dedup();
-        v1
+        HashSet::from_iter(v1.iter().cloned())
     }
-    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> Vec<(u32, u32)> {
-        let mut result = Vec::<(u32, u32)>::new();
+    fn evaluate_2(&mut self, event: &parameters::FlatEvent) -> HashSet<(u32, u32)> {
+        let mut result = HashSet::<(u32, u32)>::new();
         for (i, p1) in self.parameters.as_slice()[0..self.parameters.len() - 1]
             .iter()
             .enumerate()
@@ -498,7 +496,7 @@ impl Condition for MultiContour {
                     let x = event[*p1].unwrap();
                     let y = event[*p2].unwrap();
                     if !self.contour.inside(x, y) {
-                        result.push((*p1, *p2));
+                        result.insert((*p1, *p2));
                     }
                 }
             }
@@ -614,7 +612,7 @@ mod band_tests {
         assert!(!b.check(&e));
         let c = b.get_cached_value();
         assert!(c.is_some());
-        assert_eq!(false, c.unwrap());
+        assert!(!c.unwrap());
 
         b.invalidate_cache();
         assert!(b.get_cached_value().is_none());
@@ -631,7 +629,7 @@ mod band_tests {
         assert!(!b.check(&e));
         let c = b.get_cached_value();
         assert!(c.is_some());
-        assert_eq!(false, c.unwrap());
+        assert!(!c.unwrap());
 
         b.invalidate_cache();
         assert!(b.get_cached_value().is_none());
@@ -1188,7 +1186,7 @@ mod multicontour_tests {
     fn new_1() {
         // Create a contour with test points:
 
-        let c = MultiContour::new(&vec![1, 2, 3], test_points());
+        let c = MultiContour::new(&[1, 2, 3], test_points());
         assert!(c.is_some());
         let c = c.unwrap();
         assert_eq!(vec![1, 2, 3], c.parameters);
@@ -1198,7 +1196,7 @@ mod multicontour_tests {
     #[test]
     fn check_1() {
         // all pairs in the contour
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 60.0),
             EventParameter::new(2, 55.0),
@@ -1212,7 +1210,7 @@ mod multicontour_tests {
     #[test]
     fn check_2() {
         // One pair in the contour:
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 60.0),
             EventParameter::new(2, 55.0),
@@ -1227,7 +1225,7 @@ mod multicontour_tests {
     #[test]
     fn check_3() {
         // none in contour.
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 60.0),
             EventParameter::new(2, 675.0),
@@ -1240,39 +1238,39 @@ mod multicontour_tests {
     }
     #[test]
     fn type_1() {
-        let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
-        assert_eq!("MultiContour", c.gate_type());
+        let c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
+        assert_eq!("MultiContour", c.condition_type());
     }
     #[test]
     fn points_1() {
         let pts = test_points();
-        let c = MultiContour::new(&vec![1, 2, 3], pts.clone()).expect("making multicontour");
+        let c = MultiContour::new(&[1, 2, 3], pts.clone()).expect("making multicontour");
 
-        let gate_pts = c.gate_points();
-        assert_eq!(pts.len(), gate_pts.len());
+        let condition_pts = c.condition_points();
+        assert_eq!(pts.len(), condition_pts.len());
         for (i, p) in pts.iter().enumerate() {
-            assert_eq!((p.x, p.y), gate_pts[i], "Mismatch on {}", i);
+            assert_eq!((p.x, p.y), condition_pts[i], "Mismatch on {}", i);
         }
     }
     #[test]
     fn depcond_1() {
-        let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
 
-        assert!(c.dependent_gates().is_empty());
+        assert!(c.dependent_conditions().is_empty());
     }
     #[test]
     fn deppars_1() {
-        let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         assert_eq!(vec![1, 2, 3], c.dependent_parameters());
     }
     #[test]
     fn getcache_1() {
-        let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         assert_eq!(None, c.get_cached_value());
     }
     #[test]
     fn get_cache_2() {
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 60.0),
             EventParameter::new(2, 55.0),
@@ -1285,7 +1283,7 @@ mod multicontour_tests {
     }
     #[test]
     fn get_cache_3() {
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 60.0),
             EventParameter::new(2, 675.0),
@@ -1298,7 +1296,7 @@ mod multicontour_tests {
     }
     #[test]
     fn clrcache_1() {
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 60.0),
             EventParameter::new(2, 675.0),
@@ -1314,7 +1312,7 @@ mod multicontour_tests {
 
     #[test]
     fn foldable_1() {
-        let c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         assert!(c.is_fold());
     }
 
@@ -1322,7 +1320,7 @@ mod multicontour_tests {
     fn fold1_1() {
         // All pairs are in the contour, so no
 
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 60.0),
             EventParameter::new(2, 70.0),
@@ -1333,14 +1331,14 @@ mod multicontour_tests {
 
         let p = c.evaluate_1(&fe);
 
-        assert_eq!(Vec::<u32>::new(), p);
+        assert_eq!(HashSet::<u32>::new(), p);
     }
     #[test]
     fn fold1_2() {
         // This should return all because there are pairs for all parameters
         // in which the contour is not made:
 
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 60.0),
             EventParameter::new(2, 55.0),
@@ -1350,13 +1348,13 @@ mod multicontour_tests {
         fe.load_event(&e);
         let p = c.evaluate_1(&fe);
 
-        assert_eq!(vec![1, 2, 3], p);
+        assert_eq!(HashSet::from_iter([1, 2, 3].iter().cloned()), p);
     }
     #[test]
     fn fold1_3() {
         // None are in so again all parameters:
 
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 60.0),
             EventParameter::new(2, 550.0),
@@ -1366,14 +1364,14 @@ mod multicontour_tests {
         fe.load_event(&e);
         let p = c.evaluate_1(&fe);
 
-        assert_eq!(vec![1, 2, 3], p);
+        assert_eq!(HashSet::from_iter([1, 2, 3].iter().cloned()), p);
     }
 
     #[test]
     fn fold2_1() {
         // All are in the contour - no pairs come out:
 
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 60.0),
             EventParameter::new(2, 70.0),
@@ -1384,13 +1382,13 @@ mod multicontour_tests {
 
         let p = c.evaluate_2(&fe);
 
-        assert_eq!(Vec::<(u32, u32)>::new(), p);
+        assert_eq!(HashSet::<(u32, u32)>::new(), p);
     }
     #[test]
     fn fold2_2() {
         // There's a pair in the contour but others are not
 
-        let mut c = MultiContour::new(&vec![1, 2, 3], test_points()).expect("making multicontour");
+        let mut c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
         let e = vec![
             EventParameter::new(1, 600.0),
             EventParameter::new(2, 70.0),
@@ -1400,6 +1398,6 @@ mod multicontour_tests {
         fe.load_event(&e);
 
         let p = c.evaluate_2(&fe);
-        assert_eq!(vec![(1, 2), (1, 3)], p);
+        assert_eq!(HashSet::from_iter([(1, 2), (1, 3)].iter().cloned()), p);
     }
 }

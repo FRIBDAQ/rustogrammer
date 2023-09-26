@@ -8,7 +8,7 @@
 //!  
 //! *   Provide data in an already decoded format for speedy playback.
 //! *   Provide some subset of the  full data set (in SpecTcl this subset is
-//! defined by events that satisfy a gate and parameter list).
+//! defined by events that satisfy a condition and parameter list).
 //!
 //!  The first of these function is provided already by the fact that
 //! Rustogramer operates on data that is the output of the analysis
@@ -24,7 +24,7 @@
 //! *  delete - Would delete an existing filter.
 //! *  enable - would enable an existing filter to output data.
 //! *  disable - would disable an existing filter from outputting data.
-//! *  regate - would replace the gate on an existing filter that determines
+//! *  regate - would replace the condition on an existing filter that determines
 //! which subset it writes.
 //! *  file - Defines the file an existing filter writes data to.
 //! *  list - lists the set of filters that match an optional Glob pattern.
@@ -37,7 +37,7 @@ use rocket::serde::{json::Json, Deserialize, Serialize};
 /// are:
 ///
 /// *   name the name of the new filter.
-/// *   gate - the gate that will select the event the filter outputs.
+/// *   gate - the condition that will select the event the filter outputs.
 /// *   parameter - can repeat as many times as needed -the set of parameters
 /// that will be output.
 ///
@@ -83,12 +83,12 @@ pub fn disable() -> Json<GenericResponse> {
         "This is not SpecTcl",
     ))
 }
-/// regate - would specify a new gate be used to select the
+/// regate - would specify a new condition be used to select the
 /// set of events written by the filter.
 /// Query parameters;
 ///
 /// *   name - Name of the filter to modify.
-/// *   gate - gate to use to select output events
+/// *   gate - condition to use to select output events
 ///
 /// A GenericResponse is fine for this if it were implemented.
 ///

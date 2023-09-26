@@ -14,6 +14,10 @@
 //!  of the spectrum.  That is the condition, applied as the gate must
 //!  be true for the event to be eligible to increment the spectrum.
 //!
+//!  Furthermore a fold can be applied to the spectrum, in which case every
+//!  parameter pair which satisfies the fold condition is removed from the
+//!  increment.
+//!
 //!  Default axis specification are derived indpendently from the
 //!  default axis specification fo the X and Y parameter sets.
 //!  The algorithm to choose from among the specification is the same
@@ -25,7 +29,7 @@ use std::collections::HashSet;
 
 // This struct defines a parameter for the spectrum:
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SpectrumParameter {
     name: String,
     id: u32,
@@ -45,6 +49,8 @@ pub struct PGamma {
 
     x_params: Vec<SpectrumParameter>,
     y_params: Vec<SpectrumParameter>,
+    pairs: Vec<(u32, u32)>,
+    pair_hash: HashSet<(u32, u32)>,
 }
 // to make this a spectrum we need to implement this trait:
 
@@ -177,27 +183,16 @@ impl PGamma {
     // pairs that dont' fall inthe fold.
 
     fn get_parameters(&mut self, e: &FlatEvent) -> Vec<(u32, u32)> {
-        let mut result = vec![];
-        for px in self.x_params.iter() {
-            for py in self.y_params.iter() {
-                result.push((px.id, py.id));
-            }
-        }
         if self.applied_fold.is_fold() {
-            let fold = self.applied_fold.fold_2d(e);
-            let fold_set = fold.into_iter().collect::<HashSet<(u32, u32)>>();
-            let mut raw_set = HashSet::<(u32, u32)>::new();
-            for pair in result {
-                raw_set.insert(pair);
-            }
+            let fold_set = self.applied_fold.fold_2d(e);
             let mut pairs = vec![];
 
-            for p in raw_set.intersection(&fold_set) {
+            for p in self.pair_hash.intersection(&fold_set) {
                 pairs.push(*p);
             }
             pairs
         } else {
-            result
+            self.pairs.clone()
         }
     }
 
@@ -273,6 +268,16 @@ impl PGamma {
         }
         // All good so we can create the return value:
 
+        let mut pairs = vec![];
+        for x in xp.clone() {
+            for y in yp.clone() {
+                pairs.push((x.id, y.id));
+            }
+        }
+        let mut hash = HashSet::<(u32, u32)>::new();
+        for pair in pairs.iter() {
+            hash.insert(*pair);
+        }
         Ok(PGamma {
             applied_gate: SpectrumGate::new(),
             applied_fold: SpectrumGate::new(),
@@ -284,6 +289,8 @@ impl PGamma {
             ))),
             x_params: xp,
             y_params: yp,
+            pairs,
+            pair_hash: hash,
         })
     }
 }
@@ -299,7 +306,7 @@ mod pgamma_tests {
         for i in 0..n {
             let name = format!("param.{}", i);
             dict.add(&name)
-                .expect(&format!("Failed to add parameter {}", name));
+                .unwrap_or_else(|_| panic!("Failed to add parameter {}", name));
             let p = dict.lookup_mut(&name).unwrap();
             if let Some((low, high)) = lh {
                 p.set_limits(low, high);
@@ -659,20 +666,20 @@ mod pgamma_tests {
                 let x = i as f64 * 10.0;
                 let y = (j + 5) as f64 * 10.0;
 
-                let v = spec
-                    .histogram
-                    .borrow()
-                    .value(&(x, y))
-                    .expect("Value should exist")
-                    .clone();
-
-                assert_eq!(1.0, v.get());
+                assert_eq!(
+                    1.0,
+                    spec.histogram
+                        .borrow()
+                        .value(&(x, y))
+                        .expect("Value should exist")
+                        .get()
+                );
             }
         }
     }
     #[test]
     fn incr_2() {
-        // gated on a True gate:
+        // gated on a True condition:
 
         let dict = make_params(10, Some((0.0, 1024.0)), Some(1024));
         let xp = vec![
@@ -729,14 +736,14 @@ mod pgamma_tests {
                 let x = i as f64 * 10.0;
                 let y = (j + 5) as f64 * 10.0;
 
-                let v = spec
-                    .histogram
-                    .borrow()
-                    .value(&(x, y))
-                    .expect("Value should exist")
-                    .clone();
-
-                assert_eq!(1.0, v.get());
+                assert_eq!(
+                    1.0,
+                    spec.histogram
+                        .borrow()
+                        .value(&(x, y))
+                        .expect("Value should exist")
+                        .get()
+                );
             }
         }
     }
@@ -837,7 +844,7 @@ mod pgamma_tests {
 
         let mut gdict = ConditionDictionary::new();
         let fold = conditions::MultiContour::new(
-            &vec![0, 1, 2, 3, 4],
+            &[0, 1, 2, 3, 4],
             vec![
                 conditions::twod::Point::new(100.0, 100.0),
                 conditions::twod::Point::new(500.0, 100.0),
@@ -849,12 +856,12 @@ mod pgamma_tests {
 
         let mut spec = PGamma::new(
             "test",
-            &vec![
+            &[
                 String::from("param.0"),
                 String::from("param.1"),
                 String::from("param.2"),
             ],
-            &vec![String::from("param.4"), String::from("param.5")],
+            &[String::from("param.4"), String::from("param.5")],
             &pdict,
             Some(0.0),
             Some(1024.0),
@@ -892,7 +899,7 @@ mod pgamma_tests {
 
         let mut gdict = ConditionDictionary::new();
         let fold = conditions::MultiContour::new(
-            &vec![1, 2, 3, 4, 5],
+            &[1, 2, 3, 4, 5],
             vec![
                 conditions::twod::Point::new(100.0, 100.0),
                 conditions::twod::Point::new(500.0, 100.0),
@@ -904,12 +911,12 @@ mod pgamma_tests {
 
         let mut spec = PGamma::new(
             "test",
-            &vec![
+            &[
                 String::from("param.0"),
                 String::from("param.1"),
                 String::from("param.2"),
             ],
-            &vec![String::from("param.3"), String::from("param.4")],
+            &[String::from("param.3"), String::from("param.4")],
             &pdict,
             Some(0.0),
             Some(1024.0),
@@ -947,7 +954,7 @@ mod pgamma_tests {
 
         let mut gdict = ConditionDictionary::new();
         let fold = conditions::MultiContour::new(
-            &vec![1, 2, 3, 4, 5],
+            &[1, 2, 3, 4, 5],
             vec![
                 conditions::twod::Point::new(100.0, 100.0),
                 conditions::twod::Point::new(500.0, 100.0),
@@ -959,12 +966,12 @@ mod pgamma_tests {
 
         let mut spec = PGamma::new(
             "test",
-            &vec![
+            &[
                 String::from("param.0"),
                 String::from("param.1"),
                 String::from("param.2"),
             ],
-            &vec![String::from("param.3"), String::from("param.4")],
+            &[String::from("param.3"), String::from("param.4")],
             &pdict,
             Some(0.0),
             Some(1024.0),
