@@ -1239,7 +1239,7 @@ mod multicontour_tests {
     #[test]
     fn type_1() {
         let c = MultiContour::new(&[1, 2, 3], test_points()).expect("making multicontour");
-        assert_eq!("MultiContour", c.gate_type());
+        assert_eq!("MultiContour", c.condition_type());
     }
     #[test]
     fn points_1() {
