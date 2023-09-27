@@ -509,11 +509,7 @@ impl SpectrumStorage {
     /// some time, they should clone the container.
     ///
     pub fn get(&self, name: &str) -> Option<(&SpectrumContainer, usize)> {
-        if let Some(entry) = self.dict.get(name) {
-            Some((&entry.0, entry.1))
-        } else {
-            None
-        }
+        self.dict.get(name).map(|entry| (&entry.0, entry.1))
     }
     /// Clear all the spectra
     ///
@@ -1291,10 +1287,10 @@ mod spec_storage_tests {
         let s1 = store
             .get("spec1")
             .expect("Failed to fetch spec1 from store");
-        let h1 = s1.0
-            .borrow()
-            .get_histogram_1d()
-            .expect("Failed to get 1d histogram");
+        let h1 =
+            s1.0.borrow()
+                .get_histogram_1d()
+                .expect("Failed to get 1d histogram");
 
         let mut sum1 = 0.0;
         for c in h1.borrow().iter() {
@@ -1305,10 +1301,10 @@ mod spec_storage_tests {
         let s2 = store
             .get("spec2")
             .expect("Failed to fetch spec2 from store");
-        let h2 = s2.0
-            .borrow()
-            .get_histogram_2d()
-            .expect("Failed to get 2d histogram");
+        let h2 =
+            s2.0.borrow()
+                .get_histogram_2d()
+                .expect("Failed to get 2d histogram");
         let mut sum2 = 0.0;
         for c in h2.borrow().iter() {
             sum2 += c.value.get();
@@ -1362,13 +1358,15 @@ mod spec_storage_tests {
 
         store
             .get("spec1")
-            .expect("spec1 was missing").0
+            .expect("spec1 was missing")
+            .0
             .borrow_mut()
             .gate("true", &cd)
             .expect("true gate not found when gating spec1.");
         store
             .get("spec2")
-            .expect("spec2 was missing").0
+            .expect("spec2 was missing")
+            .0
             .borrow_mut()
             .gate("false", &cd)
             .expect("false gate not found when gating spec2");
@@ -1399,10 +1397,10 @@ mod spec_storage_tests {
         let s1 = store
             .get("spec1")
             .expect("Failed to fetch spec1 from store");
-        let h1 = s1.0
-            .borrow()
-            .get_histogram_1d()
-            .expect("Failed to get 1d histogram");
+        let h1 =
+            s1.0.borrow()
+                .get_histogram_1d()
+                .expect("Failed to get 1d histogram");
 
         let mut sum1 = 0.0;
         for c in h1.borrow().iter() {
@@ -1413,10 +1411,10 @@ mod spec_storage_tests {
         let s2 = store
             .get("spec2")
             .expect("Failed to fetch spec2 from store");
-        let h2 = s2.0
-            .borrow()
-            .get_histogram_2d()
-            .expect("Failed to get 2d histogram");
+        let h2 =
+            s2.0.borrow()
+                .get_histogram_2d()
+                .expect("Failed to get 2d histogram");
         let mut sum2 = 0.0;
         for c in h2.borrow().iter() {
             sum2 += c.value.get();
