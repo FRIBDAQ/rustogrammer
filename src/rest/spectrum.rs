@@ -57,6 +57,7 @@ pub struct Axis {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct SpectrumDescription {
+    id: usize,
     name: String,
     #[serde(rename = "type")]
     spectrum_type: String,
@@ -84,6 +85,7 @@ fn list_to_detail(l: Vec<SpectrumProperties>) -> Vec<SpectrumDescription> {
     let mut result = Vec::<SpectrumDescription>::new();
     for mut d in l {
         let mut def = SpectrumDescription {
+            id: d.id,
             name: d.name,
             spectrum_type: rg_sptype_to_spectcl(&d.type_name),
             parameters: d.xparams.clone(),
@@ -1480,6 +1482,26 @@ mod spectrum_tests {
         assert_eq!(1, reply.detail.len());
         assert!(reply.detail[0].gate.is_some());
         assert_eq!("Acondition", reply.detail[0].gate.clone().unwrap());
+
+        teardown(chan, &papi, &binder_api);
+    }
+    #[test]
+    fn list_4() {
+        // The id is now included and correct:
+
+        let rocket = setup();
+        let (chan, papi, binder_api) = getstate(&rocket);
+        
+        let client = Client::untracked(rocket).expect("making client");
+        let req = client.get("/list?filter=pgamma");
+        let reply = req
+            .dispatch()
+            .into_json::<ListResponse>()
+            .expect("Parsing JSON");
+        assert_eq!("OK", reply.status);
+        assert_eq!(1, reply.detail.len());
+        let props = &reply.detail[0];
+        assert_eq!(3, props.id);
 
         teardown(chan, &papi, &binder_api);
     }
