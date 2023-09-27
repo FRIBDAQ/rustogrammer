@@ -1612,12 +1612,17 @@ namespace eval spectrum {
         
         set result [list]
         foreach s $raw {
-            set item [list                                              \
-                0 [dict get $s name] [dict get $s type]                        \
+            if {[dict exists $s id]} {
+                set item [dict get $s id]
+            } else {
+                set item 0
+            }
+            lappend item \                                              \
+                [dict get $s name] [dict get $s type]                        \
                 [dict get $s parameters]                                       \
                 [::SpecTclRestCommand::_axesDictToAxesList [dict get $s axes]]  \
                 [dict get $s chantype]                                         \
-            ]
+            carggo 
             if {$showgates} {
                 lappend item [dict get $s gate]
             }
