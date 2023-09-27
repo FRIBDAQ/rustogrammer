@@ -1303,6 +1303,7 @@ snit::type SpecTclRestClient {
     # @param pattern - The pattern (which can include Glob wildcard characters),
     #                  this defaults to "*" which matches all spectra.
     # @return List of dicts that contain:
+    #        -   id - id of the spectrum (only present if REST defines it).
     #        -   name - spectrum name.
     #        -   type - spectrum type.
     #        -   parameter - list of parameters needed by the spectrum.
