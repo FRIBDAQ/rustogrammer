@@ -47,6 +47,7 @@ pub type SpectrumContents = Vec<Channel>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpectrumProperties {
+    pub id: usize,
     pub name: String,
     pub type_name: String,
     pub xparams: Vec<String>,
@@ -483,11 +484,12 @@ impl SpectrumProcessor {
     }
     // List spectra and properties.
 
-    fn get_properties(spec: &spectra::SpectrumContainer) -> SpectrumProperties {
-        let s = spec.borrow();
+    fn get_properties(spec: &(spectra::SpectrumContainer, usize)) -> SpectrumProperties {
+        let s = spec.0.borrow();
         let x = s.get_xaxis();
         let y = s.get_yaxis();
         SpectrumProperties {
+            id: spec.1,
             name: s.get_name(),
             type_name: s.get_type(),
             xparams: s.get_xparams(),
@@ -529,7 +531,7 @@ impl SpectrumProcessor {
         cdict: &conditions::ConditionDictionary,
     ) -> SpectrumReply {
         if let Some(spec) = self.dict.get(sname) {
-            if let Err(msg) = spec.borrow_mut().gate(gname, cdict) {
+            if let Err(msg) = spec.0.borrow_mut().gate(gname, cdict) {
                 SpectrumReply::Error(msg)
             } else {
                 SpectrumReply::Gated
@@ -540,7 +542,7 @@ impl SpectrumProcessor {
     }
     fn ungate_spectrum(&self, spectrum: &str) -> SpectrumReply {
         if let Some(spec) = self.dict.get(spectrum) {
-            spec.borrow_mut().ungate();
+            spec.0.borrow_mut().ungate();
             SpectrumReply::Ungated
         } else {
             SpectrumReply::Error(format!("Spectrum {} does not exist", spectrum))
@@ -554,7 +556,7 @@ impl SpectrumProcessor {
         let pat = pat.unwrap();
         for (name, s) in self.dict.iter() {
             if pat.matches(name) {
-                s.borrow_mut().clear();
+                s.0.borrow_mut().clear();
             }
         }
         SpectrumReply::Cleared
@@ -571,7 +573,7 @@ impl SpectrumProcessor {
 
         let mut result = SpectrumContents::new();
         if let Some(spec) = self.dict.get(name) {
-            if let Some(spectrum) = spec.borrow().get_histogram_1d() {
+            if let Some(spectrum) = spec.0.borrow().get_histogram_1d() {
                 for c in spectrum.borrow().iter() {
                     let v = c.value.get();
                     if v != 0.0 {
@@ -609,7 +611,7 @@ impl SpectrumProcessor {
                     }
                 }
             } else {
-                let spectrum = spec.borrow().get_histogram_2d().unwrap();
+                let spectrum = spec.0.borrow().get_histogram_2d().unwrap();
                 for c in spectrum.borrow().iter() {
                     let v = c.value.get();
                     let xbin = c.bin.0;
@@ -678,7 +680,7 @@ impl SpectrumProcessor {
     // Get spectrumstatistics:
     fn get_statistics(&self, name: &str) -> SpectrumReply {
         if let Some(spec) = self.dict.get(name) {
-            SpectrumReply::Statistics(spec.borrow().get_out_of_range())
+            SpectrumReply::Statistics(spec.0.borrow().get_out_of_range())
         } else {
             SpectrumReply::Error(format!("Spectrum {} does not exist", name))
         }
@@ -696,7 +698,7 @@ impl SpectrumProcessor {
         // Find the spectrum:
 
         if let Some(spec) = self.dict.get(name) {
-            let mut histogram = spec.borrow_mut();
+            let mut histogram = spec.0.borrow_mut();
             histogram.clear();
             if histogram.is_1d() {
                 let spec1d = histogram.get_histogram_1d().unwrap();
@@ -764,9 +766,10 @@ impl SpectrumProcessor {
         if let Some(spec) = self.dict.get(name) {
             // What we do next depends on the spectrum  dimensionality:
 
-            if spec.borrow().is_1d() {
+            if spec.0.borrow().is_1d() {
                 let xchan = (xchan + 1) as usize;
                 if let Some(f) = spec
+                    .0
                     .borrow()
                     .get_histogram_1d()
                     .unwrap()
@@ -783,7 +786,7 @@ impl SpectrumProcessor {
                 if let Some(ybin) = ychan {
                     // Have o turn the x/y channel into an index:
 
-                    let spec = spec.borrow().get_histogram_2d().unwrap();
+                    let spec = spec.0.borrow().get_histogram_2d().unwrap();
                     match Self::channels2d_to_index(&spec, xchan, ybin) {
                         Ok(index) => {
                             if let Some(f) = spec.borrow().value_at_index(index) {
@@ -817,9 +820,10 @@ impl SpectrumProcessor {
         if let Some(spec) = self.dict.get(name) {
             // How we figure out the index etc. depends on the dimensionality:
 
-            if spec.borrow().is_1d() {
+            if spec.0.borrow().is_1d() {
                 let xchan = (xchan + 1) as usize; // -1 is overflow so..
                 if let Some(c) = spec
+                    .0
                     .borrow()
                     .get_histogram_1d()
                     .unwrap()
@@ -835,7 +839,7 @@ impl SpectrumProcessor {
                 // 2d spectrum:
 
                 if let Some(ybin) = ychan {
-                    let spec = spec.borrow().get_histogram_2d().unwrap();
+                    let spec = spec.0.borrow().get_histogram_2d().unwrap();
                     match Self::channels2d_to_index(&spec, xchan, ybin) {
                         Ok(index) => {
                             if let Some(c) = spec.borrow_mut().value_at_index_mut(index) {
@@ -864,7 +868,7 @@ impl SpectrumProcessor {
         cdict: &conditions::ConditionDictionary,
     ) -> SpectrumReply {
         if let Some(s) = self.dict.get(spectrum) {
-            if let Err(s) = s.borrow_mut().fold(condition, cdict) {
+            if let Err(s) = s.0.borrow_mut().fold(condition, cdict) {
                 SpectrumReply::Error(format!("Failed to fold {}: {}", spectrum, s))
             } else {
                 SpectrumReply::Folded
@@ -877,7 +881,7 @@ impl SpectrumProcessor {
 
     fn unfold_spectrum(&mut self, spectrum: &str) -> SpectrumReply {
         if let Some(s) = self.dict.get(spectrum) {
-            if let Err(s) = s.borrow_mut().unfold() {
+            if let Err(s) = s.0.borrow_mut().unfold() {
                 SpectrumReply::Error(format!("Failed to unfold spectrum {}: {}", spectrum, s))
             } else {
                 SpectrumReply::Unfolded
@@ -890,7 +894,7 @@ impl SpectrumProcessor {
 
     fn is_1d(&mut self, spectrum: &str) -> SpectrumReply {
         if let Some(s) = self.dict.get(spectrum) {
-            SpectrumReply::Flag(s.borrow().is_1d())
+            SpectrumReply::Flag(s.0.borrow().is_1d())
         } else {
             SpectrumReply::Error(format!("no such spectrum {}", spectrum))
         }
@@ -1793,7 +1797,7 @@ mod spproc_tests {
         assert!(to.processor.dict.exists("test"));
         let spc = to.processor.dict.get("test");
         assert!(spc.is_some());
-        let spc = spc.unwrap().borrow();
+        let spc = spc.unwrap().0.borrow();
 
         assert_eq!(String::from("test"), spc.get_name());
         assert_eq!(String::from("1D"), spc.get_type());
@@ -1915,7 +1919,7 @@ mod spproc_tests {
         assert!(to.processor.dict.exists("test"));
         let spc = to.processor.dict.get("test");
         assert!(spc.is_some());
-        let spc = spc.unwrap().borrow();
+        let spc = spc.unwrap().0.borrow();
 
         assert_eq!(String::from("test"), spc.get_name());
         assert_eq!(String::from("Multi1d"), spc.get_type());
@@ -2048,7 +2052,7 @@ mod spproc_tests {
         assert!(to.processor.dict.exists("test"));
         let spc = to.processor.dict.get("test");
         assert!(spc.is_some());
-        let spc = spc.unwrap().borrow();
+        let spc = spc.unwrap().0.borrow();
 
         assert_eq!(String::from("test"), spc.get_name());
         assert_eq!(String::from("Multi2d"), spc.get_type());
@@ -2213,7 +2217,7 @@ mod spproc_tests {
         assert!(to.processor.dict.exists("test"));
         let spc = to.processor.dict.get("test");
         assert!(spc.is_some());
-        let spc = spc.unwrap().borrow(); // Ref to spectrum (readonly)
+        let spc = spc.unwrap().0.borrow(); // Ref to spectrum (readonly)
         assert_eq!(String::from("test"), spc.get_name());
         assert_eq!(String::from("PGamma"), spc.get_type());
         assert_eq!(xparams, spc.get_xparams());
@@ -2419,7 +2423,7 @@ mod spproc_tests {
             .processor
             .dict
             .get("test")
-            .expect("Missing summary spectrum")
+            .expect("Missing summary spectrum").0
             .borrow();
         assert_eq!(String::from("test"), spec.get_name());
         assert_eq!(String::from("Summary"), spec.get_type());
@@ -2554,7 +2558,7 @@ mod spproc_tests {
             .processor
             .dict
             .get("test")
-            .expect("Missing spectru")
+            .expect("Missing spectrum").0
             .borrow();
 
         assert_eq!(String::from("test"), spec.get_name());
@@ -2743,7 +2747,7 @@ mod spproc_tests {
             .processor
             .dict
             .get("test")
-            .expect("Could not find spectrum")
+            .expect("Could not find spectrum").0
             .borrow();
         assert_eq!(String::from("test"), spec.get_name());
         assert_eq!(String::from("2DSum"), spec.get_type());
@@ -3058,7 +3062,7 @@ mod spproc_tests {
             assert_eq!(SpectrumReply::Created, reply);
         }
         let spec = to.processor.dict.get("test.1").expect("Missing spectrum");
-        let h = spec
+        let h = spec.0
             .borrow()
             .get_histogram_1d()
             .expect("Not 1d but should be");
@@ -3106,7 +3110,7 @@ mod spproc_tests {
             assert_eq!(SpectrumReply::Created, reply);
         }
         let spec = to.processor.dict.get("test.1").expect("Missing spectrum");
-        let h = spec
+        let h = spec.0
             .borrow()
             .get_histogram_1d()
             .expect("Not 1d but should be");
@@ -3513,7 +3517,7 @@ mod spproc_tests {
         // These should havve counts in the indicated channels:
 
         for (name, chan) in with_counts {
-            let spec = to.processor.dict.get(&name).unwrap().borrow();
+            let spec = to.processor.dict.get(&name).unwrap().0.borrow();
             for ch in spec.get_histogram_1d().unwrap().borrow().iter() {
                 let d = ch.value.get();
                 if d != 0.0 {
@@ -3528,7 +3532,7 @@ mod spproc_tests {
         }
         // these should have no counts.
         for name in no_counts {
-            let spec = to.processor.dict.get(&name).unwrap().borrow();
+            let spec = to.processor.dict.get(&name).unwrap().0.borrow();
             for ch in spec.get_histogram_1d().unwrap().borrow().iter() {
                 assert_eq!(0.0, ch.value.get());
             }
@@ -4388,7 +4392,7 @@ mod spproc_tests {
         // Put a value in bin 512 (exclusive of 0 which is the underflow):
         // Block so that the borrow is given back:
         {
-            let spc = to.processor.dict.get("test").unwrap().borrow();
+            let spc = to.processor.dict.get("test").unwrap().0.borrow();
 
             spc.get_histogram_1d()
                 .unwrap()
@@ -4502,7 +4506,7 @@ mod spproc_tests {
         // otherwise I don't think the processor can then borrow
         // the spectrum to give us the value.
         {
-            let spc = to.processor.dict.get("test").unwrap().borrow();
+            let spc = to.processor.dict.get("test").unwrap().0.borrow();
 
             spc.get_histogram_1d()
                 .unwrap()
@@ -4549,7 +4553,7 @@ mod spproc_tests {
         // otherwise I don't think the processor can then borrow
         // the spectrum to give us the value.
         {
-            let spc = to.processor.dict.get("test").unwrap().borrow();
+            let spc = to.processor.dict.get("test").unwrap().0.borrow();
 
             spc.get_histogram_1d()
                 .unwrap()
@@ -4601,7 +4605,7 @@ mod spproc_tests {
         // increment 512.0, 512.0 (bin 256, 256)
         // in a block so the borrow is released
         {
-            let spc = to.processor.dict.get("test").unwrap().borrow();
+            let spc = to.processor.dict.get("test").unwrap().0.borrow();
             spc.get_histogram_2d()
                 .unwrap()
                 .borrow_mut()
@@ -4809,7 +4813,7 @@ mod spproc_tests {
         // on the 256 line.
 
         {
-            let spc = to.processor.dict.get("test").unwrap().borrow();
+            let spc = to.processor.dict.get("test").unwrap().0.borrow();
             spc.get_histogram_2d()
                 .unwrap()
                 .borrow_mut()
@@ -4858,7 +4862,7 @@ mod spproc_tests {
         // Set increment x channel at coordinate 1025.0 and y 512.0  that should
         // be an overflow an the y bin 256
         {
-            let spc = to.processor.dict.get("test").unwrap().borrow();
+            let spc = to.processor.dict.get("test").unwrap().0.borrow();
             spc.get_histogram_2d()
                 .unwrap()
                 .borrow_mut()
@@ -4907,7 +4911,7 @@ mod spproc_tests {
         // bin (256, -1) in our coords for underflow
 
         {
-            let spc = to.processor.dict.get("test").unwrap().borrow();
+            let spc = to.processor.dict.get("test").unwrap().0.borrow();
             spc.get_histogram_2d()
                 .unwrap()
                 .borrow_mut()
@@ -4957,7 +4961,7 @@ mod spproc_tests {
         // This will be 256, 512 in bin space.
 
         {
-            let spc = to.processor.dict.get("test").unwrap().borrow();
+            let spc = to.processor.dict.get("test").unwrap().0.borrow();
             spc.get_histogram_2d()
                 .unwrap()
                 .borrow_mut()
@@ -6659,6 +6663,7 @@ mod spectrum_api_tests {
             assert_eq!(1, listing.len());
             assert_eq!(
                 SpectrumProperties {
+                    id: 0,
                     name: String::from("test"),
                     type_name: String::from("1D"),
                     xparams: vec![String::from("param.1")],
@@ -6701,6 +6706,7 @@ mod spectrum_api_tests {
             assert_eq!(1, l.len());
             assert_eq!(
                 SpectrumProperties {
+                    id: 0,
                     name: String::from("test"),
                     type_name: String::from("Multi1d"),
                     xparams: params,
@@ -6743,6 +6749,7 @@ mod spectrum_api_tests {
             assert_eq!(1, l.len());
             assert_eq!(
                 SpectrumProperties {
+                    id:0,
                     name: String::from("test"),
                     type_name: String::from("Multi2d"),
                     xparams: params,
@@ -6796,6 +6803,7 @@ mod spectrum_api_tests {
             assert_eq!(1, l.len());
             assert_eq!(
                 SpectrumProperties {
+                    id:0,
                     name: String::from("test"),
                     type_name: String::from("PGamma"),
                     xparams,
@@ -6842,6 +6850,7 @@ mod spectrum_api_tests {
         assert_eq!(1, l.len());
         assert_eq!(
             SpectrumProperties {
+                id:0,
                 name: String::from("test"),
                 type_name: String::from("Summary"),
                 xparams: params,
@@ -6878,6 +6887,7 @@ mod spectrum_api_tests {
         assert_eq!(1, l.len());
         assert_eq!(
             SpectrumProperties {
+                id:0,
                 name: String::from("test"),
                 type_name: String::from("2D"),
                 xparams: vec![String::from("param.0")],
@@ -6929,6 +6939,7 @@ mod spectrum_api_tests {
         assert_eq!(1, l.len());
         assert_eq!(
             SpectrumProperties {
+                id:0,
                 name: String::from("test"),
                 type_name: String::from("2DSum"),
                 xparams,

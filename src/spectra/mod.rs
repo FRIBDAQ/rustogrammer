@@ -372,7 +372,7 @@ pub trait Spectrum {
 pub type SpectrumContainer = Rc<RefCell<dyn Spectrum>>;
 pub type SpectrumContainerReference = Weak<RefCell<dyn Spectrum>>;
 pub type SpectrumReferences = Vec<SpectrumContainerReference>;
-pub type SpectrumDictionary = HashMap<String, SpectrumContainer>;
+pub type SpectrumDictionary = HashMap<String, (SpectrumContainer, usize)>;
 
 /// The SpectrumStorage type supports several things:
 /// -   Spectrum storage by name through a contained SpectrumDictionary.
@@ -391,6 +391,7 @@ pub struct SpectrumStorage {
     dict: SpectrumDictionary,
     spectra_by_parameter: Vec<Option<SpectrumReferences>>,
     other_spectra: SpectrumReferences,
+    next_id: usize,
 }
 
 impl SpectrumStorage {
@@ -434,11 +435,12 @@ impl SpectrumStorage {
             dict: SpectrumDictionary::new(),
             spectra_by_parameter: Vec::<Option<SpectrumReferences>>::new(),
             other_spectra: SpectrumReferences::new(),
+            next_id: 0_usize,
         }
     }
     /// Iterate over the dict:
     ///
-    pub fn iter(&self) -> hash_map::Iter<'_, String, SpectrumContainer> {
+    pub fn iter(&self) -> hash_map::Iter<'_, String, (SpectrumContainer, usize)> {
         self.dict.iter()
     }
 
@@ -462,9 +464,11 @@ impl SpectrumStorage {
     ///
     pub fn add(&mut self, spectrum: SpectrumContainer) -> Option<SpectrumContainer> {
         let inc_ref = Rc::clone(&spectrum);
+        let id = self.next_id;
+        self.next_id += 1;
         let result = self
             .dict
-            .insert(inc_ref.borrow().get_name(), Rc::clone(&spectrum));
+            .insert(inc_ref.borrow().get_name(), (Rc::clone(&spectrum), id));
 
         let param = inc_ref.borrow().required_parameter();
         let inc_ref = Rc::downgrade(&inc_ref);
@@ -486,7 +490,11 @@ impl SpectrumStorage {
         } else {
             self.other_spectra.push(inc_ref);
         }
-        result
+        if let Some(r) = result {
+            Some(r.0)
+        } else {
+            None
+        }
     }
     /// Does the specified spectrum exist?
     ///
@@ -500,15 +508,15 @@ impl SpectrumStorage {
     /// If the caller is going to hold on to that reference for
     /// some time, they should clone the container.
     ///
-    pub fn get(&self, name: &str) -> Option<&SpectrumContainer> {
-        self.dict.get(name)
+    pub fn get(&self, name: &str) -> Option<(&SpectrumContainer, usize)> {
+        self.dict.get(name).map(|entry| (&entry.0, entry.1))
     }
     /// Clear all the spectra
     ///
     #[allow(dead_code)]
     pub fn clear_all(&self) {
         for (_, spec) in self.dict.iter() {
-            spec.borrow_mut().clear();
+            spec.0.borrow_mut().clear();
         }
     }
     /// Process an event
@@ -550,7 +558,11 @@ impl SpectrumStorage {
     /// which the caller can do with as they please (including dropping).
     ///
     pub fn remove(&mut self, name: &str) -> Option<SpectrumContainer> {
-        self.dict.remove(name)
+        if let Some(entry) = self.dict.remove(name) {
+            Some(entry.0)
+        } else {
+            None
+        }
     }
 }
 
@@ -839,7 +851,7 @@ mod spec_storage_tests {
         let dict_spec = dict_spec.as_ref().unwrap();
         assert_eq!(
             spec_container.borrow().get_name(),
-            dict_spec.borrow().get_name()
+            dict_spec.0.borrow().get_name()
         );
 
         // Figure out which element of spectra_by_parameter it should be in:
@@ -879,7 +891,7 @@ mod spec_storage_tests {
         let dict_spec = dict_spec.as_ref().unwrap();
         assert_eq!(
             spec_container.borrow().get_name(),
-            dict_spec.borrow().get_name()
+            dict_spec.0.borrow().get_name()
         );
 
         // Figure out which element of spectra_by_parameter it should be in
@@ -931,7 +943,7 @@ mod spec_storage_tests {
         let dict_spec = dict_spec.as_ref().unwrap();
         assert_eq!(
             spec_container.borrow().get_name(),
-            dict_spec.borrow().get_name()
+            dict_spec.0.borrow().get_name()
         );
         // The spectrum should be in other_spectra:
 
@@ -970,7 +982,7 @@ mod spec_storage_tests {
         let dict_spec = dict_spec.as_ref().unwrap();
         assert_eq!(
             spec_container.borrow().get_name(),
-            dict_spec.borrow().get_name()
+            dict_spec.0.borrow().get_name()
         );
         // The spectrum should be in other_spectra:
 
@@ -1021,7 +1033,7 @@ mod spec_storage_tests {
         let dict_spec = dict_spec.as_ref().unwrap();
         assert_eq!(
             spec_container.borrow().get_name(),
-            dict_spec.borrow().get_name()
+            dict_spec.0.borrow().get_name()
         );
         // The spectrum should be in other_spectra:
 
@@ -1062,7 +1074,7 @@ mod spec_storage_tests {
         let dict_spec = dict_spec.as_ref().unwrap();
         assert_eq!(
             spec_container.borrow().get_name(),
-            dict_spec.borrow().get_name()
+            dict_spec.0.borrow().get_name()
         );
         // The spectrum should be in other_spectra:
 
@@ -1100,7 +1112,7 @@ mod spec_storage_tests {
         let dict_spec = dict_spec.as_ref().unwrap();
         assert_eq!(
             spec_container.borrow().get_name(),
-            dict_spec.borrow().get_name()
+            dict_spec.0.borrow().get_name()
         );
         // The spectrum should be in other_spectra:
 
@@ -1133,7 +1145,7 @@ mod spec_storage_tests {
         let result = store.get("spec1");
         assert!(result.is_some());
         let spec = result.unwrap();
-        assert_eq!(String::from("spec1"), spec.borrow().get_name());
+        assert_eq!(String::from("spec1"), spec.0.borrow().get_name());
     }
     #[test]
     fn get_2() {
@@ -1211,13 +1223,13 @@ mod spec_storage_tests {
         let c1 = store
             .get("spec1")
             .expect("spec1 should have been in the container");
-        for c in c1.borrow().get_histogram_1d().unwrap().borrow().iter() {
+        for c in c1.0.borrow().get_histogram_1d().unwrap().borrow().iter() {
             assert_eq!(0.0, c.value.get());
         }
         let c2 = store
             .get("spec2")
             .expect("spec2 should have been in the container");
-        for c in c2.borrow().get_histogram_2d().unwrap().borrow().iter() {
+        for c in c2.0.borrow().get_histogram_2d().unwrap().borrow().iter() {
             assert_eq!(0.0, c.value.get());
         }
     }
@@ -1275,10 +1287,10 @@ mod spec_storage_tests {
         let s1 = store
             .get("spec1")
             .expect("Failed to fetch spec1 from store");
-        let h1 = s1
-            .borrow()
-            .get_histogram_1d()
-            .expect("Failed to get 1d histogram");
+        let h1 =
+            s1.0.borrow()
+                .get_histogram_1d()
+                .expect("Failed to get 1d histogram");
 
         let mut sum1 = 0.0;
         for c in h1.borrow().iter() {
@@ -1289,10 +1301,10 @@ mod spec_storage_tests {
         let s2 = store
             .get("spec2")
             .expect("Failed to fetch spec2 from store");
-        let h2 = s2
-            .borrow()
-            .get_histogram_2d()
-            .expect("Failed to get 2d histogram");
+        let h2 =
+            s2.0.borrow()
+                .get_histogram_2d()
+                .expect("Failed to get 2d histogram");
         let mut sum2 = 0.0;
         for c in h2.borrow().iter() {
             sum2 += c.value.get();
@@ -1347,12 +1359,14 @@ mod spec_storage_tests {
         store
             .get("spec1")
             .expect("spec1 was missing")
+            .0
             .borrow_mut()
             .gate("true", &cd)
             .expect("true gate not found when gating spec1.");
         store
             .get("spec2")
             .expect("spec2 was missing")
+            .0
             .borrow_mut()
             .gate("false", &cd)
             .expect("false gate not found when gating spec2");
@@ -1383,10 +1397,10 @@ mod spec_storage_tests {
         let s1 = store
             .get("spec1")
             .expect("Failed to fetch spec1 from store");
-        let h1 = s1
-            .borrow()
-            .get_histogram_1d()
-            .expect("Failed to get 1d histogram");
+        let h1 =
+            s1.0.borrow()
+                .get_histogram_1d()
+                .expect("Failed to get 1d histogram");
 
         let mut sum1 = 0.0;
         for c in h1.borrow().iter() {
@@ -1397,10 +1411,10 @@ mod spec_storage_tests {
         let s2 = store
             .get("spec2")
             .expect("Failed to fetch spec2 from store");
-        let h2 = s2
-            .borrow()
-            .get_histogram_2d()
-            .expect("Failed to get 2d histogram");
+        let h2 =
+            s2.0.borrow()
+                .get_histogram_2d()
+                .expect("Failed to get 2d histogram");
         let mut sum2 = 0.0;
         for c in h2.borrow().iter() {
             sum2 += c.value.get();

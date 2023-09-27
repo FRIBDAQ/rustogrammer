@@ -224,6 +224,21 @@ pub struct BindingsResponse {
     status: String,
     detail: Vec<Binding>,
 }
+//Get the id of a spectrum or - if it cannot be gotten:
+
+fn get_spectrum_id(api: &spectrum_messages::SpectrumMessageClient, name: &str) -> usize {
+    let listing = api.list_spectra(name);
+    if let Ok(l) = listing {
+        if l.len() == 1 {
+            l[0].id
+        } else {
+            0
+        }
+    } else {
+        0
+    }
+}
+
 /// Handles the /spectcl/sbind/list REST request.
 ///
 /// ### Parameters
@@ -244,8 +259,10 @@ pub struct BindingsResponse {
 pub fn sbind_bindings(
     pattern: OptionalString,
     state: &State<SharedBinderChannel>,
+    spec_api: &State<SharedHistogramChannel>,
 ) -> Json<BindingsResponse> {
     let api = binder::BindingApi::new(&state.inner().lock().unwrap());
+    let sapi = spectrum_messages::SpectrumMessageClient::new(&spec_api.inner().lock().unwrap());
     let p = if let Some(pat) = pattern {
         pat
     } else {
@@ -260,7 +277,7 @@ pub fn sbind_bindings(
             response.status = String::from("OK");
             for b in l {
                 response.detail.push(Binding {
-                    spectrumid: 0,
+                    spectrumid: get_spectrum_id(&sapi, &b.1),
                     name: b.1,
                     binding: b.0,
                 });
@@ -661,7 +678,9 @@ mod sbind_tests {
         bind_list.sort_by(|a, b| a.name.cmp(&b.name));
 
         assert_eq!("oned", bind_list[0].name);
+        assert_eq!(0, bind_list[0].spectrumid);
         assert_eq!("twod", bind_list[1].name);
+        assert_eq!(1, bind_list[1].spectrumid);
 
         teardown(c, &papi, &bapi);
     }
@@ -686,6 +705,7 @@ mod sbind_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(1, reply.detail.len());
         assert_eq!("twod", reply.detail[0].name);
+        assert_eq!(1, reply.detail[0].spectrumid);
 
         teardown(c, &papi, &bapi);
     }
