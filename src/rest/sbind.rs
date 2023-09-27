@@ -276,9 +276,8 @@ pub fn sbind_bindings(
         Ok(l) => {
             response.status = String::from("OK");
             for b in l {
-                let id = get_spectrum_id(&sapi, &b.1);
                 response.detail.push(Binding {
-                    spectrumid: id,
+                    spectrumid: get_spectrum_id(&sapi, &b.1),
                     name: b.1,
                     binding: b.0,
                 });
