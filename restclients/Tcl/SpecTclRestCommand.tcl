@@ -1616,7 +1616,6 @@ namespace eval spectrum {
                 set item 0
             }
             
-            puts "Description: $s "
             lappend item                                                        \
                 [dict get $s name] [dict get $s type]                           \
                 [dict get $s parameters]                                        \
