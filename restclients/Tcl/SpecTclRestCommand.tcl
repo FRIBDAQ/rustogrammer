@@ -1379,7 +1379,6 @@ namespace eval parameter {
 # @param args - The remaining command words.
 #
 proc SpecTclRestCommand::_parameterCreate {ns name args} {
-    puts "Will use '[list ${ns}::-new $name {*}$args]'"
     return [list ${ns}::-new $name {*}$args]
 }
 namespace ensemble configure parameter -unknown SpecTclRestCommand::_parameterCreate
@@ -1609,7 +1608,6 @@ namespace eval spectrum {
             error "Too many arguments to spectrum -list"
         }
         set raw [$::SpecTclRestCommand::client spectrumList $pattern]
-        
         set result [list]
         foreach s $raw {
             if {[dict exists $s id]} {
@@ -1617,12 +1615,13 @@ namespace eval spectrum {
             } else {
                 set item 0
             }
-            lappend item \                                              \
-                [dict get $s name] [dict get $s type]                        \
-                [dict get $s parameters]                                       \
+            
+            puts "Description: $s "
+            lappend item                                                        \
+                [dict get $s name] [dict get $s type]                           \
+                [dict get $s parameters]                                        \
                 [::SpecTclRestCommand::_axesDictToAxesList [dict get $s axes]]  \
-                [dict get $s chantype]                                         \
-            carggo 
+                [dict get $s chantype]
             if {$showgates} {
                 lappend item [dict get $s gate]
             }
