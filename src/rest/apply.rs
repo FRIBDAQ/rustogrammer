@@ -98,10 +98,9 @@ pub fn apply_list(
         detail: Vec::new(),
     };
     for spectrum in listing {
-
         result.detail.push(Application {
             spectrum: spectrum.name,
-            gate: spectrum.gate
+            gate: spectrum.gate,
         });
     }
     Json(result)
@@ -454,18 +453,21 @@ mod apply_tests {
         param_api
             .create_parameter("test")
             .expect("Making parameter");
-                spec_api
+        spec_api
             .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
             .expect("making spectrum");
 
         let c = Client::tracked(rocket).expect("Making client");
         let r = c.get("/list");
-        let json = r.dispatch().into_json::<ApplicationListing>().expect("Parsing Json");
+        let json = r
+            .dispatch()
+            .into_json::<ApplicationListing>()
+            .expect("Parsing Json");
 
         assert_eq!("OK", json.status.as_str());
         assert_eq!(1, json.detail.len());
         let detail = &json.detail[0];
-        assert_eq!("test_spec", detail.spectrum .as_str());
+        assert_eq!("test_spec", detail.spectrum.as_str());
         assert!(detail.gate.is_none());
 
         teardown(chan, &papi, &bapi);
