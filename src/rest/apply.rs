@@ -65,7 +65,7 @@ pub fn apply_gate(
 #[serde(crate = "rocket::serde")]
 pub struct Application {
     spectrum: String,
-    gate: String,
+    gate: Option<String>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
@@ -98,15 +98,10 @@ pub fn apply_list(
         detail: Vec::new(),
     };
     for spectrum in listing {
-        let condition_name = if let Some(g) = spectrum.gate {
-            g
-        } else {
-            String::from("-none-")
-        };
 
         result.detail.push(Application {
             spectrum: spectrum.name,
-            gate: condition_name,
+            gate: spectrum.gate
         });
     }
     Json(result)
@@ -330,8 +325,8 @@ mod apply_tests {
             .expect("Failed Json decode");
         assert_eq!("OK", json.status.as_str());
         assert_eq!(1, json.detail.len());
-        assert_eq!("test_spec", json.detail[0].spectrum.as_str());
-        assert_eq!("True", json.detail[0].gate.as_str());
+        assert_eq!("test_spec", json.detail[0].spectrum);
+        assert_eq!("True", json.detail[0].gate.as_ref().unwrap().as_str());
 
         teardown(chan, &papi, &bapi);
     }
@@ -436,8 +431,43 @@ mod apply_tests {
             .expect("Failed Json decode");
         assert_eq!("OK", json.status.as_str());
         assert_eq!(1, json.detail.len());
-        assert_eq!("test_spec", json.detail[0].spectrum.as_str());
-        assert_eq!("True", json.detail[0].gate.as_str());
+        assert_eq!("test_spec", json.detail[0].spectrum);
+        assert_eq!("True", json.detail[0].gate.as_ref().unwrap().as_str());
+        teardown(chan, &papi, &bapi);
+    }
+    #[test]
+    fn apply_list_5() {
+        // List spectrum that has no gate the detail for it has a nullgate:
+
+        let rocket = setup();
+        //
+
+        let (chan, papi, bapi) = get_state(&rocket);
+
+        // Use the channel to make a parameter, spectrum  and
+        // condition api which we'll use to create what we need to test
+        // application:
+
+        let param_api = parameter_messages::ParameterMessageClient::new(&chan);
+        let spec_api = spectrum_messages::SpectrumMessageClient::new(&chan);
+
+        param_api
+            .create_parameter("test")
+            .expect("Making parameter");
+                spec_api
+            .create_spectrum_1d("test_spec", "test", 0.0, 1024.0, 1024)
+            .expect("making spectrum");
+
+        let c = Client::tracked(rocket).expect("Making client");
+        let r = c.get("/list");
+        let json = r.dispatch().into_json::<ApplicationListing>().expect("Parsing Json");
+
+        assert_eq!("OK", json.status.as_str());
+        assert_eq!(1, json.detail.len());
+        let detail = &json.detail[0];
+        assert_eq!("test_spec", detail.spectrum .as_str());
+        assert!(detail.gate.is_none());
+
         teardown(chan, &papi, &bapi);
     }
     #[test]
