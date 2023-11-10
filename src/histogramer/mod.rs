@@ -220,9 +220,9 @@ mod hgrammer_tests {
     use super::*;
     use crate::messaging;
     use crate::test::histogramer_common;
+    use std::matches;
     use std::sync::mpsc;
     use std::thread;
-    use std::matches;
 
     fn setup() -> (thread::JoinHandle<()>, mpsc::Sender<Request>) {
         let (req, jh) = histogramer_common::setup();
@@ -271,8 +271,11 @@ mod hgrammer_tests {
         let client = messaging::condition_messages::ConditionMessageClient::new(&ch);
 
         let reply = client.create_true_condition("true");
-        assert!(matches!(reply, messaging::condition_messages::ConditionReply::Created));
-            
+        assert!(matches!(
+            reply,
+            messaging::condition_messages::ConditionReply::Created
+        ));
+
         let reply = client.list_conditions("*");
         assert!(
             if let messaging::condition_messages::ConditionReply::Listing(l) = reply {
