@@ -739,8 +739,6 @@ impl SpectrumProcessor {
         let xaxis = spec.borrow().axes().as_tuple().0.clone();
         let yaxis = spec.borrow().axes().as_tuple().1.clone();
 
-        println!("Xbin: {} bins: {}", xbin, xaxis.num_bins());
-
         if xbin >= xaxis.num_bins() {
             return Err(format!(
                 "Xbin: {} is larger than the number of bins: {}",
@@ -2423,7 +2421,8 @@ mod spproc_tests {
             .processor
             .dict
             .get("test")
-            .expect("Missing summary spectrum").0
+            .expect("Missing summary spectrum")
+            .0
             .borrow();
         assert_eq!(String::from("test"), spec.get_name());
         assert_eq!(String::from("Summary"), spec.get_type());
@@ -2558,7 +2557,8 @@ mod spproc_tests {
             .processor
             .dict
             .get("test")
-            .expect("Missing spectrum").0
+            .expect("Missing spectrum")
+            .0
             .borrow();
 
         assert_eq!(String::from("test"), spec.get_name());
@@ -2747,7 +2747,8 @@ mod spproc_tests {
             .processor
             .dict
             .get("test")
-            .expect("Could not find spectrum").0
+            .expect("Could not find spectrum")
+            .0
             .borrow();
         assert_eq!(String::from("test"), spec.get_name());
         assert_eq!(String::from("2DSum"), spec.get_type());
@@ -3062,7 +3063,8 @@ mod spproc_tests {
             assert_eq!(SpectrumReply::Created, reply);
         }
         let spec = to.processor.dict.get("test.1").expect("Missing spectrum");
-        let h = spec.0
+        let h = spec
+            .0
             .borrow()
             .get_histogram_1d()
             .expect("Not 1d but should be");
@@ -3110,7 +3112,8 @@ mod spproc_tests {
             assert_eq!(SpectrumReply::Created, reply);
         }
         let spec = to.processor.dict.get("test.1").expect("Missing spectrum");
-        let h = spec.0
+        let h = spec
+            .0
             .borrow()
             .get_histogram_1d()
             .expect("Not 1d but should be");
@@ -6749,7 +6752,7 @@ mod spectrum_api_tests {
             assert_eq!(1, l.len());
             assert_eq!(
                 SpectrumProperties {
-                    id:0,
+                    id: 0,
                     name: String::from("test"),
                     type_name: String::from("Multi2d"),
                     xparams: params,
@@ -6803,7 +6806,7 @@ mod spectrum_api_tests {
             assert_eq!(1, l.len());
             assert_eq!(
                 SpectrumProperties {
-                    id:0,
+                    id: 0,
                     name: String::from("test"),
                     type_name: String::from("PGamma"),
                     xparams,
@@ -6850,7 +6853,7 @@ mod spectrum_api_tests {
         assert_eq!(1, l.len());
         assert_eq!(
             SpectrumProperties {
-                id:0,
+                id: 0,
                 name: String::from("test"),
                 type_name: String::from("Summary"),
                 xparams: params,
@@ -6887,7 +6890,7 @@ mod spectrum_api_tests {
         assert_eq!(1, l.len());
         assert_eq!(
             SpectrumProperties {
-                id:0,
+                id: 0,
                 name: String::from("test"),
                 type_name: String::from("2D"),
                 xparams: vec![String::from("param.0")],
@@ -6939,7 +6942,7 @@ mod spectrum_api_tests {
         assert_eq!(1, l.len());
         assert_eq!(
             SpectrumProperties {
-                id:0,
+                id: 0,
                 name: String::from("test"),
                 type_name: String::from("2DSum"),
                 xparams,

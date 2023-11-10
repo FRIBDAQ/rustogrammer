@@ -200,6 +200,7 @@ impl ProcessingThread {
                 self.attached_file = Some(fp);
                 self.processing = false;
                 Ok(String::from(""))
+               
             }
             Err(e) => Err(e.to_string()),
         }
@@ -347,7 +348,7 @@ impl ProcessingThread {
     // Flush the event batch to the histogramer:
     //
     fn flush_events(&mut self) {
-        if self.event_chunk.is_empty() {
+        if !self.event_chunk.is_empty() {
             if let Err(s) = self.spectrum_api.process_events(&self.event_chunk) {
                 panic!("Unable to get the histogram thread to process events {}", s);
             }
@@ -385,6 +386,7 @@ impl ProcessingThread {
 
             if let Err(reason) = try_item {
                 println!("Failed to read a ring item: {}", reason);
+                self.flush_events();
                 self.processing = false;
                 return true;
             }
