@@ -72,7 +72,9 @@ class SpectrumList(QWidget) :
 
         self.filter.clicked.connect(self.filter_relay)
         self.clear.clicked.connect(self.clear_relay)
-    ''' Provide access to the table: '''
+    ''' Provide access to the table  returns the QTableView widget
+        that will display the spectrum list.
+    '''
 
     def getList(self) :
         return self.list
