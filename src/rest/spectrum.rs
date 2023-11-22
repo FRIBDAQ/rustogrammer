@@ -1491,7 +1491,7 @@ mod spectrum_tests {
 
         let rocket = setup();
         let (chan, papi, binder_api) = getstate(&rocket);
-        
+
         let client = Client::untracked(rocket).expect("making client");
         let req = client.get("/list?filter=pgamma");
         let reply = req
