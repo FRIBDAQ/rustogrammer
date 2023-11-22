@@ -7,7 +7,7 @@
     update.
    
    Each table entry is defined by:
-   *  The specctrum name
+   *  The spectrum name
    *  The spectrum type string.
    *  Xparameters 
    *  X axis limits and binning.
@@ -26,9 +26,12 @@
 
 from PyQt5.QtWidgets import (
     QTableView, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLineEdit,
+    QPushButton, QLineEdit
 )
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import *
+
+
+from rustogramer_client import rustogramer
 
 '''  This is the view for spectra - the table that contains the spectra listed.
 '''
@@ -62,6 +65,7 @@ class SpectrumList(QWidget) :
         self.filter = QPushButton("Filter", self.controlbar)
         hlayout.addWidget(self.filter)
         self.mask = QLineEdit(self.controlbar)
+        self.mask.setText('*')
         hlayout.addWidget(self.mask)
         self.clear = QPushButton('Clear', self.controlbar)
         hlayout.addWidget(self.clear)
@@ -86,12 +90,13 @@ class SpectrumList(QWidget) :
         self.filter_signal.emit(self.mask.text())
 
     def clear_relay(self):
-        self.mask.setText('')
+        self.mask.setText('*')
         self.clear_signal.emit()
+        self.filter_relay()
 
 # Test the widget:
 from PyQt5.QtWidgets import QApplication
-def test() :
+def test_view() :
     def onFilter(txt):
         print("Filter clicked: ", txt)
     def onClear() :
@@ -105,4 +110,122 @@ def test() :
 
 
    
+#--------------------------------------------------------------
+
+#  Now provide a view for the spectra.  
+
+''' The Spectrum View is subclassed from Abstract List model
+    class.  We don't use QStringList because we need to be able
+    to provide structure to the parameters cells which, in general,
+    contain a list of parameters not a single parameter.
+'''
+class SpectrumModel(QAbstractTableModel):
+    data = None
+    rows = 0
+    cols = 11
+    colheadings = ['Name', 'Type', 
+        'XParameter(s)', 'Low', 'High', 'Bins',
+        'YParameter(s)', 'Low', 'High', 'Bins', 'Gate'
+    ]
+    def __init__(self, parent = None) :
+        super().__init__(parent)
+    def rowCount(self, idx) :
+        return self.rows
+    def columnCount(self, idx):
+        return self.cols
     
+    ''' Provide the header data for the view
+    '''
+    def headerData(self, section, orientation, role) :
+        if role != Qt.DisplayRole:
+            return None
+        
+        if section < len(self.colheadings) :
+            return self.colheadings[section]
+        else :
+            return None
+
+    def data(self, index, role) :
+            
+        if role != Qt.DisplayRole:
+            return None
+        r = index.row()
+        c = index.column()
+
+        if self.data is None:    # Needs to update to get data.
+            return None      
+
+        if r < len(self.data):
+            row = self.data[r]
+            if c < len(row):
+                print("Data: ", r,c, row[c])
+                return row[c]
+        return None
+
+    ''' This method updates the data and rows variables.
+        the client parameter must be a rustogramer client
+        object and is used to get data from the
+        histogramer.
+    '''
+    def update(self, client, pattern = '*'):
+        json = client.spectrum_list(pattern)
+        spectra = json['detail']
+        print(spectra)
+        self.data = []
+        self.rows = len(spectra)
+
+        for spectrum in spectra :
+            info = [
+                spectrum['name'],
+                spectrum['type'],
+                spectrum['xparameters']
+
+            ]
+            if spectrum['xaxis'] is not None:
+                info.append(spectrum['xaxis']['low'])
+                info.append(spectrum['xaxis']['high'])
+                info.append(spectrum['xaxis']['bins'])
+            else :
+                info.append(None)
+                info.append(None)
+                info.append(None)
+            info.append(spectrum['yparameters'])
+            if spectrum['yaxis'] is not None:
+                info.append(spectrum['yaxis']['low'])
+                info.append(spectrum['yaxis']['high'])
+                info.append(spectrum['yaxis']['bins'])
+            else :
+                info.append(None)
+                info.append(None)
+                info.append(None)
+            info.append(spectrum['gate'])
+            self.data.append(info)
+        print('update: ', self.data)
+        self.dataChanged.emit(self.createIndex(0,0), self.createIndex( self.rows, 10))
+
+
+#  Test the model/view.
+
+
+def testmv(host, port):
+    def update(pattern):
+        model.update(client, pattern)
+    client = rustogramer({'host': host, 'port': port})
+    app = QApplication(['test'])
+    win = SpectrumList()
+    win.show()
+    model = SpectrumModel()
+    model.update(client)      # Initial data.
+    
+    list = win.getList()
+    list.setModel(model)
+    list.showGrid()
+
+    
+    #  If Filter is clicked, update the model:
+
+    win.filter_signal.connect(update)
+
+    app.exec()
+
+
