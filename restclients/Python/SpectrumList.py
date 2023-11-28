@@ -217,7 +217,7 @@ def testmv(host, port):
         client.rawparameter_create('x', {})
         client.rawparameter_create('y', {})
         client.spectrum_create1d('test', 'test', 0.0, 1024.0, 1024)
-        client.spectrum_create2d('2d', 'x', 'y', 0.0, 1024.0, 256, 0.0, 4096.0, 246)
+        client.spectrum_create2d('2d', 'x', 'y', 0.0, 1024.0, 256, 0.0, 4096.0, 256)
         client.spectrum_createg1('g1', ['x', 'y', 'test'], 0.0, 1024, 1024)
         client.sbind_all()
     except:
