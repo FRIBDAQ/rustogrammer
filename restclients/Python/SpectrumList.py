@@ -140,7 +140,7 @@ class SpectrumModel(QAbstractTableModel):
         if role != Qt.DisplayRole:
             return None
         
-        if section < len(self.colheadings) :
+        if (orientation == Qt.Horizontal) and (section < len(self.colheadings)) :
             return self.colheadings[section]
         else :
             return None
@@ -158,7 +158,6 @@ class SpectrumModel(QAbstractTableModel):
         if r < len(self.data):
             row = self.data[r]
             if c < len(row):
-                print("Data: ", r,c, row[c])
                 return row[c]
         return None
 
@@ -170,7 +169,6 @@ class SpectrumModel(QAbstractTableModel):
     def update(self, client, pattern = '*'):
         json = client.spectrum_list(pattern)
         spectra = json['detail']
-        print(spectra)
         self.data = []
         self.rows = len(spectra)
 
@@ -178,7 +176,7 @@ class SpectrumModel(QAbstractTableModel):
             info = [
                 spectrum['name'],
                 spectrum['type'],
-                spectrum['xparameters']
+                ', '.join(spectrum['xparameters'])
 
             ]
             if spectrum['xaxis'] is not None:
@@ -189,7 +187,7 @@ class SpectrumModel(QAbstractTableModel):
                 info.append(None)
                 info.append(None)
                 info.append(None)
-            info.append(spectrum['yparameters'])
+            info.append(', '.join(spectrum['yparameters']))
             if spectrum['yaxis'] is not None:
                 info.append(spectrum['yaxis']['low'])
                 info.append(spectrum['yaxis']['high'])
@@ -200,7 +198,6 @@ class SpectrumModel(QAbstractTableModel):
                 info.append(None)
             info.append(spectrum['gate'])
             self.data.append(info)
-        print('update: ', self.data)
         self.dataChanged.emit(self.createIndex(0,0), self.createIndex( self.rows, 10))
 
 
@@ -211,6 +208,26 @@ def testmv(host, port):
     def update(pattern):
         model.update(client, pattern)
     client = rustogramer({'host': host, 'port': port})
+
+    # Make parameter(s) and spectra try/catch in case we've already
+    # run:
+
+    try:
+        client.rawparameter_create('test', {})
+        client.rawparameter_create('x', {})
+        client.rawparameter_create('y', {})
+        client.spectrum_create1d('test', 'test', 0.0, 1024.0, 1024)
+        client.spectrum_create2d('2d', 'x', 'y', 0.0, 1024.0, 256, 0.0, 4096.0, 246)
+        client.spectrum_createg1('g1', ['x', 'y', 'test'], 0.0, 1024, 1024)
+        client.sbind_all()
+    except:
+        pass
+
+    # These should not fail:
+
+    client.condition_make_true('Acond')
+    client.apply_gate('Acond', '2d')
+
     app = QApplication(['test'])
     win = SpectrumList()
     win.show()
