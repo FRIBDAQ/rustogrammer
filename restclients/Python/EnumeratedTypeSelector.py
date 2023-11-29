@@ -12,11 +12,11 @@ from PyQt5.QtWidgets import (
     QTableView, QMainWindow, QComboBox, QApplication
 )
 from PyQt5.QtCore import *
+from enum import Enum
+from capabilities import SpectrumTypes, ChannelTypes
 
-from capabilities import SpectrumTypes
-
-class SpectrumTypeSelector(QComboBox):
-    selected = pyqtSignal(str, SpectrumTypes)
+class TypeSelector(QComboBox):
+    selected = pyqtSignal(str, Enum)
     def __init__(self, parent = None):
         super().__init__(parent)
         self.setEditable(False)
@@ -39,13 +39,28 @@ class SpectrumTypeSelector(QComboBox):
 def sel_handler(type_str, type_val):
     print("Selected: ", type_str, type_val)
 
-def test():
+#  Test with spectrum types:
+
+def teststypes():
     app = QApplication(['test'])
     win = QMainWindow()
-    list = SpectrumTypeSelector()
+    list = TypeSelector()
     list.addItem('1d', SpectrumTypes.Oned)
     list.addItem('2d', SpectrumTypes.Twod)
     list.addItem('Projection', SpectrumTypes.Projection)
+    win.setCentralWidget(list)
+    list.selected.connect(sel_handler)
+    win.show()
+    app.exec()
+
+# test with channel types:
+def testctypes():
+    app = QApplication(['test'])
+    win = QMainWindow()
+    list = TypeSelector()
+    list.addItem('Double', ChannelTypes.Double)
+    list.addItem('Long (32)', ChannelTypes.Long)
+    list.addItem('Short (16)', ChannelTypes.Short)
     win.setCentralWidget(list)
     list.selected.connect(sel_handler)
     win.show()
