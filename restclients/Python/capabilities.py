@@ -144,8 +144,31 @@ def has_projection():
 
 #  Spectrum data types supported:
 
-class DataTypes(Enum):
+class ChannelTypes(Enum):
     Double = auto()
     Long = auto()
     Short = auto()
     Byte = auto()
+
+supported_channel_types = {
+    Program.Rustogramer : {
+        ChannelTypes.Double
+    },
+    Program.SpecTcl : {
+        ChannelTypes.Long, ChannelTypes.Short, ChannelTypes.Byte
+    },
+    Program.Unknown: {}
+}
+
+def _has_channel_type(data_type) :
+    global supported_chanel_types
+    return data_type in supported_channel_types[get_program()]
+
+def has_double_channels():
+    return _has_channel_type(ChannelTypes.Double)
+def has_long_channels():
+    return _has_channel_type(ChannelTypes.Long)
+def has_short_channels():
+    return _has_channel_type(ChannelTypes.Short)
+def has_byte_channels():
+    return _has_channel_type(ChannelTypes.Byte)
