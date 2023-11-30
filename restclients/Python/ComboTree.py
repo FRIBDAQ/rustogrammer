@@ -72,11 +72,30 @@ class ComboTree(QComboBox):
     ''' Clear the model and update the combobox: '''
     def clear(self):
         self.model().clear()
+
     ''' load a tree from the TreeMaker package '''
     def load_tree(self, tree):
-        pass
+        # At the top level we get each top level key and
+        # then recursively get its children:
+        model = self.model()
+        for key in tree:
+            top = QStandardItem(key)
+            self._subtree(top, tree[key])
+            model.appendRow(top)
+
 
     #   Internal methods:
+
+    # Given a standard item and subtree associated iwth it,
+    # Builds the rest of the tree on top of that item.
+    #  This is done recursively.
+    def _subtree(self, top, children):
+        for child in children:
+            child_item = QStandardItem(child)
+            top.appendRow(child_item)
+            if children[child]:    
+                self._subtree(child_item, children[child])
+
 
     def showPopup(self):
         self.setRootModelIndex(QModelIndex())
@@ -150,7 +169,7 @@ def test_lowlevel():
 # High level test where we load a tree:
     
 def test_highlevel():
-    tree_data = ['a', 'b.c', 'c.d.e.f', 'q', 'q.z']
+    tree_data = ['a', 'b.c', 'c.d.e.f', 'q', 'z.z']
     app = QApplication([])
     combo = ComboTree()
     combo.load_tree(tm.make_tree(tree_data))
