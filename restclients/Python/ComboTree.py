@@ -32,6 +32,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtGui import (
     QStandardItem, QStandardItemModel
 )
+import TreeMaker as tm
 
 ''' Specialized tree view that processes mouse button releases
     signal the path of the item selected as the 'chosen' custom signal.
@@ -147,6 +148,14 @@ def test_lowlevel():
     app.exec()
 
 # High level test where we load a tree:
-
+    
 def test_highlevel():
-    pass
+    tree_data = ['a', 'b.c', 'c.d.e.f', 'q', 'q.z']
+    app = QApplication([])
+    combo = ComboTree()
+    combo.load_tree(tm.make_tree(tree_data))
+
+    combo.show()
+    combo.selected.connect(sel_slot)
+    
+    app.exec()
