@@ -33,11 +33,9 @@ be as if there were only the name a.b.c
 def make_tree(names):
     result = {}
     for name in names:
-        print('name value', name, result)
         path = name.split('.')
         level = result
         for element in path:
-            print('element/level ', element, level)
             if element not in level:
                 level[element] = {}
             if not isinstance(level[element], str):
