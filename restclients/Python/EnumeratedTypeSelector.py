@@ -9,7 +9,7 @@ type type).
 
 Attributes:
   selectedType - The current selected enum.
-  selectedText - The currently selected text in the box.
+  selectedText - The currently selected
 '''
 
 from PyQt5.QtWidgets import (
