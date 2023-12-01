@@ -5,102 +5,66 @@
 
 '''
 
-from PyQt5.QtWidgets import QComboBox
-from PyQt5.QtGui import  QValidator
+from PyQt5.QtWidgets import (QWidget, QComboBox, QMainWindow, 
+    QApplication, QHBoxLayout
+)
+from PyQt5.QtGui import  (QIntValidator, QDoubleValidator)
 
-''' Float Validator - This validator returns (see limits below):
-    -  Acceptable for any integer.
-    -  Intermediate for any number trailed with a '.'
-    -  Intermediate for any string that's only whitespace.
-    -  Acceptable for any valid floating point number.
-    -  Invalid for anything else.
 
-    - Optional, inclusive lower and upper limits are supported via the properties  
-        * lowLimit
-        * upperLimit
-      if a limit is 'None' no limit is enforced for that direction.  This allows
-      for semiopen intervals.
-
-    If there's a low limit but the value is less than it it validats as
-    Intermediate.  If a high limit and the value is greater than it it's
-    Invalid    
-
+''' RealInputBox - this is editable and supports a validator for Floats.
+    the limit setting methods are re-exported/delegated for simplicity.
+    It can be a bad thing for you to change the validator if you don't know
+    what you're doing.
 '''
-
-class FloatValidator(QValidator):
+class RealInputBox(QComboBox):
     def __init__(self, *args):
         super().__init__(*args)
-        self.lowLimit = None
-        self.upperLimit = None
-
-    ''' Support for the properties: '''
+        self.setEditable(True)
+        self.v = QDoubleValidator(self)
+        self.setValidator(self.v)
+        self.setInsertPolicy(QComboBox.InsertAtTop)
+        self.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.setMaxVisibleItems(20)
     def lowLimit(self): 
-        return self.lowLimit
+        return self.validator().bottom()
     def setLowLimit(self, value) :
-        self.lowLimit = value        
+        self.validator().setBottom(value)
     def upperLimit(self):
-        return self.upperLimit
+        return self.validator().top()
     def setUpperLimit(self, value) :
-        self.upperLimit = value
-    ''' Implement validation which is, surprisingly, tricky. '''
+        self.validator().setTop(value)
 
-    def checkLimits(self, s):
-        f = float(s)
-        if self.lowLimit is not None and f < self.lowLimit:
-            return QValidator.Intermediate
-        if self.upperLimit is not None and f > self.upperLimit:
-            return QValidator.Invalid
-        return QValidator.Acceptable
-
-    def validate(self, s, pos):
-        if s.isspace():
-            return QValidator.Intermediate
-        try:
-            int(s)
-            return self.checkLimits(s)
-        except:
-            pass
-        try:
-            float(s)
-            return self.checkLimits(s)
-        except:
-            pass
-        # Last case an integer followed by a .
-        if len(s) >= 2:
-            if s[-1] == '.':
-                try:
-                    int(s[0:-2])
-                    return QValidator.Intermediate
-                except:
-                    return QValidator.Invalid
-        # Maybe I relent and believe everything could be edited to good
-        return QValidator.Intermediate
-
-''' A integer validator is the same as a float validator but floating point
-    values are intermediate not acceptable.
-'''
-class IntegerValidator(FloatValidator):
+class IntegerComboBox(RealInputBox):
     def __init__(self, *args):
         super().__init__(*args)
+        self.v = QIntValidator(self)
+        self.setValidator(self.v)
 
-    def validate(self, s, pos):
-        if s.isspace():
-            return QValidator.Intermediate
-        try:
-            int(s)
-            return self.checkLimits(s)
-        except:
-            pass
-        # Maybe I relent and believe everything could be edited to good
-        return QValidator.Intermediate
-
-''' Validator for unsigned integer is just an integer validator
-    with low limit set to 0
-'''
-class UnsignedValidator(IntegerValidator):
+class UnsignedComboBox(IntegerComboBox):
     def __init__(self, *args):
         super().__init__(*args)
         self.setLowLimit(0)
 
 
-    
+def test():
+    app = QApplication([])
+    w   = QMainWindow()
+    l   = QHBoxLayout()
+    wd = QWidget()
+    f   = RealInputBox(w)
+    f.setLowLimit(-100.0)
+    f.setUpperLimit(100.0)
+    i   = IntegerComboBox(w)
+    i.setLowLimit(-100)
+    i.setUpperLimit(100)
+    u   = UnsignedComboBox(w)
+    u.setUpperLimit(1024)
+
+    l.addWidget(f)
+    l.addWidget(i)
+    l.addWidget(u)
+    wd.setLayout(l)
+    w.setCentralWidget(wd)
+
+    w.show()
+    app.exec()
