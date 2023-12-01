@@ -6,6 +6,10 @@ from the list and the slot is provided with the corresponding
 spectrum type Enum as well as the type name (which can be used to
 title other UI elements e.g. a labeled framo for editing spectra of
 type type).
+
+Attributes:
+  selectedType - The current selected enum.
+  selectedText - The currently selected text in the box.
 '''
 
 from PyQt5.QtWidgets import (
@@ -33,6 +37,23 @@ class TypeSelector(QComboBox):
         sptype = self.currentData()
         text = self.currentText()
         self.selected.emit(text, sptype)
+    
+    def selectedType(self):
+        return self.currentData()
+    def setSelectedType(self, d):
+        index = self.findData(d)
+        if index != -1 :
+            self.setCurrentIndex(index)
+        else:
+            raise KeyError
+    def selectedText(self):
+        return self.currentText()
+    def setSelectedText(self, txt):
+        index = self.findText(txt)
+        if index != -1:
+            self.setCurrentIndex(index)
+        else:
+            raise KeyError
 
 ### Test code:
 
