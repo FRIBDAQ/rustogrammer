@@ -117,8 +117,8 @@ supported_spectrum_types = {
 
 def _has_stype(type_sel):
     global supported_spectrum_types
-    get_program() 
-    return type_sel in supported_spectrum_types[server_program]
+    server = get_program() 
+    return type_sel in supported_spectrum_types[server]
 
 def has_1d():
     return _has_stype(SpectrumTypes.Oned)
@@ -140,6 +140,10 @@ def has_bitmask():
     return _has_stype(SpectrumTypes.Bitmask)
 def has_projection():
     return _has_stype(SpectrumTypes.Projection)
+def get_supported_spectrumTypes():
+    global supported_spectrum_types
+    server_program = get_program()
+    return supported_spectrum_types[server_program]
 
 
 #  Spectrum data types supported:
@@ -161,7 +165,7 @@ supported_channel_types = {
 }
 
 def _has_channel_type(data_type) :
-    global supported_chanel_types
+    global supported_channel_types
     return data_type in supported_channel_types[get_program()]
 
 def has_double_channels():
@@ -172,3 +176,7 @@ def has_short_channels():
     return _has_channel_type(ChannelTypes.Short)
 def has_byte_channels():
     return _has_channel_type(ChannelTypes.Byte)
+def get_supported_channelTypes():
+    global supported_channel_types
+    program = get_program()
+    return supported_channel_types[program]
