@@ -39,6 +39,10 @@ class Chooser(ComboTree):
 #  Test - Make widget 1, connect to SpecTcl to load the model,
 #  make widget 2... the two widgets should both list all parameters:
 
+def sel(l):
+    print("Selected: ", l)
+    print("Parameter: ", '.'.join(l))
+
 def test(host, port):
     client = rustogramer({'host': host, 'port': port})
     app = QApplication([])
@@ -48,6 +52,7 @@ def test(host, port):
     l = QHBoxLayout()
     p1 = Chooser(c)
     p1.load_parameters(client)
+    p1.selected.connect(sel)
     l.addWidget(p1)
     p2 = Chooser(c)
     l.addWidget(p2)
