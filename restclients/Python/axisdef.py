@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
 )
 
 _realStrings = [
-    "512.0", "1024.0", "2048.0", "4096.0", "8192.0", "16384.0"
+    "0.0", "512.0", "1024.0", "2048.0", "4096.0", "8192.0", "16384.0"
 ]
 
 _integerStrings = [
@@ -115,6 +115,13 @@ class AxisInput(QFrame):
     
 #  Testing:
 
+def low(nv):
+    print("Low value now: ", nv)
+def high(nv):
+    print("High value: ", nv)
+def bins(nv):
+    print("Bins: ", nv)
+
 
 def testing():
     # We need two to test the common model:
@@ -125,8 +132,14 @@ def testing():
     l = QVBoxLayout()
 
     one = AxisInput(c)
+    one.lowChanged.connect(low)
+    one.highChanged.connect(high)
+    one.binsChanged.connect(bins)
     l.addWidget(one)
     two = AxisInput(c)
+    two.lowChanged.connect(low)
+    two.highChanged.connect(high)
+    two.binsChanged.connect(bins)
     l.addWidget(two)
 
     c.setLayout(l)
