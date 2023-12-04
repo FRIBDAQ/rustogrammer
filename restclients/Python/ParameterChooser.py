@@ -39,11 +39,18 @@ class Chooser(ComboTree):
 #  Test - Make widget 1, connect to SpecTcl to load the model,
 #  make widget 2... the two widgets should both list all parameters:
 
+p=None
+
 def sel(l):
     print("Selected: ", l)
     print("Parameter: ", '.'.join(l))
 
+def new_index(i):
+    global p
+    print("Index ", i)
+    print("That's ", p.current_item())
 def test(host, port):
+    global p
     client = rustogramer({'host': host, 'port': port})
     app = QApplication([])
     mw = QMainWindow()
@@ -53,6 +60,8 @@ def test(host, port):
     p1 = Chooser(c)
     p1.load_parameters(client)
     p1.selected.connect(sel)
+    p = p1
+    p1.currentIndexChanged.connect(new_index)
     l.addWidget(p1)
     p2 = Chooser(c)
     l.addWidget(p2)
