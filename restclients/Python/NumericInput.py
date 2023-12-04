@@ -11,12 +11,13 @@ from PyQt5.QtWidgets import (QWidget, QComboBox, QMainWindow,
 from PyQt5.QtGui import  (QIntValidator, QDoubleValidator)
 
 
-''' RealInputBox - this is editable and supports a validator for Floats.
+
+class RealInputBox(QComboBox):
+    ''' RealInputBox - this is editable and supports a validator for Floats.
     the limit setting methods are re-exported/delegated for simplicity.
     It can be a bad thing for you to change the validator if you don't know
     what you're doing.
-'''
-class RealInputBox(QComboBox):
+    '''
     def __init__(self, *args):
         super().__init__(*args)
         self.setEditable(True)
@@ -34,13 +35,13 @@ class RealInputBox(QComboBox):
     def setUpperLimit(self, value) :
         self.validator().setTop(value)
 
-class IntegerComboBox(RealInputBox):
+class IntegerInputBox(RealInputBox):
     def __init__(self, *args):
         super().__init__(*args)
         self.v = QIntValidator(self)
         self.setValidator(self.v)
 
-class UnsignedComboBox(IntegerComboBox):
+class UnsignedInputBox(IntegerInputBox):
     def __init__(self, *args):
         super().__init__(*args)
         self.setLowLimit(0)
@@ -54,7 +55,7 @@ def test():
     f   = RealInputBox(w)
     f.setLowLimit(-100.0)
     f.setUpperLimit(100.0)
-    i   = IntegerComboBox(w)
+    i   = IntegerInputBox(w)
     i.setLowLimit(-100)
     i.setUpperLimit(100)
     u   = UnsignedComboBox(w)
