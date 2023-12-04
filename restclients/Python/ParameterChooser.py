@@ -26,6 +26,7 @@ class Chooser(ComboTree):
         super().__init__(*args)
         self.setModel(_parameter_model)
     def load_parameters(self, client):
+        self.clear()              # Don't accumulate
         parameters = client.parameter_list()
         names = []
         for parameter in  parameters['detail']:
