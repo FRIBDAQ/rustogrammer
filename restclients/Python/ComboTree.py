@@ -50,7 +50,8 @@ class ComboTree(QComboBox):
 
         # Set up the view:
 
-        self.skip_next_hide = False
+        self.__skip_next_hide = False
+        self._last_index = None
         tree_view = TreeView(self)
         tree_view.setFrameShape(QFrame.NoFrame)
         tree_view.setEditTriggers(tree_view.NoEditTriggers)
@@ -119,6 +120,16 @@ class ComboTree(QComboBox):
             self.mouse(event)
             self.__skip_next_hide = not self.view().visualRect(index).contains(event.pos())
         return False
+    def _path(self, idx):
+        # Given a model index get its path:
+        model = self.model()
+        item = model.itemFromIndex(idx)
+        result = []
+        while item is not None:
+            result.insert(0, item.text())
+            item = item.parent()
+        return result            
+
     #  Called when a mouse event hits...signal the selected item.
     # with its path.  Note that we only signal on terminal nodes.
     #
@@ -128,20 +139,23 @@ class ComboTree(QComboBox):
         idx = view.indexAt(pos)
         model= self.model()
         if model is not None:
-            item = model.itemFromIndex(idx)
-            if not item.hasChildren():
-                result = []
-                while item is not None:
-                    result.insert(0, item.text())
-                    item = item.parent()
-                self.selected.emit(result)
+            self._lastIndex = idx
+            if not model.itemFromIndex(idx).hasChildren():
+                self.selected.emit(self._path(idx))
         super().mouseReleaseEvent(e)
-        
     
-    #  This just relays the signal from the view:
+    def _root_item(self, ):
+        current = self.model().QModelIndex()
+        p = current.parent()
+        while p is not None:
+            current = p
+        return current
 
-    def selection_slot(self, selection):
-        self.selected.emit(selection)
+    def current_item(self):
+        if self._lastIndex is not None:
+            return self._path(self._lastIndex)
+        else:
+            return ""            
 
 # Test functions:
 
