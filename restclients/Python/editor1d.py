@@ -305,6 +305,7 @@ def make_spectrum_array(sname, param):
             client.spectrum_create1d(sname, pname, low, high, bins)
         
         client.sbind_spectra(spectrum_names)
+        editor.set_name('')
 
 # Respond to the create/replace button:
 
@@ -332,8 +333,10 @@ def create():
             bins  = editor.bins()
             client.spectrum_create1d(sname, param, low, high, bins)
             client.sbind_spectra([sname])
+            editor.setName('')
         else:
             make_spectrum_array(sname, param)
+           
 
 def test(host, port):
     global client
