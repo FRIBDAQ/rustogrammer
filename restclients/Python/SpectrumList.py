@@ -146,11 +146,12 @@ class SpectrumModel(QAbstractTableModel):
             return None
 
     def data(self, index, role) :
-            
+        
         if role != Qt.DisplayRole:
             return None
         r = index.row()
         c = index.column()
+
 
         if self.data is None:    # Needs to update to get data.
             return None      
@@ -173,33 +174,46 @@ class SpectrumModel(QAbstractTableModel):
         self.rows = len(spectra)
 
         for spectrum in spectra :
-            info = [
-                spectrum['name'],
-                spectrum['type'],
-                ', '.join(spectrum['xparameters'])
-
-            ]
-            if spectrum['xaxis'] is not None:
-                info.append(spectrum['xaxis']['low'])
-                info.append(spectrum['xaxis']['high'])
-                info.append(spectrum['xaxis']['bins'])
-            else :
-                info.append(None)
-                info.append(None)
-                info.append(None)
-            info.append(', '.join(spectrum['yparameters']))
-            if spectrum['yaxis'] is not None:
-                info.append(spectrum['yaxis']['low'])
-                info.append(spectrum['yaxis']['high'])
-                info.append(spectrum['yaxis']['bins'])
-            else :
-                info.append(None)
-                info.append(None)
-                info.append(None)
-            info.append(spectrum['gate'])
-            self.data.append(info)
+            self._addItem(spectrum)
+        
+        self.beginResetModel() 
         self.dataChanged.emit(self.createIndex(0,0), self.createIndex( self.rows, 10))
+        self.endResetModel()
 
+
+    def addSpectrum(self, definition):
+        self.rows = self.rows+1
+        self._addItem(definition)
+        self.beginResetModel()
+        self.dataChanged.emit(self.createIndex(0,0), self.createIndex( self.rows, 10))
+        self.endResetModel()
+    
+    def _addItem(self, spectrum):
+        info = [
+            spectrum['name'],
+            spectrum['type'],
+            ', '.join(spectrum['xparameters'])
+
+        ]
+        if spectrum['xaxis'] is not None:
+            info.append(spectrum['xaxis']['low'])
+            info.append(spectrum['xaxis']['high'])
+            info.append(spectrum['xaxis']['bins'])
+        else :
+            info.append(None)
+            info.append(None)
+            info.append(None)
+        info.append(', '.join(spectrum['yparameters']))
+        if spectrum['yaxis'] is not None:
+            info.append(spectrum['yaxis']['low'])
+            info.append(spectrum['yaxis']['high'])
+            info.append(spectrum['yaxis']['bins'])
+        else :
+            info.append(None)
+            info.append(None)
+            info.append(None)
+        info.append(spectrum['gate'])
+        self.data.append(info)
 
 #  Test the model/view.
 
