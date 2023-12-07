@@ -61,6 +61,19 @@ class SpectrumWidget(QWidget):
 
         self.setLayout(layout)
 
+        # Connect to be able to update the view:
+
+        self._editor.new_spectrum.connect(self._add_to_listing)
+
+    def _add_to_listing(self, new_name):
+        # Get the definition:
+
+        sdef = _client.spectrum_list(new_name)
+        sdef = sdef ['detail']
+        if len(sdef) == 1:
+            self._spectrumListModel.addSpectrum(sdef[0])
+        
+
 class NullSpectrumController:
     def __init__(self, model):
         pass
