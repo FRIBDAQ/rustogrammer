@@ -71,6 +71,10 @@ def set_client(client_obj):
     global client
     client = client_obj
 
+def get_client():
+    global client
+    return client
+
 #  Spectrum Type capabilities:
 
 class SpectrumTypes(Enum):
