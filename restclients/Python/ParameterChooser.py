@@ -11,7 +11,7 @@
 '''
 
 
-from PyQt5.QtGui import QStandardItemModel
+from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QHBoxLayout, QMainWindow, QWidget
 )
@@ -20,6 +20,33 @@ from rustogramer_client import rustogramer
 import TreeMaker as tm
 
 _parameter_model = QStandardItemModel()
+
+
+#  These are shamelessly stolen from ParameterChooser and ComboTree:
+
+# Given a standard item and subtree associated iwth it,
+# Builds the rest of the tree on top of that item.
+#  This is done recursively.
+def _subtree(top, children):
+    for child in children:
+        child_item = QStandardItem(child)
+        top.appendRow(child_item)
+        if children[child]:    
+            _subtree(child_item, children[child])
+
+
+def update_model(client):
+    global _parameter_model
+    _parameter_model.clear()
+    parameters = client.parameter_list()
+    names = [x['name'] for x in parameters['detail']]
+    names.sort()
+    tree = tm.make_tree(names)
+    for key in tree:
+        top = QStandardItem(key)
+        _subtree(top, tree[key])
+        _parameter_model.appendRow(top)
+
 
 class Chooser(ComboTree):
     def __init__(self, *args):
