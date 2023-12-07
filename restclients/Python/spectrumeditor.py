@@ -39,12 +39,13 @@ import editorSummary, EnumeratedTypeSelector
 # NullController - for unimplemented creations:
 
 class NoneController:
-    def __init__(self, model):
+    def __init__(self, editor, model):
         pass
 ###
 #   Controller that handles the Oned editor view signals:
 class OneDController:
-    def __init__(self, model):
+    def __init__(self, editor, model):
+        self._editor = editor
         self._model = model
         model.commit.connect(self.create)
         model.parameterSelected.connect(self.load_param)
@@ -111,7 +112,7 @@ class Editor(QWidget):
             if info[0] in supported_specs:
                 self.editors[label] = info[1](self)  # So we can get this in the editors.
                 self.tabs.addTab(self.editors[label], label)
-                self.controllers[label] = info[2](self.editors[label]) # hook in controller.
+                self.controllers[label] = info[2](self, self.editors[label]) # hook in controller.
         
 
         self.channelType = EnumeratedTypeSelector.TypeSelector()
