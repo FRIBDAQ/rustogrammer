@@ -66,7 +66,7 @@ class OneDController:
 
         param_info = client.parameter_list(parameter_name)['detail'][0]
         self._model.setLow(default(param_info['low'], 0))
-        self._model.setHigh(default(param_info['high'], 100.0),)  # like tree params.
+        self._model.setHigh(default(param_info['high'], 512.0),)  # like tree params.
         self._model.setBins(default(param_info['bins'], 512))
 
 
