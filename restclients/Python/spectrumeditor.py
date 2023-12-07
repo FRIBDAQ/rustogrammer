@@ -18,6 +18,7 @@
 from capabilities import (
     SpectrumTypes, ChannelTypes, 
     set_client as set_capabilities_client, get_supported_spectrumTypes,
+    get_client as get_capabilities_client,
     get_supported_channelTypes
 )
 
@@ -32,25 +33,47 @@ import editor1d, editortwod, editor2dSum, editorBitmask, editorG1d
 import  editorG2d, editorGD, editorProjection, editorStripchart
 import editorSummary, EnumeratedTypeSelector
 
+#------------------------- Spectrum controllers ----------------------
+# Slots assume that capabilities.get_client won't return None.
+
+# NullController - for unimplemented creations:
+
+class NoneController:
+    def __init__(self, model):
+        pass
+###
+#   Controller that handles the Oned editor view signals:
+class OneDController:
+    def __init__(self, model):
+        self._model = model
+        model.commit.connect(self.create)
+        model.parameterSelected.connect(self.load_param)
+    
+    def create(self):
+        print("create spectrum")
+    def load_param(self, parameter_name):
+        print("Parameter ", parameter_name, "selected")
+
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
-#  e.g. '1D': (SpectrumTypes.Oned, editor1d.onedEditor) - means
+#  e.g. '1D': (SpectrumTypes.Oned, editor1d.onedEditor, onedcontroller) - means
 #  The tab labeled 1D will be added if the SpectrumTypes.Oned is supported by
-#  the server and will contain an editor1d.onedEditor.
+#  the server and will contain an editor1d.onedEditor and that onedcontroller
+#  will be instantiated to handle signals from the editor.
 #
 #  In the future, the classes may be self contained MVC bundles so we don't
 #  have to concern ourselves with connecting slots etc.
 _spectrum_widgets = {
-    '1D': (SpectrumTypes.Oned, editor1d.oneDEditor),
-    '2D': (SpectrumTypes.Twod, editortwod.TwoDEditor),
-    'Summary': (SpectrumTypes.Summary, editorSummary.SummaryEditor),
-    'Gamma 1D' : (SpectrumTypes.Gamma1D, editorG1d.Gamma1DEditor),
-    'Gamma 2D' : (SpectrumTypes.Gamma2D, editorG2d.Gamma2DEditor),
-    'P-Gamma'  : (SpectrumTypes.GammaDeluxe, editorGD.GammaDeluxeEditor),
-    '2D Sum'   : (SpectrumTypes.TwodSum, editor2dSum.TwoDSumEditor),
-    'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor),
-    'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor),
-    'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor)
+    '1D': (SpectrumTypes.Oned, editor1d.oneDEditor, OneDController),
+    '2D': (SpectrumTypes.Twod, editortwod.TwoDEditor, NoneController),
+    'Summary': (SpectrumTypes.Summary, editorSummary.SummaryEditor, NoneController),
+    'Gamma 1D' : (SpectrumTypes.Gamma1D, editorG1d.Gamma1DEditor, NoneController),
+    'Gamma 2D' : (SpectrumTypes.Gamma2D, editorG2d.Gamma2DEditor, NoneController),
+    'P-Gamma'  : (SpectrumTypes.GammaDeluxe, editorGD.GammaDeluxeEditor, NoneController),
+    '2D Sum'   : (SpectrumTypes.TwodSum, editor2dSum.TwoDSumEditor, NoneController),
+    'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, NoneController),
+    'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor, NoneController),
+    'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor, NoneController)
 
 }
 
@@ -79,6 +102,7 @@ class Editor(QWidget):
         self.tabs = QTabWidget(self)
         self.tabs.setUsesScrollButtons(True)
         self.editors = dict()
+        self.controllers = dict()
         # Stock it with the supported spectrum editors:
 
         supported_specs = get_supported_spectrumTypes()
@@ -87,17 +111,15 @@ class Editor(QWidget):
             if info[0] in supported_specs:
                 self.editors[label] = info[1](self)  # So we can get this in the editors.
                 self.tabs.addTab(self.editors[label], label)
+                self.controllers[label] = info[2](self.editors[label]) # hook in controller.
         
 
         self.channelType = EnumeratedTypeSelector.TypeSelector()
         supported_ctypes = get_supported_channelTypes()
 
-        print(supported_ctypes)
         for label in _channel_types.keys():
             t = _channel_types[label]
-            print(t)
             if t in supported_ctypes:
-                print("supported: ", label, t)
                 self.channelType.addItem(label, t)
 
         layout.addWidget(self.tabs)
@@ -106,10 +128,10 @@ class Editor(QWidget):
         typs.addWidget(self.channelType)
         layout.addLayout(typs)
         self.setLayout(layout)
-        #self.tabs.adjustSize()
         self.adjustSize()
 
 
+# --- tests
 
 def test(host, port):
     c = Client({'host': host, 'port': port})
