@@ -65,11 +65,10 @@ class OneDController:
         # Regardless if the parameter has metadata load that into the axis definition:
 
         param_info = client.parameter_list(parameter_name)['detail'][0]
-        self._model.setLow(default(param_info['low']))
-        self._model.setHigh(default(param_info['high']))
+        self._model.setLow(default(param_info['low'], 0))
+        self._model.setHigh(default(param_info['high'], 100.0),)  # like tree params.
         self._model.setBins(default(param_info['bins'], 512))
 
-        print("Parameter ", parameter_name, "selected")
 
     
 #  This dict is a table, indexed by tab name, of the class objects
