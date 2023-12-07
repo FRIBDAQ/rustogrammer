@@ -38,6 +38,11 @@ import editorSummary, EnumeratedTypeSelector
 
 # NullController - for unimplemented creations:
 
+def default(value, default=0):
+    if value is None:
+        value = default
+    return value
+
 class NoneController:
     def __init__(self, editor, model):
         pass
@@ -53,8 +58,20 @@ class OneDController:
     def create(self):
         print("create spectrum")
     def load_param(self, parameter_name):
+        client = get_capabilities_client()
+        current_name = self._model.name()
+        if current_name is None or len(current_name) == 0:
+            self._model.setName(parameter_name)
+        # Regardless if the parameter has metadata load that into the axis definition:
+
+        param_info = client.parameter_list(parameter_name)['detail'][0]
+        self._model.setLow(default(param_info['low']))
+        self._model.setHigh(default(param_info['high']))
+        self._model.setBins(default(param_info['bins'], 512))
+
         print("Parameter ", parameter_name, "selected")
 
+    
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
 #  e.g. '1D': (SpectrumTypes.Oned, editor1d.onedEditor, onedcontroller) - means
@@ -88,6 +105,7 @@ _channel_types = {
 }
 #   This class assumes that the capabilities client has already been set:
 class Editor(QWidget):
+    new_spectrum = pyqtSignal(str)
     def __init__(self, *args):
         global _spectrum_widgets
         global _channel_types
@@ -130,6 +148,11 @@ class Editor(QWidget):
         layout.addLayout(typs)
         self.setLayout(layout)
         self.adjustSize()
+    
+    # Slot that can be called when a controller makes a new spectrum:
+
+    def spectrum_added(self, name):
+        self.new_specttrum.emit(name)
 
 
 # --- tests
