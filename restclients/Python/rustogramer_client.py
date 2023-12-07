@@ -21,6 +21,8 @@ class RustogramerException(Exception):
     def __init__(self, response):
         self.status = response["status"]
         self.detail = response["detail"]
+    def __str__(self):
+        return f'Server Reported an error: {self.status} : {self.detail}'        
 
 class rustogramer:
     """
