@@ -55,7 +55,7 @@ class SpectrumWidget(QWidget):
 
         self._spectrumListModel = SpectrumModel()
         self._listing.getList().setModel(self._spectrumListModel)
-        self._spectrumListModel.update(_client)
+        self._spectrumListModel.load_spectra(_client)
 
         load_parameters(_client)
 
@@ -64,6 +64,7 @@ class SpectrumWidget(QWidget):
         # Connect to be able to update the view:
 
         self._editor.new_spectrum.connect(self._add_to_listing)
+        self._editor.spectrum_deleted.connect(self._remove_from_listing)
 
     def _add_to_listing(self, new_name):
         # Get the definition:
@@ -72,6 +73,8 @@ class SpectrumWidget(QWidget):
         sdef = sdef ['detail']
         if len(sdef) == 1:
             self._spectrumListModel.addSpectrum(sdef[0])
+    def _remove_from_listing(self, old_name):
+        self._spectrumListModel.removeSpectrum(old_name)
         
 
 class NullSpectrumController:

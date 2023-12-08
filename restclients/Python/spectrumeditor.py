@@ -42,10 +42,10 @@ def default(value, default=0):
     if value is None:
         value = default
     return value
-def confirm(question):
+def confirm(question, parent=None):
     dlg = QMessageBox(QMessageBox.Warning, 'Confirm?', 
                     question,
-                    QMessageBox.Yes | QMessageBox.No, editor
+                    QMessageBox.Yes | QMessageBox.No, parent
                 )
     dlg = dlg.exec()
     return dlg == QMessageBox.Yes
@@ -73,13 +73,13 @@ class OneDController:
         if sname is not None and len(sname) > 0 and param is not None and len(param) > 0:
             if not self._view.array():
                 if len(client.spectrum_list(sname)['detail']) > 0:
-                    if not confirm(f'{sname} already exists replace it?'):
+                    if not confirm(f'{sname} already exists replace it?', self._view):
                         return
 
                     # Delete the existing spectrum
 
                     client.spectrum_delete(sname)
-                    
+                    self._editor.spectrum_removed(sname)
                 # Create what is now guaranteed to be a new spectrum.
                 low   = self._view.low()
                 high  = self._view.high()
@@ -139,10 +139,11 @@ class OneDController:
 
         duplicate_names = [x for x in names if x in existing_names]
         if len(duplicate_names) > 0 :
-            c = confirm(f'These spectra already exist {duplicate_names} continuing will replace them, do you want to continue?')
+            c = confirm(f'These spectra already exist {duplicate_names} continuing will replace them, do you want to continue?', self._view)
             if c:
                 for s in duplicate_names:
                     client.spectrum_delete(s)    # Delete the dups so we can replace.
+                    self._editor.spectrum_removed(s)
             return c
         else:
             return True                       # no confirmations needed.
@@ -168,12 +169,13 @@ class OneDController:
                 except RustogramerException as e:
                     error(f"Failed to create {sname}; {e} won't try to make any more")
                     return
-            
+                self._editor..spectrum_added(sname)
+                
             try:
                 client.sbind_spectra(spectrum_names)
             except RustogramerException as e:
                 error(f"Failed to bind all spectram: {e} some may not be displayable")                
-            self._view.set_name('')
+            self._view.setName('')
 
     def _param_names(self, client, pattern):
         
@@ -216,6 +218,7 @@ _channel_types = {
 #   This class assumes that the capabilities client has already been set:
 class Editor(QWidget):
     new_spectrum = pyqtSignal(str)
+    spectrum_deleted = pyqtSignal(str)
     def __init__(self, *args):
         global _spectrum_widgets
         global _channel_types
@@ -263,6 +266,8 @@ class Editor(QWidget):
 
     def spectrum_added(self, name):
         self.new_spectrum.emit(name)
+    def spectrum_removed(self, name):
+        self.spectrum_deleted.emit(name)
 
 
 # --- tests
