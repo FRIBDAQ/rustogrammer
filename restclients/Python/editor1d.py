@@ -160,8 +160,6 @@ class oneDEditor(QWidget):
         self.is_array.setCheckState(state)
 
 
-    
-
     # Define slot methods:
 
     def nameTextChanged(self, new_name):
