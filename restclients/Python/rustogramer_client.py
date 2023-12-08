@@ -701,7 +701,7 @@ class rustogramer:
         """ Delete the named spectrum"""
         return self._transaction("spectrum/delete", {"name":name})
     
-    def spectrum_create1d(self, name, parameter, low, high, bins):
+    def spectrum_create1d(self, name, parameter, low, high, bins, chantype='f64'):
         """ Create a simple 1d spectrum:
         *   name - The name of the new spectrum (must be unique)
         *   parameter - the parameter that will be histogramed
@@ -710,10 +710,10 @@ class rustogramer:
         axis = self._format_axis(low, high, bins)
         return self._transaction(
             "spectrum/create", 
-            {"name":name, "type":"1", "parameters": parameter, "axes":axis}
+            {"name":name, "type":"1", "parameters": parameter, "axes":axis, 'chantype':type}
         )
 
-    def spectrum_create2d(self, name, xparam, yparam, xlow, xhigh, xbins, ylow, yhigh, ybins):
+    def spectrum_create2d(self, name, xparam, yparam, xlow, xhigh, xbins, ylow, yhigh, ybins, type='f64'):
         """ Create a simple 2d spectrum:
         *  name - the name of the new spectrum.
         *  xparam,yparam - the x and y parameters to be histogramed.
@@ -724,10 +724,10 @@ class rustogramer:
         axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
         return self._transaction(
             "spectrum/create",
-            {"type":2, "name":name, "parameters":xparam + " " + yparam, "axes":axes}
+            {"type":2, "name":name, "parameters":xparam + " " + yparam, "axes":axes, 'type':type}
         )
 
-    def spectrum_createg1(self, name, parameters, low, high, bins):
+    def spectrum_createg1(self, name, parameters, low, high, bins, chantype='f64'):
         """ Create a gamma 1 spectrum (multiply incremented 1d).
         *  name - name of the spectrum.
         *  parameters - iterable collection of parameter names
@@ -737,10 +737,10 @@ class rustogramer:
         params = self._format_stringlist(parameters)
         return self._transaction(
             "spectrum/create",
-            {"type":"g1", "name":name, "parameters":params, "axes":axes}
+            {"type":"g1", "name":name, "parameters":params, "axes":axes, 'chantype':chantype}
         )
 
-    def spectrum_createg2(self, name, parameters, xlow, xhigh, xbins, ylow, yhigh, ybins):
+    def spectrum_createg2(self, name, parameters, xlow, xhigh, xbins, ylow, yhigh, ybins, chantype='f64'):
         """ Create a gamma 2 spectrum (multiply incremented 2d).
         *  name - name of the spectrum
         *  parameters - parameters - incremented for each ordered pair present in the spectum.
@@ -751,9 +751,9 @@ class rustogramer:
         params = self._format_stringlist(parameters)
         return self._transaction(
             "spectrum/create",
-            {"type":"g2", "name":name, "parameters":params, "axes":axes}
+            {"type":"g2", "name":name, "parameters":params, "axes":axes, 'chantype':chantype}
         )
-    def spectrum_creategd(self, name, xparameters, yparameters, xlow, xhigh, xbins, ylow, yhigh, ybins):
+    def spectrum_creategd(self, name, xparameters, yparameters, xlow, xhigh, xbins, ylow, yhigh, ybins,chantype='f64'):
         """ Create a 'gamma deluxe' spectrum This is normally used for particle-gamma
         coincidence spectra.  Increments are done for every x/y pair that's defined.
         Consider e.g. that xparameters are  gamma detectors and y parameters are particle ids.
@@ -769,9 +769,9 @@ class rustogramer:
         param_list = "{" + xpars + "}{" + ypars + "}"
         return self._transaction(
             "spectrum/create",
-            {"type":"gd", "name":name, "parameters":param_list, "axes":axes}
+            {"type":"gd", "name":name, "parameters":param_list, "axes":axes, 'chantype':chantype}
         )
-    def spectrum_createsummary(self, name, parameters, low, high,  bins):
+    def spectrum_createsummary(self, name, parameters, low, high,  bins, chantype='f64'):
         """ Make a summary spectrum.  This is a 2d spectrum where every vertical
         channel strip is actually the one dimensional spectrum of one of the
         parameters in the spectum.
@@ -785,9 +785,9 @@ class rustogramer:
         axis = self._format_axis(low, high, bins)
         return self._transaction(
             "/spectrum/create",
-            {"type":"s", "name":name, "parameters":pars, "axes":axis}
+            {"type":"s", "name":name, "parameters":pars, "axes":axis, 'chantype':chantype}
         )
-    def spectrum_create2dsum(self, name, xpars, ypars, xlow, xhigh, xbins, ylow,yhigh,ybins):
+    def spectrum_create2dsum(self, name, xpars, ypars, xlow, xhigh, xbins, ylow,yhigh,ybins, chantype='f64'):
         """Create a 2d spectrum that is the sum of the 2d spectra defined
         by corresopnding xpars/ypars parameters. Note that the server enforces
         that len(xpars) must be the same as len(ypars)
@@ -806,7 +806,7 @@ class rustogramer:
         axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
         return self._transaction(
             "spectrum/create",
-            {"type":"m2", "name":name, "parameters":pars, "axes":axes}
+            {"type":"m2", "name":name, "parameters":pars, "axes":axes, 'chantype': chantype}
         )
     def spectrum_getcontents(self, name, xl, xh, yl=0,yh=0):
         """ Get the contents of a spectrum within a region of interest.

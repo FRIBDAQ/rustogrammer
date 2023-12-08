@@ -68,6 +68,8 @@ class OneDController:
         client = get_capabilities_client()
         sname = self._view.name()
         param = self._view.parameter()
+        data_type = self._editor.channeltype_string()
+
         # Preconditions to making a spectrum; there must be a spectrum and parameter
         # name.
         if sname is not None and len(sname) > 0 and param is not None and len(param) > 0:
@@ -85,7 +87,7 @@ class OneDController:
                 high  = self._view.high()
                 bins  = self._view.bins()
                 try:
-                    client.spectrum_create1d(sname, param, low, high, bins)
+                    client.spectrum_create1d(sname, param, low, high, bins, data_type)
                 except RustogamerException as error:
                     error(f'{error} while creating spectrum')
                     return
@@ -154,6 +156,7 @@ class OneDController:
         param_base = '.'.join(param.split('.')[0:-1])
         param_pattern = param_base + '.*'
         parameters    = self._param_names(client, param_pattern)
+        data_type = self._editor.channeltype_string()
 
         # Generate the spectrum names:
 
@@ -165,7 +168,7 @@ class OneDController:
 
             for sname, pname in  zip(spectrum_names, parameters):
                 try:
-                    client.spectrum_create1d(sname, pname, low, high, bins)
+                    client.spectrum_create1d(sname, pname, low, high, bins, data_type)
                 except RustogramerException as e:
                     error(f"Failed to create {sname}; {e} won't try to make any more")
                     return
@@ -210,10 +213,10 @@ _spectrum_widgets = {
 #  This dict has channel type names as keys and channel type values as values:
 
 _channel_types = {
-    'double': ChannelTypes.Double,
-    '32 Bits': ChannelTypes.Long,
-    '16 bits': ChannelTypes.Short,
-    'Byte' : ChannelTypes.Byte
+    'f64': ChannelTypes.Double,
+    'long': ChannelTypes.Long,
+    'word': ChannelTypes.Short,
+    'byte' : ChannelTypes.Byte
 }
 #   This class assumes that the capabilities client has already been set:
 class Editor(QWidget):
@@ -262,6 +265,11 @@ class Editor(QWidget):
         self.setLayout(layout)
         self.adjustSize()
     
+    # Get the currently selected channel type string
+    
+    def channeltype_string(self):
+        self.channelType.currentText()
+
     # Slot that can be called when a controller makes a new spectrum:
 
     def spectrum_added(self, name):
@@ -269,6 +277,7 @@ class Editor(QWidget):
     def spectrum_removed(self, name):
         self.spectrum_deleted.emit(name)
 
+    
 
 # --- tests
 
