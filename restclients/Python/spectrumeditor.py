@@ -169,7 +169,7 @@ class OneDController:
                 except RustogramerException as e:
                     error(f"Failed to create {sname}; {e} won't try to make any more")
                     return
-                self._editor..spectrum_added(sname)
+                self._editor.spectrum_added(sname)
                 
             try:
                 client.sbind_spectra(spectrum_names)

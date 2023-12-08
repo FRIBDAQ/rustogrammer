@@ -150,7 +150,7 @@ class SpectrumModel(QStandardItemModel):
         self.rows = self.rows+1
         self._addItem(definition)
         self.sort(0)
-        
+
     def removeSpectrum(self, name):
         items = self.findItems(name)
         for item in items:      # Deals correctly with no/multiple matches:
@@ -161,7 +161,7 @@ class SpectrumModel(QStandardItemModel):
         info = [
             self._item(spectrum['name']),
             self._item(spectrum['type']),
-            self._item('\n '.join(spectrum['xparameters']))
+            self._item(','.join(spectrum['xparameters']))
 
         ]
         if spectrum['xaxis'] is not None:
@@ -172,7 +172,7 @@ class SpectrumModel(QStandardItemModel):
             info.append(self._item(''))
             info.append(self._item(''))
             info.append(self._item(''))
-        info.append(self._item('\n '.join(spectrum['yparameters'])))
+        info.append(self._item(','.join(spectrum['yparameters'])))
         if spectrum['yaxis'] is not None:
             info.append(self._item(str(spectrum['yaxis']['low'])))
             info.append(self._item(str(spectrum['yaxis']['high'])))
