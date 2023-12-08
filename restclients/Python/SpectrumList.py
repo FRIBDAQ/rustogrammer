@@ -29,7 +29,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QLineEdit
 )
 from PyQt5.QtCore import *
-
+from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
 from rustogramer_client import rustogramer
 
@@ -119,55 +119,23 @@ def test_view() :
     to provide structure to the parameters cells which, in general,
     contain a list of parameters not a single parameter.
 '''
-class SpectrumModel(QAbstractTableModel):
-    data = None
-    rows = 0
-    cols = 11
+class SpectrumModel(QStandardItemModel):
+    
     colheadings = ['Name', 'Type', 
         'XParameter(s)', 'Low', 'High', 'Bins',
         'YParameter(s)', 'Low', 'High', 'Bins', 'Gate'
     ]
     def __init__(self, parent = None) :
         super().__init__(parent)
-    def rowCount(self, idx) :
-        return self.rows
-    def columnCount(self, idx):
-        return self.cols
+        self.setHorizontalHeaderLabels(self.colheadings)
+
     
-    ''' Provide the header data for the view
-    '''
-    def headerData(self, section, orientation, role) :
-        if role != Qt.DisplayRole:
-            return None
-        
-        if (orientation == Qt.Horizontal) and (section < len(self.colheadings)) :
-            return self.colheadings[section]
-        else :
-            return None
-
-    def data(self, index, role) :
-        
-        if role != Qt.DisplayRole:
-            return None
-        r = index.row()
-        c = index.column()
-
-
-        if self.data is None:    # Needs to update to get data.
-            return None      
-
-        if r < len(self.data):
-            row = self.data[r]
-            if c < len(row):
-                return row[c]
-        return None
-
     ''' This method updates the data and rows variables.
         the client parameter must be a rustogramer client
         object and is used to get data from the
         histogramer.
     '''
-    def update(self, client, pattern = '*'):
+    def load_spectra(self, client, pattern = '*'):
         json = client.spectrum_list(pattern)
         spectra = json['detail']
         self.data = []
@@ -176,63 +144,94 @@ class SpectrumModel(QAbstractTableModel):
         for spectrum in spectra :
             self._addItem(spectrum)
         
-        self.beginResetModel() 
-        self.dataChanged.emit(self.createIndex(0,0), self.createIndex( self.rows, 10))
-        self.endResetModel()
-
+        self.sort(0)
 
     def addSpectrum(self, definition):
         self.rows = self.rows+1
         self._addItem(definition)
-        self.beginResetModel()
-        self.dataChanged.emit(self.createIndex(0,0), self.createIndex( self.rows, 10))
-        self.endResetModel()
-    
+        self.sort(0)
+        
+    def removeSpectrum(self, name):
+        items = self.findItems(name)
+        for item in items:      # Deals correctly with no/multiple matches:
+            idx = self.indexFromItem(item)
+            self.removeRow(idx.row())
+
     def _addItem(self, spectrum):
         info = [
-            spectrum['name'],
-            spectrum['type'],
-            ', '.join(spectrum['xparameters'])
+            self._item(spectrum['name']),
+            self._item(spectrum['type']),
+            self._item('\n '.join(spectrum['xparameters']))
 
         ]
         if spectrum['xaxis'] is not None:
-            info.append(spectrum['xaxis']['low'])
-            info.append(spectrum['xaxis']['high'])
-            info.append(spectrum['xaxis']['bins'])
+            info.append(self._item(str(spectrum['xaxis']['low'])))
+            info.append(self._item(str(spectrum['xaxis']['high'])))
+            info.append(self._item(str(spectrum['xaxis']['bins'])))
         else :
-            info.append(None)
-            info.append(None)
-            info.append(None)
-        info.append(', '.join(spectrum['yparameters']))
+            info.append(self._item(''))
+            info.append(self._item(''))
+            info.append(self._item(''))
+        info.append(self._item('\n '.join(spectrum['yparameters'])))
         if spectrum['yaxis'] is not None:
-            info.append(spectrum['yaxis']['low'])
-            info.append(spectrum['yaxis']['high'])
-            info.append(spectrum['yaxis']['bins'])
+            info.append(self._item(str(spectrum['yaxis']['low'])))
+            info.append(self._item(str(spectrum['yaxis']['high'])))
+            info.append(self._item(str(spectrum['yaxis']['bins'])))
         else :
-            info.append(None)
-            info.append(None)
-            info.append(None)
-        info.append(spectrum['gate'])
-        self.data.append(info)
+            info.append(self._item(''))
+            info.append(self._item(''))
+            info.append(self._item(''))
+        if spectrum['gate'] is None:
+            info.append(self._item(''))
+        else:
+            info.append(self._item(spectrum['gate']))
+        
+        self.appendRow(info)
+
+    def _item(self, s):
+        result = QStandardItem(s)  
+        result.setEditable(False)
+        return result
 
 #  Test the model/view.
 
+theClient = None
 
+def update(pattern):
+    global theClient
+    model.load_spectra(theClient, pattern)
 def testmv(host, port):
-    def update(pattern):
-        model.update(client, pattern)
+    global theClient
     client = rustogramer({'host': host, 'port': port})
-
+    theClient = client
     # Make parameter(s) and spectra try/catch in case we've already
     # run:
 
     try:
         client.rawparameter_create('test', {})
+    except:
+        pass
+    try:
         client.rawparameter_create('x', {})
+    except:
+        pass
+    try:
         client.rawparameter_create('y', {})
+    except:
+        pass
+    try:
         client.spectrum_create1d('test', 'test', 0.0, 1024.0, 1024)
+    except:
+        pass
+    try:
         client.spectrum_create2d('2d', 'x', 'y', 0.0, 1024.0, 256, 0.0, 4096.0, 256)
+    except:
+        pass
+    try:
         client.spectrum_createg1('g1', ['x', 'y', 'test'], 0.0, 1024, 1024)
+    except:
+        pass
+    try:
         client.sbind_all()
     except:
         pass
@@ -246,7 +245,7 @@ def testmv(host, port):
     win = SpectrumList()
     win.show()
     model = SpectrumModel()
-    model.update(client)      # Initial data.
+    model.load_spectra(client)      # Initial data.
     
     list = win.getList()
     list.setModel(model)
@@ -258,5 +257,4 @@ def testmv(host, port):
     win.filter_signal.connect(update)
 
     app.exec()
-
 
