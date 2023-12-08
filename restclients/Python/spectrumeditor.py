@@ -186,7 +186,80 @@ class OneDController:
         result =  [x['name'] for x in defs]
         result.sort()
         return result
+##
+#  Controller for the 2-d editor.
+#  This is much simpler than the 1d editor since we don't have to handle
+#  arrays.
+
+class TwodController:
+    def __init__(self, editor, view):
+        self._client = get_capabilities_client()
+        self._editor = editor
+        self._view = view
+
+        view.commit.connect(self.create)
+        view.xparameterSelected.connect(self.load_xaxis)
+        view.yparameterSelected.connect(self.load_yaxis)
     
+    # SLots:
+
+    def create(self):
+        # Fetch the spectrum definition from the editor view:
+        name = self._view.name()
+        
+        xparam = self._view.xparameter()
+        xlow = self._view.xlow()
+        xhigh = self._view.xhigh()
+        xbins = self._view.xbins()
+
+        yparam = self._view.yparameter()
+        ylow = self._view.ylow()
+        yhigh = self._view.yhigh()
+        ybins = self._view.ybins()
+
+        chantype = self._editor.channeltype_string()
+
+        # Require a nonempty name and parameters:
+
+        if len(name) > 0 and len(xparam) > 0 and len(yparam) > 0:
+            #  Get confirmation if the spectrum exists.
+
+            sdef = self._client.spectrum_list(name)
+            sdef = sdef['detail']
+            if len(sdef) != 0:
+                if confirm(f'{name} already exists replace it?', self._view):
+                    self._client.spectrum_delete(name)
+                    self._editor.spectrum_removed(name)
+                else:
+                    return     # don't replace.
+            try:
+                self._client.spectrum_create2d(
+                    name, xparam, yparam, 
+                    xlow, xhigh, xbins, ylow, yhigh, ybins,
+                    chantype
+                )
+            except RustogramerException as e:
+                error(f'Failed to create {name} : {e}')
+                return
+            self._editor.spectrum_added(name)
+
+            try:
+                self._client.sbind_spectra([name])
+            except RustogramerException as e:
+                error(f'Failed to bind {name} - but spectrum was created: {e}')
+    
+    def load_xaxis(self, pname):
+        param_info = self._client.parameter_list(pname)['detail'][0]
+        self._view.setXLow(default(param_info['low'], 0))
+        self._view.setXHigh(default(param_info['high'], 512.0),)  # like tree params.
+        self._view.setXBins(default(param_info['bins'], 512))
+    def load_yaxis(self, pname):
+        param_info = self._client.parameter_list(pname)['detail'][0]
+        self._view.setYLow(default(param_info['low'], 0))
+        self._view.setYHigh(default(param_info['high'], 512.0),)  # like tree params.
+        self._view.setYBins(default(param_info['bins'], 512))
+
+
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
 #  e.g. '1D': (SpectrumTypes.Oned, editor1d.onedEditor, onedcontroller) - means
@@ -198,7 +271,7 @@ class OneDController:
 #  have to concern ourselves with connecting slots etc.
 _spectrum_widgets = {
     '1D': (SpectrumTypes.Oned, editor1d.oneDEditor, OneDController),
-    '2D': (SpectrumTypes.Twod, editortwod.TwoDEditor, NoneController),
+    '2D': (SpectrumTypes.Twod, editortwod.TwoDEditor, TwodController),
     'Summary': (SpectrumTypes.Summary, editorSummary.SummaryEditor, NoneController),
     'Gamma 1D' : (SpectrumTypes.Gamma1D, editorG1d.Gamma1DEditor, NoneController),
     'Gamma 2D' : (SpectrumTypes.Gamma2D, editorG2d.Gamma2DEditor, NoneController),
@@ -268,7 +341,7 @@ class Editor(QWidget):
     # Get the currently selected channel type string
     
     def channeltype_string(self):
-        self.channelType.currentText()
+       return self.channelType.selectedText()
 
     # Slot that can be called when a controller makes a new spectrum:
 
@@ -276,7 +349,7 @@ class Editor(QWidget):
         self.new_spectrum.emit(name)
     def spectrum_removed(self, name):
         self.spectrum_deleted.emit(name)
-
+        
     
 
 # --- tests

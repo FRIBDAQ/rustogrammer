@@ -713,7 +713,7 @@ class rustogramer:
             {"name":name, "type":"1", "parameters": parameter, "axes":axis, 'chantype':type}
         )
 
-    def spectrum_create2d(self, name, xparam, yparam, xlow, xhigh, xbins, ylow, yhigh, ybins, type='f64'):
+    def spectrum_create2d(self, name, xparam, yparam, xlow, xhigh, xbins, ylow, yhigh, ybins, chantype='f64'):
         """ Create a simple 2d spectrum:
         *  name - the name of the new spectrum.
         *  xparam,yparam - the x and y parameters to be histogramed.
@@ -724,7 +724,7 @@ class rustogramer:
         axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
         return self._transaction(
             "spectrum/create",
-            {"type":2, "name":name, "parameters":xparam + " " + yparam, "axes":axes, 'type':type}
+            {"type":2, "name":name, "parameters":xparam + " " + yparam, "axes":axes, 'chantype': chantype}
         )
 
     def spectrum_createg1(self, name, parameters, low, high, bins, chantype='f64'):

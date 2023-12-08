@@ -51,9 +51,10 @@ class _AxisWidget(QWidget):
 
     #  Internal slots.
 
-    def _parameterChanged(self, new_name):
-        self.setName(new_name)
-        self.parameterChanged.emit(new_name)
+    def _parameterChanged(self, new_path):
+        name = '.'.join(new_path)
+        self.setName(name)
+        self.parameterChanged.emit(name)
 
     def _axisChanged(self, value):
         axis_def = {
@@ -65,7 +66,9 @@ class _AxisWidget(QWidget):
 
     # Getters/setters (attributes)
     def name(self):                        
-        self._parameter.current_item()
+        return '.'.join(self._parameter.current_item())
+    def path(self):
+        return self._parameter.current_item()
     def setName(self, value):
         self._selected_parameter.setText(value)
     def low(self):
@@ -165,16 +168,28 @@ class TwoDEditor(QWidget):
         return self._yaxis.name()
     def xlow(self):
         return self._xaxis.low()
+    def setXLow(self, value):
+        self._xaxis.setLow(value)
     def xhigh(self):
         return self._xaxis.high()
+    def setXHigh(self, value):
+        self._xaxis.setHigh(value)
     def xbins(self):
         return self._xaxis.bins()
+    def setXBins(self, value):
+        self._xaxis.setBins(value)
     def ylow(self):
         return self._yaxis.low()
+    def setYLow(self, value):
+        self._yaxis.setLow(value)
     def yhigh(self):
         return self._yaxis.high()
+    def setYHigh(self, value):
+        self._yaxis.setHigh(value)
     def ybins(self):
         return self._yaxis.bins()
+    def setYBins(self, value):
+        self._yaxis.setBins(value)
     
         
 
