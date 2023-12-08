@@ -74,6 +74,7 @@ class SpectrumList(QWidget) :
 
         # Set up  signal relays:
 
+        self.mask.returnPressed.connect(self.filter_relay)
         self.filter.clicked.connect(self.filter_relay)
         self.clear.clicked.connect(self.clear_relay)
     ''' Provide access to the table  returns the QTableView widget
@@ -82,6 +83,10 @@ class SpectrumList(QWidget) :
 
     def getList(self) :
         return self.list
+    def mask(self):
+        return self.mask.text()
+    def setMask(self, s):
+        self.mask.setText(s)
 
     #  Button handlers to relay to signals
     #  Note that clear will also clear the filter line edit.
@@ -136,6 +141,7 @@ class SpectrumModel(QStandardItemModel):
         histogramer.
     '''
     def load_spectra(self, client, pattern = '*'):
+        self.clear()
         json = client.spectrum_list(pattern)
         spectra = json['detail']
         self.data = []

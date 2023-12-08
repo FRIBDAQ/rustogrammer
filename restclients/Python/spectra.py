@@ -66,6 +66,9 @@ class SpectrumWidget(QWidget):
         self._editor.new_spectrum.connect(self._add_to_listing)
         self._editor.spectrum_deleted.connect(self._remove_from_listing)
 
+        self._listing.filter_signal.connect(self._filter_list)
+        self._listing.clear_signal.connect(self._clear_filter)
+
     def _add_to_listing(self, new_name):
         # Get the definition:
 
@@ -75,6 +78,14 @@ class SpectrumWidget(QWidget):
             self._spectrumListModel.addSpectrum(sdef[0])
     def _remove_from_listing(self, old_name):
         self._spectrumListModel.removeSpectrum(old_name)
+
+    def _filter_list(self, mask):
+        global _client
+        self._spectrumListModel.load_spectra(_client, mask)
+    def _clear_filter(self):
+        global _client
+        self._listing.setMask("*")
+        self._filter_list("*")
         
 
 class NullSpectrumController:
