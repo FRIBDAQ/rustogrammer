@@ -57,6 +57,7 @@
     Signals:
         commit - The create/replace button was clicked.
         add    - The right arrow was clicked, the signal handler will need to
+        remove = An item was removed from the selected parameters.
         access the 'selected_parameter', 'array' and 'axis_from_parameters' 
         attributes to properly function.
 
@@ -68,7 +69,7 @@
 from PyQt5.QtWidgets import (
     QLabel, QListWidget, QPushButton, QCheckBox, QLineEdit,
     QApplication, QMainWindow, QGridLayout, QVBoxLayout, QHBoxLayout,
-    QStyle, QWidget
+    QStyle, QWidget, QAbstractItemView
 )
 from PyQt5.Qt import *
 from PyQt5.QtCore import pyqtSignal
@@ -78,6 +79,8 @@ from axisdef import AxisInput
 class SummaryEditor(QWidget):
     commit = pyqtSignal()
     add    = pyqtSignal()
+    remove = pyqtSignal(str)
+    parameter_changed = pyqtSignal(list)
     def __init__(self, *args):
         super().__init__(*args)
         
@@ -121,6 +124,7 @@ class SummaryEditor(QWidget):
         #Column 3, Rows 1-6 are the listbox:
 
         self._xparameters = QListWidget(self)
+        self._xparameters.setSelectionMode(QAbstractItemView.ContiguousSelection)
         main_layout.addWidget(self._xparameters, 1,2, 6,1 )
 
         # Up/down/clear buttons are below the list box in row 7,8, col 3
@@ -158,6 +162,14 @@ class SummaryEditor(QWidget):
 
         self._add.clicked.connect(self.add)
         self._commit.clicked.connect(self.commit)
+        self._parameter_chooser.selected.connect(self.parameter_changed)
+
+        # Internal signals 
+
+        self._delete.clicked.connect(self.deleteSelection)
+        self._clear.clicked.connect(self.clear)  # relay to listbox.
+        self._up.clicked.connect(self.up)
+        self._down.clicked.connect(self.down)
     
     #  Implement the attributes:
 
@@ -172,8 +184,9 @@ class SummaryEditor(QWidget):
         self._chosen_parameter.setText(pname)
     
     def axis_parameters(self):
-        items = self._xparameters.items()
-        return [x.text() for x in items]
+        rows = self._xparameters.count()
+        return [self._xparameters.item(x).text() for x in range(rows)]
+
     def setAxis_parameters(self, itemList):
         self._xparameters.clear()
         self._xparameters.addItems(itemList)
@@ -213,11 +226,79 @@ class SummaryEditor(QWidget):
         else:
             self._from_params.setCheckState(Qt.Unchecked)
     
+    # slots:
+
+    def deleteSelection(self):
+        ''' Slot to delete the currently selected items from the list. '''
+
+        selected = self._xparameters.selectedItems()
+        for item in selected:
+            row = self._xparameters.row(item)
+            self._xparameters.takeItem(row)
+            self.remove.emit(item.text())
+    def clear(self):
+        ''' Clear the list box.   We can't use the listbox's clear 
+            slot if we want to emit our remove signal for each item
+            removed.
+        '''
+        while self._xparameters.count() > 0:
+            item = self._xparameters.takeItem(0)
+            self.remove.emit(item.text())
     
+    def up(self):
+        '''  move the selected block of items up). '''
+        selected = self._xparameters.selectedItems()
+        
+        if len(selected) < 1:
+            return                    # no selection
+        # Ordered list of rows:
+
+        selected_rows = [self._xparameters.row(x) for x in selected]
+        selected_rows.sort()
+
+        # We use a contiguous selection mode so if the first row
+        # is 0 we're done:
+
+        if selected_rows[0] == 0:
+            return                 # Alread at the top.
+
+        # Note that in this sort order, moving an item up a row
+        # Will not alter the row of remaining list items:
+
+        for row in selected_rows:
+            item = self._xparameters.takeItem(row)
+            self._xparameters.insertItem(row-1, item)
+
+    def down(self):
+        ''' Move the selected block of items down '''
+        
+        selected = self._xparameters.selectedItems()
+        if len(selected) < 1:
+            return                      # no selection.
+        # Order descending:
+
+        selected_rows = [self._xparameters.row(x) for x in selected]
+        selected_rows.sort(reverse=True)
+
+        # We're using contiguous selection mode and our rows are high to low
+        # number so if the first selected row number is at the end we're done.
+
+        if selected_rows[0] == self._xparameters.count()-1:
+            return                      # already at bottom.
+
+        #  Now moving an item down won't change the row of other items
+        # due to the sort order.
+
+        for row in selected_rows:
+            item = self._xparameters.takeItem(row)
+            self._xparameters.insertItem(row+1, item)
+
 def test():
     app = QApplication([])
     c = QMainWindow()
     w = SummaryEditor(c)
+
+    w.setAxis_parameters(['a', 'b', 'c', 'd'])
 
     c.setCentralWidget(w)
     c.show()
