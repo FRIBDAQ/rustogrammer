@@ -106,3 +106,8 @@ def test(host, port):
 
     c.show()
     app.exec()
+
+# For test with debugger:
+
+if __name__ == '__main__':
+    test('localhost', 8000)
