@@ -85,7 +85,7 @@ class SummaryEditor(QWidget):
     add    = pyqtSignal()
     remove = pyqtSignal(str)
     parameter_changed = pyqtSignal(list)
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args)
         
         main_layout = QGridLayout()
@@ -153,8 +153,12 @@ class SummaryEditor(QWidget):
 
         self._axis = AxisInput(self)
         main_layout.addWidget(self._axis, 9, 0)
+        if 'from_par_row' in kwargs:
+            from_row = kwargs['from_par_row']
+        else :
+            from_row = 9
         self._from_params = QCheckBox('From Parameters', self)
-        main_layout.addWidget(self._from_params, 9, 1, Qt.AlignBottom)
+        main_layout.addWidget(self._from_params, from_row, 1, Qt.AlignBottom)
 
         # Finally the Create/Replace button in 10, all centered
 
@@ -175,6 +179,9 @@ class SummaryEditor(QWidget):
         self._clear.clicked.connect(self.clear)  # relay to listbox.
         self._up.clicked.connect(self.up)
         self._down.clicked.connect(self.down)
+
+        
+        self.main_layout = main_layout
     
     #  Implement the attributes:
 
