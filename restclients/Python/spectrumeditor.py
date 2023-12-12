@@ -326,6 +326,8 @@ class SummaryController:
     
     def client(self):
         return self._client
+    def view(self):
+        return self._view
 
     # If a parameter is selected:
     #    put it's full name into the parameter text:
@@ -375,16 +377,18 @@ class SummaryController:
 
         if self._view.axis_from_parameters():
             for p in descriptions:
-                if p['low'] is not None:
-                    self._view.setLow(p['low'])
-                if p['high'] is not None:
-                    self._view.setHigh(p['high'])
-                if p['bins'] is not None:
-                    self._view.setBins(p['bins'])
-
+                self.setaxis_from_parameter(p)
+                
 
         return names
-        
+    def setaxis_from_parameter(self, p):
+        if p['low'] is not None:
+            self._view.setLow(p['low'])
+        if p['high'] is not None:
+            self._view.setHigh(p['high'])
+        if p['bins'] is not None:
+            self._view.setBins(p['bins'])
+
 
 ##  Gamma 1d is just like a summary spectrum but makes a different specturm type:
 
@@ -394,6 +398,37 @@ class G1DController(SummaryController):
     def create_actual_spectrum(self, name, params, low, high, bins , chantype):
         client = self.client()
         client.spectrum_createg1(name, params, low, high, bins , chantype)
+## Gamma 2d is just Summary controller with overrides for both
+#  create_actual_spectrum and setaxis_from_parameter
+#
+
+class G2DController(SummaryController):
+    def __init__(self, editor, view):
+        super().__init__(editor, view)
+
+    def create_actual_spectrum(self, name, params, low, high, bins, chantype):
+        # low, high, bins are for the yaxis:
+
+        view = self.view()
+        xlow = view.xlow()
+        xhigh = view.xhigh()
+        xbins = view.xbins()
+
+        self.client().spectrum_createg2(
+            name, params, xlow, xhigh, xbins, low, high, bins, chantype
+        )
+    def setaxis_from_parameter(self, p):
+        view = self.view()
+        if p['low'] is not None:
+            view.setXlow(p['low'])
+            view.setYlow(p['low'])
+        if p['high'] is not None:
+            view.setXhigh(p['high'])
+            view.setYhigh(p['high'])
+        if p['bins'] is not None:
+            view.setXbins(p['bins'])
+            view.setYbins(p['bins'])
+
 
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
@@ -409,7 +444,7 @@ _spectrum_widgets = {
     '2D': (SpectrumTypes.Twod, editortwod.TwoDEditor, TwodController),
     'Summary': (SpectrumTypes.Summary, editorSummary.SummaryEditor, SummaryController),
     'Gamma 1D' : (SpectrumTypes.Gamma1D, editorSummary.SummaryEditor,G1DController),
-    'Gamma 2D' : (SpectrumTypes.Gamma2D, editorG2d.Gamma2DEditor, NoneController),
+    'Gamma 2D' : (SpectrumTypes.Gamma2D, editorG2d.Gamma2DEditor, G2DController),
     'P-Gamma'  : (SpectrumTypes.GammaDeluxe, editorGD.GammaDeluxeEditor, NoneController),
     '2D Sum'   : (SpectrumTypes.TwodSum, editor2dSum.TwoDSumEditor, NoneController),
     'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, NoneController),

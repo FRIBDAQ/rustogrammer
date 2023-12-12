@@ -27,9 +27,38 @@ class Gamma2DEditor(SummaryEditor):
         # Additional axis input:
         
         self.main_layout.addWidget(QLabel('Y axis'), 8, 0)
-        self._yaxis = AxisInput(self)
-        self.main_layout.addWidget(self._yaxis, 7, 0)
+        self._xaxis = AxisInput(self)
+        self.main_layout.addWidget(self._xaxis, 7, 0)
         self.main_layout.addWidget(QLabel('X axis'), 6, 0)
+    # Xaxis is internal
+    def xlow(self):
+        return self._xaxis.low()
+    def setXlow(self, value):
+        self._xaxis.setLow(value)
+    def xhigh(self):
+        return self._xaxis.high()
+    def setXhigh(self, value):
+        self._xaxis.setHigh(value)
+    def xbins(self):
+        return self._xaxis.bins()
+    def setXbins(self, value):
+        self._xaxis.setBins(value)
+
+    # Y axis is the low,high,bins of  our super class.
+
+    def ylow(self):
+        return super().low()
+    def setYlow(self, value):
+        super().setLow(value)
+    def yhigh(self):
+        return super().high()
+    def setYhigh(self, value):
+        super().setHigh(value)
+    def ybins(self):
+        return super().bins()
+    def setYbins(self, value):
+        super().setBins(value)
+
 
 if __name__ == "__main__":
     app = QApplication([])
@@ -39,3 +68,6 @@ if __name__ == "__main__":
 
     c.show()
     app.exec()
+
+    
+
