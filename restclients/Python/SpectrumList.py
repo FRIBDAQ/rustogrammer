@@ -128,7 +128,7 @@ def test_view() :
 '''
 class SpectrumModel(QStandardItemModel):
     
-    colheadings = ['Name', 'Type', 
+    _colheadings = ['Name', 'Type', 
         'XParameter(s)', 'Low', 'High', 'Bins',
         'YParameter(s)', 'Low', 'High', 'Bins', 'Gate'
     ]
@@ -138,7 +138,7 @@ class SpectrumModel(QStandardItemModel):
     def headerData(self, col, orient, role):
         if role == Qt.DisplayRole:
             if orient == Qt.Horizontal:
-                return self.colheadings[col]
+                return self._colheadings[col]
             else:
                 return None
 
