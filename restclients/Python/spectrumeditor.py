@@ -36,7 +36,7 @@ import editorSummary, EnumeratedTypeSelector
 #------------------------- Spectrum controllers ----------------------
 # Slots assume that capabilities.get_client won't return None.
 
-# NullController - for unimplemented creations:
+# Utilities.
 
 def default(value, default=0):
     if value is None:
@@ -52,6 +52,8 @@ def confirm(question, parent=None):
 
 def error(msg):
     dlg = QMessageBox(QMessageBox.Error, 'Error:', msg, QMessageBox.Ok)
+
+# NoneController - for unimplemented creations:
 class NoneController:
     def __init__(self, editor, view):
         pass
@@ -257,7 +259,79 @@ class TwodController:
         param_info = self._client.parameter_list(pname)['detail'][0]
         self._view.setYLow(default(param_info['low'], 0))
         self._view.setYHigh(default(param_info['high'], 512.0),)  # like tree params.
+
         self._view.setYBins(default(param_info['bins'], 512))
+
+##
+#  Controller for summary spectra.
+#
+class SummaryController:
+    def __init__(self, editor, view):
+        self._client = get_capabilities_client()
+        self._editor = editor
+        self._view = view
+
+        # Connect the signals to our handlers.
+
+        self._view.parameter_changed.connect(self.select_param)
+        self._view.add.connect(self.add_params)
+
+    # If a parameter is selected:
+    #    put it's full name into the parameter text:
+
+    def select_param(self, path):
+        name = '.'.join(path)
+        self._view.setSelected_parameter(name)
+
+    #  Called when the arrow key to put a parameter into the param list
+    #  is clicked.  
+    #   - If array is checked we need to get the name of the parameters
+    #     given the one in the param chooser
+    #   - If the axis should be loaded from parameter metadata we load
+    #
+    def add_params(self):
+        name = self._view.selected_parameter()
+        if name == '':
+            return
+        
+        # Note _parameter_list takes care of loading the axis definition
+        # if desired and available.
+
+        names = self._parameter_list(name)
+        self._view.setAxis_parameters(names)
+
+    # Private utilities.abs
+
+    # _parameter_list - create a list of parameters to add to the list
+    # box and, if requested, update the axis definitions from parameter metadat
+    #
+    def _parameter_list(self, base):
+        pattern = base
+
+        if self._view.array():
+            pattern = base.split('.')[0:-1]
+            pattern.append('*')
+            pattern = '.'.join(pattern)
+        
+        #  Get the parameter definiions and:
+        #  extract the names into a list and, if axis_from_parameters is
+        #  in fill in the axis  values when we have a parameter with metadata.
+
+        descriptions = self._client.parameter_list(pattern)['detail']
+        names = [x['name'] for x in descriptions]  # list of matching names
+
+        if self._view.axis_from_parameters():
+            for p in descriptions:
+                if p['low'] is not None:
+                    self._view.setLow(p['low'])
+                if p['high'] is not None:
+                    self._view.setHigh(p['high'])
+                if p['bins'] is not None:
+                    self._view.setBins(p['bins'])
+
+
+        return names
+        
 
 
 #  This dict is a table, indexed by tab name, of the class objects
@@ -272,7 +346,7 @@ class TwodController:
 _spectrum_widgets = {
     '1D': (SpectrumTypes.Oned, editor1d.oneDEditor, OneDController),
     '2D': (SpectrumTypes.Twod, editortwod.TwoDEditor, TwodController),
-    'Summary': (SpectrumTypes.Summary, editorSummary.SummaryEditor, NoneController),
+    'Summary': (SpectrumTypes.Summary, editorSummary.SummaryEditor, SummaryController),
     'Gamma 1D' : (SpectrumTypes.Gamma1D, editorG1d.Gamma1DEditor, NoneController),
     'Gamma 2D' : (SpectrumTypes.Gamma2D, editorG2d.Gamma2DEditor, NoneController),
     'P-Gamma'  : (SpectrumTypes.GammaDeluxe, editorGD.GammaDeluxeEditor, NoneController),
