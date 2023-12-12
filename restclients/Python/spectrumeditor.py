@@ -275,6 +275,50 @@ class SummaryController:
 
         self._view.parameter_changed.connect(self.select_param)
         self._view.add.connect(self.add_params)
+        self._view.commit.connect(self.create_spectrum)
+    
+    #  Called to create a spectrum from the current definition.
+    #  note that the name must be non-empty else we do nothing
+    #  After successful completion, we prepare the UI for the next
+    #  definition:
+    #    - Clear the parameter box.
+    #    - Clear the spectrum name.
+    def create_spectrum(self):
+
+        # Pull the definitions:
+        name = self._view.name()
+        params = self._view.axis_parameters()
+        low = self._view.low()
+        high = self._view.high()
+        bins = self._view.bins()
+        chantype = self._editor.channeltype_string()
+
+        if len(name) > 0:
+            # Are we replacing:
+
+            if len(self._client.spectrum_list(name)['detail']) > 0:
+                if not confirm(f'Spectrum {name} already exists replace?'):
+                    return
+                else:
+                    try:
+                        self._client.spectrum_delete(name)
+                    except:
+                        error(f'Unable to delete {name} maybe it has a wildcard character in it?')
+                        return
+                
+            # If we get here we're ready to create the new spectrum:
+
+            try:
+                self._client.spectrum_createsummary(name, params, low, high, bins, chantype)
+            except RustogramerException as e:
+                error(f'Unable to create {name}: {e}')
+                return
+            self._view.setName('')
+            self._view.setAxis_parameters([])
+            try:
+                self._client.sbind_spectra([name])
+            except RustogramerException as e:
+                error(f'Unable to bind {name} to display memory but it has been created.')
 
     # If a parameter is selected:
     #    put it's full name into the parameter text:
@@ -298,7 +342,9 @@ class SummaryController:
         # if desired and available.
 
         names = self._parameter_list(name)
-        self._view.setAxis_parameters(names)
+        names.sort()
+        full_list = self._view.axis_parameters() + names
+        self._view.setAxis_parameters(full_list)
 
     # Private utilities.abs
 
