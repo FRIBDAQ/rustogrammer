@@ -77,6 +77,8 @@ class SpectrumList(QWidget) :
         self.mask.returnPressed.connect(self.filter_relay)
         self.filter.clicked.connect(self.filter_relay)
         self.clear.clicked.connect(self.clear_relay)
+    
+    
     ''' Provide access to the table  returns the QTableView widget
         that will display the spectrum list.
     '''
@@ -132,9 +134,14 @@ class SpectrumModel(QStandardItemModel):
     ]
     def __init__(self, parent = None) :
         super().__init__(parent)
-        self.setHorizontalHeaderLabels(self.colheadings)
 
-    
+    def headerData(self, col, orient, role):
+        if role == Qt.DisplayRole:
+            if orient == Qt.Horizontal:
+                return self.colheadings[col]
+            else:
+                return None
+
     ''' This method updates the data and rows variables.
         the client parameter must be a rustogramer client
         object and is used to get data from the

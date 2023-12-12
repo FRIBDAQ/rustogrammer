@@ -55,6 +55,7 @@ class SpectrumWidget(QWidget):
 
         self._spectrumListModel = SpectrumModel()
         self._listing.getList().setModel(self._spectrumListModel)
+        self._listing.getList().horizontalHeader().setModel(self._spectrumListModel)
         self._spectrumListModel.load_spectra(_client)
 
         load_parameters(_client)
