@@ -55,11 +55,15 @@
         *  axis_from_parameters - State of the axis from parameters checkbutton.
 
     Signals:
-        commit - The create/replace button was clicked.
+        commit - The create/replace button was clicked. Requires
         add    - The right arrow was clicked, the signal handler will need to
+         access the 'selected_parameter', 'array' and 'axis_from_parameters' 
+         attributes to properly function.
         remove = An item was removed from the selected parameters.
-        access the 'selected_parameter', 'array' and 'axis_from_parameters' 
-        attributes to properly function.
+       
+        The remove signal is provided if, in the future, we decide we want to
+        prevent adding duplicate parameters by removing them from the 
+        selection list.
 
         Note that editing, other than insertion, is handled autonomously via
         internal signals.
@@ -98,12 +102,13 @@ class SummaryEditor(QWidget):
         chooser_name = QVBoxLayout()
         self._parameter_chooser = pChooser(self)
         self._chosen_parameter = QLabel(self)
+        chooser_name.addWidget(QLabel("Select Parameter(s)"))
         chooser_name.addWidget(self._parameter_chooser)
         chooser_name.addWidget(self._chosen_parameter)
         self._param_array       = QCheckBox('Array', self)
         pclayout.addLayout(chooser_name)
         pclayout.addWidget(self._param_array)
-        main_layout.addLayout(pclayout, 2, 0)
+        main_layout.addLayout(pclayout, 3, 0)
 
         #  col 1 of the second row the add/remove arrows in a vbox.abs
 
