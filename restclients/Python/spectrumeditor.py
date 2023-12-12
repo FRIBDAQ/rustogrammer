@@ -29,7 +29,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import *
 from rustogramer_client import rustogramer as Client, RustogramerException
 
-import editor1d, editortwod, editor2dSum, editorBitmask, editorG1d
+import editor1d, editortwod, editor2dSum, editorBitmask
 import  editorG2d, editorGD, editorProjection, editorStripchart
 import editorSummary, EnumeratedTypeSelector
 
@@ -309,7 +309,7 @@ class SummaryController:
             # If we get here we're ready to create the new spectrum:
 
             try:
-                self._client.spectrum_createsummary(name, params, low, high, bins, chantype)
+                self.create_actual_spectrum(name, params, low, high, bins, chantype)
             except RustogramerException as e:
                 error(f'Unable to create {name}: {e}')
                 return
@@ -319,6 +319,13 @@ class SummaryController:
                 self._client.sbind_spectra([name])
             except RustogramerException as e:
                 error(f'Unable to bind {name} to display memory but it has been created.')
+
+    # Support subclassing with different spectrum type:
+    def create_actual_spectrum(self, name, params, low, high, bins, chantype):
+        self._client.spectrum_createsummary(name, params, low, high, bins, chantype)
+    
+    def client(self):
+        return self._client
 
     # If a parameter is selected:
     #    put it's full name into the parameter text:
@@ -379,6 +386,14 @@ class SummaryController:
         return names
         
 
+##  Gamma 1d is just like a summary spectrum but makes a different specturm type:
+
+class G1DController(SummaryController):
+    def __init__(self, editor, view):
+        super().__init__(editor, view)
+    def create_actual_spectrum(self, name, params, low, high, bins , chantype):
+        client = self.client()
+        client.spectrum_createg1(name, params, low, high, bins , chantype)
 
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
@@ -393,7 +408,7 @@ _spectrum_widgets = {
     '1D': (SpectrumTypes.Oned, editor1d.oneDEditor, OneDController),
     '2D': (SpectrumTypes.Twod, editortwod.TwoDEditor, TwodController),
     'Summary': (SpectrumTypes.Summary, editorSummary.SummaryEditor, SummaryController),
-    'Gamma 1D' : (SpectrumTypes.Gamma1D, editorG1d.Gamma1DEditor, NoneController),
+    'Gamma 1D' : (SpectrumTypes.Gamma1D, editorSummary.SummaryEditor,G1DController),
     'Gamma 2D' : (SpectrumTypes.Gamma2D, editorG2d.Gamma2DEditor, NoneController),
     'P-Gamma'  : (SpectrumTypes.GammaDeluxe, editorGD.GammaDeluxeEditor, NoneController),
     '2D Sum'   : (SpectrumTypes.TwodSum, editor2dSum.TwoDSumEditor, NoneController),
