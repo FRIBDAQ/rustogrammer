@@ -14,8 +14,9 @@
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QFrame,
-    QApplication, QMainWindow
+    QApplication, QMainWindow, QSizePolicy
 )
+
 from SpectrumList import (SpectrumList, SpectrumModel)
 from spectrumeditor import Editor
 from capabilities import set_client as set_cap_client
@@ -46,6 +47,7 @@ class SpectrumWidget(QWidget):
         top    = QFrame(self)
         top.setFrameShape(QFrame.Box)
         self._editor = Editor(top)
+        self._editor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         layout.addWidget(self._editor)
 
         bottom = QFrame(self)
