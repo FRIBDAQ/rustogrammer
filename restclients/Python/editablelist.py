@@ -87,12 +87,32 @@ class EditableList(QWidget):
 
 
         self.setLayout(layout)
+    
+    #Attribute implementations:
+
+    def list(self):
+        return [self._list.item(x).text() for x in range(self._list.count())]
+    def setList(self, items):
+        for i in items:
+            self._list.addItem(i)
+    def label(self):
+        return self._label.text()
+    def setLabel(self, newLabel):
+        self._label.setText(newLabel)
+
 
 #------------------------- test code ------------------------------
 if __name__ == '__main__':
     app = QApplication([])
     c   = QMainWindow()
     w   = EditableList('test')
+
+    print("Currently labeled: ", w.label())
+    w.setLabel('altered')
+
+    w.setList(['a','b','c','d','e','f'])
+    print(w.list())
+
     c.setCentralWidget(w)
 
     c.show()
