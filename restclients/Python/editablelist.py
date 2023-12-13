@@ -52,6 +52,7 @@ class EditableList(QWidget):
         # The list box is in 1,1 and spans 6 rows:
 
         self._list = QListWidget(self)
+        self._list.setSelectionMode(QAbstractItemView.ContiguousSelection)
         layout.addWidget(self._list, 1,1, 6,1)
 
         # In 4,0 is a vboxlayout that contains the
@@ -87,6 +88,17 @@ class EditableList(QWidget):
 
 
         self.setLayout(layout)
+
+        #Signal relays:
+
+        self._add.clicked.connect(self.add)
+
+        # Internally handled signals (note some may signal as well).
+
+        self._delete.clicked.connect(self._delete_selection)
+        self._clear.clicked.connect(self._delete_all)
+        self._up.clicked.connect(self._move_selection_up)
+        self._down.clicked.connect(self._move_selection_down)
     
     #Attribute implementations:
 
@@ -100,8 +112,62 @@ class EditableList(QWidget):
     def setLabel(self, newLabel):
         self._label.setText(newLabel)
 
+    # Internal signal handlers:
+
+    def _delete_selection(self):
+        # Deletes all selected items and does a remove signal for each item
+        # that is deleted.
+
+        selection = self._list.selectedItems()
+        self._delete_items(selection)
+
+    def _delete_all(self):
+        # Deletes all items int he list, signalling remove for each of them.
+        items = [self._list.item(x) for x in range(self._list.count())]
+        self._delete_items(items)
+
+    def _move_selection_up(self):
+        # Moves all the items in the selection up one notch.  Note
+        # we have a contiguous selection so if the one with the lowest
+        # row # is row 0 nothing to do:
+
+        rows = self._get_selected_rows()
+        rows.sort()
+
+        if (len(rows) == 0) or (rows[0] == 0):
+            return                   # already at the top or no selection
+        
+        for r in rows:
+            item = self._list.takeItem(r)
+            self._list.insertItem(r-1, item)
+
+    def _move_selection_down(self):
+
+        rows = self._get_selected_rows()
+        rows.sort(reverse=True)
+        
+        if (len(rows) == 0) or (rows[0] == self._list.count()-1):
+            return                   # already at bottom or no selection.
+
+        for r in rows:
+            item = self._list.takeItem(r)
+            self._list.insertItem(r+1, item)
+    # Private utilities:
+
+    def _delete_items(self, items):
+        for item in items:
+            deleted = self._list.takeItem(self._list.row(item))
+            self.remove.emit(deleted.text())
+
+    def _get_selected_rows(self):
+        return [self._list.row(x) for x in self._list.selectedItems()]
+
 
 #------------------------- test code ------------------------------
+
+def test_remove(txt):
+    print(txt, 'was removed')
+
 if __name__ == '__main__':
     app = QApplication([])
     c   = QMainWindow()
@@ -112,6 +178,8 @@ if __name__ == '__main__':
 
     w.setList(['a','b','c','d','e','f'])
     print(w.list())
+
+    w.remove.connect(test_remove)
 
     c.setCentralWidget(w)
 
