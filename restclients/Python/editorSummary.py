@@ -73,7 +73,7 @@
 from PyQt5.QtWidgets import (
     QLabel, QListWidget, QPushButton, QCheckBox, QLineEdit,
     QApplication, QMainWindow, QGridLayout, QVBoxLayout, QHBoxLayout,
-    QStyle, QWidget, QAbstractItemView
+    QStyle, QWidget #, QAbstractItemView
 )
 from PyQt5.Qt import *
 from PyQt5.QtCore import pyqtSignal
