@@ -73,7 +73,7 @@
 from PyQt5.QtWidgets import (
     QLabel, QListWidget, QPushButton, QCheckBox, QLineEdit,
     QApplication, QMainWindow, QGridLayout, QVBoxLayout, QHBoxLayout,
-    QStyle, QWidget #, QAbstractItemView
+    QStyle, QWidget 
 )
 from PyQt5.Qt import *
 from PyQt5.QtCore import pyqtSignal
@@ -110,7 +110,7 @@ class SummaryEditor(QWidget):
         pclayout.addWidget(self._param_array)
         main_layout.addLayout(pclayout, 3, 0)
 
-        #  col 1 of the second row the add/remove arrows in a vbox.abs
+        #  col 1 of the second row the add/remove arrows in a vbox
 
         self._add = QPushButton(self)
         rightid = getattr(QStyle, 'SP_MediaPlay')            # right arrow
