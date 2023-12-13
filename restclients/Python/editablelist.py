@@ -100,6 +100,13 @@ class EditableList(QWidget):
         self._up.clicked.connect(self._move_selection_up)
         self._down.clicked.connect(self._move_selection_down)
     
+    # Public methods:
+
+    def appendItem(self, s):
+        self._list.addItem(s)
+    def insertItem(self, row, s):
+        self._list.insertItem(row, s)
+
     #Attribute implementations:
 
     def list(self):
@@ -165,10 +172,22 @@ class EditableList(QWidget):
 
 #------------------------- test code ------------------------------
 
+test_items=['1', '2', '3', '4']
+l = None
 def test_remove(txt):
     print(txt, 'was removed')
 
+def add_item():
+    global test_items
+    global l
+    if len(test_items) > 0:
+        item = test_items.pop()
+        l.appendItem(item)
+    else: 
+        print("no more to insert")
+
 if __name__ == '__main__':
+   
     app = QApplication([])
     c   = QMainWindow()
     w   = EditableList('test')
@@ -179,7 +198,10 @@ if __name__ == '__main__':
     w.setList(['a','b','c','d','e','f'])
     print(w.list())
 
+
     w.remove.connect(test_remove)
+    w.add.connect(add_item)
+    l = w
 
     c.setCentralWidget(w)
 
