@@ -79,6 +79,7 @@ from PyQt5.Qt import *
 from PyQt5.QtCore import pyqtSignal
 from ParameterChooser import Chooser as pChooser
 from axisdef import AxisInput
+from editablelist import EditableList
 
 class SummaryEditor(QWidget):
     commit = pyqtSignal()
@@ -110,44 +111,8 @@ class SummaryEditor(QWidget):
         pclayout.addWidget(self._param_array)
         main_layout.addLayout(pclayout, 3, 0)
 
-        #  col 1 of the second row the add/remove arrows in a vbox
-
-        self._add = QPushButton(self)
-        rightid = getattr(QStyle, 'SP_MediaPlay')            # right arrow
-        self._add.setIcon(self.style().standardIcon(rightid)) # Face.
-        self._add.setMaximumWidth(25)
-        self._delete = QPushButton(self)
-        delid = getattr(QStyle, 'SP_DialogCancelButton')     # As an X for
-        self._delete.setIcon(self.style().standardIcon(delid)) # delete.and
-        self._delete.setMaximumWidth(25)
-
-        addremoveLayout = QVBoxLayout()
-        addremoveLayout.addWidget(self._add)
-        addremoveLayout.addWidget(self._delete)
-        main_layout.addLayout(addremoveLayout, 1,1, 5,1, Qt.AlignRight ) # This span centralizes
-
-        #Column 3, Rows 1-6 are the listbox:
-
-        self._xparameters = QListWidget(self)
-        self._xparameters.setSelectionMode(QAbstractItemView.ContiguousSelection)
-        main_layout.addWidget(self._xparameters, 1,2, 6,1 )
-
-        # Up/down/clear buttons are below the list box in row 7,8, col 3
-        # Where ^/V are in a horizontal list box in row 7 and clear is in 
-        # row 8.
-
-        updown_layout = QHBoxLayout()
-        self._up = QPushButton(self)
-        self._up.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_TitleBarShadeButton')))
-        self._up.setMaximumWidth(25)
-        self._down = QPushButton(self)
-        self._down.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_TitleBarUnshadeButton')))
-        self._down.setMaximumWidth(25)
-        updown_layout.addWidget(self._up)
-        updown_layout.addWidget(self._down)
-        main_layout.addLayout(updown_layout, 7, 2)
-        self._clear = QPushButton('Clear', self)
-        main_layout.addWidget(self._clear, 8,2)
+        self._list = EditableList('Parameters')
+        main_layout.addWidget(self._list, 1,1, 6, 1)
 
         # The axis specification with a from parameters checkbutton.
 
@@ -169,16 +134,17 @@ class SummaryEditor(QWidget):
 
         # Signal relays:
 
-        self._add.clicked.connect(self.add)
+        self._list.add.connect(self.add)
+        self._list.remove.connect(self.remove)
         self._commit.clicked.connect(self.commit)
         self._parameter_chooser.selected.connect(self.parameter_changed)
 
         # Internal signals 
 
-        self._delete.clicked.connect(self.deleteSelection)
-        self._clear.clicked.connect(self.clear)  # relay to listbox.
-        self._up.clicked.connect(self.up)
-        self._down.clicked.connect(self.down)
+        #self._delete.clicked.connect(self.deleteSelection)
+        #self._clear.clicked.connect(self.clear)  # relay to listbox.
+        #self._up.clicked.connect(self.up)
+        #self._down.clicked.connect(self.down)
 
         
         self.main_layout = main_layout
@@ -196,12 +162,10 @@ class SummaryEditor(QWidget):
         self._chosen_parameter.setText(pname)
     
     def axis_parameters(self):
-        rows = self._xparameters.count()
-        return [self._xparameters.item(x).text() for x in range(rows)]
+        return self._list.list()
 
     def setAxis_parameters(self, itemList):
-        self._xparameters.clear()
-        self._xparameters.addItems(itemList)
+        self._list.setList(itemList)
 
     def low(self):
         return self._axis.low()
@@ -240,70 +204,7 @@ class SummaryEditor(QWidget):
     
     # slots:
 
-    def deleteSelection(self):
-        ''' Slot to delete the currently selected items from the list. '''
-
-        selected = self._xparameters.selectedItems()
-        for item in selected:
-            row = self._xparameters.row(item)
-            self._xparameters.takeItem(row)
-            self.remove.emit(item.text())
-    def clear(self):
-        ''' Clear the list box.   We can't use the listbox's clear 
-            slot if we want to emit our remove signal for each item
-            removed.
-        '''
-        while self._xparameters.count() > 0:
-            item = self._xparameters.takeItem(0)
-            self.remove.emit(item.text())
     
-    def up(self):
-        '''  move the selected block of items up). '''
-        selected = self._xparameters.selectedItems()
-        
-        if len(selected) < 1:
-            return                    # no selection
-        # Ordered list of rows:
-
-        selected_rows = [self._xparameters.row(x) for x in selected]
-        selected_rows.sort()
-
-        # We use a contiguous selection mode so if the first row
-        # is 0 we're done:
-
-        if selected_rows[0] == 0:
-            return                 # Alread at the top.
-
-        # Note that in this sort order, moving an item up a row
-        # Will not alter the row of remaining list items:
-
-        for row in selected_rows:
-            item = self._xparameters.takeItem(row)
-            self._xparameters.insertItem(row-1, item)
-
-    def down(self):
-        ''' Move the selected block of items down '''
-        
-        selected = self._xparameters.selectedItems()
-        if len(selected) < 1:
-            return                      # no selection.
-        # Order descending:
-
-        selected_rows = [self._xparameters.row(x) for x in selected]
-        selected_rows.sort(reverse=True)
-
-        # We're using contiguous selection mode and our rows are high to low
-        # number so if the first selected row number is at the end we're done.
-
-        if selected_rows[0] == self._xparameters.count()-1:
-            return                      # already at bottom.
-
-        #  Now moving an item down won't change the row of other items
-        # due to the sort order.
-
-        for row in selected_rows:
-            item = self._xparameters.takeItem(row)
-            self._xparameters.insertItem(row+1, item)
 
 def test():
     app = QApplication([])
@@ -316,4 +217,5 @@ def test():
     c.show()
     app.exec()
 
-        
+if __name__ == "__main__":
+    test()        
