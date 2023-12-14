@@ -233,20 +233,20 @@ class GammaDeluxeEditor(QWidget):
     def setXhigh(self, value):
         self._xaxis.setHigh(value)
     def xbins(self):
-        self._xaxis.bins()
+        return self._xaxis.bins()
     def setXbins(self,  value):
         self._xaxis.setBins(value)
 
     def ylow(self):
-        self._yaxis.low()
+        return self._yaxis.low()
     def setYlow(self, value):
         self._yaxis.setLow(value)
     def yhigh(self):
-        self._yaxis.high()
+        return self._yaxis.high()
     def setYhigh(self, value):
         self._yaxis.setHigh(value)
     def ybins(self):
-        self._yaxis.bins()
+        return self._yaxis.bins()
     def setYbins(self, value):
         self._yaxis.setBins(value)
 
