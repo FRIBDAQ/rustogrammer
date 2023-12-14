@@ -458,11 +458,61 @@ class PGammaController:
         for name in names:
             self._view.addYparameter(name)
     def commit(self):
-        pass
+        name = self._view.name()
+        if name == '':
+            return
+
+        #  If there's already a spectrum of this name ensure we can replace:
+
+        if self._create_ok(name):
+            xparams = self._view.xparameters()
+            yparams = self._view.yparameters()
+            xlow    = self._view.xlow()
+            xhigh   = self._view.xhigh()
+            xbins   = self._view.xbins()
+            ylow    = self._view.ylow()
+            yhigh   = self._view.yhigh()
+            ybins   = self._view.ybins()
+            dtype   = self._editor.channeltype_string()
+
+            # Try to create the spectrum:
+
+            try:
+                self._client.spectrum_creategd(
+                    name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins, dtype
+                )
+            except RustogramerException as e:
+                error(f'Failed to create {name}: {e}')
+                return
+            self._editor.spectrum_added(name)   # Made.
+
+            # Try to bind it to display memory:
+
+            try:
+                self._client.sbind_list([name])
+            except RustogramerException as e:
+                error(f'Failed to bind {name} to shared memory: {e}, Spectrum was made, however')
+
     def set_param_name(self, path):
         name = '.'.join(path)
         self._view.setSelectedParameter(name)
     # Utility methods
+
+    def _create_ok(self, name):
+        # Returns true if it's ok to make the spectrum.
+        # If the spectrum exists, we require the user to confirm the
+        # replacement and delete the spectrum.
+
+        defs = self._client.spectrum_list(name)['detail']
+        if len(defs) > 0:
+            if confirm(f'{name} already exists relace?', self._view):
+                self._client.spectrum_delete(name)
+                self._editor.spectrum_removed(name)
+                return True
+            else:
+                false
+        else:
+            return True
 
     def _get_parameters(self):
         #Get the defs of the parameters to add:
