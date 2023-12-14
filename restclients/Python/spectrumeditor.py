@@ -429,6 +429,26 @@ class G2DController(SummaryController):
             view.setXbins(p['bins'])
             view.setYbins(p['bins'])
 
+#
+#   Controller to build particle gamma spectra (GD).
+#
+class PGammaController:
+    def __init__(self, editor, view):
+        self._editor = editor
+        self._view   = view
+        self._view.addXParameters.connect(self.addx)
+        self._view.addYParameters.connect(self.addy)
+        self._view.parameterChanged.connect(self.set_param_name)
+        self._view.commit.connect(self.commit)
+    def addx(self):
+        pass
+    def addy(self):
+        pass
+    def commit(self):
+        pass
+    def set_param_name(self, path):
+        name = '.'.join(path)
+        self._view.setSelectedParameter(name)
 
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
@@ -445,7 +465,7 @@ _spectrum_widgets = {
     'Summary': (SpectrumTypes.Summary, editorSummary.SummaryEditor, SummaryController),
     'Gamma 1D' : (SpectrumTypes.Gamma1D, editorSummary.SummaryEditor,G1DController),
     'Gamma 2D' : (SpectrumTypes.Gamma2D, editorG2d.Gamma2DEditor, G2DController),
-    'P-Gamma'  : (SpectrumTypes.GammaDeluxe, editorGD.GammaDeluxeEditor, NoneController),
+    'P-Gamma'  : (SpectrumTypes.GammaDeluxe, editorGD.GammaDeluxeEditor, PGammaController),
     '2D Sum'   : (SpectrumTypes.TwodSum, editor2dSum.TwoDSumEditor, NoneController),
     'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, NoneController),
     'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor, NoneController),
