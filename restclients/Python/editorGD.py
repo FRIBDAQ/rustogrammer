@@ -44,6 +44,7 @@ from PyQt5.Qt import *
 
 from axisdef import AxisInput
 from ParameterChooser import Chooser as ParameterChooser
+from editablelist import EditableList
 
 
 ##  Internal widget that is a labeled axis input:
@@ -98,50 +99,11 @@ class GammaDeluxeEditor(QWidget):
         self._name =QLineEdit()
         top_layout.addWidget(self._name, 0, 1, 1,2)
 
-        #----------------------------------------------------
-        # should the stuff from here to the next
-        # line be a megawidget?  It is repeated for the y axis.
+        #  Xparameter list:
 
-        # Second row is just the Xaxis parameter label in col 3:
+        self._xparameters = EditableList('X Parameters', self)
+        top_layout.addWidget(self._xparameters, 1,1, 6, 1)
 
-        top_layout.addWidget(QLabel('X parameters'), 1, 2)
-
-        # 3'd row is the x parameter list  in col 3 spanning 6 rows:
-
-        self._xparameters = QListWidget(self)
-        top_layout.addWidget(self._xparameters, 2, 2, 6, 1)
-
-        # Row 5, col 1 has the right arrow and X in a VBoxlayout
-
-        addx_layout = QVBoxLayout()
-        self._addx = QPushButton(self)
-        rightid = getattr(QStyle, 'SP_MediaPlay')            # right arrow
-        self._addx.setIcon(self.style().standardIcon(rightid)) # Face.
-        self._addx.setMaximumWidth(25)
-        self._deletex = QPushButton(self)
-        delid = getattr(QStyle, 'SP_DialogCancelButton')     # As an X for
-        self._deletex.setIcon(self.style().standardIcon(delid)) # delete.and
-        self._deletex.setMaximumWidth(25)
-        addx_layout.addWidget(self._addx)
-        addx_layout.addWidget(self._deletex)
-        top_layout.addLayout(addx_layout, 5,1, Qt.AlignRight)
-
-        # Row 8 col2 has the X axis editing buttons ^ V clear
-        # in an HBoxLayout inserted with top alignment into the grid.
-
-        editx_layout = QHBoxLayout()
-        self._upx = QPushButton(self)
-        self._upx.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_TitleBarShadeButton')))
-        self._upx.setMaximumWidth(25)
-        self._downx = QPushButton(self)
-        self._downx.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_TitleBarUnshadeButton')))
-        self._downx.setMaximumWidth(25)
-        self._clearx = QPushButton('Clear', self)
-        editx_layout.addWidget(self._upx)
-        editx_layout.addWidget(self._downx)
-        editx_layout.addWidget(self._clearx)
-        top_layout.addLayout(editx_layout, 8, 2, Qt.AlignTop)
-        #------------------------------------------------------------
 
         #  Row 8, col 0 has a labeled parameter chooser,
         #  and label for the parameter.
@@ -159,54 +121,23 @@ class GammaDeluxeEditor(QWidget):
         self._array = QCheckBox('Array', self)
         top_layout.addWidget(self._array, 8,1)
 
+       
+        
+        self._yparameters = EditableList('Y Parameters', self)
+        top_layout.addWidget(self._yparameters, 9, 1, 6, 1)
 
         
-        #--------------------------------------------------------------
-        # factor out into a megawidget?
-        # Now the label for the Y axis parameters in row 9, col2
-
-        top_layout.addWidget(QLabel('Y parameters', self), 9,2)
-        self._yparameters = QListWidget()
-        top_layout.addWidget(self._yparameters, 10,2, 6,1)
-
-        addy_layout = QVBoxLayout()
-        self._addy = QPushButton(self)
-        rightid = getattr(QStyle, 'SP_MediaPlay')            # right arrow
-        self._addy.setIcon(self.style().standardIcon(rightid)) # Face.
-        self._addy.setMaximumWidth(25)
-        self._deletey = QPushButton(self)
-        delid = getattr(QStyle, 'SP_DialogCancelButton')     # As an X for
-        self._deletey.setIcon(self.style().standardIcon(delid)) # delete.and
-        self._deletey.setMaximumWidth(25)
-        addy_layout.addWidget(self._addy)
-        addy_layout.addWidget(self._deletey)
-        top_layout.addLayout(addy_layout, 13,1, Qt.AlignRight)
-
-        edity_layout = QHBoxLayout()
-        self._upy = QPushButton(self)
-        self._upy.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_TitleBarShadeButton')))
-        self._upy.setMaximumWidth(25)
-        self._downy = QPushButton(self)
-        self._downy.setIcon(self.style().standardIcon(getattr(QStyle, 'SP_TitleBarUnshadeButton')))
-        self._downy.setMaximumWidth(25)
-        self._cleary = QPushButton('Clear', self)
-        edity_layout.addWidget(self._upy)
-        edity_layout.addWidget(self._downy)
-        edity_layout.addWidget(self._cleary)
-        top_layout.addLayout(edity_layout, 16, 2, Qt.AlignTop)
-        #-----------------------------------------------------------
-
         # THe two axes in row 17 cols 0, 1:
 
         self._xaxis = _Axis('X axis', self)
         self._yaxis = _Axis('Y axis', self)
-        top_layout.addWidget(self._xaxis, 17, 0)
-        top_layout.addWidget(self._yaxis, 17, 1)
+        top_layout.addWidget(self._xaxis, 16, 0)
+        top_layout.addWidget(self._yaxis, 16, 1)
 
         #  Finally the create/replace button
 
         self._commit = QPushButton('Create/Replace', self)
-        top_layout.addWidget(self._commit, 18,0, 1,3, Qt.AlignHCenter)
+        top_layout.addWidget(self._commit, 17,0, 1,3, Qt.AlignHCenter)
 
 
         self.setLayout(top_layout)
