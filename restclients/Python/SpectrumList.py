@@ -151,7 +151,6 @@ class SpectrumModel(QStandardItemModel):
         self.clear()
         json = client.spectrum_list(pattern)
         spectra = json['detail']
-        self.data = []
         self.rows = len(spectra)
 
         for spectrum in spectra :
