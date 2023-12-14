@@ -88,6 +88,29 @@ class _Axis(QWidget):
 
 
 class GammaDeluxeEditor(QWidget):
+    '''
+    Signals:
+       addXParameters  - Click on add button for X parameters
+       addYParameters  - Click on add button for Y parameters
+       parameterChanged - A terminal parameter node was selected.
+       commit          - Create/Replace spectrum.
+    Attributes:
+       name - spectrum name.
+       xparameters - Contents of X parameters list box.
+       yparameters  - Contents of Y parameters list box.
+       selectedParameter -  currently selected parameter
+       array       - State of array checkbutton.
+       axis_from_parameters - state of axis from parameters checkbutton.
+       xlow, xhigh, xbins - X axis specification.
+       ylow, yhigh, ybins - Y Axis specification.
+
+    '''
+    addXParameters    = pyqtSignal()
+    xParameterRemoved = pyqtSignal(str)
+    addYParameters    = pyqtSignal()
+    yParameterRemoved = pyqtSignal(str)
+    parameterChanged  = pyqtSignal(list)
+    commit            = pyqtSignal()
     def __init__(self, *args):
         super().__init__(*args)
         
@@ -116,7 +139,7 @@ class GammaDeluxeEditor(QWidget):
         param_layout.addWidget(self._selected_parameter)
         top_layout.addLayout(param_layout, 8, 0)
 
-        #  Row 8 col1 has the array checkbox:
+        #  Row 8 col 1 has the array checkbox:
 
         self._array = QCheckBox('Array', self)
         top_layout.addWidget(self._array, 8,1)
@@ -127,12 +150,15 @@ class GammaDeluxeEditor(QWidget):
         top_layout.addWidget(self._yparameters, 9, 1, 6, 1)
 
         
-        # THe two axes in row 17 cols 0, 1:
+        # THe two axes in row 16 cols 0, 1:
+
 
         self._xaxis = _Axis('X axis', self)
         self._yaxis = _Axis('Y axis', self)
         top_layout.addWidget(self._xaxis, 16, 0)
         top_layout.addWidget(self._yaxis, 16, 1)
+        self._loadaxes = QCheckBox('From parameters', self)
+        top_layout.addWidget(self._loadaxes, 16, 2, Qt.AlignVCenter)
 
         #  Finally the create/replace button
 
@@ -141,6 +167,85 @@ class GammaDeluxeEditor(QWidget):
 
 
         self.setLayout(top_layout)
+
+        # Signal relays:
+
+        self._xparameters.add.connect(self.addXParameters)
+        self._xparameters.remove.connect(self.xParameterRemoved)
+        self._yparameters.add.connect(self.addYParameters)
+        self._yparameters.remove.connect(self.yParameterRemoved)
+        self._parameter_chooser.selected.connect(self.parameterChanged)
+        self._commit.clicked.connect(self.commit)
+
+    #  Implementing attributes:
+
+    def name(self):
+        return self._name.text()
+    def setName(self, name):
+        self._name.setText(name)
+
+    def xparameters(self):
+        return self._xparameters.list()
+    def setXparameters(self, param_list):
+        self._xparameters.setList(param_list)
+
+    def yparameters(self):
+        return self._yparameters.list()
+    def setYparameters(self,param_list):
+        self._yparameters.setList(param_list)
+
+    def selectedParameter(self):
+        return self._selected_parameter.text()
+    def setSelectedParameter(self, name):
+        self._selected_parameter.setText(name)
+    def array(self):
+        if self._array.checkState() == Qt.Checked:
+            return True
+        else:
+            return False
+    def setArray(self, state):
+        if state:
+            self._array.setCheckState(Qt.Checked)
+        else:
+            self._array.setCheckState(Qt.Unchecked)
+
+    def axis_from_parameters(self):
+        if self._loadaxes.checkState() == Qt.Checked:
+            return True
+        else:
+            return False
+    def setAxis_from_parameters(self, state):
+        if state:
+            self._loadaxes.setCheckState(Qt.Checked)
+        else:
+            self._loadaxes.setCheckState(Qt.Unchecked)
+
+    def xlow(self):
+        return self._xaxis.low()
+    def setXlow(self, value):
+        self._xaxis.setLOw(value)
+    def xhigh(self):
+        return self._xaxis.high()
+    def setXhigh(self, value):
+        self._xaxis.setHigh(value)
+    def xbins(self):
+        self._xaxis.bins()
+    def setXbins(self,  value):
+        self._xaxis.setBins(value)
+
+    def ylow(self):
+        self._yaxis.low()
+    def setYlow(self, value):
+        self._yaxis.setLow(value)
+    def yhigh(self):
+        self._yaxis.high()
+    def setYhigh(self, value):
+        self._yaxis.setHigh(value)
+    def ybins(self):
+        self._yaxis.bins()
+    def setYbins(self, value):
+        self._yaxis.setBins(value)
+
 
 # test code
 
