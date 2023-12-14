@@ -487,6 +487,10 @@ class PGammaController:
                 return
             self._editor.spectrum_added(name)   # Made.
 
+            self._view.setName('')
+            self._view.setXparameters([])   # Clear the editor for next time.
+            self._view.setYparameters([])
+
             # Try to bind it to display memory:
 
             try:

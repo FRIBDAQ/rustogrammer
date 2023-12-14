@@ -107,11 +107,16 @@ class EditableList(QWidget):
     def insertItem(self, row, s):
         self._list.insertItem(row, s)
 
+    def clear(self):
+        while self._list.count() > 0:
+            self._list.takeItem(0)
+            
     #Attribute implementations:
 
     def list(self):
         return [self._list.item(x).text() for x in range(self._list.count())]
     def setList(self, items):
+        self.clear()
         for i in items:
             self._list.addItem(i)
     def label(self):
