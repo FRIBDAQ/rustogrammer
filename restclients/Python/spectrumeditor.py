@@ -436,19 +436,80 @@ class PGammaController:
     def __init__(self, editor, view):
         self._editor = editor
         self._view   = view
+        self._client = get_capabilities_client()
         self._view.addXParameters.connect(self.addx)
         self._view.addYParameters.connect(self.addy)
         self._view.parameterChanged.connect(self.set_param_name)
         self._view.commit.connect(self.commit)
     def addx(self):
-        pass
+        params = self._get_parameters()
+        if self._view.axis_from_parameters():
+            self._set_axis_defs(params)
+        names = [x['name'] for x in params]
+        names.sort()
+        for name in names:
+            self._view.addXparameter(name)
     def addy(self):
-        pass
+        params = self._get_parameters()
+        if self._view.axis_from_parameters():
+            self._set_axis_defs(params)
+        names = [x['name'] for x in params]
+        names.sort()
+        for name in names:
+            self._view.addYparameter(name)
     def commit(self):
         pass
     def set_param_name(self, path):
         name = '.'.join(path)
         self._view.setSelectedParameter(name)
+    # Utility methods
+
+    def _get_parameters(self):
+        #Get the defs of the parameters to add:
+
+        name = self._view.selectedParameter()
+        if self._view.array():
+            params = self._make_parameter_list(name)
+        else:
+            params = self._client.parameter_list(name)['detail']
+        return params
+
+    def _make_parameter_list(self, sample):
+        # Given a sample parameter return the list of paramater descriptions
+        # that are in the array sample is in:
+
+        # Create the listing search path:
+
+        path = sample.split('.')
+        path = path[0:-1]
+        path = '.'.join(path)
+        pattern = path + '.*'
+        
+        #  get the matching parameter descriptions:
+
+        descriptions = self._client.parameter_list(pattern)['detail']
+        return descriptions
+
+    def _set_axis_defs(self, parameters):
+        #  Given a set of parameter descriptions, set the axis definitions
+        #  from them.
+
+        for param in parameters:
+            low = param['low']
+            high= param['high']
+            bins= param ['bins']
+            if low is not None:
+                self._view.setXlow(low)
+                self._view.setYlow(low)
+            if high is not None:
+                self._view.setXhigh(high)
+                self._view.setYhigh(high)
+            if bins is not None:
+                self._view.setXbins(bins)
+                self._view.setYbins(bins)
+                
+
+
 
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.

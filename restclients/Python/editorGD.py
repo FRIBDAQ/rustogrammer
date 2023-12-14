@@ -188,11 +188,15 @@ class GammaDeluxeEditor(QWidget):
         return self._xparameters.list()
     def setXparameters(self, param_list):
         self._xparameters.setList(param_list)
+    def addXparameter(self, name):
+        self._xparameters.appendItem(name)
 
     def yparameters(self):
         return self._yparameters.list()
     def setYparameters(self,param_list):
         self._yparameters.setList(param_list)
+    def addYparameter(self, name):
+        self._yparameters.appendItem(name)
 
     def selectedParameter(self):
         return self._selected_parameter.text()
@@ -223,7 +227,7 @@ class GammaDeluxeEditor(QWidget):
     def xlow(self):
         return self._xaxis.low()
     def setXlow(self, value):
-        self._xaxis.setLOw(value)
+        self._xaxis.setLow(value)
     def xhigh(self):
         return self._xaxis.high()
     def setXhigh(self, value):
@@ -245,6 +249,7 @@ class GammaDeluxeEditor(QWidget):
         self._yaxis.bins()
     def setYbins(self, value):
         self._yaxis.setBins(value)
+
 
 
 # test code
