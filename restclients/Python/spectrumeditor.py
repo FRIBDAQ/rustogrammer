@@ -29,7 +29,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import *
 from rustogramer_client import rustogramer as Client, RustogramerException
 
-import editor1d, editortwod, editor2dSum, editorBitmask
+import editor1d, editortwod, editorBitmask
 import  editorG2d, editorGD, editorProjection, editorStripchart
 import editorSummary, EnumeratedTypeSelector
 
@@ -51,7 +51,8 @@ def confirm(question, parent=None):
     return dlg == QMessageBox.Yes
 
 def error(msg):
-    dlg = QMessageBox(QMessageBox.Error, 'Error:', msg, QMessageBox.Ok)
+    dlg = QMessageBox(QMessageBox.Critical, 'Error:', msg, QMessageBox.Ok)
+    dlg.exec()
 
 # NoneController - for unimplemented creations:
 class NoneController:
@@ -478,7 +479,7 @@ class PGammaController:
             # Try to create the spectrum:
 
             try:
-                self._client.spectrum_creategd(
+                self.create_actual_spectrum(
                     name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins, dtype
                 )
             except RustogramerException as e:
@@ -493,6 +494,10 @@ class PGammaController:
             except RustogramerException as e:
                 error(f'Failed to bind {name} to shared memory: {e}, Spectrum was made, however')
 
+    def create_actual_spectrum(self, name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins, dtype):
+        self._client.spectrum_creategd(
+                    name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins, dtype
+                )
     def set_param_name(self, path):
         name = '.'.join(path)
         self._view.setSelectedParameter(name)
@@ -560,6 +565,16 @@ class PGammaController:
                 
 
 
+# Making a 2d sum is like making a gamma deluxe .. we'll let the
+# server enforce that the number of x/y params must be the same:
+
+class TwoDSumController(PGammaController):
+    def __init__(self, editor, view):
+        super().__init__(editor, view)
+    def create_actual_spectrum(self, name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins, dtype):
+        self._client.spectrum_create2dsum(
+            name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh,ybins, dtype
+        )
 
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
@@ -577,7 +592,7 @@ _spectrum_widgets = {
     'Gamma 1D' : (SpectrumTypes.Gamma1D, editorSummary.SummaryEditor,G1DController),
     'Gamma 2D' : (SpectrumTypes.Gamma2D, editorG2d.Gamma2DEditor, G2DController),
     'P-Gamma'  : (SpectrumTypes.GammaDeluxe, editorGD.GammaDeluxeEditor, PGammaController),
-    '2D Sum'   : (SpectrumTypes.TwodSum, editor2dSum.TwoDSumEditor, NoneController),
+    '2D Sum'   : (SpectrumTypes.TwodSum, editorGD.GammaDeluxeEditor, TwoDSumController),
     'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, NoneController),
     'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor, NoneController),
     'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor, NoneController)
