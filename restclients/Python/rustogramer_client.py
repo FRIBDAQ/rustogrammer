@@ -1044,7 +1044,7 @@ class rustogramer:
         the projection as new events arrive.  The spectrum must be separately
         bound to display memory if desired.
 
-        This is only implemented in SpecTcl.
+    
         """
         params = {
             "source":oldname, 
