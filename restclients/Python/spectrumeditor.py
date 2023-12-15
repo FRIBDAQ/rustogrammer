@@ -579,6 +579,82 @@ class TwoDSumController(PGammaController):
         self._client.spectrum_create2dsum(
             name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh,ybins, dtype
         )
+#  Controller for spectrum projections:
+
+class ProjectionController:
+    def __init__(self, editor, view):
+        self._editor = editor
+        self._view   = view
+        self._client = get_capabilities_client()
+
+        # we have to load up the view with the current spectrum list
+        # _and_ since we don't get a signal for the intial loading
+        # of that list we need to load contours for the contours visibl
+        # on the first of those spectra:
+
+        self._loadspectra()
+        self._loadContours(self._view.spectrum())
+
+        # Connect to singal handlers
+
+        self._view.spectrumChosen.connect(self._loadContours)
+        self._view.commit.connect(self._create)
+    
+    #  Create the spectrum:
+
+    def _create(self):
+        pass
+
+    #  Utilties:
+
+    def _loadspectra(self):
+        all_spectra = self._client.spectrum_list()['detail']
+        twod_spectra = [x['name'] for x in all_spectra if self._is2d(x)]
+        twod_spectra.sort()
+        self._view.setSpectra(twod_spectra)
+        pass
+
+    def _loadContours(self, spectrum_name):
+        spectrum_def = self._client.spectrum_list(spectrum_name)['detail'][0]
+        all_conditions = self._client.condition_list()['detail']
+        displayable_contours = [x['name'] for x in all_conditions  \
+            if self._is_displayable_contour(spectrum_def, name)]
+        self._view.setContours(displayable_contours)
+
+    def _is2d(self, spectrum):
+        # True if the definition in spectrum is a 2d (projectable).
+        # since g2d is 2d as are 2dsum and p-gamma a spectrum is 2d
+        # if it is not a summary and has both axis definitions.
+        return ((spectrum['type'] != 's') and
+            (spectrum['xaxis'] is not None) and 
+            (spectrum['yaxis'] is not None))
+    
+    def _is_displayble_contour(self, spectrum_def, condition):
+        #   Return true if the codition is
+        #   1. A contour or multi contour ('c' or 'gc')
+        #   2. Its x and y parameters are all present on the spectrum_def
+
+        xpars = spectrum_def['xparameters']
+        ypars = spectrum_def['yparameters']
+
+        gate_params = condition['parameters']
+
+        # Interpretation  of gate_params depends on the condition type.
+
+        if condition['type'] == 'c':
+            return gate_params[0] in xpars and gate_params[1] in ypars
+        elif condition['type'] == 'gc':
+            for p in gate_params:
+                if p not in xpars and p not in ypars:
+                    return False
+            return True
+        else:
+            return False
+
+
+
+
+
 
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
@@ -597,7 +673,7 @@ _spectrum_widgets = {
     'Gamma 2D' : (SpectrumTypes.Gamma2D, editorG2d.Gamma2DEditor, G2DController),
     'P-Gamma'  : (SpectrumTypes.GammaDeluxe, editorGD.GammaDeluxeEditor, PGammaController),
     '2D Sum'   : (SpectrumTypes.TwodSum, editorGD.GammaDeluxeEditor, TwoDSumController),
-    'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, NoneController),
+    'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, ProjectionController),
     'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor, NoneController),
     'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor, NoneController)
 
