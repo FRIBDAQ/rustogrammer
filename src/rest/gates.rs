@@ -348,7 +348,6 @@ fn validate_multi2_parameters(
     xcoords: OptionalF64Vec,
     ycoords: OptionalF64Vec,
     state: &State<SharedHistogramChannel>,
-
 ) -> Result<ParameterIdAndCoords, String> {
     // THere must be parameers, x and y coordinates:
 
@@ -812,12 +811,7 @@ mod gate_tests {
         make_test_objects(&c);
 
         let api = condition_messages::ConditionMessageClient::new(&c);
-        api.create_band_condition(
-            "band",
-            1,
-            2,
-            &[(10.0, 10.0), (15.0, 20.0), (100.0, 15.0)],
-        );
+        api.create_band_condition("band", 1, 2, &[(10.0, 10.0), (15.0, 20.0), (100.0, 15.0)]);
 
         let client = Client::tracked(rocket).expect("making client");
         let req = client.get("/list");
