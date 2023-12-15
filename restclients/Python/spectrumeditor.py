@@ -32,6 +32,7 @@ from rustogramer_client import rustogramer as Client, RustogramerException
 import editor1d, editortwod, editorBitmask
 import  editorG2d, editorGD, editorProjection, editorStripchart
 import editorSummary, EnumeratedTypeSelector
+from direction import Direction
 
 #------------------------- Spectrum controllers ----------------------
 # Slots assume that capabilities.get_client won't return None.
@@ -603,7 +604,52 @@ class ProjectionController:
     #  Create the spectrum:
 
     def _create(self):
-        pass
+        # If there's no proposed name give up:
+
+        name = self._view.name()
+        if name.isspace():
+            return
+        source = self._view.spectrum()
+        snap   = self._view.snapshot()
+        incontour = self._view.contour()
+        if incontour:
+            contour_name = self._view.contour_name()
+        else:
+            contour_name = None
+        direction = self._view.direction()
+        if direction == Direction.X.value:
+            direction_str ='x'
+        else:
+            direction_str = 'y'
+
+        #  IF name is an existing spectrum we need permission
+        # to overwrite it:
+
+        if len(self._client.spectrum_list(name)['detail']) > 0:
+            if not confirm(f'{name} already exists replace?'):
+                return
+            else:
+                self._client.spectrum_delete(name)
+                self._editor.spectrum_removed(name)
+        
+        # Now we can get on with making the spectrum and
+        # binding it into display memory.
+
+        try:
+            self._client.project(
+                source, name, direction_str, snap, contour_name
+            )
+        except RustogramerException as e:
+            error(f'Could not create {name} projection of {source}: {e}')
+            return
+        # Got made so now try to sbind it:
+
+        self._editor.spectrum_added(name)
+        try:
+            self._client.sbind_list([name])
+        except RustogramerException as e:
+            error(f'Could not bind {name} to display memory but it it has been created: {e}')
+
 
     #  Utilties:
 
