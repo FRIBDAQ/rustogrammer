@@ -105,6 +105,10 @@ class ProjectionEditor(QLabel):
         self._incontour.clicked.connect(self._contourToggled)
         self._spectrum.activated.connect(self._relaySpectrumSelected)
 
+        # Export commit -> commit
+
+        self._commit.clicked.connect(self.commit)
+
     #   Implement attribute getters/setters.
 
     def name(self):
@@ -131,12 +135,12 @@ class ProjectionEditor(QLabel):
             
 
     def contour(self):
-        return self._iscontour.checkState == Qt.Checked
+        return self._incontour.checkState() == Qt.Checked
     def setContour(self, value):
         if value:
-            self._iscontour.setCheckState(Qt.Checked)
+            self._incontour.setCheckState(Qt.Checked)
         else:
-            self._iscontour.setCheckstate(Qt.Unchecked)
+            self._incontour.setCheckstate(Qt.Unchecked)
     
     def contour_name(self):
         return self._contour.currentText()
