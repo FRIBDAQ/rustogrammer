@@ -84,7 +84,7 @@ class LabeledParameterChooser(QWidget):
         self._label.setText(label)
 
     def parameter(self):
-        self._label.text()
+        return self._label.text()
     def setParameter(self, text):
         self._label.setText(text)
 
