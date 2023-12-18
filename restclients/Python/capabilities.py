@@ -96,6 +96,7 @@ class SpectrumTypes(Enum):
 
     StripChart = auto()
     Bitmask    = auto()
+    GammaSummary = auto()
 
 # Supported by each type.  This is a map of sets
 # OF types supported by both the API and the 
@@ -114,7 +115,10 @@ supported_spectrum_types = {
         SpectrumTypes.Summary, SpectrumTypes.Gamma1D,
         SpectrumTypes.Gamma2D, SpectrumTypes.TwodSum,
         SpectrumTypes.GammaDeluxe,
-        SpectrumTypes.Projection
+        SpectrumTypes.Projection,
+        SpectrumTypes.GammaSummary,
+        SpectrumTypes.Bitmask,
+        SpectrumTypes.StripChart
     },
     Program.Unknown: {}
 }
