@@ -55,6 +55,21 @@ def error(msg):
     dlg = QMessageBox(QMessageBox.Critical, 'Error:', msg, QMessageBox.Ok)
     dlg.exec()
 
+def ok_to_create(client, editor, name):
+    info = client.spectrum_list(name)
+    if len(info['detail']) > 0:
+        if confirm(f'Spectrum {name} exists, replace?'):
+            try :
+                client.spectrum_delete(name)
+            except RustogamerException as e:
+                error(f'Unable to delete {name} before replacing it: {e}')
+                return False
+            editor.spectrum_removed(name)                
+            return True
+        else:
+            return False
+    else:
+        return True
 # NoneController - for unimplemented creations:
 class NoneController:
     def __init__(self, editor, view):
@@ -78,15 +93,8 @@ class OneDController:
         # name.
         if sname is not None and len(sname) > 0 and param is not None and len(param) > 0:
             if not self._view.array():
-                if len(client.spectrum_list(sname)['detail']) > 0:
-                    if not confirm(f'{sname} already exists replace it?', self._view):
-                        return
-
-                    # Delete the existing spectrum
-
-                    client.spectrum_delete(sname)
-                    self._editor.spectrum_removed(sname)
-                # Create what is now guaranteed to be a new spectrum.
+                if not ok_to_create(client, self._editor, sname):
+                    return
                 low   = self._view.low()
                 high  = self._view.high()
                 bins  = self._view.bins()
@@ -228,14 +236,8 @@ class TwodController:
         if len(name) > 0 and len(xparam) > 0 and len(yparam) > 0:
             #  Get confirmation if the spectrum exists.
 
-            sdef = self._client.spectrum_list(name)
-            sdef = sdef['detail']
-            if len(sdef) != 0:
-                if confirm(f'{name} already exists replace it?', self._view):
-                    self._client.spectrum_delete(name)
-                    self._editor.spectrum_removed(name)
-                else:
-                    return     # don't replace.
+            if not ok_to_create(self._client, self._editor, name):
+                return
             try:
                 self._client.spectrum_create2d(
                     name, xparam, yparam, 
@@ -246,6 +248,7 @@ class TwodController:
                 error(f'Failed to create {name} : {e}')
                 return
             self._editor.spectrum_added(name)
+            self._view.setName('')
 
             try:
                 self._client.sbind_spectra([name])
@@ -298,15 +301,8 @@ class SummaryController:
         if len(name) > 0:
             # Are we replacing:
 
-            if len(self._client.spectrum_list(name)['detail']) > 0:
-                if not confirm(f'Spectrum {name} already exists replace?'):
-                    return
-                else:
-                    try:
-                        self._client.spectrum_delete(name)
-                    except:
-                        error(f'Unable to delete {name} maybe it has a wildcard character in it?')
-                        return
+            if not ok_to_create(self._client, self._editor, name):
+                return
                 
             # If we get here we're ready to create the new spectrum:
 
@@ -325,6 +321,7 @@ class SummaryController:
     # Support subclassing with different spectrum type:
     def create_actual_spectrum(self, name, params, low, high, bins, chantype):
         self._client.spectrum_createsummary(name, params, low, high, bins, chantype)
+        self._editor.spectrum_added(name)
     
     def client(self):
         return self._client
@@ -400,6 +397,8 @@ class G1DController(SummaryController):
     def create_actual_spectrum(self, name, params, low, high, bins , chantype):
         client = self.client()
         client.spectrum_createg1(name, params, low, high, bins , chantype)
+        self._editor.spectrum_added(name)
+
 ## Gamma 2d is just Summary controller with overrides for both
 #  create_actual_spectrum and setaxis_from_parameter
 #
@@ -419,6 +418,8 @@ class G2DController(SummaryController):
         self.client().spectrum_createg2(
             name, params, xlow, xhigh, xbins, low, high, bins, chantype
         )
+        self._editor.spectrum_added(name)
+
     def setaxis_from_parameter(self, p):
         view = self.view()
         if p['low'] is not None:
@@ -486,7 +487,6 @@ class PGammaController:
             except RustogramerException as e:
                 error(f'Failed to create {name}: {e}')
                 return
-            self._editor.spectrum_added(name)   # Made.
 
             self._view.setName('')
             self._view.setXparameters([])   # Clear the editor for next time.
@@ -503,6 +503,7 @@ class PGammaController:
         self._client.spectrum_creategd(
                     name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins, dtype
                 )
+        self._editor.spectrum_added(name)
     def set_param_name(self, path):
         name = '.'.join(path)
         self._view.setSelectedParameter(name)
@@ -513,16 +514,8 @@ class PGammaController:
         # If the spectrum exists, we require the user to confirm the
         # replacement and delete the spectrum.
 
-        defs = self._client.spectrum_list(name)['detail']
-        if len(defs) > 0:
-            if confirm(f'{name} already exists relace?', self._view):
-                self._client.spectrum_delete(name)
-                self._editor.spectrum_removed(name)
-                return True
-            else:
-                false
-        else:
-            return True
+        return  ok_to_create(self._client, self._editor, name)
+        
 
     def _get_parameters(self):
         #Get the defs of the parameters to add:
@@ -580,6 +573,7 @@ class TwoDSumController(PGammaController):
         self._client.spectrum_create2dsum(
             name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh,ybins, dtype
         )
+        self._editor.spectrum_added(name)
 #  Controller for spectrum projections:
 
 class ProjectionController:
@@ -625,12 +619,8 @@ class ProjectionController:
         #  IF name is an existing spectrum we need permission
         # to overwrite it:
 
-        if len(self._client.spectrum_list(name)['detail']) > 0:
-            if not confirm(f'{name} already exists replace?'):
-                return
-            else:
-                self._client.spectrum_delete(name)
-                self._editor.spectrum_removed(name)
+        if not ok_to_create(self._client, self._editor, name):
+            returns
         
         # Now we can get on with making the spectrum and
         # binding it into display memory.
@@ -700,8 +690,42 @@ class ProjectionController:
             return False
 
 
+#   Controller to handle stript chart spectra.
 
+class StripChartController:
+    def __init__(self, editor, view):
+        self._editor = editor
+        self._view = view
+        self._client = get_capabilities_client()
 
+        self._view.commit.connect(self._commit)
+
+    def _commit(self):
+        # Get the information we need.. confirm we're a go:
+
+        name = self.view.name()
+        if name.isspace():
+            return
+        if ok_to_create(self._client, self._editor, name):
+            tparam = self._view.xparam()
+            vparam = self._view.yparam()
+            low = self._view.low()
+            high = self._view.high()
+            bins = self._view.bins()
+
+            try:
+                self._client.spectrum_createstripchart(
+                    name, tparam, vparam, low, high, bins, 
+                    self._editor.channeltype_string()
+                )
+                self._editor.spectrum_added(name)
+            except RustogamerException as e:
+                error(f"Unable to create: {name} : {e}")
+                return
+            try:
+                self._client.sbind_list(name)
+            except RustogamerException as e:
+                error(f'Unable to bind {name} to display memory, though it was created: {e}')
 
 
 #  This dict is a table, indexed by tab name, of the class objects
@@ -722,7 +746,7 @@ _spectrum_widgets = {
     'P-Gamma'  : (SpectrumTypes.GammaDeluxe, editorGD.GammaDeluxeEditor, PGammaController),
     '2D Sum'   : (SpectrumTypes.TwodSum, editorGD.GammaDeluxeEditor, TwoDSumController),
     'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, ProjectionController),
-    'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor, NoneController),
+    'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor, StripChartController),
     'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor, NoneController),
     'Gamma summary' : (SpectrumTypes.GammaSummary, editorSummary.SummaryEditor, NoneController)
 
