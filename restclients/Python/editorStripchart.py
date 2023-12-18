@@ -43,6 +43,7 @@ from rustogramer_client import rustogramer as Client
 
 
 class StripChartEditor(QWidget):
+    commit = pyqtSignal()
     def __init__(self, *args):
         super().__init__(*args)
         layout = QGridLayout()
@@ -71,6 +72,57 @@ class StripChartEditor(QWidget):
 
         self.setLayout(layout)
 
+        # Relay the commit button click -> our commit signal:
+
+        self._commit.clicked.connect(self.commit)
+    
+    #  Implement the attributes:
+
+    def name(self):
+        return self._spectrumName.text()
+    def setName(self, new_name):
+        self._spectrumName.setText(new_name)
+    
+    def xparam(self):
+        return self._time.parameter()
+    def setXparam(self, new_name):
+        self._time.setParameter(new_name)
+    
+    def yparam(self):
+        return self._vparam.parameter()
+    def setYparam(self, new_name):
+        self._vparam.setParameter(new_name)
+
+    def low(self):
+        return self._axis.low()
+    def setLow(self, value):
+        self._axis.setLow(value)
+    
+    def high(self):
+        return self._axis.high()
+    def setHigh(self, value):
+        self._axis.setHigh(value)
+
+    def bins(self):
+        return self._axis.bins()
+    def setBins(self, value):
+        self._axis.setBins(value)
+
+#-----------------------  test code ---------------------------------
+
+def _commit() :
+    print(" Create: ", w.name())  
+    w.setName('')
+    print('time parameter', w.xparam())
+    w.setXparam('')
+    print('vertical parameter', w.yparam())
+    w.setYparam('')
+    print("axis:", w.low(), w.high(), w.bins())
+    w.setLow(0),
+    w.setHigh(512),
+    w.setBins(512)
+
+
 if __name__ == '__main__':
     app = QApplication([])
     c   = QMainWindow()
@@ -78,6 +130,7 @@ if __name__ == '__main__':
 
     client = Client({'host': 'localhost', 'port': 8000})
     update_model(client)
+    w.commit.connect(_commit)
 
     c.setCentralWidget(w)
     c.show()
