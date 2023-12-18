@@ -661,11 +661,13 @@ class ProjectionController:
         pass
 
     def _loadContours(self, spectrum_name):
-        spectrum_def = self._client.spectrum_list(spectrum_name)['detail'][0]
-        all_conditions = self._client.condition_list()['detail']
-        displayable_contours = [x['name'] for x in all_conditions  \
-            if self._is_displayable_contour(spectrum_def, name)]
-        self._view.setContours(displayable_contours)
+        spectrum_def = self._client.spectrum_list(spectrum_name)['detail']
+        if len(spectrum_def) > 0:
+            spectrum_def = spectrum_def[0]
+            all_conditions = self._client.condition_list()['detail']
+            displayable_contours = [x['name'] for x in all_conditions  \
+                if self._is_displayable_contour(spectrum_def, name)]
+            self._view.setContours(displayable_contours)
 
     def _is2d(self, spectrum):
         # True if the definition in spectrum is a 2d (projectable).
@@ -721,7 +723,8 @@ _spectrum_widgets = {
     '2D Sum'   : (SpectrumTypes.TwodSum, editorGD.GammaDeluxeEditor, TwoDSumController),
     'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, ProjectionController),
     'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor, NoneController),
-    'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor, NoneController)
+    'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor, NoneController),
+    'Gamma summary' : (SpectrumTypes.GammaSummary, editorSummary.SummaryEditor, NoneController)
 
 }
 
