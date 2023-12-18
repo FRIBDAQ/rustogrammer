@@ -13,7 +13,8 @@
 
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtWidgets import (
-    QApplication, QWidget, QHBoxLayout, QMainWindow, QWidget
+    QApplication, QWidget,  QMainWindow, QWidget, QLabel,
+    QHBoxLayout, QVBoxLayout
 )
 from ComboTree import ComboTree
 from rustogramer_client import rustogramer
@@ -61,7 +62,33 @@ class Chooser(ComboTree):
         names.sort()
         tree = tm.make_tree(names)
         self.load_tree(tree)
-    
+
+'''
+ Megawidget that is a parameter chooser with a 
+ label below indicatig which parameter is selected.
+'''
+class LabeledParameterChooser(QWidget):
+    def __init__(self, *args):
+        super().__init__(*args)
+        layout = QVBoxLayout()
+        self._chooser = Chooser(self)
+        layout.addWidget(self._chooser)
+        self._label = QLabel('', self)
+        layout.addWidget(self._label)
+
+        self._chooser.selected.connect(self._changelabel)
+
+        self.setLayout(layout)
+    def _changelabel(self, path):
+        label = '.'.join(path)
+        self._label.setText(label)
+
+    def parameter(self):
+        self._label.text()
+    def setParameter(self, text):
+        self._label.setText(text)
+
+
 
 #  Test - Make widget 1, connect to SpecTcl to load the model,
 #  make widget 2... the two widgets should both list all parameters:
