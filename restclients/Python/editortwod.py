@@ -161,7 +161,7 @@ class TwoDEditor(QWidget):
     def name(self):
         return self._name.text()
     def setName(self, value):
-        self._name.setText()
+        self._name.setText(value)
     def xparameter(self):
         return self._xaxis.name()
     def yparameter(self):
