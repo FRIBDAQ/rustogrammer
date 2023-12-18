@@ -808,6 +808,20 @@ class rustogramer:
             "spectrum/create",
             {"type":"m2", "name":name, "parameters":pars, "axes":axes, 'chantype': chantype}
         )
+    def spectrum_createstripchart(self, name, time, vertical, low, high, bins, chantype='f64'):
+        ''' Create a strip chart spectrum.  This will throw an error for
+        rustogramer but work for SpecTcl. 
+        *  name - name of the new spetrum.
+        *  time - the parameter on the time axis.
+        *  vertical - the parameter on the vertical axis.
+        *  low, high, bins - intial X axis definition.
+        '''
+        params = self._format_stringlist([time, vertical])
+        axis = self._format_axis(low, hig, bins)
+        return self._transaction(
+            'spectrum/create',
+            {'type':'S', 'name':name, 'parameters':params, 'axes':axis, 'chantype':chantype }
+        )
     def spectrum_getcontents(self, name, xl, xh, yl=0,yh=0):
         """ Get the contents of a spectrum within a region of interest.
         *   name - name of the spectrum.
