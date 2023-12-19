@@ -689,13 +689,54 @@ class rustogramer:
     
     #--------------------------Spectrum API.
 
+    def _spectcl_spectra_to_rustogramer(self, info):
+        details = info['detail']
+        out_details = []
+        for spectrum in details:
+            if "xaxis" not in spectrum:
+                spectrum['xaxis'] = spectrum['axes'][0]
+                if len(spectrum['axes']) == 2:
+                    spectrum['yaxis'] = spectrum['axes'][1]
+                else:
+                    spectrum['yaxis'] = None
+            # Parameters depend on spectcrum type:
+
+            if "xparameters" not in spectrum:
+                stype = spectrum['type']
+                if stype  in ['1', 's', 'g1', 'g2', 'b', 'gs']:
+                    # These types only have 'xparameters':
+                    spectrum['xparameters'] = spectrum['parameters']
+                    spectrum['yparameters'] = None
+                if stype in ['2', 'm2', 'S']:
+                    # First 1/2 are x, second 1/2 are y so:
+                    split = len(spectrum['parameters'])/2
+                    spectrum['xparameters'] = spectrum['parameters'][0:split]
+                    spectrum['yparameters'] = spectrum['parameters'][split:]
+                if stype == 'gd':
+                    # Sadly in SpecTcl, there's no way to disentangle these
+                    # Because there's just an array of parameters and there's no
+                    # idea of where the break is....so we put all the parameters in
+                    # X, see, SpecTcl issue #84, however.
+                    spectrum['xparameters'] = spectrum['parameters']
+                    spectrum['yparmaeters'] =None
+
+            out_details.append(spectrum)
+        info['details'] = out_details
+        return info
+
     def spectrum_list(self, pattern="*"):
         """ Return a list of spectra that match 'patttern' and their
         properties.  Note that 'pattern' is an optional parameter that is
         supports glob wild-cards.  If not provided, it defaults to '*' which
         matches all names.
         """
-        return self._transaction("spectrum/list", {"filter": pattern})
+        result = self._transaction("spectrum/list", {"filter": pattern})
+
+        # SpecTcl does not provide x/y information like rustogramer so
+        # we put it in if it's not there:
+
+        result = self._spectcl_spectra_to_rustogramer(result)
+        return result
     
     def spectrum_delete(self, name):
         """ Delete the named spectrum"""
