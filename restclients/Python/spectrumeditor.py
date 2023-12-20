@@ -105,9 +105,9 @@ class OneDController:
                     return
                 try: 
                     client.sbind_spectra([sname])
-                except RustogramerException as error:
+                except RustogramerException as e:
                     error(
-                        f'{error} while binding spectrum to shared memory {sname} is defined but not displayable'
+                        f'{e} while binding spectrum to shared memory {sname} is defined but not displayable'
                     )
                 self._view.setName('')
                 self._editor.spectrum_added(sname)
