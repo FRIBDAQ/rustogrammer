@@ -46,7 +46,7 @@ a 1d spectrum has:
     associated with the parameter for future use.
 
     axisModified Signal - a dict is passed to the slot that
-    contains the following keys:  'low', 'high' and 'bins'
+    contains the following keys:  'low', 'hi' and 'bins'
     with obvious contents.  Since the axis entries are 
     comboboxes, none of these will be None.
 
@@ -179,7 +179,7 @@ class oneDEditor(QWidget):
 
         axis_def = {
             'low'  : self.axis.low(),
-            'high' : self.axis.high(),
+            'hi' : self.axis.high(),
             'bins' : self.axis.bins()
         }
         self.axisModified.emit(axis_def)
@@ -215,7 +215,7 @@ def loadName(param):
 
     param_info = client.parameter_list(param)['detail'][0]
     editor.setLow(default(param_info['low']))
-    editor.setHigh(default(param_info['high']))
+    editor.setHigh(default(param_info['hi']))
     editor.setBins(default(param_info['bins'], 512))
 
 # A real one would test for and delete an existing 

@@ -61,7 +61,7 @@ def ok_to_create(client, editor, name):
         if confirm(f'Spectrum {name} exists, replace?'):
             try :
                 client.spectrum_delete(name)
-            except RustogamerException as e:
+            except RustogramerException as e:
                 error(f'Unable to delete {name} before replacing it: {e}')
                 return False
             editor.spectrum_removed(name)                
@@ -100,8 +100,8 @@ class OneDController:
                 bins  = self._view.bins()
                 try:
                     client.spectrum_create1d(sname, param, low, high, bins, data_type)
-                except RustogamerException as error:
-                    error(f'{error} while creating spectrum')
+                except RustogramerException as e:
+                    error(f'{e} while creating spectrum')
                     return
                 try: 
                     client.sbind_spectra([sname])
@@ -123,7 +123,7 @@ class OneDController:
 
         param_info = client.parameter_list(parameter_name)['detail'][0]
         self._view.setLow(default(param_info['low'], 0))
-        self._view.setHigh(default(param_info['high'], 512.0),)  # like tree params.
+        self._view.setHigh(default(param_info['hi'], 512.0),)  # like tree params.
         self._view.setBins(default(param_info['bins'], 512))
 
      # Internal methods:
@@ -258,12 +258,12 @@ class TwodController:
     def load_xaxis(self, pname):
         param_info = self._client.parameter_list(pname)['detail'][0]
         self._view.setXLow(default(param_info['low'], 0))
-        self._view.setXHigh(default(param_info['high'], 512.0),)  # like tree params.
+        self._view.setXHigh(default(param_info['hi'], 512.0),)  # like tree params.
         self._view.setXBins(default(param_info['bins'], 512))
     def load_yaxis(self, pname):
         param_info = self._client.parameter_list(pname)['detail'][0]
         self._view.setYLow(default(param_info['low'], 0))
-        self._view.setYHigh(default(param_info['high'], 512.0),)  # like tree params.
+        self._view.setYHigh(default(param_info['hi'], 512.0),)  # like tree params.
 
         self._view.setYBins(default(param_info['bins'], 512))
 
@@ -383,8 +383,8 @@ class SummaryController:
     def setaxis_from_parameter(self, p):
         if p['low'] is not None:
             self._view.setLow(p['low'])
-        if p['high'] is not None:
-            self._view.setHigh(p['high'])
+        if p['hi'] is not None:
+            self._view.setHigh(p['hi'])
         if p['bins'] is not None:
             self._view.setBins(p['bins'])
 
@@ -425,9 +425,9 @@ class G2DController(SummaryController):
         if p['low'] is not None:
             view.setXlow(p['low'])
             view.setYlow(p['low'])
-        if p['high'] is not None:
-            view.setXhigh(p['high'])
-            view.setYhigh(p['high'])
+        if p['hi'] is not None:
+            view.setXhigh(p['hi'])
+            view.setYhigh(p['hi'])
         if p['bins'] is not None:
             view.setXbins(p['bins'])
             view.setYbins(p['bins'])
@@ -549,7 +549,7 @@ class PGammaController:
 
         for param in parameters:
             low = param['low']
-            high= param['high']
+            high= param['hi']
             bins= param ['bins']
             if low is not None:
                 self._view.setXlow(low)
@@ -703,7 +703,7 @@ class StripChartController:
     def _commit(self):
         # Get the information we need.. confirm we're a go:
 
-        name = self.view.name()
+        name = self._view.name()
         if name.isspace():
             return
         if ok_to_create(self._client, self._editor, name):
@@ -719,12 +719,12 @@ class StripChartController:
                     self._editor.channeltype_string()
                 )
                 self._editor.spectrum_added(name)
-            except RustogamerException as e:
+            except RustogramerException as e:
                 error(f"Unable to create: {name} : {e}")
                 return
             try:
                 self._client.sbind_list(name)
-            except RustogamerException as e:
+            except RustogramerException as e:
                 error(f'Unable to bind {name} to display memory, though it was created: {e}')
 
 

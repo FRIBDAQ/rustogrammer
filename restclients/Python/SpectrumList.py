@@ -170,6 +170,7 @@ class SpectrumModel(QStandardItemModel):
             self.removeRow(idx.row())
 
     def _addItem(self, spectrum):
+        print(spectrum)
         info = [
             self._item(spectrum['name']),
             self._item(spectrum['type']),

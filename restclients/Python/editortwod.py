@@ -59,7 +59,7 @@ class _AxisWidget(QWidget):
     def _axisChanged(self, value):
         axis_def = {
             'low'  : self._axis_spec.low(),
-            'high' : self._axis_spec.high(),
+            'hi' : self._axis_spec.high(),
             'bins' : self._axis_spec.bins()
         }
         self.axisModified.emit(axis_def)

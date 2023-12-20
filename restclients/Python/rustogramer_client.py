@@ -49,6 +49,7 @@ class rustogramer:
         # Create the URI:
 
         uri = "http://" + self.host + ":" + str(self.port) + "/spectcl/" + request
+        print(uri, queryparams)
         response = requests.get(uri, params=queryparams)
         response.raise_for_status()     # Report response errors.and
         result = response.json()
@@ -60,12 +61,10 @@ class rustogramer:
         return [x[key] for x in iterable]
 
     def _format_axis(self, low, high, bins):
-        return "{low:f} {high:f} {bins:d}".format(low=low, high=high, bins=bins)
+        return "{{{low:f} {high:f} {bins:d}}}".format(low=low, high=high, bins=bins)
     
     def _format_xyaxes(self, xlow, xhigh, xbins, ylow, yhigh, ybins):
-        x = self._format_axis(xlow, xhigh, xbins)
-        y = self._format_axis(ylow, yhigh, ybins)
-        return "{" + x + "} {" + y + "}"
+        return f'{{{xlow:f} {xhigh:f} {xbins:d}}} {{ {ylow:f} {yhigh:f} {ybins:d}}}'
 
     def _format_stringlist(self, strings):
         result=""
@@ -706,10 +705,10 @@ class rustogramer:
                 if stype  in ['1', 's', 'g1', 'g2', 'b', 'gs']:
                     # These types only have 'xparameters':
                     spectrum['xparameters'] = spectrum['parameters']
-                    spectrum['yparameters'] = None
+                    spectrum['yparameters'] = []
                 if stype in ['2', 'm2', 'S']:
                     # First 1/2 are x, second 1/2 are y so:
-                    split = len(spectrum['parameters'])/2
+                    split = int(len(spectrum['parameters'])/2)
                     spectrum['xparameters'] = spectrum['parameters'][0:split]
                     spectrum['yparameters'] = spectrum['parameters'][split:]
                 if stype == 'gd':
@@ -718,7 +717,7 @@ class rustogramer:
                     # idea of where the break is....so we put all the parameters in
                     # X, see, SpecTcl issue #84, however.
                     spectrum['xparameters'] = spectrum['parameters']
-                    spectrum['yparmaeters'] =None
+                    spectrum['yparameters'] = []
 
             out_details.append(spectrum)
         info['details'] = out_details
@@ -751,7 +750,7 @@ class rustogramer:
         axis = self._format_axis(low, high, bins)
         return self._transaction(
             "spectrum/create", 
-            {"name":name, "type":"1", "parameters": parameter, "axes":axis, 'chantype':type}
+            {"name":name, "type":"1", "parameters": parameter, "axes":axis, 'chantype':chantype}
         )
 
     def spectrum_create2d(self, name, xparam, yparam, xlow, xhigh, xbins, ylow, yhigh, ybins, chantype='f64'):
@@ -807,7 +806,7 @@ class rustogramer:
         axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
         xpars = self._format_stringlist(xparameters)
         ypars = self._format_stringlist(yparameters)
-        param_list = "{" + xpars + "}{" + ypars + "}"
+        param_list = "{" + xpars + "} {" + ypars + "}"
         return self._transaction(
             "spectrum/create",
             {"type":"gd", "name":name, "parameters":param_list, "axes":axes, 'chantype':chantype}
@@ -843,7 +842,7 @@ class rustogramer:
         """
         xp = self._format_stringlist(xpars)
         yp = self._format_stringlist(ypars)
-        pars = '{' + xp + '}{' + yp + '}'
+        pars =  xp + ' ' + yp 
         axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
         return self._transaction(
             "spectrum/create",
@@ -858,7 +857,7 @@ class rustogramer:
         *  low, high, bins - intial X axis definition.
         '''
         params = self._format_stringlist([time, vertical])
-        axis = self._format_axis(low, hig, bins)
+        axis = self._format_axis(low, high, bins)
         return self._transaction(
             'spectrum/create',
             {'type':'S', 'name':name, 'parameters':params, 'axes':axis, 'chantype':chantype }
