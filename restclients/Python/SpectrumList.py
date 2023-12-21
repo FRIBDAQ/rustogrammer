@@ -26,9 +26,9 @@
 
 from PyQt5.QtWidgets import (
     QTableView, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLineEdit
+    QPushButton, QLineEdit, QAbstractItemView
 )
-from PyQt5.QtCore import *
+from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
 from rustogramer_client import rustogramer
@@ -38,6 +38,16 @@ from rustogramer_client import rustogramer
 class SpectrumView(QTableView):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self._selected_spectra = []
+
+    def mouseReleaseEvent(self, e):
+        super().mouseReleaseEvent(e)
+        self._selected_spectra = [x.data() for x in self.selectedIndexes() if x.column() == 0]
+        
+    def getSelectedSpectra(self):
+        return self._selected_spectra
 
 '''  This is the list with all the other bells and whistles.
      You construct this actually.
@@ -77,6 +87,8 @@ class SpectrumList(QWidget) :
         self.mask.returnPressed.connect(self.filter_relay)
         self.filter.clicked.connect(self.filter_relay)
         self.clear.clicked.connect(self.clear_relay)
+
+        
     
     
     ''' Provide access to the table  returns the QTableView widget
@@ -89,6 +101,10 @@ class SpectrumList(QWidget) :
         return self.mask.text()
     def setMask(self, s):
         self.mask.setText(s)
+    def getSelectedSpectra(self):
+        return self.list.getSelectedSpectra()
+    
+
 
     #  Button handlers to relay to signals
     #  Note that clear will also clear the filter line edit.
@@ -170,7 +186,6 @@ class SpectrumModel(QStandardItemModel):
             self.removeRow(idx.row())
 
     def _addItem(self, spectrum):
-        print(spectrum)
         info = [
             self._item(spectrum['name']),
             self._item(spectrum['type']),
