@@ -429,7 +429,6 @@ fn make_2d(
 ) -> GenericResponse {
     // need exactly two parameters:
 
-    
     let params = get_params(parameters);
     if params.len() != 2 {
         return GenericResponse::err(
@@ -463,7 +462,6 @@ fn make_gamma1(
     axes: &str,
     state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
-    
     let parameters = get_params(parameters);
 
     let axis = parse_axis_def(axes);
@@ -487,7 +485,6 @@ fn make_gamma2(
     axes: &str,
     state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
-    
     let parameters = get_params(parameters);
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = match parse_2_axis_defs(axes) {
         Err(s) => {
@@ -547,11 +544,7 @@ fn make_summary(
     axes: &str,
     state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
-    let parameters = parse_simple_list(parameters);
-    if let Err(s) = parameters {
-        return GenericResponse::err("Failed to parse the parameter list", &s);
-    }
-    let parameters = parameters.unwrap(); // Vec<String> now.
+    let parameters = get_params(parameters);
 
     let axes = parse_axis_def(axes);
     if let Err(s) = axes {
@@ -1703,7 +1696,7 @@ mod spectrum_tests {
         teardown(chan, &papi, &bind_api);
     }
     // Changes to work like SpecTcl invalidate this test:
-
+    #[allow(dead_code)]
     fn create2d_3() {
         // badly formed parameter list:
 
@@ -2077,7 +2070,7 @@ mod spectrum_tests {
         let (chan, papi, bind_api) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Creating client");
-        let req = client.get("/create?name=test&type=s&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes=-1%201%20100");
+        let req = client.get("/create?name=test&type=s&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={-1%201%20100}");
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
@@ -2122,7 +2115,7 @@ mod spectrum_tests {
         let (chan, papi, bind_api) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Creating client");
-        let req = client.get("/create?name=test&type=s&parameters=xparameter.0%20parameter.1%20parameter.2%20parameter.3&axes=-1%201%20100");
+        let req = client.get("/create?name=test&type=s&parameters=xparameter.0%20parameter.1%20parameter.2%20parameter.3&axes={-1%201%20100}");
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
@@ -2140,13 +2133,13 @@ mod spectrum_tests {
         let (chan, papi, bind_api) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Creating client");
-        let req = client.get("/create?name=test&type=s&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4}&axes=-1%201%20100");
+        let req = client.get("/create?name=test&type=s&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4}&axes={-1%201%20100}");
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
             .expect("Parsing JSON");
 
-        assert_eq!("Failed to parse the parameter list", reply.status);
+        assert_eq!("Failed to create spectrum", reply.status);
 
         teardown(chan, &papi, &bind_api);
     }
