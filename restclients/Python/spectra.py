@@ -14,7 +14,7 @@
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QFrame,
-    QApplication, QMainWindow, QSizePolicy
+    QApplication, QMainWindow, QSizePolicy, QMessageBox
 )
 
 from SpectrumList import (SpectrumList, SpectrumModel)
@@ -68,6 +68,9 @@ class SpectrumWidget(QWidget):
 
         self._editor.new_spectrum.connect(self._add_to_listing)
         self._editor.spectrum_deleted.connect(self._remove_from_listing)
+        self._editor.clear_selected.connect(self._clear_selected)
+        self._editor.clear_all.connect(self._clear_all)
+        self._editor.delete_selected.connect(self._delete_selected)
 
         self._listing.filter_signal.connect(self._filter_list)
         self._listing.clear_signal.connect(self._clear_filter)
@@ -89,6 +92,34 @@ class SpectrumWidget(QWidget):
         global _client
         self._listing.setMask("*")
         self._filter_list("*")
+
+    # internal slots:
+
+    def _clear_selected(self):
+        # Clear seleted spectra:
+
+        spectra = self._listing.getSelectedSpectra()
+        for name in spectra:
+            _client.spectrum_clear(name)
+    def _clear_all(self):
+        # Clear all spectra
+
+        _client.spectrum_clear('*')
+    def _delete_selected(self):
+        # Upon confirmation, delete selected spectra:
+        spectra = self._listing.getSelectedSpectra()
+        if len(spectra) == 0:
+            return
+        spectrum_list = ', '.join(spectra)
+        dlg = QMessageBox(
+            QMessageBox.Warning, 'Confirm',
+            f'Are you sure you want to delete the spectra: {spectrum_list} ?',
+            QMessageBox.Yes | QMessageBox.No, self
+        )
+        if dlg.exec() == QMessageBox.Yes:
+            for s in spectra:
+                _client.spectrum_delete(s)
+                self._remove_from_listing(s)
         
 
 class NullSpectrumController:

@@ -24,7 +24,7 @@ from capabilities import (
 
 from PyQt5.QtWidgets import (
     QTabWidget, QWidget, QHBoxLayout, QVBoxLayout, QApplication, QLabel,
-    QMainWindow, QMessageBox
+    QMainWindow, QMessageBox, QPushButton, QComboBox
 )
 from PyQt5.QtCore import *
 from rustogramer_client import rustogramer as Client, RustogramerException
@@ -764,6 +764,10 @@ _channel_types = {
 class Editor(QWidget):
     new_spectrum = pyqtSignal(str)
     spectrum_deleted = pyqtSignal(str)
+    clear_selected = pyqtSignal()
+    clear_all      = pyqtSignal()
+    delete_selected = pyqtSignal()
+
     def __init__(self, *args):
         global _spectrum_widgets
         global _channel_types
@@ -800,13 +804,28 @@ class Editor(QWidget):
                 self.channelType.addItem(label, t)
 
         layout.addWidget(self.tabs)
-        typs = QVBoxLayout()
-        typs.addWidget(QLabel('Channel Type:'))
-        typs.addWidget(self.channelType)
-        layout.addLayout(typs)
+        right = QVBoxLayout()
+        self._clear = QPushButton('Clear', self)
+        right.addWidget(self._clear)
+        self._clearall= QPushButton('Clear all', self)
+        right.addWidget(self._clearall)
+        self._load = QPushButton('Copy', self)
+        right.addWidget(self._load)
+        self._del = QPushButton("Delete", self)
+        right.addWidget(self._del)
+        self._gateselection = QComboBox( self)
+        right.addWidget(self._gateselection)
+        self._gate = QPushButton('Gate');
+        right.addWidget(self._gate)
+        right.addWidget(QLabel('Channel Type:'))
+        right.addWidget(self.channelType)
+        layout.addLayout(right)
         self.setLayout(layout)
-        self.adjustSize()
-    
+        
+        self._clear.clicked.connect(self.clear_selected)
+        self._clearall.clicked.connect(self.clear_all)
+        self._del.clicked.connect(self.delete_selected)
+
     # Get the currently selected channel type string
     
     def channeltype_string(self):
@@ -818,7 +837,6 @@ class Editor(QWidget):
         self.new_spectrum.emit(name)
     def spectrum_removed(self, name):
         self.spectrum_deleted.emit(name)
-        
     
 
 # --- tests
