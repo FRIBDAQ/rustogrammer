@@ -31,7 +31,7 @@ from rustogramer_client import rustogramer as Client, RustogramerException
 
 import editor1d, editortwod, editorBitmask
 import  editorG2d, editorGD, editorProjection, editorStripchart
-import editorSummary, EnumeratedTypeSelector
+import editorSummary, EnumeratedTypeSelector, editorGSummary
 from direction import Direction
 
 #------------------------- Spectrum controllers ----------------------
@@ -775,7 +775,7 @@ _spectrum_widgets = {
     'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, ProjectionController),
     'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor, StripChartController),
     'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor, BitMaskController),
-    'Gamma summary' : (SpectrumTypes.GammaSummary, editorSummary.SummaryEditor, NoneController)
+    'Gamma summary' : (SpectrumTypes.GammaSummary, editorGSummary.GammaSummaryEditor, NoneController)
 
 }
 
