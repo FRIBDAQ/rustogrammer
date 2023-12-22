@@ -723,11 +723,38 @@ class StripChartController:
                 error(f"Unable to create: {name} : {e}")
                 return
             try:
-                self._client.sbind_list(name)
+                self._client.sbind_list([name])
             except RustogramerException as e:
                 error(f'Unable to bind {name} to display memory, though it was created: {e}')
 
+# Controller for bitmask spectra:
+class BitMaskController:
+    def __init__(self, editor, view):
+        self._editor = editor
+        self._view = view
+        self._client = get_capabilities_client()
 
+        self._view.commit.connect(self._commit)
+    def commit(self):
+        name = self._view.name()
+        if name.isspace():
+            return
+        if ok_to_create(self._client, self._editor, name):
+            try:
+                self._client.spectrum_createbitmask(
+                    name, 
+                    self._view.parameter(), self._view.bits(), 
+                    self.editor.channeltype_string()
+                )
+                self._editor.spectrum_added(name)
+            except Rustogramer as e:
+                error(f'Unable to create {name}: {e}')
+                return
+            try :
+                self._client.sbind_list([name])
+            except RustogramerException as e:
+                error('Unable to bind {name} to spectrum memory but it has been created: {e}')
+                
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
 #  e.g. '1D': (SpectrumTypes.Oned, editor1d.onedEditor, onedcontroller) - means
@@ -747,7 +774,7 @@ _spectrum_widgets = {
     '2D Sum'   : (SpectrumTypes.TwodSum, editorGD.GammaDeluxeEditor, TwoDSumController),
     'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, ProjectionController),
     'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor, StripChartController),
-    'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor, NoneController),
+    'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor, BitMaskController),
     'Gamma summary' : (SpectrumTypes.GammaSummary, editorSummary.SummaryEditor, NoneController)
 
 }
