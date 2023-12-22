@@ -142,9 +142,6 @@ class SpectrumWidget(QWidget):
             _client.ungate_spectrum(spectrum)
         self._spectrumListModel.load_spectra(_client, self._listing.mask())
 
-class NullSpectrumController:
-    def __init__(self, model):
-        pass
 
 def test(host, port):
     ''' Exercise this module host.
