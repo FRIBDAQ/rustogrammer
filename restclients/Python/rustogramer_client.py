@@ -862,6 +862,13 @@ class rustogramer:
             'spectrum/create',
             {'type':'S', 'name':name, 'parameters':params, 'axes':axis, 'chantype':chantype }
         )
+    def spectrum_createbitmask(self, name, parameter, bits, chantype = 'f64'):
+        params = self._format_stringlist([parameter])
+        axis = self._format_axis(0, bits, bits)
+        return self._transaction(
+            'spectrum/create',
+            {'type' :'b', 'name':name, 'parameters':params, 'axes':axis, 'chantype':chantype}
+        )
     def spectrum_getcontents(self, name, xl, xh, yl=0,yh=0):
         """ Get the contents of a spectrum within a region of interest.
         *   name - name of the spectrum.
