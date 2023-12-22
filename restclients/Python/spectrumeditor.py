@@ -645,7 +645,7 @@ class ProjectionController:
 
     def _loadspectra(self):
         all_spectra = self._client.spectrum_list()['detail']
-        twod_spectra = [x['name'] for x in all_spectra if self._is2d(x)]
+        twod_spectra = [x['name'] for x in all_spectra if self._isprojectable(x)]
         twod_spectra.sort()
         self._view.setSpectra(twod_spectra)
         pass
@@ -659,11 +659,11 @@ class ProjectionController:
                 if self._is_displayable_contour(spectrum_def, name)]
             self._view.setContours(displayable_contours)
 
-    def _is2d(self, spectrum):
+    def _isprojectable(self, spectrum):
         # True if the definition in spectrum is a 2d (projectable).
         # since g2d is 2d as are 2dsum and p-gamma a spectrum is 2d
         # if it is not a summary and has both axis definitions.
-        return ((spectrum['type'] != 's') and
+        return ((spectrum['type'] != 's') and (spectrum['type'] != 'gd') and
             (spectrum['xaxis'] is not None) and 
             (spectrum['yaxis'] is not None))
     
@@ -735,7 +735,7 @@ class BitMaskController:
         self._client = get_capabilities_client()
 
         self._view.commit.connect(self._commit)
-    def commit(self):
+    def _commit(self):
         name = self._view.name()
         if name.isspace():
             return
@@ -744,10 +744,10 @@ class BitMaskController:
                 self._client.spectrum_createbitmask(
                     name, 
                     self._view.parameter(), self._view.bits(), 
-                    self.editor.channeltype_string()
+                    self._editor.channeltype_string()
                 )
                 self._editor.spectrum_added(name)
-            except Rustogramer as e:
+            except RustogramerException as e:
                 error(f'Unable to create {name}: {e}')
                 return
             try :
