@@ -91,6 +91,8 @@ class SpectrumWidget(QWidget):
     def _filter_list(self, mask):
         global _client
         self._spectrumListModel.load_spectra(_client, mask)
+        self._editor.load_gates(_client)
+
     def _clear_filter(self):
         global _client
         self._listing.setMask("*")
