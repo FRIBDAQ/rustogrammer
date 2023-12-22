@@ -48,6 +48,7 @@ class SpectrumWidget(QWidget):
         top.setFrameShape(QFrame.Box)
         self._editor = Editor(top)
         self._editor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self._editor.load_gates(_client)
         layout.addWidget(self._editor)
 
         bottom = QFrame(self)
@@ -71,6 +72,7 @@ class SpectrumWidget(QWidget):
         self._editor.clear_selected.connect(self._clear_selected)
         self._editor.clear_all.connect(self._clear_all)
         self._editor.delete_selected.connect(self._delete_selected)
+        self._editor.gate_selected.connect(self._gate_selected)
 
         self._listing.filter_signal.connect(self._filter_list)
         self._listing.clear_signal.connect(self._clear_filter)
@@ -120,7 +122,17 @@ class SpectrumWidget(QWidget):
             for s in spectra:
                 _client.spectrum_delete(s)
                 self._remove_from_listing(s)
-        
+    def _gate_selected(self):
+        global _client
+        spectra = self._listing.getSelectedSpectra()
+        gate    = self._editor.selected_gate()
+        if len(spectra) == 0 or gate.isspace():
+            return   
+        for spectrum in spectra:
+            _client.apply_gate(gate, spectrum)
+        # Update the list:
+        self._spectrumListModel.load_spectra(_client, self._listing.mask())
+
 
 class NullSpectrumController:
     def __init__(self, model):

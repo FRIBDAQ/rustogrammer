@@ -74,9 +74,9 @@ class SpectrumList(QWidget) :
         self.controlbar.setLayout(hlayout)
         self.filter = QPushButton("Filter", self.controlbar)
         hlayout.addWidget(self.filter)
-        self.mask = QLineEdit(self.controlbar)
-        self.mask.setText('*')
-        hlayout.addWidget(self.mask)
+        self._mask = QLineEdit(self.controlbar)
+        self._mask.setText('*')
+        hlayout.addWidget(self._mask)
         self.clear = QPushButton('Clear', self.controlbar)
         hlayout.addWidget(self.clear)
 
@@ -84,7 +84,7 @@ class SpectrumList(QWidget) :
 
         # Set up  signal relays:
 
-        self.mask.returnPressed.connect(self.filter_relay)
+        self._mask.returnPressed.connect(self.filter_relay)
         self.filter.clicked.connect(self.filter_relay)
         self.clear.clicked.connect(self.clear_relay)
 
@@ -98,9 +98,9 @@ class SpectrumList(QWidget) :
     def getList(self) :
         return self.list
     def mask(self):
-        return self.mask.text()
+        return self._mask.text()
     def setMask(self, s):
-        self.mask.setText(s)
+        self._mask.setText(s)
     def getSelectedSpectra(self):
         return self.list.getSelectedSpectra()
     
@@ -110,10 +110,10 @@ class SpectrumList(QWidget) :
     #  Note that clear will also clear the filter line edit.
 
     def filter_relay(self) :
-        self.filter_signal.emit(self.mask.text())
+        self.filter_signal.emit(self._mask.text())
 
     def clear_relay(self):
-        self.mask.setText('*')
+        self._mask.setText('*')
         self.clear_signal.emit()
         self.filter_relay()
 

@@ -794,6 +794,7 @@ class Editor(QWidget):
     clear_selected = pyqtSignal()
     clear_all      = pyqtSignal()
     delete_selected = pyqtSignal()
+    gate_selected   = pyqtSignal()
 
     def __init__(self, *args):
         global _spectrum_widgets
@@ -852,19 +853,41 @@ class Editor(QWidget):
         self._clear.clicked.connect(self.clear_selected)
         self._clearall.clicked.connect(self.clear_all)
         self._del.clicked.connect(self.delete_selected)
+        self._gate.clicked.connect(self.gate_selected)
 
+       
     # Get the currently selected channel type string
     
     def channeltype_string(self):
        return self.channelType.selectedText()
 
+    def load_gates(self, client):
+        #  Load gates into self._gateselection
+        while self._gateselection.count() > 0:
+            self._gateselection.removeItem(0)
+
+        condition_names = [x['name'] for x in client.condition_list()['detail']]
+        condition_names.sort()    # Alpha so easy to find.
+        self._gateselection.addItems(condition_names)
+
+    def selected_gate(self):
+        return self._gateselection.currentText()
+
     # Slot that can be called when a controller makes a new spectrum:
 
+    
     def spectrum_added(self, name):
         self.new_spectrum.emit(name)
+
+    # Slot to call when a spectrum was deleted.
     def spectrum_removed(self, name):
         self.spectrum_deleted.emit(name)
+
+
+
     
+    
+
 
 # --- tests
 
