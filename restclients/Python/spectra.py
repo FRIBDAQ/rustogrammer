@@ -73,6 +73,7 @@ class SpectrumWidget(QWidget):
         self._editor.clear_all.connect(self._clear_all)
         self._editor.delete_selected.connect(self._delete_selected)
         self._editor.gate_selected.connect(self._gate_selected)
+        self._editor.ungate_selected.connect(self._ungate_selected)
 
         self._listing.filter_signal.connect(self._filter_list)
         self._listing.clear_signal.connect(self._clear_filter)
@@ -132,7 +133,14 @@ class SpectrumWidget(QWidget):
             _client.apply_gate(gate, spectrum)
         # Update the list:
         self._spectrumListModel.load_spectra(_client, self._listing.mask())
-
+    def _ungate_selected(self):
+        global _client
+        spectra = self._listing.getSelectedSpectra()
+        if len(spectra) == 0:
+            return               # So we don't need to regen list.
+        for spectrum in spectra:
+            _client.ungate_spectrum(spectrum)
+        self._spectrumListModel.load_spectra(_client, self._listing.mask())
 
 class NullSpectrumController:
     def __init__(self, model):

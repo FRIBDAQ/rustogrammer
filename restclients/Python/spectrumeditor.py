@@ -795,7 +795,7 @@ class Editor(QWidget):
     clear_all      = pyqtSignal()
     delete_selected = pyqtSignal()
     gate_selected   = pyqtSignal()
-
+    ungate_selected = pyqtSignal()
     def __init__(self, *args):
         global _spectrum_widgets
         global _channel_types
@@ -845,6 +845,8 @@ class Editor(QWidget):
         right.addWidget(self._gateselection)
         self._gate = QPushButton('Gate');
         right.addWidget(self._gate)
+        self._ungate = QPushButton('Ungate')
+        right.addWidget(self._ungate)
         right.addWidget(QLabel('Channel Type:'))
         right.addWidget(self.channelType)
         layout.addLayout(right)
@@ -854,6 +856,7 @@ class Editor(QWidget):
         self._clearall.clicked.connect(self.clear_all)
         self._del.clicked.connect(self.delete_selected)
         self._gate.clicked.connect(self.gate_selected)
+        self._ungate.clicked.connect(self.ungate_selected)
 
        
     # Get the currently selected channel type string
