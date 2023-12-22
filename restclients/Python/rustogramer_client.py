@@ -64,7 +64,7 @@ class rustogramer:
         return "{{{low:f} {high:f} {bins:d}}}".format(low=low, high=high, bins=bins)
     
     def _format_xyaxes(self, xlow, xhigh, xbins, ylow, yhigh, ybins):
-        return f'{{{xlow:f} {xhigh:f} {xbins:d}}} {{ {ylow:f} {yhigh:f} {ybins:d}}}'
+        return f'{{{xlow:f} {xhigh:f} {xbins:d}}} {{{ylow:f} {yhigh:f} {ybins:d}}}'
 
     def _format_stringlist(self, strings):
         result=""
