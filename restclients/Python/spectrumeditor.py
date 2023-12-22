@@ -70,13 +70,30 @@ def ok_to_create(client, editor, name):
             return False
     else:
         return True
+
+#  Base class for controllers:  Supplies a visibility slot that
+#  can be overidden.
+class AbstractController:
+    def __init__(self):
+        pass
+    def visible(self):
+        ''' 
+           This is called when the editor associated with the controller
+           becomes visible.  Editors are normally in a tabbed widget which
+           means only one is visible at a time.  Whe one becomes visible,
+           this allows action to be taken.  For example, the projection
+           controller can update its editor's list of projectable spectra
+           and contours.
+             Controllers that need this just override this method.
+        '''
+        pass
 # NoneController - for unimplemented creations:
-class NoneController:
+class NoneController(AbstractController):
     def __init__(self, editor, view):
         pass
 ###
 #   Controller that handles the Oned editor view signals:
-class OneDController:
+class OneDController(AbstractController):
     def __init__(self, editor, view):
         self._editor = editor
         self._view = view
@@ -203,7 +220,7 @@ class OneDController:
 #  This is much simpler than the 1d editor since we don't have to handle
 #  arrays.
 
-class TwodController:
+class TwodController(AbstractController):
     def __init__(self, editor, view):
         self._client = get_capabilities_client()
         self._editor = editor
@@ -270,7 +287,7 @@ class TwodController:
 ##
 #  Controller for summary spectra.
 #
-class SummaryController:
+class SummaryController(AbstractController):
     def __init__(self, editor, view):
         self._client = get_capabilities_client()
         self._editor = editor
@@ -435,7 +452,7 @@ class G2DController(SummaryController):
 #
 #   Controller to build particle gamma spectra (GD).
 #
-class PGammaController:
+class PGammaController(AbstractController):
     def __init__(self, editor, view):
         self._editor = editor
         self._view   = view
@@ -576,7 +593,7 @@ class TwoDSumController(PGammaController):
         self._editor.spectrum_added(name)
 #  Controller for spectrum projections:
 
-class ProjectionController:
+class ProjectionController(AbstractController):
     def __init__(self, editor, view):
         self._editor = editor
         self._view   = view
@@ -595,6 +612,11 @@ class ProjectionController:
         self._view.spectrumChosen.connect(self._loadContours)
         self._view.commit.connect(self._create)
     
+    # slot overrides:
+
+    def visible(self):
+        self._loadspectra()
+        self._loadContours(self._view.spectrum())
     #  Create the spectrum:
 
     def _create(self):
@@ -656,7 +678,7 @@ class ProjectionController:
             spectrum_def = spectrum_def[0]
             all_conditions = self._client.condition_list()['detail']
             displayable_contours = [x['name'] for x in all_conditions  \
-                if self._is_displayable_contour(spectrum_def, name)]
+                if self._is_displayable_contour(spectrum_def, x)]
             self._view.setContours(displayable_contours)
 
     def _isprojectable(self, spectrum):
@@ -667,7 +689,7 @@ class ProjectionController:
             (spectrum['xaxis'] is not None) and 
             (spectrum['yaxis'] is not None))
     
-    def _is_displayble_contour(self, spectrum_def, condition):
+    def _is_displayable_contour(self, spectrum_def, condition):
         #   Return true if the codition is
         #   1. A contour or multi contour ('c' or 'gc')
         #   2. Its x and y parameters are all present on the spectrum_def
@@ -692,7 +714,7 @@ class ProjectionController:
 
 #   Controller to handle stript chart spectra.
 
-class StripChartController:
+class StripChartController(AbstractController):
     def __init__(self, editor, view):
         self._editor = editor
         self._view = view
@@ -728,7 +750,7 @@ class StripChartController:
                 error(f'Unable to bind {name} to display memory, though it was created: {e}')
 
 # Controller for bitmask spectra:
-class BitMaskController:
+class BitMaskController(AbstractController):
     def __init__(self, editor, view):
         self._editor = editor
         self._view = view
@@ -858,6 +880,12 @@ class Editor(QWidget):
         self._gate.clicked.connect(self.gate_selected)
         self._ungate.clicked.connect(self.ungate_selected)
 
+        self.tabs.currentChanged.connect(self._new_editor_visible)
+
+    def _new_editor_visible(self, index):
+        
+        controller = self.controllers[self.tabs.tabText(index)]
+        controller.visible()
        
     # Get the currently selected channel type string
     

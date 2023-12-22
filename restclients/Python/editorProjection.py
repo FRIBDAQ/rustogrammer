@@ -178,7 +178,7 @@ class ProjectionEditor(QLabel):
 
     def _clearComboBox(self, box):
         while box.count() > 0:
-            box.takeItem(0)
+            box.removeItem(0)
 
     def _setComboBoxContents(self, box, items):
         # Set combobox values to a set of items:
