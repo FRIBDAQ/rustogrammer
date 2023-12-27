@@ -39,6 +39,7 @@ Attributes:
 
 PublicMethods:
     * addChannel  - adds a new x  channel returns its index.
+    * addParameter - add parameter to the current channel.
     * loadChannel - Loads the list box for a channel with names.
     * removeChannel - Removes the specified list
     * getChannel  - Gets the names in a channel.
@@ -72,6 +73,7 @@ class ParametersWidget(QWidget):
             currentIndex - the currently visible index.
             count        - number of list boxes (readonly).
         Public Methods:
+            addToCurrent - add a value to the current list box.
             getValues   - Get the list of items in listbox n.
             setValues   - Set the list of items in listbox n.
             clearValues - clear all valuesin listbox n.
@@ -149,7 +151,7 @@ class ParametersWidget(QWidget):
 
     # Attribute implementations:
     def currentIndex(self):
-        self._channels.currentIndex()
+        return self._channels.currentIndex()
     def setCurrentIndex(self,i):
         self._check_index(i)
         self._channels.setCurrentIndex(i)
@@ -157,6 +159,8 @@ class ParametersWidget(QWidget):
         return self._channels.count()-1
 
     # Public methods:
+    def addToCurrent(self, txt):
+        self._list.addItem(txt)
     def getValues(self, n):
         self._check_index(n)
         w = self._channels.widget(n)
@@ -328,9 +332,9 @@ class GammaSummaryEditor(QWidget):
         self._name.setText(name)
     
     def parameter(self):
-        return self._parameter.paramter()
+        return self._parameter.parameter()
     def setParameter(self, parameter):
-        self._parameter.setParameter(name)
+        self._parameter.setParameter(parameter)
     
     def xchannels(self):
         return self._channels.count()
@@ -370,10 +374,14 @@ class GammaSummaryEditor(QWidget):
 
     def addChannel(self):
         self._channels.addChannel()
+    def addParameter(self, p):
+        self._channels.addToCurrent(p)
     def loadChannel(self, n, l):
         self._channels.setValues(n, l)
     def removeChannel(self, n):
         self._channels.removeList(n)
+    def getChannel(self, n):
+        return w._channels.getValues(n)
     def clear(self):
         self._channels.clearAll()
 
@@ -391,7 +399,24 @@ class GammaSummaryEditor(QWidget):
     
 #  Tests:
 
+def commit():
+    print("commit: ", w.name())
+    print(w.parameter(), 'selected')
+    print("array:", w.array())
+    print(w.xchannels(), " x chanels are defined")
+    print("Axis:", w.low(), w.high(), w.bins())
+    print("Axis from parameters state: ", w.axis_from_param())
+    print("Currently selected channel is", w.channel())
+
+    for i in range(w.xchannels()):
+        print('   ', w.getChannel(i))
+
+def add():
+    global junk
+    junk += 1
+    w.addParameter(str(junk))
 if __name__ == "__main__":
+    junk = 0
     app = QApplication([])
     c   = QMainWindow()
 
@@ -399,6 +424,9 @@ if __name__ == "__main__":
     w.addChannel()
     w.loadChannel(0, ['a','b','c'])
     w.loadChannel(1, ['1','2','3','4','5'])
+    w.setParameter('asldfj')
+    w.commit.connect(commit)
+    w.addparameter.connect(add)
 
     c.setCentralWidget(w)
 
