@@ -20,6 +20,7 @@ Signals:
 Attributes:
     list - The entire listbox contents as a list.
     label - Label text above the listbox.
+    listbox - the listbox widget - allows use within gamma summary editors
 
 Notable public functions:
     appendItem - appends a new item to the list box.
@@ -123,6 +124,14 @@ class EditableList(QWidget):
         return self._label.text()
     def setLabel(self, newLabel):
         self._label.setText(newLabel)
+    
+    #  These support using this within a gamma summary spectrum where we 
+    #  actually have  a tabwidget full of list boxes:
+
+    def listbox(self):
+        return self._list
+    def setListBox(self, widget):
+        self._list = widget
 
     # Internal signal handlers:
 
