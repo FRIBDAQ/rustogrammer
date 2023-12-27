@@ -30,13 +30,12 @@ Signals:
    *   addparameter - The parameter add button was checked.
 Attributes:
    * name    - Name of the spectrum.
-   * parameter - selected parameter.
+   * parameter - selected parameter
    * array     - the array checkbox was set.
-   * xchannels  - number of x channels defined. (readonly).
+   * xchannels  - number of x channels defined (readonly)
    * low, high,  bins - y axis specifications.
    * axis_from_param - the axis from parameter checkbox was checked.
    * channel  - Currently selected x channel number.
-   * parameter - Selected parameter.
 
 PublicMethods:
     * addChannel  - adds a new x  channel returns its index.
@@ -64,8 +63,9 @@ class ParametersWidget(QWidget):
          in the editablelist.EditablList widget
         Signals:
           add - the Add button was clicked.
+          remove
         Note:
-          The delete, clear and movement buttons are autonomous.
+          The delete, clear, and movement buttons are autonomous.
         Slots:
            delete, clear, up, down connected to those internal signals.
         Attributes:
@@ -77,8 +77,11 @@ class ParametersWidget(QWidget):
             clearValues - clear all valuesin listbox n.
             removeList  - Remove listbox n
             clearAll       - Remove all but channel 0 and + and clear 0.
+            addChannel  - add/select a new channel.
+            
     '''
     add = pyqtSignal()
+    remove =pyqtSignal(str)
     def __init__(self, label, *args):
         super().__init__(*args)
         layout = QGridLayout()
@@ -148,9 +151,10 @@ class ParametersWidget(QWidget):
     def currentIndex(self):
         self._channels.currentIndex()
     def setCurrentIndex(self,i):
+        self._check_index(i)
         self._channels.setCurrentIndex(i)
     def count(self):
-        return self._channels.count()
+        return self._channels.count()-1
 
     # Public methods:
     def getValues(self, n):
@@ -161,11 +165,11 @@ class ParametersWidget(QWidget):
     def clearValues(self, n):
         self._check_index(n)
         w = self._channels.widget(n)
-        while w.count > 0:
+        while w.count() > 0:
             w.takeItem(0)
     def setValues(self, n, l):
-        self.clearValues(self, n)     # also raises error on bad n.
-        w = self._chanels.widget(n)   #empty now:
+        self.clearValues(n)     # also raises error on bad n.
+        w = self._channels.widget(n)   #empty now:
         w.addItems(l)
     def removeList(self, n):
         self._check_index(n)
@@ -199,6 +203,8 @@ class ParametersWidget(QWidget):
         self._list.setSelectionMode(QAbstractItemView.ContiguousSelection)
         self._channels.insertTab(0, self._list, '0')
 
+    def addChannel(self):
+        self._tabChanged(self._channels.count())
 
     # Slots:
 
@@ -271,7 +277,8 @@ class ParametersWidget(QWidget):
             raise IndexError(f'{n} is not a valid tab number')
 
 class GammaSummaryEditor(QWidget):
-    
+    commit = pyqtSignal()
+    addparameter = pyqtSignal()
     def __init__(self, *args):
         super().__init__(*args)
         layout = QVBoxLayout()
@@ -308,7 +315,80 @@ class GammaSummaryEditor(QWidget):
         
         self.setLayout(layout)
 
+        # Connect signals:
 
+        self._commit.clicked.connect(self.commit)
+        self._channels.add.connect(self.addparameter)
+    
+    #  implement attribute getter/setters:
+
+    def name(self):
+        return self._name.text()
+    def setName(self, name):
+        self._name.setText(name)
+    
+    def parameter(self):
+        return self._parameter.paramter()
+    def setParameter(self, parameter):
+        self._parameter.setParameter(name)
+    
+    def xchannels(self):
+        return self._channels.count()
+    
+    def low(self):
+        return self._axis.low()
+    def setLow(self, value):
+        self._axis.setLow(value)
+
+    def high(self):
+        return self._axis.high()
+    def setHigh(self, value):
+        selt._axis.setHigh(value)        
+    
+    def bins(self):
+        return self._axis.bins()
+    def setBins(self, bins):
+        self._axis.setBins(bins)
+    
+    def array(self):
+        return self._checkState(self._array)
+    def setArray(self, b):
+        self._setCheck(self._array, b)
+
+    def axis_from_param(self):
+        return self._checkState(self._fromparameters)
+    def setAxis_from_param(self, b):
+        self._setcheck(self._fromparameters, b)
+
+    def channel(self):
+        return self._channels.currentIndex()
+    def setChannel(self):
+        self._channels.setCurrentIndex()
+
+    # Public methods; These delegate to public methods of the
+    # channel editor.
+
+    def addChannel(self):
+        self._channels.addChannel()
+    def loadChannel(self, n, l):
+        self._channels.setValues(n, l)
+    def removeChannel(self, n):
+        self._channels.removeList(n)
+    def clear(self):
+        self._channels.clearAll()
+
+    #  Utilties:
+
+    def _checkState(self, widget):
+        return widget.checkState() == Qt.Checked
+    def _setCheck(self, b):
+        if b:
+            state = Qt.Checked
+        else:
+            state = Qt.Unchecked
+        widget.setCheckState(state)
+
+    
 #  Tests:
 
 if __name__ == "__main__":
@@ -316,6 +396,9 @@ if __name__ == "__main__":
     c   = QMainWindow()
 
     w   = GammaSummaryEditor()
+    w.addChannel()
+    w.loadChannel(0, ['a','b','c'])
+    w.loadChannel(1, ['1','2','3','4','5'])
 
     c.setCentralWidget(w)
 
