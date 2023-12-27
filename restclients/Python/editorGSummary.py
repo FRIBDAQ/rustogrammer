@@ -55,6 +55,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.Qt import *
 from ParameterChooser import LabeledParameterChooser
+from axisdef import AxisInput
 
 
 class ParametersWidget(QWidget):
@@ -290,8 +291,20 @@ class GammaSummaryEditor(QWidget):
         param_layout.addWidget(self._channels)
         layout.addLayout(param_layout)
 
+        axis_layout = QVBoxLayout()
+        axis_layout.addWidget(QLabel('Y axis', self))
+        self._axis = AxisInput()
+        axis_layout.addWidget(self._axis)
+        
+        alayout = QHBoxLayout()
+        alayout.addLayout(axis_layout)
+        self._fromparameters = QCheckBox('From Parameters', self)
+        alayout.addWidget(self._fromparameters)
+        layout.addLayout(alayout)
 
-
+        self._commit = QPushButton('Create/Replace', self)
+        self._commit.setMaximumWidth(200)
+        layout.addWidget(self._commit, Qt.AlignHCenter)
         
         self.setLayout(layout)
 
