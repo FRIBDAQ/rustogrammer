@@ -128,6 +128,10 @@ class EditableList(QWidget):
     #  These support using this within a gamma summary spectrum where we 
     #  actually have  a tabwidget full of list boxes:
 
+    def destroylistbox(self):
+        layout = self.layout()
+        layout.removeWidget(self._list)
+        self._list = None
     def listbox(self):
         return self._list
     def setListBox(self, widget):
