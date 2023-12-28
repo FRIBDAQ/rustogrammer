@@ -32,12 +32,14 @@ class rustogramer:
         via the REST interface the server exports. 
     """
 
-    def _service_port(self, host, port, name):
+    def _service_port(self, host, port, name, user=None):
         #  Translate the service 'name' using the port manager on
         #  'port'  to a service port, returning the port.
 
+        if user is None:
+            user  = os.getlogin()
         pm = PortManager.PortManager(host, port)
-        matches = pm.find(service=name, user=os.getlogin())
+        matches = pm.find(service=name, user=user)
         if len(matches) != 1:
             raise NameError(name=name)
         return matches[0]["port"]
@@ -95,8 +97,14 @@ class rustogramer:
         """
         self.port = connection["port"]
         self.host = connection["host"]
+        if 'user' in connection.keys():
+            user = connection['user']
+        else:
+            user= None
         if "service" in connection:
-            self.port = self._service_port(connection['host'], self.port, connection["service"])
+            self.port = self._service_port(
+                connection['host'], self.port, connection["service"], user
+            )
 
     #--------------- Gate application domains: /apply, /ungate
 
