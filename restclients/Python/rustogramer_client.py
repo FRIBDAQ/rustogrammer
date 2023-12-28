@@ -869,6 +869,16 @@ class rustogramer:
             'spectrum/create',
             {'type' :'b', 'name':name, 'parameters':params, 'axes':axis, 'chantype':chantype}
         )
+    def spectruM_creategammasummary(self, name, parameters, ylow, yhigh, ybins, chantype='f64'):
+        axis = self._format_axis(ylow, yhigh, ybins)
+        # Each parameters list element is, itself a list.
+        params = '{'
+        for p in parameters:
+            params =params +  self._format_stringlist(p)  + "} "
+        return self._transaction('spectrum/create',
+            {'type': 'gs', 'name': name, 'parameters': params, 'axes':axis, 'chantype': chantype}
+        )
+        
     def spectrum_getcontents(self, name, xl, xh, yl=0,yh=0):
         """ Get the contents of a spectrum within a region of interest.
         *   name - name of the spectrum.
