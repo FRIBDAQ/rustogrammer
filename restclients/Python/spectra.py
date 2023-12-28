@@ -47,16 +47,14 @@ class SpectrumWidget(QWidget):
         # contains the editor, the bottom the spectrum list.abs
         
         layout = QVBoxLayout()
-        top    = QFrame(self)
-        top.setFrameShape(QFrame.Box)
-        self._editor = Editor(top)
+        
+        self._editor = Editor(self)
         self._editor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self._editor.load_gates(_client)
         layout.addWidget(self._editor)
 
-        bottom = QFrame(self)
-        bottom.setFrameShape(QFrame.Box)
-        self._listing = SpectrumList(bottom)
+        
+        self._listing = SpectrumList(self)
         layout.addWidget(self._listing)
 
         self._spectrumListModel = SpectrumModel()
