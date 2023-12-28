@@ -347,7 +347,7 @@ class GammaSummaryEditor(QWidget):
     def high(self):
         return self._axis.high()
     def setHigh(self, value):
-        selt._axis.setHigh(value)        
+        self._axis.setHigh(value)        
     
     def bins(self):
         return self._axis.bins()
