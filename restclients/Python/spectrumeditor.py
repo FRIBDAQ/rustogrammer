@@ -386,8 +386,8 @@ class SummaryController(AbstractController):
         if self._view.array():
             params = gen_param_array(base, self._client)
         else:
-            def = self._client.parameter_list(base)['detail']
-            params = ([base], [def])
+            defs = self._client.parameter_list(base)['detail']
+            params = ([base], [defs])
         
         #  Get the parameter definiions and:
         #  extract the names into a list and, if axis_from_parameters is
@@ -793,8 +793,33 @@ def GammaSummaryController(AbstractController):
         self._view.commit.connect(self._commit)
         self._view.addparameter.connect(self._addparameter)
     def _commit(self):
-        pass
-    def _addparameter(self);
+        # Pull all the stuff out and try to create the spectrum.
+        name = self._view.name()
+        if name.isspace():
+            return                   # Need a spectrum name
+        params = self._fetch_parameters()
+        if len(params) == 0:
+            return                  # need some parameters too.
+        if ok_to_create(client, editor, name):
+            # Try to create the spectrum:
+            try:
+                self._client.spectrum_creategammasummary(
+                    name, params, 
+                    self._view.low(), self._view.high(), self._view.bins(),
+                    self._editor.channeltype_string()
+                )
+                self._editorspectrum_added(name)
+            except RustogramerException as e:
+                error(f'Unable to create spectrum {name}: {e}')
+                return
+            
+            # try to bind it to display memory:
+            try:
+                self._client.sbind_list([name])
+            except RustogramerException as e:
+                error(f'Unable to bind {name} to display memory but it was created: {e}')
+            
+    def _addparameter(self):
         # Fetch the parameter name:
 
         raw_name = self._view.parameter()
@@ -827,7 +852,21 @@ def GammaSummaryController(AbstractController):
                     self._view.setHigh(high)
                 if bins is not None:
                     self._view.setBins(bins)
-
+    def _fetch_parameters(self):
+        # Returns the list of parameter lists... or an empty list if all
+        # channels are empty
+        # It is legitimate for the user to want empty channels as spacers e.g.
+        # between clumps of stuff.
+        chans = self._view.xhannels()
+        result = []
+        total_pars = 0
+        for c in range(chans):
+            params = self._view.getChannel(c)
+            total_pars += len(params)
+            result.append(total_pars)
+        if total_pars == 0:
+            result =[]           # No parameters in any channels.
+        return result
 
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
