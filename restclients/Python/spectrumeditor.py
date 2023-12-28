@@ -776,7 +776,24 @@ class BitMaskController(AbstractController):
                 self._client.sbind_list([name])
             except RustogramerException as e:
                 error('Unable to bind {name} to spectrum memory but it has been created: {e}')
-                
+
+def GammaSummaryController:
+    def __init__(self, editor, view):
+        self._editor = editor
+        self._view   = view
+        self._client = get_capabilities_client()
+
+        # Connect the view signals I care about:
+
+        self._view.commit.connect(self._commit)
+        self._view.addparameter.connect(self._addparameter)
+    def _commit(self):
+        pass
+    def _addparameter(self);
+        pass
+
+
+
 #  This dict is a table, indexed by tab name, of the class objects
 #  that edit that spectrum type and the enumerator type in capabilities.
 #  e.g. '1D': (SpectrumTypes.Oned, editor1d.onedEditor, onedcontroller) - means
@@ -797,7 +814,7 @@ _spectrum_widgets = {
     'Projection' : (SpectrumTypes.Projection, editorProjection.ProjectionEditor, ProjectionController),
     'StripChart' : (SpectrumTypes.StripChart, editorStripchart.StripChartEditor, StripChartController),
     'Bitmask' : (SpectrumTypes.Bitmask, editorBitmask.BitmaskEditor, BitMaskController),
-    'Gamma summary' : (SpectrumTypes.GammaSummary, editorGSummary.GammaSummaryEditor, NoneController)
+    'Gamma summary' : (SpectrumTypes.GammaSummary, editorGSummary.GammaSummaryEditor, GammaSummaryController)
 
 }
 
