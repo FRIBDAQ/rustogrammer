@@ -20,6 +20,8 @@ import argparse
 import capabilities
 from rustogramer_client import rustogramer as RestClient
 
+PORTMAN_PORT=30000
+
 parser = argparse.ArgumentParser(
     prog='Gui.py',
     description='User interface GUI for SpecTcl and rustogramer programs',
@@ -36,10 +38,11 @@ parser.add_argument('-u', '--service-user', default=os.getlogin(), action='store
 
 args = parser.parse_args()
 
-client_args = {'host' : args.host, 'port':args.port}
+client_args = {'host' : args.host, 'port':args.port, 'pmanport': PORTMAN_PORT}
 if args.service is not None:
     client_args['service'] = args.service
     client_args['user']    = args.service_user
+    
 
 client = RestClient(client_args)
 spectra.set_client(client)

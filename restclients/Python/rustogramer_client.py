@@ -82,9 +82,9 @@ class rustogramer:
         It is a dict which has two mandatory members and one 
         optiona member:
 
-        *   'port' (mandatory) - This is either the port on
-        which the rustogramer listens for connections or the port on which
-        the NSCLDAQ port manager listens for connections.  See below.
+        *   'port' (mandatory) - This is the port on
+        which the rustogramer listens for connections 
+        *   'pmanport'  If doing service translation, this is the poprt on which the port manager is listening.
         *   'host' (mandatory) - Host running the rustogramer.
         *   'service'  (optional) - If provided, the port key provides
         the port manager listener port and this parameter is the service name
@@ -103,7 +103,7 @@ class rustogramer:
             user= None
         if "service" in connection:
             self.port = self._service_port(
-                connection['host'], self.port, connection["service"], user
+                connection['host'], connection['pmanport'],  connection["service"], user
             )
 
     #--------------- Gate application domains: /apply, /ungate
