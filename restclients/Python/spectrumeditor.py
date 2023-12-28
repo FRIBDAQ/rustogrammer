@@ -70,6 +70,16 @@ def ok_to_create(client, editor, name):
             return False
     else:
         return True
+def gen_param_array(raw_name, client):
+    # Generate an array of parameters given the base name:
+    # Returns a tuple where .0 are the names and .1 are the
+    # full descriptions.
+    
+    path = raw_name.split('.')
+    pattern = '.'.join(path[:-1])
+    pattern = pattern + '.*'
+    params  = client.parameter_list(pattern)['detail']
+    return ([x['name'] for x in params], params)
 
 #  Base class for controllers:  Supplies a visibility slot that
 #  can be overidden.
@@ -182,9 +192,8 @@ class OneDController(AbstractController):
 
         #  Get the list of parameters with params base:
 
-        param_base = '.'.join(param.split('.')[0:-1])
-        param_pattern = param_base + '.*'
-        parameters    = self._param_names(client, param_pattern)
+        parameters = gen_param_array(param, client)[0]
+
         data_type = self._editor.channeltype_string()
 
         # Generate the spectrum names:
@@ -209,12 +218,7 @@ class OneDController(AbstractController):
                 error(f"Failed to bind all spectram: {e} some may not be displayable")                
             self._view.setName('')
 
-    def _param_names(self, client, pattern):
-        
-        defs = client.parameter_list(pattern)['detail']
-        result =  [x['name'] for x in defs]
-        result.sort()
-        return result
+    
 ##
 #  Controller for the 2-d editor.
 #  This is much simpler than the 1d editor since we don't have to handle
@@ -380,17 +384,18 @@ class SummaryController(AbstractController):
         pattern = base
 
         if self._view.array():
-            pattern = base.split('.')[0:-1]
-            pattern.append('*')
-            pattern = '.'.join(pattern)
+            params = gen_param_array(base, self._client)
+        else:
+            def = self._client.parameter_list(base)['detail']
+            params = ([base], [def])
         
         #  Get the parameter definiions and:
         #  extract the names into a list and, if axis_from_parameters is
         #  in fill in the axis  values when we have a parameter with metadata.
 
-        descriptions = self._client.parameter_list(pattern)['detail']
-        names = [x['name'] for x in descriptions]  # list of matching names
-
+        descriptions = params[1]
+        names = params[0]
+        
         if self._view.axis_from_parameters():
             for p in descriptions:
                 self.setaxis_from_parameter(p)
@@ -777,7 +782,7 @@ class BitMaskController(AbstractController):
             except RustogramerException as e:
                 error('Unable to bind {name} to spectrum memory but it has been created: {e}')
 
-def GammaSummaryController:
+def GammaSummaryController(AbstractController):
     def __init__(self, editor, view):
         self._editor = editor
         self._view   = view
@@ -790,8 +795,38 @@ def GammaSummaryController:
     def _commit(self):
         pass
     def _addparameter(self);
-        pass
+        # Fetch the parameter name:
 
+        raw_name = self._view.parameter()
+        if raw_name.isspace():
+            return                    # no name selected to add.
+        if self._view.array():
+            info = gen_param_array(raw_name, self._client)
+            names =  info[0]
+            defs  =  info[1]
+        else:
+            names = [raw_name]
+            defs  = self._client.parameter_list(raw_name)['detail']
+
+        # Names are added to the current list
+
+        for name in names:
+            self._view.addParameter(name)
+        
+        # If from axis is set, we load the axis information from any
+        # availabe data in defs:
+
+        if self._view.axis_from_param():
+            for d in defs:
+                low = d['low']
+                high = d['hi']
+                bins = d['bins']
+                if low is not None:
+                    self._view.setLow(d['low'])
+                if high is not None:
+                    self._view.setHigh(high)
+                if bins is not None:
+                    self._view.setBins(bins)
 
 
 #  This dict is a table, indexed by tab name, of the class objects
