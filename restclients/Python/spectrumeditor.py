@@ -105,6 +105,7 @@ class NoneController(AbstractController):
 #   Controller that handles the Oned editor view signals:
 class OneDController(AbstractController):
     def __init__(self, editor, view):
+        super().__init__()
         self._editor = editor
         self._view = view
         view.commit.connect(self.create)
@@ -782,7 +783,7 @@ class BitMaskController(AbstractController):
             except RustogramerException as e:
                 error('Unable to bind {name} to spectrum memory but it has been created: {e}')
 
-def GammaSummaryController(AbstractController):
+class GammaSummaryController(AbstractController):
     def __init__(self, editor, view):
         self._editor = editor
         self._view   = view
@@ -800,7 +801,7 @@ def GammaSummaryController(AbstractController):
         params = self._fetch_parameters()
         if len(params) == 0:
             return                  # need some parameters too.
-        if ok_to_create(client, editor, name):
+        if ok_to_create(self._client, self._editor, name):
             # Try to create the spectrum:
             try:
                 self._client.spectrum_creategammasummary(
@@ -808,7 +809,7 @@ def GammaSummaryController(AbstractController):
                     self._view.low(), self._view.high(), self._view.bins(),
                     self._editor.channeltype_string()
                 )
-                self._editorspectrum_added(name)
+                self._editor.spectrum_added(name)
             except RustogramerException as e:
                 error(f'Unable to create spectrum {name}: {e}')
                 return
@@ -857,15 +858,16 @@ def GammaSummaryController(AbstractController):
         # channels are empty
         # It is legitimate for the user to want empty channels as spacers e.g.
         # between clumps of stuff.
-        chans = self._view.xhannels()
+        chans = self._view.xchannels()
         result = []
         total_pars = 0
         for c in range(chans):
             params = self._view.getChannel(c)
             total_pars += len(params)
-            result.append(total_pars)
+            result.append(params)
         if total_pars == 0:
             result =[]           # No parameters in any channels.
+        print("Fetched", result)
         return result
 
 #  This dict is a table, indexed by tab name, of the class objects
