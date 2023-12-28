@@ -869,7 +869,7 @@ class rustogramer:
             'spectrum/create',
             {'type' :'b', 'name':name, 'parameters':params, 'axes':axis, 'chantype':chantype}
         )
-    def spectruM_creategammasummary(self, name, parameters, ylow, yhigh, ybins, chantype='f64'):
+    def spectrum_creategammasummary(self, name, parameters, ylow, yhigh, ybins, chantype='f64'):
         axis = self._format_axis(ylow, yhigh, ybins)
         # Each parameters list element is, itself a list.
         params = '{'
