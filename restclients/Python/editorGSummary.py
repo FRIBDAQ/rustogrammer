@@ -381,7 +381,7 @@ class GammaSummaryEditor(QWidget):
     def removeChannel(self, n):
         self._channels.removeList(n)
     def getChannel(self, n):
-        return w._channels.getValues(n)
+        return self._channels.getValues(n)
     def clear(self):
         self._channels.clearAll()
 
