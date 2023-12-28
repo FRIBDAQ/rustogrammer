@@ -14,7 +14,7 @@
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtWidgets import (
     QApplication, QWidget,  QMainWindow, QWidget, QLabel,
-    QHBoxLayout, QVBoxLayout
+    QHBoxLayout, QVBoxLayout, QTreeView
 )
 from ComboTree import ComboTree
 from rustogramer_client import rustogramer
@@ -51,8 +51,21 @@ def update_model(client):
 
 class Chooser(ComboTree):
     def __init__(self, *args):
+        global _parameter_view
         super().__init__(*args)
         self.setModel(_parameter_model)
+
+        # If the model has data and the first item
+        # has children, expand it in the view it for better sizing:
+
+        top = _parameter_model.item(0,0)
+        if top is not None:
+            index = _parameter_model.indexFromItem(top)
+            self.view().setExpanded(index, True)
+
+        
+        
+
     def load_parameters(self, client):
         self.clear()              # Don't accumulate
         parameters = client.parameter_list()
@@ -62,6 +75,7 @@ class Chooser(ComboTree):
         names.sort()
         tree = tm.make_tree(names)
         self.load_tree(tree)
+
 
 '''
  Megawidget that is a parameter chooser with a 

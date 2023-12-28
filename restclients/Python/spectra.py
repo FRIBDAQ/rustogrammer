@@ -36,6 +36,9 @@ class SpectrumWidget(QWidget):
         global _client
         super().__init__(*args)
 
+        
+        load_parameters(_client)
+
         # assumption is that set_client has been called
 
         set_cap_client(_client)
@@ -61,7 +64,6 @@ class SpectrumWidget(QWidget):
         self._listing.getList().horizontalHeader().setModel(self._spectrumListModel)
         self._spectrumListModel.load_spectra(_client)
 
-        load_parameters(_client)
 
         self.setLayout(layout)
 

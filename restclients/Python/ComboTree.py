@@ -60,8 +60,8 @@ class ComboTree(QComboBox):
         tree_view.setWordWrap(True)
         tree_view.setAllColumnsShowFocus(True)
         tree_view.setHeaderHidden(True)
-        tree_view.resize(200,150)
         self.setView(tree_view)
+        self.SizeAdjustPolicy(QComboBox.AdjustToContents)
 
         self.view().viewport().installEventFilter(self)
 
