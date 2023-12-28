@@ -872,9 +872,11 @@ class rustogramer:
     def spectrum_creategammasummary(self, name, parameters, ylow, yhigh, ybins, chantype='f64'):
         axis = self._format_axis(ylow, yhigh, ybins)
         # Each parameters list element is, itself a list.
-        params = '{'
+        params = ""
+        print("parameters: ", parameters)
         for p in parameters:
-            params =params +  self._format_stringlist(p)  + "} "
+            print(p)
+            params =params + "{" +  self._format_stringlist(p)  + "} "
         return self._transaction('spectrum/create',
             {'type': 'gs', 'name': name, 'parameters': params, 'axes':axis, 'chantype': chantype}
         )
