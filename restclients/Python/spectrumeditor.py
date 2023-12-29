@@ -1051,6 +1051,8 @@ class Editor(QWidget):
                 self._fillgamma2(row, view)
             case 'gd':
                 self._fillpgamma(row, view)
+            case 'm2':
+                self._fill2dsum(row, view)
             case _:
                 error(f'Unable to load spectrum type: {stype} unsupported type')
         self.tabs.setCurrentIndex(index)
@@ -1129,6 +1131,10 @@ class Editor(QWidget):
         view.setYlow(sdef[7])
         view.setYhigh(sdef[8])
         view.setYbins(sdef[9])
+    
+    def _fill2dsum(self, sdef, view):
+        #  Keep distinct in case at some point the editor is split off.
+        self._fillpgamma(sdef, view)
 
 # --- tests
 
