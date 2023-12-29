@@ -236,12 +236,12 @@ pub fn delete_spectrum(
 // simple lists are of the form {a b c d....}
 
 fn parse_simple_list(list: &str) -> Result<Vec<String>, String> {
+    // Remove the leading and trailing chars, assuming they are {}
+    // respectively
+
     let l = list.len();
     let list = String::from(list);
     let list = list[1..l - 1].to_string();
-
-    // Remove the leading and trailing chars, assuming they are {}
-    // respectively
 
     // Simple strings must not have {} embedded:
 
@@ -559,20 +559,31 @@ fn make_summary(
         GenericResponse::ok("")
     }
 }
-// Create a 2d sum spectrum.  There must be two parameter lists
-// and two axes.  We let the server sort out that the two parameter
-// lists must also be the same length.
+// Create a 2d sum spectrum.  The REST interface gives an even number
+// of parameters in a single list.  Each pair of parameters is an X/Y pair.
 fn make_2dsum(
     name: &str,
     parameters: &str,
     axes: &str,
     state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
-    let parameters = parse_two_element_list(parameters);
-    if let Err(s) = parameters {
-        return GenericResponse::err("Failed to parse the parameter list(s)", &s);
+    let parameters = get_params(parameters);
+    if parameters.len() % 2 == 1 {
+        return GenericResponse::err(
+            "Failed to create 2d sum spectrum",
+            "Must have an even number of parameters",
+        );
     }
-    let (xpars, ypars) = parameters.unwrap(); // both Vec<String>
+    // Probably there's a better, sneakier way to do this is rust but...
+    let mut xpars: Vec<String> = vec![];
+    let mut ypars: Vec<String> = vec![];
+    for (i, s) in parameters.iter().enumerate() {
+        if i % 2 == 0 {
+            xpars.push(s.clone());
+        } else {
+            ypars.push(s.clone());
+        }
+    }
 
     let axes = parse_2_axis_defs(axes);
     if let Err(s) = axes {
@@ -2169,7 +2180,7 @@ mod spectrum_tests {
         let (chan, papi, bind_api) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Making client");
-        let req = client.get("/create?name=test&type=m2&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4%20parameter.5%20parameter.6%20parameter.7}&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
+        let req = client.get("/create?name=test&type=m2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3%20parameter.4%20parameter.5%20parameter.6%20parameter.7&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
@@ -2190,8 +2201,8 @@ mod spectrum_tests {
         assert!(info.xaxis.is_some());
         assert!(info.yaxis.is_some());
         assert!(info.gate.is_none());
-        let xpars = ["parameter.0", "parameter.1", "parameter.2", "parameter.3"];
-        let ypars = ["parameter.4", "parameter.5", "parameter.6", "parameter.7"];
+        let xpars = ["parameter.0", "parameter.2", "parameter.4", "parameter.6"];
+        let ypars = ["parameter.1", "parameter.3", "parameter.5", "parameter.7"];
         // this loop takes advantage of the fact the param lists are same lengths.
         for (i, s) in xpars.iter().enumerate() {
             assert_eq!(*s, info.xparams[i]);
@@ -2210,7 +2221,8 @@ mod spectrum_tests {
 
         teardown(chan, &papi, &bind_api);
     }
-    #[test]
+    // No longer appropriate test.
+    #[allow(dead_code)]
     fn creates2dsum_2() {
         // two parameter lists are required.
         let rocket = setup();
@@ -2235,7 +2247,7 @@ mod spectrum_tests {
         let (chan, papi, bind_api) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Making client");
-        let req = client.get("/create?name=test&type=m2&parameters={xparameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4%20parameter.5%20parameter.6%20parameter.7}&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
+        let req = client.get("/create?name=test&type=m2&parameters=xparameter.0%20parameter.1%&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
@@ -2252,7 +2264,7 @@ mod spectrum_tests {
         let (chan, papi, bind_api) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Making client");
-        let req = client.get("/create?name=test&type=m2&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4%20parameter.5%20parameter.6%20parameter.70}&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
+        let req = client.get("/create?name=test&type=m2&parameters=parameter.0%20parameter.70&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
@@ -2263,13 +2275,13 @@ mod spectrum_tests {
     }
     #[test]
     fn create2dsum_5() {
-        // X/Y parameters must be the same length.
+        // X/Y parameters must be the even length.
 
         let rocket = setup();
         let (chan, papi, bind_api) = getstate(&rocket);
 
         let client = Client::untracked(rocket).expect("Making client");
-        let req = client.get("/create?name=test&type=m2&parameters={parameter.0%20parameter.1%20parameter.2%20parameter.3}%20{parameter.4%20parameter.5%20parameter.6}&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
+        let req = client.get("/create?name=test&type=m2&parameters=parameter.0%20parameter.1%20parameter.2%&axes={0.0%2010.0%20100}%20{-1.0%201.0%20250}");
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
@@ -2277,7 +2289,8 @@ mod spectrum_tests {
         assert_eq!("Failed to create 2d sum spectrum", reply.status);
         teardown(chan, &papi, &bind_api);
     }
-    #[test]
+    // Not an appropriate test.
+    #[allow(dead_code)]
     fn create2dsum_6() {
         // Must have two axis lists.
 
