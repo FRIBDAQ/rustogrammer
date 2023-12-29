@@ -1045,6 +1045,8 @@ class Editor(QWidget):
                 return
             case 's':
                 self._fillsummary(row, view, index)
+            case 'g1':
+                self._fillgamma1(row, view, index)
             case _:
                 error(f'Unable to load spectrum type: {stype} unsupported type')
         self.tabs.setCurrentIndex(index)
@@ -1092,6 +1094,13 @@ class Editor(QWidget):
         view.setHigh(sdef[8])
         view.setBins(sdef[9])
 
+    def _fillgamma1(self, sdef, view, index):
+        view.setName(sdef[0])
+        view.setAxis_parameters(sdef[2].split(','))
+        view.setLow(sdef[3])
+        view.setHigh(sdef[4])
+        view.setBins(sdef[5])
+        pass
 
 # --- tests
 
