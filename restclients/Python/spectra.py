@@ -74,6 +74,7 @@ class SpectrumWidget(QWidget):
         self._editor.delete_selected.connect(self._delete_selected)
         self._editor.gate_selected.connect(self._gate_selected)
         self._editor.ungate_selected.connect(self._ungate_selected)
+        self._editor.load.connect(self._load_spectrum)
 
         self._listing.filter_signal.connect(self._filter_list)
         self._listing.clear_signal.connect(self._clear_filter)
@@ -143,6 +144,11 @@ class SpectrumWidget(QWidget):
         for spectrum in spectra:
             _client.ungate_spectrum(spectrum)
         self._spectrumListModel.load_spectra(_client, self._listing.mask())
+    def _load_spectrum(self):
+        #  Load the single selected spectrum into the editor.
+        print('load clicked')
+        self._editor.load_editor([])
+
 
 
 def test(host, port):

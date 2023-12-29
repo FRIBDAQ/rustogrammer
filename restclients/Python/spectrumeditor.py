@@ -911,6 +911,7 @@ class Editor(QWidget):
     delete_selected = pyqtSignal()
     gate_selected   = pyqtSignal()
     ungate_selected = pyqtSignal()
+    load   = pyqtSignal()
     def __init__(self, *args):
         global _spectrum_widgets
         global _channel_types
@@ -962,6 +963,8 @@ class Editor(QWidget):
         right.addWidget(self._gate)
         self._ungate = QPushButton('Ungate')
         right.addWidget(self._ungate)
+        self._loadspectrum = QPushButton('Load editor')
+        right.addWidget(self._loadspectrum)
         right.addWidget(QLabel('Channel Type:'))
         right.addWidget(self.channelType)
         layout.addLayout(right)
@@ -972,6 +975,7 @@ class Editor(QWidget):
         self._del.clicked.connect(self.delete_selected)
         self._gate.clicked.connect(self.gate_selected)
         self._ungate.clicked.connect(self.ungate_selected)
+        self._loadspectrum.clicked.connect(self.load)
 
         self.tabs.currentChanged.connect(self._new_editor_visible)
 
@@ -1007,7 +1011,8 @@ class Editor(QWidget):
     def spectrum_removed(self, name):
         self.spectrum_deleted.emit(name)
 
-
+    def load_editor(self, row):
+        print("Load editor with ", row)
 
     
     
