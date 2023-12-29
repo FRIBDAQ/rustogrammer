@@ -152,7 +152,7 @@ class ComboTree(QComboBox):
         return current
 
     def current_item(self):
-        if self._lastIndex is not None:
+        if self._last_index is not None:
             return self._path(self._lastIndex)
         else:
             return ""            
