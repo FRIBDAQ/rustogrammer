@@ -443,15 +443,17 @@ class G2DController(SummaryController):
 
     def setaxis_from_parameter(self, p):
         view = self.view()
-        if p['low'] is not None:
-            view.setXlow(p['low'])
-            view.setYlow(p['low'])
-        if p['hi'] is not None:
-            view.setXhigh(p['hi'])
-            view.setYhigh(p['hi'])
-        if p['bins'] is not None:
-            view.setXbins(p['bins'])
-            view.setYbins(p['bins'])
+        low = default(p['low'], 0)
+        view.setXlow(low)
+        view.setYlow(low)
+
+        hi = default(p['hi'], 512.0)
+        view.setXhigh(hi)
+        view.setYhigh(hi)
+
+        bins = default(p['bins'], 512)
+        view.setXbins(bins)
+        view.setYbins(bins)
 
 #
 #   Controller to build particle gamma spectra (GD).
@@ -569,9 +571,9 @@ class PGammaController(AbstractController):
         #  from them.
 
         for param in parameters:
-            low = param['low']
-            high= param['hi']
-            bins= param ['bins']
+            low = default(param['low'], 0.0)
+            high= default(param['hi'], 512.0)
+            bins= default(param ['bins'], 512)
             if low is not None:
                 self._view.setXlow(low)
                 self._view.setYlow(low)
@@ -1038,15 +1040,17 @@ class Editor(QWidget):
             return
         match stype:
             case '1':
-                self._fill1d(row, view, index)
-                return
+                self._fill1d(row, view)
             case '2':
-                self._fill2d(row, view, index)
-                return
+                self._fill2d(row, view)
             case 's':
-                self._fillsummary(row, view, index)
+                self._fillsummary(row, view)
             case 'g1':
-                self._fillgamma1(row, view, index)
+                self._fillgamma1(row, view)
+            case 'g2':
+                self._fillgamma2(row, view)
+            case 'gd':
+                self._fillpgamma(row, view)
             case _:
                 error(f'Unable to load spectrum type: {stype} unsupported type')
         self.tabs.setCurrentIndex(index)
@@ -1064,7 +1068,7 @@ class Editor(QWidget):
             return None
         tab_index = self.tab_indices[tab_label]
         return (self.tabs.widget(tab_index), tab_index)
-    def _fill1d(self, sdef, view, index):
+    def _fill1d(self, sdef, view):
         view.setName(sdef[0])
         view.setParameter(sdef[2])
         view.setLow(sdef[3])
@@ -1072,7 +1076,7 @@ class Editor(QWidget):
         view.setHigh(sdef[5])
         # on success make that the current tab:
         
-    def _fill2d(self, sdef, view, index):
+    def _fill2d(self, sdef, view):
         view.setName(sdef[0])
         
         view.setXparameter(sdef[2])
@@ -1087,20 +1091,44 @@ class Editor(QWidget):
 
         
 
-    def _fillsummary(self, sdef, view, index):
+    def _fillsummary(self, sdef, view):
         view.setName(sdef[0])
         view.setAxis_parameters(sdef[2].split(','))
         view.setLow(sdef[7])
         view.setHigh(sdef[8])
         view.setBins(sdef[9])
 
-    def _fillgamma1(self, sdef, view, index):
+    def _fillgamma1(self, sdef, view):
         view.setName(sdef[0])
         view.setAxis_parameters(sdef[2].split(','))
         view.setLow(sdef[3])
         view.setHigh(sdef[4])
         view.setBins(sdef[5])
-        pass
+        
+    def _fillgamma2(self, sdef, view):
+        view.setName(sdef[0])
+        view.setAxis_parameters(sdef[2].split(','))
+
+        view.setXlow(sdef[3])
+        view.setXhigh(sdef[4])
+        view.setXbins(sdef[5])
+        #  6 are the y parameters which are empty.
+        view.setYlow(sdef[7])
+        view.setYhigh(sdef[8])
+        view.setYbins(sdef[9])
+
+    def _fillpgamma(self, sdef, view):
+        view.setName(sdef[0])
+
+        view.setXparameters(sdef[2].split(','))
+        view.setXlow(sdef[3])
+        view.setXhigh(sdef[4])
+        view.setXbins(sdef[5])
+
+        view.setYparameters(sdef[6].split(','))
+        view.setYlow(sdef[7])
+        view.setYhigh(sdef[8])
+        view.setYbins(sdef[9])
 
 # --- tests
 
