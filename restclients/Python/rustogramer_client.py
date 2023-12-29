@@ -848,9 +848,16 @@ class rustogramer:
         Increments are done for corresponding x/y pars e.g. for 
         xpars[0], ypars[0]  if those parameters are present in the event.
         """
-        xp = self._format_stringlist(xpars)
-        yp = self._format_stringlist(ypars)
-        pars =  xp + ' ' + yp 
+        
+        # Must interleave the xp and yps to make pairs:
+
+        params = []
+        for (x,y) in zip(xpars,ypars):
+            params.append(x)
+            params.append(y)
+
+        pars = self._format_stringlist(params)
+        print(pars)
         axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
         return self._transaction(
             "spectrum/create",
