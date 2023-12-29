@@ -66,7 +66,7 @@ class _AxisWidget(QWidget):
 
     # Getters/setters (attributes)
     def name(self):                        
-        return '.'.join(self._parameter.current_item())
+        return self._selected_parameter.text()
     def path(self):
         return self._parameter.current_item()
     def setName(self, value):
@@ -164,8 +164,12 @@ class TwoDEditor(QWidget):
         self._name.setText(value)
     def xparameter(self):
         return self._xaxis.name()
+    def setXparameter(self, x):
+        self._xaxis.setName(x)
     def yparameter(self):
         return self._yaxis.name()
+    def setYparameter(self, y):
+        self._yaxis.setName(y)
     def xlow(self):
         return self._xaxis.low()
     def setXLow(self, value):

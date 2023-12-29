@@ -131,10 +131,12 @@ class oneDEditor(QWidget):
         return self.sname.text()
     def setName(self, text):
         self.sname.setText(text)
-    
     def parameter(self):
         return self.chosen_param.text()
-    
+    def setParameter(self, p):
+        # Caller is responsible for ensuring this is is a legal name
+        self.chosen_param.setText(p)
+
     def low(self):
         return self.axis.low()
     def setLow(self, value):
