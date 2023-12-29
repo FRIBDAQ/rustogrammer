@@ -41,13 +41,27 @@ class SpectrumView(QTableView):
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self._selected_spectra = []
+        self._selected_rows = []
 
     def mouseReleaseEvent(self, e):
         super().mouseReleaseEvent(e)
         self._selected_spectra = [x.data() for x in self.selectedIndexes() if x.column() == 0]
+        self._selected_rows = [x.row() for x in self.selectedIndexes() if x.column() == 0]
         
     def getSelectedSpectra(self):
         return self._selected_spectra
+    def getSelectedDefinitions(self):
+        # Return a list of lists where each sublist is the contents of the 
+        # selected row in the table.
+        result = []
+        cols = self.model().columnCount()
+        for row in self._selected_rows:
+            arow = []
+            for c in range(cols):
+                print('rc', row, c, self.model().item(row, c).data(Qt.DisplayRole))
+                arow.append(self.model().item(row, c).data(Qt.DisplayRole))
+            result.append(arow)
+        return result
 
 '''  This is the list with all the other bells and whistles.
      You construct this actually.
@@ -103,6 +117,8 @@ class SpectrumList(QWidget) :
         self._mask.setText(s)
     def getSelectedSpectra(self):
         return self.list.getSelectedSpectra()
+    def getSelectedDefinitions(self):
+        return self.list.getSelectedDefinitions()
     
 
 
