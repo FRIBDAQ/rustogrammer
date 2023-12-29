@@ -893,6 +893,23 @@ _spectrum_widgets = {
     'Gamma summary' : (SpectrumTypes.GammaSummary, editorGSummary.GammaSummaryEditor, GammaSummaryController)
 
 }
+#
+#   This table maps the SpecTcl/rustogramer type strings to the tab
+#   strings.   This allows us to lookup the tab index given a spectrum descriptiion
+#
+_type_strings = {
+    '1': '1D',
+    '2': '2D',
+    's': 'Summary',
+    'g1': 'Gamma 1D',
+    'g2': 'Gamma 2D',
+    'gd': 'P-Gamma',
+    'm2': '2D Sum',
+    #  Note that projection spectra, when made are just an ordinary spectrum.
+    'S' :'StripChart',
+    'b' : 'Bitmask',
+    'gs': 'Gamma summary'
+}
 
 #  This dict has channel type names as keys and channel type values as values:
 
@@ -924,19 +941,23 @@ class Editor(QWidget):
 
         #At the left is a tabbed widget:
 
-        self.tabs = QTabWidget(self)
+        self.tabs = QTabWidget(self)   
         self.tabs.setUsesScrollButtons(True)
-        self.editors = dict()
-        self.controllers = dict()
+        self.editors = dict()     # Dict of editors (views) indexed by label.
+        self.controllers = dict() # Dict of controllers indexed by label.
+        self.tab_indices = dict() # dict of tab indices indexed by label.
         # Stock it with the supported spectrum editors:
 
         supported_specs = get_supported_spectrumTypes()
+        index = 0
         for label in _spectrum_widgets.keys():
             info = _spectrum_widgets[label]
             if info[0] in supported_specs:
                 self.editors[label] = info[1](self)  # So we can get this in the editors.
                 self.tabs.addTab(self.editors[label], label)
                 self.controllers[label] = info[2](self, self.editors[label]) # hook in controller.
+                self.tab_indices[label] = index
+                index += 1
         
 
         self.channelType = EnumeratedTypeSelector.TypeSelector()
@@ -1013,9 +1034,53 @@ class Editor(QWidget):
 
     def load_editor(self, row):
         print("Load editor with ", row)
+        #  Get the editor that corresponds to the type (index 1)
+        stype = row[1]
+        (view, index) = self._geteditorwidget(stype)
+        if view is None:
+            return
+        match stype:
+            case '1':
+                self._fill1d(row, view, index)
+            case '2':
+                self._fill2d(row, view, index)
+            case _:
+                pass
+    #  Utilities:
 
-    
-    
+    def _geteditorwidget(self, stype):
+        # Given a description type, 
+        # return the view widget of the editor:
+
+        if stype not in _type_strings.keys():
+            return None
+        tab_label = _type_strings[stype]   # Tab label.
+        if tab_label not in self.tab_indices.keys():
+            return None
+        tab_index = self.tab_indices[tab_label]
+        return (self.tabs.widget(tab_index), tab_index)
+    def _fill1d(self, sdef, view, index):
+        view.setName(sdef[0])
+        view.setParameter(sdef[2])
+        view.setLow(sdef[3])
+        view.setHigh(sdef[4])
+        view.setHigh(sdef[5])
+        # on success make that the current tab:
+        self.tabs.setCurrentIndex(index)
+    def _fill2d(self, sdef, view, index):
+        view.setName(sdef[0])
+        
+        view.setXparameter(sdef[2])
+        view.setXLow(sdef[3])
+        view.setXHigh(sdef[4])
+        view.setXBins(sdef[5])
+
+        view.setYparameter(sdef[6])
+        view.setYLow(sdef[7])
+        view.setYHigh(sdef[8])
+        view.setYBins(sdef[9])
+        
+        self.tabs.setCurrentIndex(index)
 
 
 # --- tests
