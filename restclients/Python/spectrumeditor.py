@@ -404,12 +404,10 @@ class SummaryController(AbstractController):
 
         return names
     def setaxis_from_parameter(self, p):
-        if p['low'] is not None:
-            self._view.setLow(p['low'])
-        if p['hi'] is not None:
-            self._view.setHigh(p['hi'])
-        if p['bins'] is not None:
-            self._view.setBins(p['bins'])
+        
+        self._view.setLow(default(p['low'], 0.0))
+        self._view.setHigh(default(p['hi'], 512.0))
+        self._view.setBins(default(p['bins'], 512))
 
 
 ##  Gamma 1d is just like a summary spectrum but makes a different specturm type:
@@ -1033,7 +1031,6 @@ class Editor(QWidget):
         self.spectrum_deleted.emit(name)
 
     def load_editor(self, row):
-        print("Load editor with ", row)
         #  Get the editor that corresponds to the type (index 1)
         stype = row[1]
         (view, index) = self._geteditorwidget(stype)
@@ -1042,10 +1039,16 @@ class Editor(QWidget):
         match stype:
             case '1':
                 self._fill1d(row, view, index)
+                return
             case '2':
                 self._fill2d(row, view, index)
+                return
+            case 's':
+                self._fillsummary(row, view, index)
             case _:
-                pass
+                error(f'Unable to load spectrum type: {stype} unsupported type')
+        self.tabs.setCurrentIndex(index)
+
     #  Utilities:
 
     def _geteditorwidget(self, stype):
@@ -1066,7 +1069,7 @@ class Editor(QWidget):
         view.setHigh(sdef[4])
         view.setHigh(sdef[5])
         # on success make that the current tab:
-        self.tabs.setCurrentIndex(index)
+        
     def _fill2d(self, sdef, view, index):
         view.setName(sdef[0])
         
@@ -1079,8 +1082,15 @@ class Editor(QWidget):
         view.setYLow(sdef[7])
         view.setYHigh(sdef[8])
         view.setYBins(sdef[9])
+
         
-        self.tabs.setCurrentIndex(index)
+
+    def _fillsummary(self, sdef, view, index):
+        view.setName(sdef[0])
+        view.setAxis_parameters(sdef[2].split(','))
+        view.setLow(sdef[7])
+        view.setHigh(sdef[8])
+        view.setBins(sdef[9])
 
 
 # --- tests
