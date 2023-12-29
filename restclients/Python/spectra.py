@@ -147,7 +147,19 @@ class SpectrumWidget(QWidget):
     def _load_spectrum(self):
         #  Load the single selected spectrum into the editor.
         print('load clicked')
-        self._editor.load_editor([])
+        # There must be exactly one spectum selected:
+
+        selected = self._listing.getSelectedDefinitions()
+        if not len(selected) == 1:
+            dlg = QMessageBox(
+                QMessageBox.Warning, 'Single selection required',
+                'You must select exactly one spectrum from the list to load the editor',
+                QMessageBox.Ok
+            )
+            dlg.exec()
+            return
+        spectrum = selected[0]
+        self._editor.load_editor(spectrum)
 
 
 
