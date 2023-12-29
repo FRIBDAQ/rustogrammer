@@ -452,7 +452,7 @@ mod make_sum_tests {
     fn invalid_2() {
         // Only x axis insufficient to project in y.
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -473,7 +473,7 @@ mod make_sum_tests {
         // only y axis is  insufficient to project in x or y:
 
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -496,7 +496,7 @@ mod make_sum_tests {
     #[test]
     fn ok_1() {
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -522,7 +522,7 @@ mod make_sum_tests {
         // Ensure x projections get the size right:
 
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -547,7 +547,7 @@ mod make_sum_tests {
     #[test]
     fn ok_3() {
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -581,7 +581,7 @@ mod project_spectrum_tests {
         // No y axis:
         //
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -604,7 +604,7 @@ mod project_spectrum_tests {
         // No X axis:
 
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -627,7 +627,7 @@ mod project_spectrum_tests {
         // x/y axis allows projection - no contents so zeroes for sums:
 
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -655,7 +655,7 @@ mod project_spectrum_tests {
         // Sizes should be correct:
 
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -693,7 +693,7 @@ mod project_spectrum_tests {
         // in these cases the sums should be zero:
 
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -733,7 +733,7 @@ mod project_spectrum_tests {
         // result in a non-zero projection:
 
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -771,7 +771,7 @@ mod project_spectrum_tests {
         // Using a closure that always returns false gives zeros in the  projection:
 
         let props = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("test"),
             type_name: String::from("1d"),
             xparams: vec![], // Parameters are ignored.
@@ -835,7 +835,7 @@ mod make_spectrum_tests {
         let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
         let data = vec![];
         let desc = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("dummy"),
             type_name: String::from("1D"), // not projectable.
             xparams: vec![],
@@ -862,7 +862,7 @@ mod make_spectrum_tests {
         let (ch, jh) = setup();
         let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
         let desc = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("dummy"),
             type_name: String::from("2D"), // valid.
             xparams: vec![],
@@ -889,7 +889,7 @@ mod make_spectrum_tests {
         let (ch, jh) = setup();
         let sapi = spectrum_messages::SpectrumMessageClient::new(&ch);
         let desc = spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("dummy"),
             type_name: String::from("2D"), // valid.
             xparams: vec![],
@@ -924,7 +924,7 @@ mod make_spectrum_tests {
             api.create_parameter(name).expect("making parameters");
         }
         spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("input"),
             type_name: String::from("Multi2D"),
             xparams: vec![String::from("p1"), String::from("p2"), String::from("p3")],
@@ -1366,7 +1366,7 @@ mod make_spectrum_tests {
         api.create_parameter("p2").expect("Making p2");
 
         spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("input"),
             type_name: String::from("2D"),
             xparams: vec![String::from("p1")],
@@ -1421,7 +1421,7 @@ mod make_spectrum_tests {
 
         assert_eq!(
             spectrum_messages::SpectrumProperties {
-                id:0,
+                id: 0,
                 name: String::from("test1"),
                 type_name: String::from("1D"),
                 xparams: vec![String::from("p1")],
@@ -1559,7 +1559,7 @@ mod make_spectrum_tests {
         }
 
         spectrum_messages::SpectrumProperties {
-            id:0,
+            id: 0,
             name: String::from("input"),
             type_name: String::from("2DSum"),
             xparams: vec![String::from("x1"), String::from("x2"), String::from("x3")],
@@ -1613,7 +1613,7 @@ mod make_spectrum_tests {
 
         assert_eq!(
             spectrum_messages::SpectrumProperties {
-                id:0,
+                id: 0,
                 name: String::from("test1"),
                 type_name: String::from("Multi1d"),
                 xparams: vec![String::from("x1"), String::from("x2"), String::from("x3"),],
@@ -1651,7 +1651,7 @@ mod make_spectrum_tests {
 
         assert_eq!(
             spectrum_messages::SpectrumProperties {
-                id:0,
+                id: 0,
                 name: String::from("test1"),
                 type_name: String::from("Multi1d"),
                 xparams: vec![String::from("y1"), String::from("y2"), String::from("y3"),],
