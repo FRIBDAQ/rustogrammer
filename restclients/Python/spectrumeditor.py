@@ -1059,9 +1059,10 @@ class Editor(QWidget):
                 self._fillstripchart(row, view)
         elif stype == 'b':
                 self._fillbitmask(row, view)
+        elif stype == 'gs':
+                self._fillgsummary(row, view)
         else:                
-            #  Note that the description of the spectrum does not allow us
-            # to know how to recover gama summary spectra --- yet.
+
 
                 error(f'Unable to load spectrum type: {stype} unsupported type')
                 return                      # don't set the index on error.
@@ -1158,6 +1159,26 @@ class Editor(QWidget):
         view.setName(sdef[0])
         view.setParameter(sdef[2])
         view.setBits(sdef[5])
+    def _fillgsummary(self, sdef, view):
+        # The funky thing about this one is that the
+        # parameters are a list of space separated
+        # parameter names for each channel in the X parameters.
+        #
+        view.setName(sdef[0])
+        
+        view.clear()                   # Get rid of all channels but 0.
+        params = sdef[2].split(',')    #  List of space separated params:
+        for (i, channel) in enumerate(params):
+            print(i, view.xchannels())
+            if i >= view.xchannels():   # Need this because of predefined chan 0.
+                view.addChannel()      # If needed add a tab.
+            view.loadChannel(i, channel.split(' '))
+
+        view.setLow(sdef[3])           # X axis.
+        view.setHigh(sdef[4])
+        view.setBins(sdef[5])
+
+        
 # --- tests
 
 def test(host, port):
