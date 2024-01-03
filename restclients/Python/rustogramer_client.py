@@ -722,10 +722,11 @@ class rustogramer:
                 if stype == 'gd':
                     # Two lists separated by ,'s:
 
-                    paramlist = spectrum['parameters'].split(',')
-                    spectrum['xparameters'] = paramlist[0]
-                    spectrum['yparameters'] = paramlist[1]
-                    
+                    paramlist = spectrum['parameters']
+                    spectrum['xparameters'] = paramlist[0].split(' ')
+                    spectrum['yparameters'] = paramlist[1].split(' ')
+                if stype == 'gs':
+                    pass
             out_details.append(spectrum)
         info['details'] = out_details
         return info
@@ -856,7 +857,6 @@ class rustogramer:
             params.append(y)
 
         pars = self._format_stringlist(params)
-        print(pars)
         axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
         return self._transaction(
             "spectrum/create",
@@ -887,9 +887,7 @@ class rustogramer:
         axis = self._format_axis(ylow, yhigh, ybins)
         # Each parameters list element is, itself a list.
         params = ""
-        print("parameters: ", parameters)
         for p in parameters:
-            print(p)
             params =params + "{" +  self._format_stringlist(p)  + "} "
         return self._transaction('spectrum/create',
             {'type': 'gs', 'name': name, 'parameters': params, 'axes':axis, 'chantype': chantype}
