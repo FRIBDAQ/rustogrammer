@@ -148,7 +148,7 @@ class ParametersWidget(QWidget):
         self._up.clicked.connect(self.up)
         self._down.clicked.connect(self.down)
         self._channels.currentChanged.connect(self._tabChanged)
-
+        
     # Attribute implementations:
     def currentIndex(self):
         return self._channels.currentIndex()
@@ -199,8 +199,8 @@ class ParametersWidget(QWidget):
     def clearAll(self):
         # Get rid of the existing channel tabs:
 
-        for i in range(self._channels.count()-1):
-            self._channels.removeTab(n)
+        for i in range(self._channels.count()):
+            self._channels.removeTab(i)
         # add a new '0' and make it currentL
 
         self._list = QListWidget()
