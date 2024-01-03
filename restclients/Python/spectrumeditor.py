@@ -1053,8 +1053,15 @@ class Editor(QWidget):
                 self._fillpgamma(row, view)
             case 'm2':
                 self._fill2dsum(row, view)
+            case 'S':
+                self._fillstripchart(row, view)
+            case 'b':
+                self._fillbitmask(row, view)
+            #  Note that the description of the spectrum does not allow us
+            # to know how to recover gama summary spectra --- yet.
             case _:
                 error(f'Unable to load spectrum type: {stype} unsupported type')
+                return                      # don't set the index on error.
         self.tabs.setCurrentIndex(index)
 
     #  Utilities:
@@ -1135,7 +1142,19 @@ class Editor(QWidget):
     def _fill2dsum(self, sdef, view):
         #  Keep distinct in case at some point the editor is split off.
         self._fillpgamma(sdef, view)
+    def _fillstripchart(self, sdef, view):
+        view.setName(sdef[0])
+        
+        view.setXparam(sdef[2])
+        view.setYparam(sdef[6])
 
+        view.setLow(sdef[3])
+        view.setHigh(sdef[4])
+        view.setBins(sdef[5])
+    def fillbitmask(self, sdef, view):
+        view.setName(sdef[0])
+        view.setParameter(sdef[2])
+        view.setBits(sdef[5])
 # --- tests
 
 def test(host, port):
