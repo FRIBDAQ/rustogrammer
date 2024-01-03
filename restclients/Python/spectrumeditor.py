@@ -1038,28 +1038,31 @@ class Editor(QWidget):
         (view, index) = self._geteditorwidget(stype)
         if view is None:
             return
-        match stype:
-            case '1':
+        #  Note that our buster Python 3 is < 3.10 which means
+        #  that match is not supported:
+        
+        if stype == '1':
                 self._fill1d(row, view)
-            case '2':
+        elif stype == '2':
                 self._fill2d(row, view)
-            case 's':
+        elif stype == 's':
                 self._fillsummary(row, view)
-            case 'g1':
+        elif stype == 'g1':
                 self._fillgamma1(row, view)
-            case 'g2':
+        elif stype == 'g2':
                 self._fillgamma2(row, view)
-            case 'gd':
+        elif stype == 'gd':
                 self._fillpgamma(row, view)
-            case 'm2':
+        elif stype == 'm2':
                 self._fill2dsum(row, view)
-            case 'S':
+        elif stype == 'S':
                 self._fillstripchart(row, view)
-            case 'b':
+        elif stype == 'b':
                 self._fillbitmask(row, view)
+        else:                
             #  Note that the description of the spectrum does not allow us
             # to know how to recover gama summary spectra --- yet.
-            case _:
+
                 error(f'Unable to load spectrum type: {stype} unsupported type')
                 return                      # don't set the index on error.
         self.tabs.setCurrentIndex(index)
@@ -1151,7 +1154,7 @@ class Editor(QWidget):
         view.setLow(sdef[3])
         view.setHigh(sdef[4])
         view.setBins(sdef[5])
-    def fillbitmask(self, sdef, view):
+    def _fillbitmask(self, sdef, view):
         view.setName(sdef[0])
         view.setParameter(sdef[2])
         view.setBits(sdef[5])
