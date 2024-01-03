@@ -720,13 +720,12 @@ class rustogramer:
                     spectrum['xparameters'] = spectrum['parameters'][0:split]
                     spectrum['yparameters'] = spectrum['parameters'][split:]
                 if stype == 'gd':
-                    # Sadly in SpecTcl, there's no way to disentangle these
-                    # Because there's just an array of parameters and there's no
-                    # idea of where the break is....so we put all the parameters in
-                    # X, see, SpecTcl issue #84, however.
-                    spectrum['xparameters'] = spectrum['parameters']
-                    spectrum['yparameters'] = []
+                    # Two lists separated by ,'s:
 
+                    paramlist = spectrum['parameters'].split(',')
+                    spectrum['xparameters'] = paramlist[0]
+                    spectrum['yparameters'] = paramlist[1]
+                    
             out_details.append(spectrum)
         info['details'] = out_details
         return info
@@ -740,7 +739,7 @@ class rustogramer:
         result = self._transaction("spectrum/list", {"filter": pattern})
 
         # SpecTcl does not provide x/y information like rustogramer so
-        # we put it in if it's not there:
+        # we put it in if it's not there.  I
 
         result = self._spectcl_spectra_to_rustogramer(result)
         return result
@@ -915,7 +914,6 @@ class rustogramer:
         return self._transaction("spectrum/clear", {"pattern": pattern})
 
     #--------------- Spectrum I/O
-
     def spectrum_read(self, filename, format, options={}):
         """ Read one or more spectra from file.
 
@@ -929,7 +927,7 @@ class rustogramer:
             a pretty obsolete format; SMAUG was a pre NSCL offline analysis program
             used by the 'Lynch' written by an undergraduate in their employ whose
             name now escapes me so I can't credit him).
-        *  options a dict (defaults to empty) that can override the options
+        *  options a dict (defaultsto empty) that can override the options
         that determine how the spectrum is read.  It is optional and the
         following keys matter:
             - snapshot - boolean - if true, the default, the spectrum will not
