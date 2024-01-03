@@ -41,7 +41,7 @@ class rustogramer:
         pm = PortManager.PortManager(host, port)
         matches = pm.find(service=name, user=user)
         if len(matches) != 1:
-            raise NameError(name=name)
+            raise NameError(name)
         return matches[0]["port"]
 
     def _transaction(self, request, queryparams = {}):
