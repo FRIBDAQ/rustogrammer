@@ -10,7 +10,7 @@ This includes:
 from PyQt5.QtWidgets import (
     QLineEdit, QPushButton, QCheckBox, QWidget, QLabel, QTableWidget,
     QHBoxLayout, QVBoxLayout,
-    QAbstractItemView,
+    QAbstractItemView, QHeaderView,
     QApplication, QMainWindow
 )
 from PyQt5.QtGui import QDoubleValidator, QIntValidator
@@ -20,7 +20,7 @@ from  ParameterChooser import (
     Chooser as PChooser, 
     LabeledParameterChooser as PLChooser
 )
-import capabilities
+
 
 class Limit(QLineEdit):
     def __init__(self, *args):
@@ -91,6 +91,7 @@ class ParameterTable(QTableWidget):
         self.setRowCount(0)
         self.showGrid()
         self.setHorizontalHeaderLabels(['Name', 'Low', 'High', 'Bins', 'Units'])
+        self.setColumnWidth(0, 75)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
@@ -181,6 +182,105 @@ class ParameterTable(QTableWidget):
         if row_num >= self.rowCount():
             raise IndexError(f'{row_num} is not a legal row number')
 
+''' The parameter widget it's centered around a Paramteer Table but has
+    other important controls:
+
+    +------------------------------------------------------------+
+    |  (parameter chooser) [New] [Replace]  [] array             |
+    |  [  Load ] [  Set ]  [ Change Spectra]                     |
+    | +--------------------------------------------------------+ |
+    |    parameter table ...                                     |
+    | +--------------------------------------------------------+ |
+    +------------------------------------------------------------+
+
+'''
+class ParameterEditor(QWidget):
+    '''
+        This is the view for the parameter editor.  It provides
+        
+        Attributes:
+
+        * parameter - Value of the parameter chooser
+        * array     - bool state of the array checkbox.
+        * table      - (readonly) the encapsulated ParameterTable widget.
+
+        Signals:
+        *  newRow - the New button was clicked. The controller
+           should fetch the parameter name, and create a new row
+           containing its attributes.
+        *  replaceRow - The Replace button was clicked.  The
+           controller should:
+            -  Require there to only be one row selected.
+            -  Replace the contents of that row with the attributes
+               of the selected parameter.
+        *  loadClicked - The seleced row contents should be updated 
+           with the current attributes of the parameter.
+        *  setClicked  - The selected row attributes should be 
+           loaded into the associated parameters.  Note  that if
+           array is true, where row parameters are templates of a
+           parameter array, all elements should be modified.
+        *  changeClicked - Spectra that use parameters in the 
+           selected rows should have the appropriate axis updated to
+           match the attributes of the specified parameters.  Array should
+           function as for setClicked - that is each parameter name
+           that is a template for an array of parameters should 
+           modify spectra that use any element of the array 
+        
+        What is an array of parameters?  This is a bit expanded
+        from the TreeParameter's definition.  In our case if
+        a parameter name is of the form a. ... .tail,  tail is replaced
+        by * and any parameter whose name matches that glob pattern
+        is considered part of the array.  For example consider
+        parmaeters
+        a.1, a.2 a.c  I _think_ that in treegui, only a.1 and 1.2 
+        are considered array alements but in this GUI, a.1,a.2, and a.c
+        are all array elements (think of allowing fully textual
+        subscripts).
+           
+    '''
+    newRow        =   pyqtSignal(str)
+    replaceRow    = pyqtSignal(int, str)
+    loadclicked   =   pyqtSignal()
+    setclicked    =   pyqtSignal()
+    changeclicked =   pyqtSignal()
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        layout = QVBoxLayout()    # Overall layout.
+
+        top_row = QHBoxLayout()   # Top row of widgets:
+
+        self._parameter = PLChooser(self)
+        top_row.addWidget(self._parameter)
+
+        self._new = QPushButton('New', self)
+        top_row.addWidget(self._new)
+
+        self._replace = QPushButton('Replace', self)
+        top_row.addWidget(self._replace)
+
+        self._array = QCheckBox('Array', self)
+        top_row.addWidget(self._array)
+
+        layout.addLayout(top_row)
+
+        action_row = QHBoxLayout()
+        self._load = QPushButton('Load', self)
+        action_row.addWidget(self._load)
+        self._set  = QPushButton('Set', self)
+        action_row.addWidget(self._set)
+        self._changeSpectra = QPushButton('Change Spectra', self)
+        action_row.addWidget(self._changeSpectra)
+
+        layout.addLayout(action_row)
+
+        self._table = ParameterTable(self)
+        layout.addWidget(self._table)
+
+        self.setLayout(layout)
+
+
 
 #-------------------- Test code -------------------------
 
@@ -190,22 +290,9 @@ if __name__ == '__main__':
     app = QApplication([])
     main = QMainWindow()
 
-    cw = QWidget()
-    layout = QVBoxLayout()
-    w = ParameterTable()
-    w.add_row('junk', 0, 1024, 1024, 'cm')
-    w.add_row('stuff')
-    w.add_row('last')
-    print(w.get_row(0))
-    print(w.get_row(1))
-    layout.addWidget(w)
+    w = ParameterEditor()
 
-    b = QPushButton('Selection')
-    b.clicked.connect(list_selection)
-    layout.addWidget(b)
-    cw.setLayout(layout)
-
-    main.setCentralWidget(cw)
+    main.setCentralWidget(w)
 
     main.show()
     app.exec()
