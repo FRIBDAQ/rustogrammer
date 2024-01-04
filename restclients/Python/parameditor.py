@@ -14,7 +14,8 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow
 )
 from PyQt5.QtGui import QDoubleValidator, QIntValidator
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, Qt
+
 
 from  ParameterChooser import (
     Chooser as PChooser, 
@@ -210,7 +211,7 @@ class ParameterEditor(QWidget):
            containing its attributes.
         *  replaceRow - The Replace button was clicked.  The
            controller should:
-            -  Require there to only be one row selected.
+            -  Determine the current row however they deem appropriate.
             -  Replace the contents of that row with the attributes
                of the selected parameter.
         *  loadClicked - The seleced row contents should be updated 
@@ -238,8 +239,8 @@ class ParameterEditor(QWidget):
         subscripts).
            
     '''
-    newRow        =   pyqtSignal(str)
-    replaceRow    = pyqtSignal(int, str)
+    newRow        =   pyqtSignal()
+    replaceRow    = pyqtSignal()
     loadclicked   =   pyqtSignal()
     setclicked    =   pyqtSignal()
     changeclicked =   pyqtSignal()
@@ -280,17 +281,78 @@ class ParameterEditor(QWidget):
 
         self.setLayout(layout)
 
+        # Connect the button click relays to our defined signals:
+
+        self._new.clicked.connect(self.newRow)
+        self._replace.clicked.connect(self.replaceRow)
+        self._load.clicked.connect(self.loadclicked)
+        self._set.clicked.connect(self.setclicked)
+        self._changeSpectra.clicked.connect(self.changeclicked)
+
+    #  Implement the attributes:
+
+    def parameter(self):
+        ''' Return the currently selected parameter if None is returned
+           a full parameter path has not been selected.
+        '''
+        name = self._parameter.parameter()
+        if name.isspace() or (name == ''):
+            return None
+        else:
+            return name
+    def setParameter(self, new_name):
+        self._parameter.setParameter(new_name)
+    
+    def array(self):
+        if self._array.checkState() == Qt.Checked:
+            return True
+        else:
+            return False
+    def setArray(self, value):
+        if value:
+            self._array.setCheckState(Qt.Checked)
+        else:
+            self._array.setCheckState(Qt.Unchecked)
+    def table(self):
+        return self._table
 
 
 #-------------------- Test code -------------------------
 
-def list_selection():
-    print(w.selected_rows())
+def new_row():
+    print("Want a new row")
+
+def replace_row():
+    print("replace row: ", w.table().currentRow())
+
+def log(what):
+    rows = w.table().selected_rows()
+    array = w.array()
+
+    print(what , rows, " array state: ", array)
+
+def load():
+    log('load data')
+
+def set_params():
+    log("set parameters")
+
+def change():
+    log('change spectra')
 if __name__ == '__main__':
     app = QApplication([])
     main = QMainWindow()
 
     w = ParameterEditor()
+    w.newRow.connect(new_row)
+    w.replaceRow.connect(replace_row)
+    w.loadclicked.connect(load)
+    w.setclicked.connect(set_params)
+    w.changeclicked.connect(change)
+
+    table = w.table()
+    for name in ['moe', 'curly', 'shemp', 'laurel', 'hardy', 'stan', 'ollie']:
+        table.add_row(name)
 
     main.setCentralWidget(w)
 
