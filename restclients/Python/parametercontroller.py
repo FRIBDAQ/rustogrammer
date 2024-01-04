@@ -67,7 +67,13 @@ class ParameterController:
             )
 
     def set_params(self):
-        pass
+        #  Note we need to worry about 'arrays'.
+        for row in self._view.table().selected_rows():
+            info = self._view.table().get_row(row)
+            names = self._make_names(info['name'])
+            for name in names :
+                self._client.parameter_modify(name, info)
+
     def change_spectra(self):
         pass
 
@@ -87,7 +93,20 @@ class ParameterController:
         if len(reply['detail']) == 0:
             return None
         return reply['detail'][0]
+    def _make_names(self, template):
+        #  Either return the name or the array based on this
+        #  template if array is checked:
 
+        if self._view.array():
+            pattern_path =  (template.split('.')[:-1])
+            pattern_path.append('*')
+            pattern = '.'.join(pattern_path)
+            
+            results = self._client.parameter_list(pattern)['detail']
+            return [x['name'] for x in results]
+
+        else:
+            return [template]
 
 
 #-------------------- Testing -----------------------------

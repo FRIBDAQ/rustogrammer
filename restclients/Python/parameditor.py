@@ -30,9 +30,7 @@ class Limit(QLineEdit):
     
     def value(self):
         t = self.text()
-        print('t: ', t,)
         if t.isspace() or (t == ''):
-            print('is space')
             return None
         return float(t)
     def setValue(self, value):
