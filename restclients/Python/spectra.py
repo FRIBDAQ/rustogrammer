@@ -160,6 +160,8 @@ class SpectrumWidget(QWidget):
             return
         spectrum = selected[0]
         self._editor.load_editor(spectrum)
+    def editor(self):
+        return self._editor
 
 
 
