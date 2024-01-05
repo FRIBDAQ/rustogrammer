@@ -81,7 +81,6 @@ class ParameterController:
         # can ask the user which ones to change.
 
         modified_list = self._get_spectra_to_modify()
-        print("modifying: ", modified_list)
 
 
     # utilities:
