@@ -18,6 +18,8 @@ from spectra import SpectrumWidget
 import spectra
 import argparse
 import capabilities
+import parametercontroller
+import parameditor
 from rustogramer_client import rustogramer as RestClient
 
 PORTMAN_PORT=30000
@@ -55,8 +57,14 @@ app = QApplication(sys.argv)
 main = QMainWindow()
 
 tabs = QTabWidget()
-tabs.addTab(spectra.SpectrumWidget(),'Spectra')
-tabs.addTab(QWidget(), 'Parameters')
+spectrum_view = spectra.SpectrumWidget()
+tabs.addTab(spectrum_view,'Spectra')
+param_view= parameditor.ParameterEditor()
+tabs.addTab(param_view, 'Parameters')
+param_controller = parametercontroller.ParameterController(
+    param_view, client, spectrum_view
+)
+
 if capabilities.get_program() == capabilities.Program.SpecTcl:
     tabs.addTab(QWidget(), 'Variables')
 tabs.addTab(QWidget(), 'Gates')
