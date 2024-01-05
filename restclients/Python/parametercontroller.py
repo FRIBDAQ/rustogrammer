@@ -5,9 +5,10 @@
 '''
 import ParameterChooser
 import parameditor
+import spectrumeditor
 import rustogramer_client
 
-from PyQt5.QtWidgets import (QApplication, QMainWindow)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QMessageBox, QDialog)
 class ParameterController:
     ''' Slots:
         * new_row  - add the current parameter as a new row.
@@ -76,7 +77,12 @@ class ParameterController:
                 self._client.parameter_modify(name, info)
 
     def change_spectra(self):
-        pass
+        # We need to make a list of spectra to be modified so we
+        # can ask the user which ones to change.
+
+        modified_list = self._get_spectra_to_modify()
+        print("modifying: ", modified_list)
+
 
     # utilities:
 
@@ -108,6 +114,114 @@ class ParameterController:
 
         else:
             return [template]
+    def _get_spectra_to_modify(self):
+        # Let's save the parameter defs once so we don't need to 
+        # get it for each parameter. Note the spectrum model could be filtered
+        # so we can't use it:
+
+        self._spectrum_defs = self._client.spectrum_list('*')['detail']
+
+        # Given the Change button was clicked, this returns a list of dicts.
+        # Each dict contains: a modified specrum definition for that spectrum.
+        # for a spectrum to change and the final state of the spectrum.
+        # The user has been prompted to accept/reject individual items on that
+        # list, and the list is therefore filtered by the user's acceptance.
+        result = []
+        # First make the list of all spectra that can be modified:
+
+        for r in self._view.table().selected_rows():
+            row = self._view.table().get_row(r)
+            modify_these = self._get_proposed_modifications_for_row(row)
+            result.extend(modify_these)
+            
+
+        # Resolve duplicates - it's possible in wildcarding to get one
+        # parameter to modify an x axis and another to modify the y axis.
+        # In this case we take all differences from the original spectrum.
+
+        result = self._resolve_duplicates(result)
+
+        # Sort spectra alphabetically by name for the user.
+
+        result = sorted(result, key = lambda x: x['name']) 
+        if len(result) == 0:
+            return                #  no spectra to change.
+
+        # Filter by the user's acceptance.
+
+        result = self._filter_list(result)
+        
+        return result
+
+    def _get_proposed_modifications_for_row(self, row):
+        # For a row in the parameter list table, return a list of the spectra
+        #  see get_spectra_to_modify for the contents of list elements.
+        # that could be modified for that parameter (take into account the 
+        # array check box).
+        result = []
+        for parameter in self._make_names(row['name']):
+            result.extend(self._get_proposed_modifications_for_parameter(parameter, row))
+
+        return result
+    def _get_proposed_modifications_for_parameter(self, name, row):
+        # Given exactly 1 parameter, determine the list of modifications
+        # that can be done for that parameter.
+        mods = []
+        for spectrum in self._spectrum_defs:
+            if name in spectrum['xparameters'] or name in spectrum['yparameters']:
+                mod = spectrum
+                if name in spectrum['xparameters']:
+                    mod['xaxis']['low'] = row['low']
+                    mod['xaxis']['high']= row['high']
+                    mod['xaxis']['bins']= row['bins']
+                if name in spectrum['yparameters']:
+                    mod['yaxis']['low'] = row['low']
+                    mod['yaxis']['high']= row['high']
+                    mod['yaxis']['bins']= row['bins']
+                mods.append(mod)
+
+        return mods
+    def _resolve_duplicates(self, mods):
+        #  If there are duplicates resolve those by merging both mods.
+
+        d = dict()                     # simplest way to find dicts:
+        for mod in mods:
+            if mod['name'] in d.keys():
+                name = mod['name']
+                if not mod['xaxis']['low'] == d[name]['xaxis']['low']:
+                    d[name]['xaxis']['low'] = mod['xaxis']['low']
+                if not mod['xaxis']['high'] == d[name]['xaxis']['high']:
+                    d[name]['xaxis']['high'] = mod['xaxis']['high']
+                if not mod['xaxis']['bins'] == d[name]['xaxis']['bins']:
+                    d[name]['xaxis']['bins'] = mod['xaxis']['bins']
+
+                if not mod['yaxis']['low'] == d[name]['yaxis']['low']:
+                    d[name]['yaxis']['low'] = mod['yaxis']['low']
+                if not mod['yaxis']['high'] == d[name]['yaxis']['high']:
+                    d[name]['yaxis']['high'] = mod['yaxis']['high']
+                if not mod['yaxis']['bins'] == d[name]['yaxis']['bins']:
+                    d[name]['yaxis']['bins'] = mod['yaxis']['bins']
+                    
+            else:
+                d[mod['name']] = mod  # not duplicate
+
+        return [d[x] for x in d.keys()]
+    def _filter_list(self, defs):
+        # Be nice ... if there's only one change figure that they don't
+        # need the whole big dialog:
+
+        if len(defs) == 1:
+            if spectrumeditor.confirm(f'If you click Ok, {defs[0]['name']} will be replaced', self._view):
+                return defs
+            else:
+                return list()
+        else:
+            dlg = parameditor.ConfirmSpectra(self._view)
+            dlg.getTable().load(defs)
+            if dlg.exec() == QDialog.Accepted:
+                return dlg.getTable().acceptedSpectra()
+            else:
+                return list()
 
 
 #-------------------- Testing -----------------------------
