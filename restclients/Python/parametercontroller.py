@@ -17,13 +17,14 @@ class ParameterController:
         * change_spectra - Change relevant spectra so that new axes
                       definitions from parameter metadata will be used.
     '''
-    def __init__(self, view, client):
+    def __init__(self, view, client, spectrum_view):
 
         #  Save the view and client to support signal handling.
         #
 
         self._view = view
         self._client = client
+        self._spectrum_view = spectrum_view
 
         #  Connect to the view's signals:
 
