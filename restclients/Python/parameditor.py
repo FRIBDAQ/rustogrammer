@@ -400,7 +400,7 @@ class CheckTable(QTableWidget):
     # Private utilities:
 
     def _loadRow(self, row, d):
-        print('load ', row, 'with ', d)
+
         # Load row row, with the spectrum in def - assumed already in self._defs
 
         self.setCellWidget(row, 0, QCheckBox())
