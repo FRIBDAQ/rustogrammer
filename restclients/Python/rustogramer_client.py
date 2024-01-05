@@ -63,9 +63,12 @@ class rustogramer:
         return [x[key] for x in iterable]
 
     def _format_axis(self, low, high, bins):
+        bins = int(bins)
         return "{{{low:f} {high:f} {bins:d}}}".format(low=low, high=high, bins=bins)
     
     def _format_xyaxes(self, xlow, xhigh, xbins, ylow, yhigh, ybins):
+        xbins = int(xbins)
+        ybins = int(ybins)
         return f'{{{xlow:f} {xhigh:f} {xbins:d}}} {{{ylow:f} {yhigh:f} {ybins:d}}}'
 
     def _format_stringlist(self, strings):
