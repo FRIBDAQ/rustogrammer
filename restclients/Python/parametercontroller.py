@@ -6,7 +6,7 @@
 import ParameterChooser
 import parameditor
 import spectrumeditor
-import rustogramer_client
+from rustogramer_client import RustogramerException
 
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QMessageBox, QDialog)
 class ParameterController:
@@ -81,6 +81,8 @@ class ParameterController:
         # can ask the user which ones to change.
 
         modified_list = self._get_spectra_to_modify()
+        for item in modified_list:
+            self._modify_spectrum(item)
 
 
     # utilities:
@@ -132,7 +134,7 @@ class ParameterController:
             row = self._view.table().get_row(r)
             modify_these = self._get_proposed_modifications_for_row(row)
             result.extend(modify_these)
-            
+
 
         # Resolve duplicates - it's possible in wildcarding to get one
         # parameter to modify an x axis and another to modify the y axis.
@@ -144,11 +146,18 @@ class ParameterController:
 
         result = sorted(result, key = lambda x: x['name']) 
         if len(result) == 0:
-            return                #  no spectra to change.
+            return []               #  no spectra to change.
+
+        # some spectra need adjustment e.g. g2 spectra - we'll propagete
+        # the xaxis -> the y axis since it does not show x parametres.
+        # Do this before filtering so the user can adjust again if desired.
+        #
+        result = self.adjust_defs_for_type(result)
 
         # Filter by the user's acceptance.
 
         result = self._filter_list(result)
+
         
         return result
 
@@ -187,19 +196,20 @@ class ParameterController:
         for mod in mods:
             if mod['name'] in d.keys():
                 name = mod['name']
-                if not mod['xaxis']['low'] == d[name]['xaxis']['low']:
-                    d[name]['xaxis']['low'] = mod['xaxis']['low']
-                if not mod['xaxis']['high'] == d[name]['xaxis']['high']:
-                    d[name]['xaxis']['high'] = mod['xaxis']['high']
-                if not mod['xaxis']['bins'] == d[name]['xaxis']['bins']:
-                    d[name]['xaxis']['bins'] = mod['xaxis']['bins']
-
-                if not mod['yaxis']['low'] == d[name]['yaxis']['low']:
-                    d[name]['yaxis']['low'] = mod['yaxis']['low']
-                if not mod['yaxis']['high'] == d[name]['yaxis']['high']:
-                    d[name]['yaxis']['high'] = mod['yaxis']['high']
-                if not mod['yaxis']['bins'] == d[name]['yaxis']['bins']:
-                    d[name]['yaxis']['bins'] = mod['yaxis']['bins']
+                if mod['xaxis'] is not None:
+                    if not mod['xaxis']['low'] == d[name]['xaxis']['low']:
+                        d[name]['xaxis']['low'] = mod['xaxis']['low']
+                    if not mod['xaxis']['high'] == d[name]['xaxis']['high']:
+                        d[name]['xaxis']['high'] = mod['xaxis']['high']
+                    if not mod['xaxis']['bins'] == d[name]['xaxis']['bins']:
+                        d[name]['xaxis']['bins'] = mod['xaxis']['bins']
+                if mod['yaxis'] is not None:
+                    if not mod['yaxis']['low'] == d[name]['yaxis']['low']:
+                        d[name]['yaxis']['low'] = mod['yaxis']['low']
+                    if not mod['yaxis']['high'] == d[name]['yaxis']['high']:
+                        d[name]['yaxis']['high'] = mod['yaxis']['high']
+                    if not mod['yaxis']['bins'] == d[name]['yaxis']['bins']:
+                        d[name]['yaxis']['bins'] = mod['yaxis']['bins']
                     
             else:
                 d[mod['name']] = mod  # not duplicate
@@ -221,7 +231,112 @@ class ParameterController:
                 return dlg.getTable().acceptedSpectra()
             else:
                 return list()
+    def adjust_defs_for_type(self, deflist):
+        result = list()
+        for sdef in deflist:
+            if sdef['type'] == 'g2':
+                sdef['yaxis'] = sdef['xaxis']
+            result.append(sdef)
 
+        return result
+    def _modify_spectrum(self, sdef):
+        # Given a new definition of an existing spectrum, delete/re-create
+        # accoring to the spectrum definition.
+
+        try:
+            self._client.spectrum_delete(sdef['name'])
+            self._spectrum_view.editor().spectrum_removed(sdef['name'])
+        except RustogramerException as e:
+            spectrumeditor.error(f'Unable to delete spectrum {sdef["name"]}: {e}')
+            return
+        # What we do depends on the spectrum type; sadly buster's python has
+        # no match statement:
+
+        try:
+            if sdef['type'] == '1':
+                self._client.spectrum_create1d(
+                    sdef['name'], sdef['xparameters'][0],
+                    sdef['xaxis']['low'],
+                    sdef['xaxis']['high'],
+                    sdef['xaxis']['bins'],
+                    sdef['chantype']
+                )
+            elif sdef['type'] == '2':
+                self._client.spectrum_create2d(
+                    sdef['name'], 
+                    sdef['xparameters'][0], sdef['yparameters'][0],
+                    sdef['xaxis']['low'],
+                    sdef['xaxis']['high'],
+                    sdef['xaxis']['bins'],
+                    sdef['yaxis']['low'],
+                    sdef['yaxis']['high'],
+                    sdef['yaxis']['bins'],
+                    sdef['chantype']
+                )
+            elif sdef['type'] == 's':
+                self._client.spectrum_createsummary(
+                    sdef['name'],
+                    sdef['xparameters'],
+                    sdef['xaxis']['low'],    # Winds up in the x axis.
+                    sdef['xaxis']['high'],
+                    sdef['xaxis']['bins'],
+                    sdef['chantype']
+                )
+            elif sdef['type'] == 'g1':
+                self._client.spectrum_createg1(
+                    sdef['name'],
+                    sdef['xparameters'],
+                    sdef['xaxis']['low'],  
+                    sdef['xaxis']['high'],
+                    sdef['xaxis']['bins'],
+                    sdef['chantype']
+                )
+            elif sdef['type'] == 'g2':
+                self._client.spectrum_createg2(
+                    sdef['name'], sdef['xparameters'],
+                    sdef['xaxis']['low'],  
+                    sdef['xaxis']['high'],
+                    sdef['xaxis']['bins'],
+                    sdef['yaxis']['low'],  
+                    sdef['yaxis']['high'],
+                    sdef['yaxis']['bins'],
+                    sdef['chantype']
+                )
+            elif sdef['type'] == 'gd':
+                self._client.spectrum_creategd(
+                    sdef['name'], 
+                    sdef['xparameters'], sdef['yparameters'],
+                    sdef['xaxis']['low'],  
+                    sdef['xaxis']['high'],
+                    sdef['xaxis']['bins'],
+                    sdef['yaxis']['low'],  
+                    sdef['yaxis']['high'],
+                    sdef['yaxis']['bins'],
+                    sdef['chantype']
+                )
+            elif sdef['type'] == 'm2':
+                self._client.spectrum_create2dsum(
+                    sdef['name'],
+                    sdef['xparameters'], sdef['yparameters'],
+                    sdef['xaxis']['low'],  
+                    sdef['xaxis']['high'],
+                    sdef['xaxis']['bins'],
+                    sdef['yaxis']['low'],  
+                    sdef['yaxis']['high'],
+                    sdef['yaxis']['bins'],
+                    sdef['chantype']
+                )
+            else:
+                spectrumeditor.error(f'Unsupported spectrum type: {sdef["type"]}')
+                return
+            self._spectrum_view.editor().spectrum_added(sdef['name'])
+        except RustogramerException as e:
+            spectrumeditor.error(f'Failed to create {sdef["name"]}: {e}')
+            return
+        try:
+            self._client.sbind_list([sdef['name']])
+        except RustogramerException as e:
+            spectrumeditor.error(f'Failed to bind {sdef["name"]} to display memory but it was created: {e}')
 
 #-------------------- Testing -----------------------------
 
