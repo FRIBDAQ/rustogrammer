@@ -9,6 +9,7 @@ This includes:
 '''
 from PyQt5.QtWidgets import (
     QLineEdit, QPushButton, QCheckBox, QWidget, QLabel, QTableWidget,
+    QDialog, QDialogButtonBox,
     QHBoxLayout, QVBoxLayout,
     QAbstractItemView, QHeaderView,
     QApplication, QMainWindow
@@ -90,7 +91,6 @@ class ParameterTable(QTableWidget):
         self.setRowCount(0)
         self.showGrid()
         self.setHorizontalHeaderLabels(['Name', 'Low', 'High', 'Bins', 'Units'])
-        self.setColumnWidth(0, 75)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
@@ -185,7 +185,7 @@ class ParameterTable(QTableWidget):
     other important controls:
 
     +------------------------------------------------------------+
-    |  (parameter chooser) [New] [Replace]  [] array             |
+    |  (parameter chooser) [Append] [Replace]  [] array          |
     |  [  Load ] [  Set ]  [ Change Spectra]                     |
     | +--------------------------------------------------------+ |
     |    parameter table ...                                     |
@@ -253,7 +253,7 @@ class ParameterEditor(QWidget):
         self._parameter = PLChooser(self)
         top_row.addWidget(self._parameter)
 
-        self._new = QPushButton('New', self)
+        self._new = QPushButton('Append', self)
         top_row.addWidget(self._new)
 
         self._replace = QPushButton('Replace', self)
@@ -314,6 +314,173 @@ class ParameterEditor(QWidget):
     def table(self):
         return self._table
 
+class CheckTable(QTableWidget):
+    ''' This provides a table of spectra containing:
+        A check box a the left of each table row.
+        The name of the spectrum.
+        The x axis specifications.
+        The y axis specifications.
+          The idea is that this is a table that allows changes to
+        several spectra to be modified, accepted or rejected when
+        encapsulated in SpectrumFilterDialog (see below).
+    
+    Attributes:
+        acceptedSpectra -(readonly) Returns a list of the accepted spectra as a dict
+          containing the checked proposed changes.
+
+    Public methods:
+        load - Takes a list of spectra and loads the table.
+        checkAll - checks/ or unchecks all spectra.
+
+    '''
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        self.setColumnCount(8)
+        self.setRowCount(0)
+        self.showGrid()
+        self.setHorizontalHeaderLabels([
+            'Accept', 'Name', 
+            'X Low', 'X High', 'X Bins', 
+            'Y Low', 'Y High', 'Y Bins']
+        )
+        self._defs = list()
+    
+    # Attribute implementations:
+
+    def acceptedSpectra(self):
+        #  Returns a list of the spectra that have checkmarks by them.
+        #  The list is a dict of (possibly modified) spectrum definitions.
+        #  Note that only the xaxis and yaxis can be modified.
+        result = list()
+        for row in range(self.rowCount()):
+            checkbox = self.cellWidget(row, 0)
+            if checkbox.checkState() == Qt.Checked:
+                definition = self._defs[row]
+                
+                #Override axis definitions:
+                low = self.cellWidget(row, 2)
+                if low is not None:
+                    definition['xaxis']['low'] = low.value()
+                    definition['xaxis']['high'] = self.cellWidget(row, 3).value()
+                    definition['xaxis']['bins'] = self.cellWidget(row, 4).value()
+
+                high = self.cellWidget(row, 5)
+                if high is not None:
+                    definition['yaxis']['low'] = high.value()
+                    definition['yaxis']['high'] = self.cellWidget(row, 6).value()
+                    definition['yaxis']['bins'] = self.cellWidget(row, 7).value()
+
+                result.append(definition)
+        return result
+    # Public methods:
+
+    def checkAll(self, state):
+        if state:
+            value = Qt.Checked
+        else:
+            value = Qt.Unchecked
+        for row in range(self.rowCount()):
+            self.cellWidget(row, 0).setCheckState(value)
+
+    def load(self, defs):
+        # Load all definitions in to the table...which is first cleared:
+
+        # Clear previous countent:
+        self.setRowCount(0)
+        self._defs = list()
+
+        for d in defs:
+            self._defs.append(d)
+            row = self.rowCount()
+            self.setRowCount(row+1)
+            self._loadRow(row, d)
+
+        self.checkAll(True)       # Start all accepted.
+    # Private utilities:
+
+    def _loadRow(self, row, d):
+        print('load ', row, 'with ', d)
+        # Load row row, with the spectrum in def - assumed already in self._defs
+
+        self.setCellWidget(row, 0, QCheckBox())
+        self.setCellWidget(row, 1, QLabel(d['name']))
+
+        # Xaxis:
+
+        if d['xaxis'] is not None:
+            low = Limit()
+            low.setValue(d['xaxis']['low'])
+            high = Limit()
+            high.setValue(d['xaxis']['high'])
+            bins = Bins()
+            bins.setValue(d['xaxis']['bins'])
+            self.setCellWidget(row, 2, low)
+            self.setCellWidget(row, 3, high)
+            self.setCellWidget(row, 4, bins)
+
+        # Yaxis
+        if d['yaxis'] is not None:
+            low = Limit()
+            low.setValue(d['yaxis']['low'])
+            high = Limit()
+            high.setValue(d['yaxis']['high'])
+            bins = Bins()
+            bins.setValue(d['yaxis']['bins'])
+            self.setCellWidget(row, 5, low)
+            self.setCellWidget(row, 6, high)
+            self.setCellWidget(row, 7, bins)
+
+class ConfirmSpectra(QDialog):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.setWindowTitle("Modify spectra?")
+
+        self.buttons = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel
+        )
+
+        layout = QVBoxLayout()
+
+        #  Check all/none buttons:
+
+        self._checkall = QPushButton('Check All')
+        self._checknone = QPushButton('Uncheck all')
+        checklayout = QHBoxLayout()
+        checklayout.addWidget(self._checkall)
+        checklayout.addWidget(self._checknone)
+
+        layout.addLayout(checklayout)
+
+        self._table = CheckTable(self)
+        layout.addWidget(self._table)
+
+        layout.addWidget(self.buttons)
+
+        self.setLayout(layout)
+
+        # Connect internal signals:
+
+        self._checkall.clicked.connect(self._selectAll)
+        self._checknone.clicked.connect(self._selectNone)
+
+        self.buttons.accepted.connect(self._accept)
+        self.buttons.rejected.connect(self._reject)
+
+    def getTable(self):
+        return self._table
+
+    #internal slot handlers:
+
+    def _selectAll(self):
+        self._table.checkAll(True)
+    def _selectNone(self):
+        self._table.checkAll(False)
+
+    def _accept(self):
+        self.done(QDialog.Accepted)
+    def _reject(self):
+        self.done(QDialog.Rejected)
 
 #-------------------- Test code -------------------------
 
