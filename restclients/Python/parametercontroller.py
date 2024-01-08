@@ -145,6 +145,15 @@ class ParameterController:
         # Sort spectra alphabetically by name for the user.
 
         result = sorted(result, key = lambda x: x['name']) 
+
+        # Some spectra can't actually be resized in this way - e.g. bitmask
+        # spectra - it does not make sense to care about the parameter metadata:
+
+        print(result)
+        result = self._remove_unsupported_types(result)
+        print('----')
+        print(result)
+
         if len(result) == 0:
             return []               #  no spectra to change.
 
@@ -220,7 +229,8 @@ class ParameterController:
         # need the whole big dialog:
 
         if len(defs) == 1:
-            if spectrumeditor.confirm(f'If you click Ok, {defs[0]['name']} will be replaced', self._view):
+            name = defs[0]['name']
+            if spectrumeditor.confirm(f'If you click Ok, {name} will be replaced', self._view):
                 return defs
             else:
                 return list()
@@ -326,6 +336,16 @@ class ParameterController:
                     sdef['yaxis']['bins'],
                     sdef['chantype']
                 )
+            elif sdef['type'] == 'S':
+                self._client.spectrum_createstripchart(
+                    sdef['name'],
+                    sdef['xparameters'][0], sdef['yparameters'][0],
+                    sdef['xaxis']['low'],
+                    sdef['xaxis']['high'],
+                    sdef['xaxis']['bins'],
+                    sdef['chantype']
+                )
+                    
             else:
                 spectrumeditor.error(f'Unsupported spectrum type: {sdef["type"]}')
                 return
@@ -337,6 +357,9 @@ class ParameterController:
             self._client.sbind_list([sdef['name']])
         except RustogramerException as e:
             spectrumeditor.error(f'Failed to bind {sdef["name"]} to display memory but it was created: {e}')
+
+    def _remove_unsupported_types(self, defs):
+        return [x for x in defs if x['type'] != 'b']
 
 #-------------------- Testing -----------------------------
 
