@@ -891,7 +891,7 @@ class rustogramer:
         # Each parameters list element is, itself a list.
         params = ""
         for p in parameters:
-            params =params + "{" +  self._format_stringlist(p.split())  + "} "
+            params =params + "{" +  self._format_stringlist(p)  + "} "
         return self._transaction('spectrum/create',
             {'type': 'gs', 'name': name, 'parameters': params, 'axes':axis, 'chantype': chantype}
         )
