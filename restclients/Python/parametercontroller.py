@@ -92,7 +92,7 @@ class ParameterController:
         # about no matches - returning None.
         name = self._view.parameter()
         
-        if (name == '') or name.isspace():
+        if name is None or (name == '') or name.isspace():
             return None
         return self._get_metadata(name)
         
@@ -183,7 +183,18 @@ class ParameterController:
         # that can be done for that parameter.
         mods = []
         for spectrum in self._spectrum_defs:
-            if name in spectrum['xparameters'] or name in spectrum['yparameters']:
+
+
+            # We have to hoke up xparameters for gs spectrum types;
+
+            if spectrum['type'] == 'gs':
+                xparams = list()
+                for x in spectrum['xparameters']:
+                    xparams = xparams + x.split()
+            else:
+                xparams = spectrum['xparameters']
+
+            if name in xparams or name in spectrum['yparameters']:
                 mod = spectrum
                 if name in spectrum['xparameters']:
                     mod['xaxis']['low'] = row['low']
@@ -343,7 +354,17 @@ class ParameterController:
                     sdef['xaxis']['bins'],
                     sdef['chantype']
                 )
-                    
+            elif sdef['type'] == 'gs':
+
+                self._client.spectrum_creategammasummary(
+                    sdef['name'],
+                    sdef['xparameters'],
+                    sdef['xaxis']['low'],
+                    sdef['xaxis']['high'],
+                    sdef['xaxis']['bins'],
+                    sdef['chantype']
+                )
+                                                         
             else:
                 spectrumeditor.error(f'Unsupported spectrum type: {sdef["type"]}')
                 return
