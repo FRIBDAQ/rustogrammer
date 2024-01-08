@@ -149,10 +149,8 @@ class ParameterController:
         # Some spectra can't actually be resized in this way - e.g. bitmask
         # spectra - it does not make sense to care about the parameter metadata:
 
-        print(result)
         result = self._remove_unsupported_types(result)
-        print('----')
-        print(result)
+
 
         if len(result) == 0:
             return []               #  no spectra to change.

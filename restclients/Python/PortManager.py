@@ -57,7 +57,7 @@ class PortManager:
     # @throw various from socket and connect.
     #
     def __init__(self, host, port=30000):
-        print(host, port)
+
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, port))
 
