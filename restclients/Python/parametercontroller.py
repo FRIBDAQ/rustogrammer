@@ -355,10 +355,12 @@ class ParameterController:
                     sdef['chantype']
                 )
             elif sdef['type'] == 'gs':
+                # we have a list of strings of parameters we need to make a list of lists:
 
+                params = [x.split() for x in sdef['xparameters']]
                 self._client.spectrum_creategammasummary(
                     sdef['name'],
-                    sdef['xparameters'],
+                    params,
                     sdef['xaxis']['low'],
                     sdef['xaxis']['high'],
                     sdef['xaxis']['bins'],
