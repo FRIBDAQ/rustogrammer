@@ -21,6 +21,7 @@ from SpectrumList import (SpectrumList, SpectrumModel)
 from spectrumeditor import Editor
 from capabilities import set_client as set_cap_client
 from ParameterChooser import update_model as load_parameters
+from gatelist import common_condition_model
 from  rustogramer_client import rustogramer as RClient
 _client = None
 
@@ -50,7 +51,6 @@ class SpectrumWidget(QWidget):
         
         self._editor = Editor(self)
         self._editor.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self._editor.load_gates(_client)
         layout.addWidget(self._editor)
 
         
@@ -92,7 +92,7 @@ class SpectrumWidget(QWidget):
     def _filter_list(self, mask):
         global _client
         self._spectrumListModel.load_spectra(_client, mask)
-        self._editor.load_gates(_client)
+        common_condition_model.load(_client)
 
     def _clear_filter(self):
         global _client
@@ -146,7 +146,7 @@ class SpectrumWidget(QWidget):
         self._spectrumListModel.load_spectra(_client, self._listing.mask())
     def _load_spectrum(self):
         #  Load the single selected spectrum into the editor.
-        print('load clicked')
+
         # There must be exactly one spectum selected:
 
         selected = self._listing.getSelectedDefinitions()
