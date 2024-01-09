@@ -134,7 +134,7 @@ if __name__ == "__main__":
     app = QApplication([])
     win = QMainWindow()
     filtered_gate_model.load(c)
-    w = GateView()
+    w = FilteredConditions()
     
 
     win.setCentralWidget(w)
