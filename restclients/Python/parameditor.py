@@ -157,6 +157,11 @@ class ParameterTable(QTableWidget):
             units = None
         
         return {'name': name, 'low': low, 'high': high, 'bins': bins, 'units':units}
+    def delete_row(self, row):
+        ''' Delete the specified row.  Note that this decrements the row indices
+           of all subsequent rows in the table
+        '''
+        self.removeRow(row)
 
     def selected_rows(self):
         ''' Returns a list of selected rows.  For ourpurposes, this is much
@@ -212,6 +217,8 @@ class ParameterEditor(QWidget):
             -  Determine the current row however they deem appropriate.
             -  Replace the contents of that row with the attributes
                of the selected parameter.
+        *  remove - the selected table rows should be deleted.
+        *  reload - the parameter model should be reloaded.
         *  loadClicked - The seleced row contents should be updated 
            with the current attributes of the parameter.
         *  setClicked  - The selected row attributes should be 
@@ -239,6 +246,8 @@ class ParameterEditor(QWidget):
     '''
     newRow        =   pyqtSignal()
     replaceRow    = pyqtSignal()
+    remove        = pyqtSignal()
+    reload        = pyqtSignal()
     loadclicked   =   pyqtSignal()
     setclicked    =   pyqtSignal()
     changeclicked =   pyqtSignal()
@@ -258,6 +267,12 @@ class ParameterEditor(QWidget):
 
         self._replace = QPushButton('Replace', self)
         top_row.addWidget(self._replace)
+
+        self._remove = QPushButton("Remove Selected", self)
+        top_row.addWidget(self._remove)
+
+        self._reload = QPushButton('Reload', self)
+        top_row.addWidget(self._reload)
 
         self._array = QCheckBox('Array', self)
         top_row.addWidget(self._array)
@@ -283,6 +298,9 @@ class ParameterEditor(QWidget):
 
         self._new.clicked.connect(self.newRow)
         self._replace.clicked.connect(self.replaceRow)
+        self._remove.clicked.connect(self.remove)
+        self._reload.clicked.connect(self.reload)
+
         self._load.clicked.connect(self.loadclicked)
         self._set.clicked.connect(self.setclicked)
         self._changeSpectra.clicked.connect(self.changeclicked)

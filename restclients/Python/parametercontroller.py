@@ -7,7 +7,7 @@ import ParameterChooser
 import parameditor
 import spectrumeditor
 from rustogramer_client import RustogramerException
-
+from ParameterChooser import update_model
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QMessageBox, QDialog)
 class ParameterController:
     ''' Slots:
@@ -31,6 +31,8 @@ class ParameterController:
 
         view.newRow.connect(self.new_row)
         view.replaceRow.connect(self.replace_row)
+        view.remove.connect(self.remove_selected)
+        view.reload.connect(self.refresh_parameters)
         view.loadclicked.connect(self.load)
         view.setclicked.connect(self.set_params)
         view.changeclicked.connect(self.change_spectra)
@@ -67,6 +69,17 @@ class ParameterController:
                     info['name'], info['low'], info['hi'], info['bins'],
                     info['units']
             )
+    def remove_selected(self):
+        table = self._view.table()
+        # Sort descending so removing does not change indices:
+        remove_rows = table.selected_rows()
+        remove_rows.sort(reverse=True)
+        for r in remove_rows:
+            table.delete_row(r)
+
+        
+    def refresh_parameters(self):
+        update_model(self._client)
 
     def set_params(self):
         #  Note we need to worry about 'arrays'.
