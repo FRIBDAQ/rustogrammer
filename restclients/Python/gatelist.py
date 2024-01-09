@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import (
     QTableView,  QListView, QComboBox,
     QApplication, QMainWindow
 )
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import (QStandardItem, QStandardItemModel)
 
 class ConditionModel(QStandardItemModel):
@@ -24,12 +25,22 @@ class ConditionModel(QStandardItemModel):
     '''
     def __init__(self, *args):
         super().__init__(*args)
+        self._colheadings = [
+            'Name', 'Type', 'Gates', 'Parameters', 'Points', 'Limits'
+        ]
     def load(self, client, pattern = '*'):
         data = client.condition_list(pattern)['detail']
         self.clear() 
         for condition in data:
             self._add_condition(condition)
         pass
+    def headerData(self, col, orient, role):
+        if role == Qt.DisplayRole:
+            if orient == Qt.Horizontal:
+                return self._colheadings[col]
+            else:
+                return None
+
     def _add_condition(self, c):
         name = QStandardItem(c['name'])
         type_string = QStandardItem(c['type'])
