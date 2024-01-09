@@ -20,6 +20,7 @@ import argparse
 import capabilities
 import parametercontroller
 import parameditor
+import gatelist
 from rustogramer_client import rustogramer as RestClient
 
 PORTMAN_PORT=30000
@@ -49,6 +50,7 @@ if args.service is not None:
 client = RestClient(client_args)
 spectra.set_client(client)
 capabilities.set_client(client)
+gatelist.common_condition_model.load(client)
 
 
 #  Build the GUI:

@@ -33,6 +33,7 @@ import editor1d, editortwod, editorBitmask
 import  editorG2d, editorGD, editorProjection, editorStripchart
 import editorSummary, EnumeratedTypeSelector, editorGSummary
 from direction import Direction
+from gatelist import ConditionChooser
 
 #------------------------- Spectrum controllers ----------------------
 # Slots assume that capabilities.get_client won't return None.
@@ -978,7 +979,7 @@ class Editor(QWidget):
         right.addWidget(self._load)
         self._del = QPushButton("Delete", self)
         right.addWidget(self._del)
-        self._gateselection = QComboBox( self)
+        self._gateselection = ConditionChooser( self)
         right.addWidget(self._gateselection)
         self._gate = QPushButton('Gate');
         right.addWidget(self._gate)
