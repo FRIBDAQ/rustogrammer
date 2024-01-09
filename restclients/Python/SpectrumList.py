@@ -58,7 +58,6 @@ class SpectrumView(QTableView):
         for row in self._selected_rows:
             arow = []
             for c in range(cols):
-                print('rc', row, c, self.model().item(row, c).data(Qt.DisplayRole))
                 arow.append(self.model().item(row, c).data(Qt.DisplayRole))
             result.append(arow)
         return result
