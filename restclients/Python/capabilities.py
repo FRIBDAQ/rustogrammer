@@ -188,3 +188,48 @@ def get_supported_channelTypes():
     global supported_channel_types
     program = get_program()
     return supported_channel_types[program]
+
+class ConditionTypes(Enum):
+    And = auto()
+    Band = auto()
+    Contour = auto()
+    FalseCondition = auto()     # False is a reserved word.
+    GammaBand = auto()          # Only in SpecTcl.
+    GammaContour = auto()
+    GammaSlice  = auto()
+    Not = auto()
+    Or = auto()
+    Slice = auto()
+    TrueCondition = auto()
+    MaskEqual = auto()           # SpecTclOnly.
+    MaskAnd = auto()             # SpecTclOnly.
+    MaskOr  = auto()           # SpecTclOnly.
+    MaskNand = auto()          # SpecTclOnly.
+    C2Band   = auto()          # SpecTl only.
+
+supported_condition_types = {
+    Program.Rustogramer : {
+        ConditionTypes.And, ConditionTypes.Band, ConditionTypes.Contour, 
+        ConditionTypes.FalseCondition, ConditionTypes.GammaContour,
+        ConditionTypes.Not, ConditionTypes.Or, ConditionTypes.Slice,
+        ConditionTypes.TrueCondition
+    },
+    Program.SpecTcl : {
+        ConditionTypes.And, ConditionTypes.Band, ConditionTypes.Contour, 
+        ConditionTypes.FalseCondition, ConditionTypes.GammaContour,
+        ConditionTypes.Not, ConditionTypes.Or, ConditionTypes.Slice,
+        ConditionTypes.TrueCondition,
+        ConditionTypes.GammaBand, ConditionTypes.MaskEqual, ConditionTypes.MaskAnd,
+        ConditionTypes.MaskOr, ConditionTypes.MaskNand, 
+        ConditionTypes.C2Band
+    },
+    Program.Unknown: {}
+}
+def has_condition_type(selector):
+    program = get_program()
+    return selector in supported_condtion_types[program]
+
+def get_supported_condition_types():
+    program = get_program()
+    return supported_condition_types[program]
+    
