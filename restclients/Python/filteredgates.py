@@ -89,6 +89,15 @@ class FilteredConditions(QWidget):
         return self._pattern.text()
     def setFilter(self, pattern):
         self._pattern.setText(pattern)
+    
+    def contents(self):
+        result =list()
+        model = self._list.model()
+        row = 0
+        while model.index(row, 0).isValid():
+            result.append(self._make_row(row))
+            row += 1
+        return result
 
     def selection(self):
         # Returns none if there is no selection else the contents of the
@@ -96,10 +105,9 @@ class FilteredConditions(QWidget):
         # Note the selections include columns not just rows so the juggilinb below:
         
         selection = self._list.selectedIndexes()
-        model = self._list.model()
         
         if len(selection) == 0:
-            return None
+            return list()
         sel_dict = dict()
         for item in selection:
             row_num = item.row()
@@ -110,19 +118,21 @@ class FilteredConditions(QWidget):
         selected_rows.sort()          # For the heck of it.
         result = list()
         for row_num in selected_rows:
-            name =  model.item(row_num, 0).text()
-            type_str = model.item(row_num, 1).text()
-            gates    = self._make_string_list(model.item(row_num, 2).text())
-            params = self._make_string_list(model.item(row_num, 3).text())
-            points  = self._make_point_list(model.item(row_num, 4).text())
-            hilo    = self._make_limits(model.item(row_num, 5).text())
-            result.append({
+            result.append(self._make_row(row_num))
+        return result
+    #  private utilities:
+    def _make_row(self, row_num):
+        model = self._list.model()
+        name =  model.item(row_num, 0).text()
+        type_str = model.item(row_num, 1).text()
+        gates    = self._make_string_list(model.item(row_num, 2).text())
+        params = self._make_string_list(model.item(row_num, 3).text())
+        points  = self._make_point_list(model.item(row_num, 4).text())
+        hilo    = self._make_limits(model.item(row_num, 5).text())
+        return {
                 'name': name, 'type': type_str, 'gates' : gates,
                 'parameters': params, 'points': points, 'low': hilo[0], 'high': hilo[1]
                 }
-            )
-        return result
-    #  private utilities:
     def _make_string_list(self, gates):
         if gates == '' or gates.isspace():
             return None
@@ -148,11 +158,36 @@ class GateActionView(QWidget):
        *  Delete all displayed conditions.
        *  Load a condition into the editor - where the controller determines which one that is.
     '''
+    delselected = pyqtSignal()
+    delall      = pyqtSignal()
+    loadeditor  = pyqtSignal()
+    
+    def __init__(self, *args):
+        super().__init__(*args)
+        layout = QHBoxLayout()
+        
+        self._delselected = QPushButton("Delete Selected", self)
+        layout.addWidget(self._delselected)
+        
+        self._delall = QPushButton("Delete Displayed", self)
+        layout.addWidget(self._delall)
+        
+        self._loadeditor = QPushButton("Load Editor")
+        layout.addWidget(self._loadeditor)
+        
+        self.setLayout(layout)
+        
+        # Relay button clicked signals:
+        
+        self._delselected.clicked.connect(self.delselected)
+        self._delall.clicked.connect(self.delall)
+        self._loadeditor.clicked.connect(self.loadeditor)
 # ---------------------- test code -------------------------------------
 
 def update() :
     pattern = w.filter()
     filtered_gate_model.load(c, pattern)
+    print('contents:', w.contents())
 
 def select():
     print(w.selection())
@@ -161,6 +196,23 @@ def clear():
     w.setFilter('*')
     update()
     
+    
+def delete_sel():
+    names = [x['name'] for x in w.selection()]
+    print('would delete', names)
+    
+def delete_all():
+    names = [x['name'] for x in w.contents()]
+    print("Would delete: ", names)
+
+def load():
+    names = [x['name'] for x in w.selection()]
+    if len(names) == 0:
+        print('would do nothing')
+    elif len(names) == 1:
+        print('Would load', names[0])
+    else:
+        print("would complain only one item can be loaded")
 
 if __name__ == "__main__":
     from rustogramer_client import rustogramer as rc
@@ -178,7 +230,18 @@ if __name__ == "__main__":
     w.select.connect(select)
     w.clear.connect(clear)
     
+    b = GateActionView()
+    b.delselected.connect(delete_sel)
+    b.delall.connect(delete_all)
+    b.loadeditor.connect(load)
+    
+    widget = QWidget()
+    layout = QVBoxLayout()
+    layout.addWidget(b)
+    layout.addWidget(w)
+    widget.setLayout(layout)
+    
 
-    win.setCentralWidget(w)
+    win.setCentralWidget(widget)
     win.show()
     app.exec()
