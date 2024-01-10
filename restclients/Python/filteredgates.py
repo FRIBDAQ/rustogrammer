@@ -19,6 +19,7 @@ import parse
 filtered_gate_model = gatelist.ConditionModel()
 
 class GateView(QTableView):
+    select = pyqtSignal()
     ''' This is a gate (condition) list table where the selection model is set to allow
     users to select a single condition.   Specifically, a single item can be
     selected (selection mode) and that this is a single row (selection behavior).
@@ -30,6 +31,11 @@ class GateView(QTableView):
         self.setModel(filtered_gate_model)
         self.setSelectionMode(QAbstractItemView.SingleSelection)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
+    def selectionChanged(self, new, old):
+        # (override)
+        print("selection changed")
+        super().selectionChanged(new, old)
+        self.select.emit()   
 
 class FilteredConditions(QWidget):
     ''' This is a filtered gate list with the needed elements to set the
@@ -37,7 +43,7 @@ class FilteredConditions(QWidget):
     Signals:
         update - Update button was clicked, user should update the filtered_gate_model
            in accordance with the filter pattern.
-        selectionChanged - An item in the list was selected.
+        select - An item in the list was selected.
         clear  - Clear the pattern back to whatever the default should be.
 
     Attributes:
@@ -45,7 +51,7 @@ class FilteredConditions(QWidget):
         selection - (readonly) the selected row.
     '''
     update = pyqtSignal()
-    selectionChanged = pyqtSignal()
+    select = pyqtSignal()
     clear = pyqtSignal()
     def __init__(self, *args):
         super().__init__(*args)
@@ -75,11 +81,7 @@ class FilteredConditions(QWidget):
     
     #  Provide the selection changed signal:
 
-    def selectionChanged(self, new, old):
-        # (override)
-
-        super().selectionChangted(new, old)
-        self.selectionChanged.emit()   
+        self._list.select.connect(self.select)
 
     # Attributes:
 
@@ -96,35 +98,50 @@ class FilteredConditions(QWidget):
         if len(selection) == 0:
             return None
         row_num = selection[0].row()
-        name = self.model().item(row_num, 0).text()
-        type_str = self.model().item(row_num, 1).text()
-        gates    = self._make_string_list(self.model().item(row_num, 2).text())
-        params = self._make_string_list(self.model().item(row_num, 3).text())
-        points  = self._make_point_list(self.model().item(row_num, 4).text())
-        hilo    = self._make_limits(self.model().item(row_num, 5).text())
+        model = self._list.model()
+        name =  model.item(row_num, 0).text()
+        type_str = model.item(row_num, 1).text()
+        gates    = self._make_string_list(model.item(row_num, 2).text())
+        params = self._make_string_list(model.item(row_num, 3).text())
+        points  = self._make_point_list(model.item(row_num, 4).text())
+        hilo    = self._make_limits(model.item(row_num, 5).text())
         return {
             'name': name, 'type': type_str, 'gates' : gates,
-            'parameters': params, 'points': points, 'low': low, 'high': high
+            'parameters': params, 'points': points, 'low': hilo[0], 'high': hilo[1]
         }
     #  private utilities:
-    def _make_string_list(self, s):
-        if s == '' or gates.isspace():
+    def _make_string_list(self, gates):
+        if gates == '' or gates.isspace():
             return None
-        return s.split(', ')
-    def _make_point_list(self, s):
-        if s == '' or gates.isspace():
+        return gates.split(', ')
+    def _make_point_list(self, gates):
+        if gates == '' or gates.isspace():
             return None
-        text_list = s.split(', ')
+        text_list = gates.split(', ')
         result = list()
         for pt_s in text_list:
-            pt = parse('({}, {})')
+            pt = parse.parse('({}, {})', pt_s)
             result.append({'x': pt[0], 'y': pt[1]})
         return result
-    def _make_limits(self, s):
-        if s == '' or gates.isspace():
+    def _make_limits(self, gates):
+        if gates == '' or gates.isspace():
             return None
-        return parse('{}, {}')
+        return parse.parse('{}, {}', gates)
 
+
+# ---------------------- test code -------------------------------------
+
+def update() :
+    pattern = w.filter()
+    filtered_gate_model.load(c, pattern)
+
+def select():
+    print(w.selection())
+
+def clear():
+    w.setFilter('*')
+    update()
+    
 
 if __name__ == "__main__":
     from rustogramer_client import rustogramer as rc
@@ -135,6 +152,12 @@ if __name__ == "__main__":
     win = QMainWindow()
     filtered_gate_model.load(c)
     w = FilteredConditions()
+    
+    # Check signals and attributes>
+    
+    w.update.connect(update)
+    w.select.connect(select)
+    w.clear.connect(clear)
     
 
     win.setCentralWidget(w)
