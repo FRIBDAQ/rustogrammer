@@ -29,7 +29,7 @@ class GateView(QTableView):
         global filtered_gate_model
         super().__init__(*args)
         self.setModel(filtered_gate_model)
-        self.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
     def selectionChanged(self, new, old):
         # (override)
@@ -93,22 +93,35 @@ class FilteredConditions(QWidget):
     def selection(self):
         # Returns none if there is no selection else the contents of the
         # selection in a manner similar to that of a query for that gate:
-
+        # Note the selections include columns not just rows so the juggilinb below:
+        
         selection = self._list.selectedIndexes()
+        model = self._list.model()
+        
         if len(selection) == 0:
             return None
-        row_num = selection[0].row()
-        model = self._list.model()
-        name =  model.item(row_num, 0).text()
-        type_str = model.item(row_num, 1).text()
-        gates    = self._make_string_list(model.item(row_num, 2).text())
-        params = self._make_string_list(model.item(row_num, 3).text())
-        points  = self._make_point_list(model.item(row_num, 4).text())
-        hilo    = self._make_limits(model.item(row_num, 5).text())
-        return {
-            'name': name, 'type': type_str, 'gates' : gates,
-            'parameters': params, 'points': points, 'low': hilo[0], 'high': hilo[1]
-        }
+        sel_dict = dict()
+        for item in selection:
+            row_num = item.row()
+            sel_dict[row_num] = row_num
+        selected_rows = list()
+        for r in sel_dict.keys():
+            selected_rows.append(int(r))
+        selected_rows.sort()          # For the heck of it.
+        result = list()
+        for row_num in selected_rows:
+            name =  model.item(row_num, 0).text()
+            type_str = model.item(row_num, 1).text()
+            gates    = self._make_string_list(model.item(row_num, 2).text())
+            params = self._make_string_list(model.item(row_num, 3).text())
+            points  = self._make_point_list(model.item(row_num, 4).text())
+            hilo    = self._make_limits(model.item(row_num, 5).text())
+            result.append({
+                'name': name, 'type': type_str, 'gates' : gates,
+                'parameters': params, 'points': points, 'low': hilo[0], 'high': hilo[1]
+                }
+            )
+        return result
     #  private utilities:
     def _make_string_list(self, gates):
         if gates == '' or gates.isspace():
@@ -129,6 +142,12 @@ class FilteredConditions(QWidget):
         return parse.parse('{}, {}', gates)
 
 
+class GateActionView(QWidget):
+    ''' This provides buttons to:
+       *  Delete all selected conditions
+       *  Delete all displayed conditions.
+       *  Load a condition into the editor - where the controller determines which one that is.
+    '''
 # ---------------------- test code -------------------------------------
 
 def update() :
