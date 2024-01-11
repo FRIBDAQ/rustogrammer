@@ -5,11 +5,14 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import pyqtSignal
 
 import TrueFalseConditionEditor
+import CompoundConditionEditor
 from capabilities import (
     ConditionTypes, get_supported_condition_types, set_client, get_client
 )
 from rustogramer_client import rustogramer as rc, RustogramerException 
 from spectrumeditor import error
+from gatelist import common_condition_model
+
 ''' This module provides a tabbed widget that is the gate editing part of
     the Gate tab.  As with the spectrum editor, each supported gate type.
     The key  driver is a set of widgets and controllers associated with them
@@ -70,7 +73,7 @@ class FalseGateController(ConstantGateController):
         view.setGate_type(False)
 
 _condition_table = {
-    ConditionTypes.And: ("And", QWidget, GateController),
+    ConditionTypes.And: ("And", CompoundConditionEditor.EditorView, GateController),
     ConditionTypes.Band: ("Band", QWidget, GateController),
     ConditionTypes.Contour: ("Contour", QWidget, GateController),
     ConditionTypes.FalseCondition: ('False', 
@@ -81,7 +84,7 @@ _condition_table = {
     ),
     ConditionTypes.GammaContour: ("G Contour", QWidget, GateController),
     ConditionTypes.Not: ("Not", QWidget, GateController),
-    ConditionTypes.Or: ("Or", QWidget, GateController),
+    ConditionTypes.Or: ("Or", CompoundConditionEditor.EditorView, GateController),
     ConditionTypes.Slice: ('Slice', QWidget, GateController),
     
 }
@@ -118,6 +121,7 @@ class ConditionEditor(QTabWidget):
 
 if __name__ == '__main__':
         set_client(rc({'host':'localhost', 'port':8000}))
+        common_condition_model.load(get_client())
         app = QApplication([])
         win = QMainWindow()
         wid = ConditionEditor()
