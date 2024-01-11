@@ -226,10 +226,12 @@ supported_condition_types = {
     Program.Unknown: {}
 }
 def has_condition_type(selector):
+    global supported_condition_types
     program = get_program()
-    return selector in supported_condtion_types[program]
+    return selector in supported_condition_types[program]
 
 def get_supported_condition_types():
+    global supported_condition_types
     program = get_program()
     return supported_condition_types[program]
     
