@@ -1,8 +1,9 @@
 from PyQt5.QtWidgets import (
-    QLineEdit, QRadioButton, QLabel, QWidget,
+    QLineEdit, QRadioButton, QLabel, QWidget, QPushButton,
     QVBoxLayout, QHBoxLayout,
     QApplication, QMainWindow, QPushButton
 )
+from PyQt5.QtCore import pyqtSignal
 
 class TrueFalseView(QWidget):
     ''' Provides a view for editing a true or false gate.
@@ -11,9 +12,11 @@ class TrueFalseView(QWidget):
         Attributes:
            name - Name of gate
            gate_type - True/False.
-        No Signals,
+        Signals:
+            commit - accept the gate:
         No Slots.
     '''
+    commit = pyqtSignal()
     def __init__(self, *args):
         super().__init__(*args)
         
@@ -36,10 +39,16 @@ class TrueFalseView(QWidget):
         self._false = QRadioButton('False', self)
         bottom.addWidget(self._false)
         
+        #  Final row:  Accept button:
+        
         layout.addLayout(bottom)
+        
+        self._accept = QPushButton('Create/Replace', self)
+        layout.addWidget(self._accept)
         
         self.setLayout(layout)
         self.setGate_type(True)
+        self._accept.clicked.connect(self.commit)
         
     #  Implement the attributes.
     
@@ -54,7 +63,7 @@ class TrueFalseView(QWidget):
         if which:     # Assume exclusivity applies to programmatic changes.
             self._true.setChecked(True)
         else:
-            self._false.setCHecked(True)
+            self._false.setChecked(True)
             
 
 #---------------------- Testing -------------------------------
