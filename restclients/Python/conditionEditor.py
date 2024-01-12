@@ -38,6 +38,7 @@ class GateController:          # Base class
     
 
 class ConstantGateController(GateController):
+    # Base class for  T and F gates.
     def __init__(self, view, client, editor):
         super().__init__(view, client, editor)
         view.commit.connect(self.make_gate)
@@ -54,12 +55,14 @@ class ConstantGateController(GateController):
                 self._client.condition_make_false(name)
         except RustogramerException as e:
             error(f'Failed to create condition: {name}: {e}')
+            return
         
         # success if we got here so:
         
         self._editor.signal_removal(name)    # in case this is a replace.
         self._editor.signal_added(name)
         self._view.setName('')               # Clear the gate name on success.
+
     
 class TrueGateController(ConstantGateController):
     def __init__(self, view, client, editor):
@@ -73,8 +76,48 @@ class FalseGateController(ConstantGateController):
         super().__init__(view, client, editor)
         view.setGate_type(False)
 
+
+class CompoundGateController(GateController):
+    # Base class for And/Or gates, concrete derivations
+    # must implement make_gate(name, dependencies).
+    # We'll handle the errors and signalling.
+    #
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+        view.commit.connect(self._commit)
+    
+    def _commit(self):
+        name = self._view.name()
+        if name ==  '' or name.isspace():
+            return                 # Just do nothing if no name.
+        try:
+            self.make_gate(name, self._view.dependencies())
+        except RustogramerException as e:
+            error(f'Failed to create condition {name} : {e}')
+            return
+
+        # Success so signal and blank the name:
+        
+        self._editor.signal_removal(name)
+        self._editor.signal_added(name)
+        self._view.setName('')
+    
+class AndGateController(CompoundGateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+    def make_gate(self, name, dependencies):
+        self._client.condition_make_and(name, dependencies)
+
+class OrGateController(CompoundGateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+    def make_gate(self, name, dependencies):
+        self._client.condition_make_or(name, dependencies)
+            
+            
+
 _condition_table = {
-    ConditionTypes.And: ("And", CompoundConditionEditor.EditorView, GateController),
+    ConditionTypes.And: ("And", CompoundConditionEditor.EditorView, AndGateController),
     ConditionTypes.Band: ("Band", QWidget, GateController),
     ConditionTypes.Contour: ("Contour", QWidget, GateController),
     ConditionTypes.FalseCondition: ('False', 
@@ -85,7 +128,7 @@ _condition_table = {
     ),
     ConditionTypes.GammaContour: ("G Contour", QWidget, GateController),
     ConditionTypes.Not: ("Not", QWidget, GateController),
-    ConditionTypes.Or: ("Or", CompoundConditionEditor.EditorView, GateController),
+    ConditionTypes.Or: ("Or", CompoundConditionEditor.EditorView, OrGateController),
     ConditionTypes.Slice: ('Slice', QWidget, GateController),
     
 }
