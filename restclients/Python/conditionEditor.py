@@ -7,6 +7,7 @@ from PyQt5.QtCore import pyqtSignal
 import TrueFalseConditionEditor
 import CompoundConditionEditor
 import NotConditionEditor
+import SliceConditionEditor
 from capabilities import (
     ConditionTypes, get_supported_condition_types, set_client, get_client
 )
@@ -124,23 +125,29 @@ class NotGateController(GateController):
     
     def create(self, name):
         self._client.condition_make_not(name, self._view.condition())
-        
+
+class SliceGateController(GateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+    def create(self, name):
+        self._client.condition_make_slice(
+            name, self._view.parameter(), self._view.low(), self._view.high()
+        )
 
 _condition_table = {
-    ConditionTypes.And: ("And", CompoundConditionEditor.EditorView, AndGateController),
-    ConditionTypes.Band: ("Band", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.Slice: ('Slice', SliceConditionEditor.EditorView, SliceGateController),
     ConditionTypes.Contour: ("Contour", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.And: ("And", CompoundConditionEditor.EditorView, AndGateController),
+    ConditionTypes.Or: ("Or", CompoundConditionEditor.EditorView, OrGateController),
+    ConditionTypes.Not: ("Not", NotConditionEditor.EditorView, NotGateController),
+    ConditionTypes.Band: ("Band", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.GammaContour: ("G Contour", TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.FalseCondition: ('False', 
         TrueFalseConditionEditor.TrueFalseView,  FalseGateController
     ),
     ConditionTypes.TrueCondition: ('True', 
         TrueFalseConditionEditor.TrueFalseView, TrueGateController
-    ),
-    ConditionTypes.GammaContour: ("G Contour", TrueFalseConditionEditor.TrueFalseView, GateController),
-    ConditionTypes.Not: ("Not", NotConditionEditor.EditorView, NotGateController),
-    ConditionTypes.Or: ("Or", CompoundConditionEditor.EditorView, OrGateController),
-    ConditionTypes.Slice: ('Slice', TrueFalseConditionEditor.TrueFalseView, GateController),
-    
+    )
 }
 
 class ConditionEditor(QTabWidget):
@@ -179,7 +186,10 @@ class ConditionEditor(QTabWidget):
 
 
 if __name__ == '__main__':
+        from ParameterChooser import update_model
+        
         set_client(rc({'host':'localhost', 'port':8000}))
+        update_model(get_client())
         common_condition_model.load(get_client())
         app = QApplication([])
         win = QMainWindow()

@@ -81,6 +81,8 @@ class EditorView(QWidget):
         line3.addWidget(self._high)
         layout.addLayout(line3)
         
+        layout.addStretch(1)
+        
         # Bottom is our button.
         
         self._commit = QPushButton('Create/Replace', self)
