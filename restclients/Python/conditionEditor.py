@@ -155,6 +155,7 @@ class ConditionEditor(QTabWidget):
     def __init__(self, *args):
         super().__init__(*args)
         client = get_client()
+        self._client = client
         supported_conditions = get_supported_condition_types()
         self._controllers = dict()
         for ctype in _condition_table.keys():
@@ -167,8 +168,12 @@ class ConditionEditor(QTabWidget):
     #  Utilities the controller might need.
     
     def signal_removal(self, name):
+        # For now update the model:
+        
+        common_condition_model.load(self._client)
         self.condition_removed.emit(name)
     def signal_added(self, name):
+        # This is always called after signal_removal so we don't do anything in test mode.
         self.condition_added.emit(name)
         
 
