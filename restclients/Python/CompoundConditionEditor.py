@@ -83,7 +83,12 @@ class EditorView(QWidget):
         for name in cond_list:
             self._dependencies.appendItem(name)
 
-
+#------------------------------ Test code -------------------------------
+def commit():
+    print("Make gate:")
+    print("  name:", wid.name())
+    print("  dependenciues:", ', '.join(wid.dependencies()))
+    
 if __name__ == '__main__':
     from rustogramer_client import rustogramer as cl
     client = cl({'host':'localhost', 'port': 8000})
@@ -94,6 +99,7 @@ if __name__ == '__main__':
     win = QMainWindow()
     
     wid = EditorView()
+    wid.commit.connect(commit)
     
     win.setCentralWidget(wid)
     win.show()

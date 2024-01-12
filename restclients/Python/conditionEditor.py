@@ -59,6 +59,7 @@ class ConstantGateController(GateController):
         
         self._editor.signal_removal(name)    # in case this is a replace.
         self._editor.signal_added(name)
+        self._view.setName('')               # Clear the gate name on success.
     
 class TrueGateController(ConstantGateController):
     def __init__(self, view, client, editor):
