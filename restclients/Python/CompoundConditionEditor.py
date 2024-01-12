@@ -51,9 +51,10 @@ class EditorView(QWidget):
         layout.addLayout(mid)
         
         # On the bottom is just the commit button:
-        
+        layout.addStretch(1)
         self._commit = QPushButton('Create/Replace', self)
         layout.addWidget(self._commit)
+        
         
         self.setLayout(layout)
         

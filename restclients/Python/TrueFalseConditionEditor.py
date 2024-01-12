@@ -39,10 +39,11 @@ class TrueFalseView(QWidget):
         self._false = QRadioButton('False', self)
         bottom.addWidget(self._false)
         
-        #  Final row:  Accept button:
-        
         layout.addLayout(bottom)
         
+        #  Final row:  Accept button:
+        
+        layout.addStretch(1)
         self._accept = QPushButton('Create/Replace', self)
         layout.addWidget(self._accept)
         
