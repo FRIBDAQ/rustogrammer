@@ -32,31 +32,27 @@ from gatelist import common_condition_model
 #   gate controller types:
 
 class GateController:          # Base class
+    ''' Ultimate base class for controllers that make gates (conditions)
+       Views used by this controller base class must:
+       - provide a commit signal that is emitted when it's time to make the gate.
+       - provide a name attribute that returns the proposed conditio name.
+       
+       Concrete subclasses must implement
+       create(name) - to create the actual gate...all error handling and signalling is done by us.
+       
+    '''
     def __init__(self, view, client, editor):
         self._view = view
         self._client = client
         self._editor = editor
-            
-### TODO -- look for an opportunity to handle the commit signal in GateController
-###         with the error handling and signalling done in GateController and the
-###         gate cration in an overriden method.
-
-class ConstantGateController(GateController):
-    # Base class for  T and F gates.
-    def __init__(self, view, client, editor):
-        super().__init__(view, client, editor)
-        view.commit.connect(self.make_gate)
+        self._view.commit.connect(self._create)            
     
-    def make_gate(self):
+    def _create(self):
         name = self._view.name()
         if name == '' or name.isspace():
             return
-        type = self._view.gate_type()
         try:
-            if type:
-                self._client.condition_make_true(name)
-            else:
-                self._client.condition_make_false(name)
+            self.create(name)
         except RustogramerException as e:
             error(f'Failed to create condition: {name}: {e}')
             return
@@ -66,6 +62,23 @@ class ConstantGateController(GateController):
         self._editor.signal_removal(name)    # in case this is a replace.
         self._editor.signal_added(name)
         self._view.setName('')               # Clear the gate name on success.
+    
+    def create(self, name):
+        pass                                 # Derived classes must override.
+
+class ConstantGateController(GateController):
+    # Base class for  T and F gates.
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+        
+    
+    def create(self, name):
+        type = self._view.gate_type()
+    
+        if type:
+            self._client.condition_make_true(name)
+        else:
+            self._client.condition_make_false(name)
 
     
 class TrueGateController(ConstantGateController):
@@ -83,28 +96,14 @@ class FalseGateController(ConstantGateController):
 
 class CompoundGateController(GateController):
     # Base class for And/Or gates, concrete derivations
-    # must implement make_gate(name, dependencies).
-    # We'll handle the errors and signalling.
+    # must implement make_gate
+    # We'll haul the dependencies from the view.
     #
     def __init__(self, view, client, editor):
         super().__init__(view, client, editor)
-        view.commit.connect(self._commit)
     
-    def _commit(self):
-        name = self._view.name()
-        if name ==  '' or name.isspace():
-            return                 # Just do nothing if no name.
-        try:
-            self.make_gate(name, self._view.dependencies())
-        except RustogramerException as e:
-            error(f'Failed to create condition {name} : {e}')
-            return
-
-        # Success so signal and blank the name:
-        
-        self._editor.signal_removal(name)
-        self._editor.signal_added(name)
-        self._view.setName('')
+    def create(self, name): 
+        self.make_gate(name, self._view.dependencies())
     
 class AndGateController(CompoundGateController):
     def __init__(self, view, client, editor):
@@ -122,38 +121,25 @@ class OrGateController(CompoundGateController):
 class NotGateController(GateController):
     def __init__(self, view, client, editor):  
         super().__init__(view, client, editor)
-        view.commit.connect(self._commit)
     
-    def _commit(self):
-        name = self._view.name()
-        if name ==  '' or name.isspace():
-            return                 # Just do nothing if no name.
-        try:
-            self._client.condition_make_not(name, self._view.condition())
-        except RustogramerException as e:
-            error(f'Failed to create condition {name} : {e}')
-            return
-
-        # Success so signal and blank the name:
+    def create(self, name):
+        self._client.condition_make_not(name, self._view.condition())
         
-        self._editor.signal_removal(name)
-        self._editor.signal_added(name)
-        self._view.setName('')          
 
 _condition_table = {
     ConditionTypes.And: ("And", CompoundConditionEditor.EditorView, AndGateController),
-    ConditionTypes.Band: ("Band", QWidget, GateController),
-    ConditionTypes.Contour: ("Contour", QWidget, GateController),
+    ConditionTypes.Band: ("Band", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.Contour: ("Contour", TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.FalseCondition: ('False', 
         TrueFalseConditionEditor.TrueFalseView,  FalseGateController
     ),
     ConditionTypes.TrueCondition: ('True', 
         TrueFalseConditionEditor.TrueFalseView, TrueGateController
     ),
-    ConditionTypes.GammaContour: ("G Contour", QWidget, GateController),
+    ConditionTypes.GammaContour: ("G Contour", TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.Not: ("Not", NotConditionEditor.EditorView, NotGateController),
     ConditionTypes.Or: ("Or", CompoundConditionEditor.EditorView, OrGateController),
-    ConditionTypes.Slice: ('Slice', QWidget, GateController),
+    ConditionTypes.Slice: ('Slice', TrueFalseConditionEditor.TrueFalseView, GateController),
     
 }
 
