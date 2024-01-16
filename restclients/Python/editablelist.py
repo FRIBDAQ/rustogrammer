@@ -31,8 +31,10 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow,
     QStyle,
     QWidget, QListWidget, QLabel, QPushButton,
-    QHBoxLayout, QVBoxLayout, QGridLayout
+    QHBoxLayout, QVBoxLayout, QGridLayout,
+    QAbstractItemView
 )
+
 from PyQt5.QtCore import pyqtSignal
 from PyQt5.Qt import *
 
