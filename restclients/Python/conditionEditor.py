@@ -8,6 +8,7 @@ import TrueFalseConditionEditor
 import CompoundConditionEditor
 import NotConditionEditor
 import SliceConditionEditor
+import TwodConditionEditor
 from capabilities import (
     ConditionTypes, get_supported_condition_types, set_client, get_client
 )
@@ -134,13 +135,31 @@ class SliceGateController(GateController):
             name, self._view.parameter(), self._view.low(), self._view.high()
         )
 
+class ContourController(GateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+        view.setMinpoints(3)    # Contours need 3 pts.
+    def create(self, name):
+        self._client.condition_make_contour(
+            name, self._view.xparam(), self._view.yparam(), self._view.points()
+        )
+
+class BandController(GateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+        view.setMinpoints(2)     # Bands only need two points.
+    def create(self, name):
+        self._client.condition_make_band(
+            name, self._view.xparam(), self._view.yparam(), self._view.points()
+        )
+
 _condition_table = {
     ConditionTypes.Slice: ('Slice', SliceConditionEditor.EditorView, SliceGateController),
-    ConditionTypes.Contour: ("Contour", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.Contour: ("Contour", TwodConditionEditor.TwodConditionEditor, ContourController),
     ConditionTypes.And: ("And", CompoundConditionEditor.EditorView, AndGateController),
     ConditionTypes.Or: ("Or", CompoundConditionEditor.EditorView, OrGateController),
     ConditionTypes.Not: ("Not", NotConditionEditor.EditorView, NotGateController),
-    ConditionTypes.Band: ("Band", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.Band: ("Band", TwodConditionEditor.TwodConditionEditor, BandController),
     ConditionTypes.GammaContour: ("G Contour", TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.FalseCondition: ('False', 
         TrueFalseConditionEditor.TrueFalseView,  FalseGateController
