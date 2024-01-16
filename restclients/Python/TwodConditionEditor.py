@@ -23,62 +23,35 @@ from ParameterChooser import LabeledParameterChooser
 from spectrumeditor import error
 from parse import parse
 
-class TwodConditionEditor(QWidget):
+class PointListEditor(QWidget):
+    ''' This widget factors out editing 2d points from the
+        various 2d contision edtiros (contours, bands, gamma
+        contours and gamma bands.).   The shape of the widget
+        is line edits for X/Y point coordinates and an editable
+        list to hold the coordinates.  Coordinates are put in the
+        list box in the form: "( {x}, {y})" which also allows
+        us to use the parse method to pull them back out.
+        The editable list add signal is internally absorbed into
+        the _addpoint internal slot.  It is not intended that this
+        be overridden.  It includes validation.
+    Signals: None
+    Public Slots: None  
+    Attributes:
+        x      - X value (for point)
+        y      - Y value (for point)
+        points - list of points, each point containing {'x':xxxx, 'y':yyyy}  
+        
+    Normally a class that includes this widget will 
+    relay these attributes...or at least the points attribute.    
     '''
-        Signals:
-           commit - Create/replace the condition.
-        Slots:
-            validate - Called from the Create/Replace button's clicked signal. If
-                -   There's a condition name.
-                -   There's an x parameter.
-                -   There's a Y parameter
-                -   There are at lesat the minimum required points
-                commit is emitted.
-                If any of these conditions is not met, an error is popped up.
-            addpoint - Add an x/y poiunt to the list.
-        Attributes:
-            name - name of the condition.
-            xparam - name of the x parameter.
-            yparam - name of the y parameter.
-            x      - X value (for point)
-            y      - Y value (for point)
-            points - list of points, each point containing {'x':xxxx, 'y':yyyy}  
-            minpoints - Minimum allowed # of points     
-    '''
-    commit = pyqtSignal()
     def __init__(self, *args):
         super().__init__(*args)
-        
-        layout = QVBoxLayout()
-        
-        # Top is the condition name prompter:
-        
-        line1 = QHBoxLayout()
-        line1.addWidget(QLabel('Name: ', self))
-        self._name = QLineEdit(self)
-        line1.addWidget(self._name)
-        
-        layout.addLayout(line1)
-        
-        #   Line 2 are the X/Y parameters:
-        
-        line2 = QHBoxLayout()
-        line2.addWidget(QLabel('X param', self))
-        self._xparam = LabeledParameterChooser(self)
-        line2.addWidget(self._xparam)
-        line2.addWidget(QLabel('Y param', self))
-        self._yparam = LabeledParameterChooser(self)
-        line2.addWidget(self._yparam)
-        
-        layout.addLayout(line2)
-        
-        # Line 3 is a bit more complicated.
         #  |                                       |
         #  | X: [ entry ]     +------------------+ |
         #  | Y: [ entry ]     | Point list       | |
         #  |                  +------------------+ |
         #  |                                       |
-        line3 = QHBoxLayout()
+        layout = QHBoxLayout()
         x     = QHBoxLayout()
         y     = QHBoxLayout()
         coord = QVBoxLayout()
@@ -95,51 +68,19 @@ class TwodConditionEditor(QWidget):
         y.addWidget(self._y)
         coord.addLayout(y)
         coord.addStretch(1)
-        line3.addLayout(coord)
+        layout.addLayout(coord)
         
         self._points =  EditableList('Points', self)
-        line3.addWidget(self._points)
-        
-        layout.addLayout(line3)
-        
-        #  The create/replace is bottom.
-        
-        layout.addStretch(1)
-        self._commit = QPushButton('Create/Replace', self)
-        layout.addWidget(self._commit)
+        layout.addWidget(self._points)
         
         self.setLayout(layout)
-        
-        # Attribute initialization
-
-        self._minpoints = 3        # Contour
         
         # Internally catch the Add signal from the editable list
         # IF all goes well it will call the addpoint slot.
         
         self._points.add.connect(self._addpoint)
-        
-        # Similarly the commit button goes to our validate slot
-        
-        self._commit.clicked.connect(self.validate)
-    
     # Implement attributes:
     
-    def name(self):
-        return self._name.text()
-    def setName(self, txt):
-        self._name.setText(txt)
-        
-    def xparam(self):
-        return self._xparam.parameter()
-    def setXparam(self, name):
-        self._xparam.setParameter(name)
-        
-    def yparam(self):
-        return self._yparam.parameter()
-    def setYparam(self, name):
-        self._yparam.setParameter(name)
-        
     def x(self):
         try:
             return float(self._x.text())
@@ -170,12 +111,116 @@ class TwodConditionEditor(QWidget):
             x = pt['x']
             y = pt['y']
             items.append(f'({x}, {y})')
-        self._points.setList(items)
+        self._points.setList(items)    
+    # internal slots:
+    
+    def _addpoint(self):
+        x = self.x()
+        y = self.y()
+        if x is None or y is None:
+            return         # Need both x and y.
+        
+        self._points.appendItem(f'({x}, {y})')    
+class TwodConditionEditor(QWidget):
+    '''
+        Signals:
+           commit - Create/replace the condition.
+        Slots:
+            validate - Called from the Create/Replace button's clicked signal. If
+                -   There's a condition name.
+                -   There's an x parameter.
+                -   There's a Y parameter
+                -   There are at lesat the minimum required points
+                commit is emitted.
+                If any of these conditions is not met, an error is popped up.
+            addpoint - Add an x/y poiunt to the list.
+        Attributes:
+            name - name of the condition.
+            xparam - name of the x parameter.
+            yparam - name of the y parameter.
+            points - list of points, each point containing {'x':xxxx, 'y':yyyy}  
+            minpoints - Minimum allowed # of points     
+    '''
+    commit = pyqtSignal()
+    def __init__(self, *args):
+        super().__init__(*args)
+        
+        layout = QVBoxLayout()
+        
+        # Top is the condition name prompter:
+        
+        line1 = QHBoxLayout()
+        line1.addWidget(QLabel('Name: ', self))
+        self._name = QLineEdit(self)
+        line1.addWidget(self._name)
+        
+        layout.addLayout(line1)
+        
+        #   Line 2 are the X/Y parameters:
+        
+        line2 = QHBoxLayout()
+        line2.addWidget(QLabel('X param', self))
+        self._xparam = LabeledParameterChooser(self)
+        line2.addWidget(self._xparam)
+        line2.addWidget(QLabel('Y param', self))
+        self._yparam = LabeledParameterChooser(self)
+        line2.addWidget(self._yparam)
+        
+        layout.addLayout(line2)
+        
+        # Line 3 is a point list editor.
+        
+        self._pointlist = PointListEditor(self)
+        
+        layout.addWidget(self._pointlist)
+        
+        #  The create/replace is bottom.
+        
+        layout.addStretch(1)
+        self._commit = QPushButton('Create/Replace', self)
+        layout.addWidget(self._commit)
+        
+        self.setLayout(layout)
+        
+        # Attribute initialization
+
+        self._minpoints = 3        # Contour
+        
+        
+        
+        # Similarly the commit button goes to our validate slot
+        
+        self._commit.clicked.connect(self.validate)
+    
+    # Implement attributes:
+    
+    def name(self):
+        return self._name.text()
+    def setName(self, txt):
+        self._name.setText(txt)
+        
+    def xparam(self):
+        return self._xparam.parameter()
+    def setXparam(self, name):
+        self._xparam.setParameter(name)
+        
+    def yparam(self):
+        return self._yparam.parameter()
+    def setYparam(self, name):
+        self._yparam.setParameter(name)
         
     def minpoints(self):
         return self._minpoints
     def setMinpoints(self, value):
         self._minpoints = value
+    
+    #   These attributes relay the points attribute from
+    #   self._points.
+    
+    def points(self):
+        return self._pointlist.points()
+    def setPoints(self, pts):
+        self._pointlist.setPoints(pts)
         
     #   slots...note that if derived classes want additional
     #  Validations they should perform the first before invoking
@@ -193,16 +238,6 @@ class TwodConditionEditor(QWidget):
             error(f'At least {m} points are required for this type of condition.')
             return
         self.commit.emit()
-    
-    # internal slots:
-    
-    def _addpoint(self):
-        x = self.x()
-        y = self.y()
-        if x is None or y is None:
-            return         # Need both x and y.
-        
-        self._points.appendItem(f'({x}, {y})')
     
     #  Utilities
     def _empty(self, txt):
