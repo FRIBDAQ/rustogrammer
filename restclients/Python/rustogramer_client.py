@@ -492,6 +492,34 @@ class rustogramer:
             "xparameter":xparameter, "yparameter": yparameter, 
             "xcoord": xcoords, "ycoord": ycoords}
         )
+    def condition_make_gamma_slice(self, name, parameters, low, high):
+        return self._transaction(
+            'gate/edit',
+            {'name': name, 'type':'gs', 
+             'parameter':parameters, 
+             'low': low, 'high': high}
+        )
+    def condition_make_gamma_contour(self, name, parameters, points):
+        x = self._marshall(points, 'x')
+        y = self._marhsall(points, 'y')
+        return self._transaction(
+            'gate/edit',
+            {
+                'name': name, 'type': 'gc', 
+                'parameter': parameters, 'xcoord': x, 'ycoord': y
+            }
+        )
+    def condition_make_gamma_band(self, name, parameters, points):
+        x = self._marshall(points, 'x')
+        y = self._marhsall(points, 'y')
+        return self._transaction(
+            'gate/edit',
+            {
+                'name': name, 'type': 'gb', 
+                'parameter': parameters, 'xcoord': x, 'ycoord': y
+            }
+        )
+    
     #----------------------- Statistics API.
 
     def get_statistics(self, pattern="*"):
