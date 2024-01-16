@@ -175,6 +175,7 @@ class GammaEditorView(QWidget):
         
         
     '''
+    commit = pyqtSignal()
     def __init__(self, *args):
         super().__init__(*args)
         layout = QVBoxLayout()
@@ -220,6 +221,65 @@ class GammaEditorView(QWidget):
         layout.addWidget(self._accept)
         
         self.setLayout(layout)
+        
+        # internal signal handling:
+        
+        self._accept.clicked.connect(self.validate)
+        self._parameters.add.connect(self._add)
+        
+    
+    # Implement attributes:
+    
+    def name(self):
+        return self._name.text()
+    def setName(self, txt):
+        self._name.setText(txt)
+    
+    def parameters(self):
+        return self._parameters.list()
+    def setParameters(self, ps):
+        self._parameters.setList(ps)
+        
+    def low(self):
+        txt = self._low.text()
+        try:
+            return float(txt)
+        except:
+            return None
+    def setLow(self, value):
+        self._low.setText(f'{value}')
+    
+    def high(self):
+        txt = self._high.text()
+        try:
+            return float(txt)
+        except:
+            return None
+    def setHigh(self, value):
+        self._high.setText('f{value}')
+    
+    # Slots:
+    
+    def validate(self):
+        ''' Validates the contents and, if OK, emits commit
+        '''
+        
+        n = self.name()
+        if n == '' or n.isspace():
+            error("A condition name is required")
+            return
+        ps = self.parameters()
+        if len(ps) < 2:
+            error("For a gamma gate there should be at least two parameters")
+            return
+        if self.low() is None or self.high() is None:
+            error("Both low and high must be valid floating point valueas")
+            return
+        
+        self.commit.emit()
+    
+    def _add(self):
+        self._parameters.appendItem(self._parameter.parameter()) 
 #-------------------------- test code: ---------------------------------------
 
 
@@ -228,6 +288,11 @@ def create() :
     print("  name      : ", widget.name())
     print("  parameter : ", widget.parameter())
     print("  low/high  : ", widget.low(), widget.high())
+
+def gcreate():
+    print("Create:", gwidget.name())
+    print("  parameters:", gwidget.parameters())
+    print("  limits:" , gwidget.low(), gwidget.high())
 
 if __name__ == "__main__":
     from PyQt5.QtWidgets import QApplication, QMainWindow
@@ -247,6 +312,7 @@ if __name__ == "__main__":
     layout.addWidget(widget)
     
     gwidget = GammaEditorView()
+    gwidget.commit.connect(gcreate)
     layout.addWidget(gwidget)
     
     w.setLayout(layout)
