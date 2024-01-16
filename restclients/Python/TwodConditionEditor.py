@@ -244,6 +244,129 @@ class TwodConditionEditor(QWidget):
         return txt is None or txt == '' or txt.isspace()
         
         
+class Gamma2DEditor(QWidget):
+    ''' Gamma 2d editors; have a name list an arbitrary list of
+    parameters and a point list.  They can share a common
+    editor widget which only needs to be told how many points
+    are minimally required for the condition (3 for a contour, 
+    2 for a band):
+    
+    Signals:
+        commmit - A valid condition can be accepted.
+    Slots:
+        validate - Called when the Create/Replace button is 
+            clicked.  Must determine if a valid condition is in the
+            editor and emit commit if so.   See the validate method
+            for a description of the validations performed.  Note
+            that if overriding this slot, typically you should first
+            do your own validation _then_ invoke super().validate()
+            if your validations pass, so that commit is properly signalled.
+    Attributes:
+        name -   Name of the condition.
+        parameters - List of parameters to check
+        points     - List of point dicts in the editor {'x': x, 'y':y}
+                     
+    '''
+    commit = pyqtSignal()
+    def __init__(self, *args):
+        super().__init__(*args)
+        
+        layout = QVBoxLayout()
+        
+        # Top is the name prompter:
+        
+        row1 = QHBoxLayout();
+        row1.addWidget(QLabel('Name: ', self))
+        self._name = QLineEdit(self)
+        row1.addWidget(self._name)
+        layout.addLayout(row1)
+        
+        # Next is the parameter chooser and editable list
+        # of parmaeter names:
+        
+        row2 = QHBoxLayout()
+        self._parameter = LabeledParameterChooser(self)
+        row2.addWidget(self._parameter)
+        self._parameters = EditableList('parameters', self)
+        row2.addWidget(self._parameters)
+        layout.addLayout(row2)
+        
+        # Point list:
+        
+        self._points = PointListEditor(self)
+        layout.addWidget(self._points)
+        
+        # Confirmer:
+        
+        self._accept = QPushButton("Create/Replace")
+        layout.addWidget(self._accept)
+        
+        self.setLayout(layout)
+        
+        #  Default minpoints value:
+        
+        self._minpoints = 3     # For contour.
+        
+        # Internal signal handling:
+        
+        self._accept.clicked.connect(self.validate)
+        self._parameters.add.connect(self._addparameter)
+    
+    # Attributes:
+    
+    def name(self):
+        return self._name.text()
+    def setName(self, name):
+        self._name.setText(name)
+    
+    def parameters(self):
+        return self._parameters.list()
+    def setParameters(self, param_list):
+        self._parameters.setList(param_list)
+
+    def points(self):
+        return self._points.points()
+    def setPoints(self, pts):
+        self._points.setPoints(pts)
+    
+    def minpoints(self):
+        return self._minpoints
+    def setMinpoints(self, value):
+        self._minpoints = value
+    # Slots:
+    
+    def validate(self):
+        '''
+          Ensure that we have a valid gate before emittiung
+          commit:
+          *   There must be a condition name.
+          *   There must be at least two parameters.
+          *   There must be at leat minpoints points.
+          If any of these is not the case, an error dialog
+          is posted and commit is _not_ emitted.
+          If all of these are satisfied, commit is emitted.
+          
+        '''
+        n = self.name()
+        if n == '' or n.isspace():
+            error('A condition name is required')
+            return
+        if len(self.parameters()) < 2:
+            error('2d gamma conditions require at least two parameters')
+            return
+        m = self.minpoints()
+        if len(self.points()) < m:
+            error(f'At least {m} points must be accepted.')
+            return
+        #  All validations passed so:
+        
+        self.commit.emit()
+    def _addparameter(self):
+        name = self._parameter.parameter()
+        if name == '' or name.isspace():
+            return
+        self._parameters.appendItem(name)
+    
 #----------------- Test code ---------------------
 
 
@@ -254,6 +377,11 @@ def newgate():
     print("  ypar", wid.yparam())
     print("  pts ", wid.points())
 
+def ggate():
+    print("Gamma gate accepted:")
+    print("   namne", gwid.name())
+    print("   params", gwid.parameters())
+    print("   pts   ", gwid.points())
 if __name__ == '__main__':
     from PyQt5.QtWidgets import QApplication, QMainWindow
     from rustogramer_client import rustogramer as rc
@@ -264,10 +392,19 @@ if __name__ == '__main__':
     app = QApplication([])
     win = QMainWindow()
     
+    top = QWidget()
+    layout = QHBoxLayout()
     wid = TwodConditionEditor()
     wid.commit.connect(newgate)
+    layout.addWidget(wid)
     
-    win.setCentralWidget(wid)
+    gwid = Gamma2DEditor()
+    gwid.commit.connect(ggate)
+    layout.addWidget(gwid)
+    
+    top.setLayout(layout)
+    
+    win.setCentralWidget(top)
     win.show()
     app.exec()
         
