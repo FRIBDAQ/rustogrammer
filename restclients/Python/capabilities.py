@@ -211,14 +211,14 @@ supported_condition_types = {
     Program.Rustogramer : {
         ConditionTypes.And, ConditionTypes.Band, ConditionTypes.Contour, 
         ConditionTypes.FalseCondition, ConditionTypes.GammaContour,
-        ConditionTypes.GammaBand,
+        ConditionTypes.GammaSlice,
         ConditionTypes.Not, ConditionTypes.Or, ConditionTypes.Slice,
         ConditionTypes.TrueCondition
     },
     Program.SpecTcl : {
         ConditionTypes.And, ConditionTypes.Band, ConditionTypes.Contour, 
         ConditionTypes.FalseCondition, ConditionTypes.GammaContour,
-        ConditionTypes.GammaBand,
+        ConditionTypes.GammaBand, ConditionTypes.GammaSlice,
         ConditionTypes.Not, ConditionTypes.Or, ConditionTypes.Slice,
         ConditionTypes.TrueCondition,
         ConditionTypes.GammaBand, ConditionTypes.MaskEqual, ConditionTypes.MaskAnd,

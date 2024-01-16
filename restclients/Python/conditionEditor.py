@@ -162,6 +162,7 @@ _condition_table = {
     ConditionTypes.Band: ("Band", TwodConditionEditor.TwodConditionEditor, BandController),
     ConditionTypes.GammaContour: ("G Contour", TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.GammaBand: ('G Band', TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.GammaSlice: ('G Slice', TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.MaskEqual: ('Mask==', TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.MaskAnd: ("Mask *", TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.MaskOr: ("Mask +", TrueFalseConditionEditor.TrueFalseView, GateController),
