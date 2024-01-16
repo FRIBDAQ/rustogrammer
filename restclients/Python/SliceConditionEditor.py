@@ -18,6 +18,7 @@ from PyQt5.QtGui import QDoubleValidator
 from PyQt5.QtCore import  pyqtSignal
 from spectrumeditor import error
 from ParameterChooser import LabeledParameterChooser
+from editablelist import EditableList
 
 class EditorView(QWidget):
     '''
@@ -156,7 +157,69 @@ class EditorView(QWidget):
         
         self.commit.emit()             
 
+
+class GammaEditorView(QWidget):
+    '''
+    Provides the editor view for a gamma slice.  Gamma slices
+    are like slices but allow for an arbitrary number of parameters
+    to be accepted on the slice.
+    Signals:
+       commmit - The condition is filled in and can be added.
+    Slots:
+       validate - Validates that the condition is fully filled.
+    Attributes:
+        name       - name of the condition.
+        parameters - parameters selected.
+        low        - low limit of the slice.
+        high       - high limit of the slice.
         
+        
+    '''
+    def __init__(self, *args):
+        super().__init__(*args)
+        layout = QVBoxLayout()
+        
+        # Top line contains the  name.
+        line1 = QHBoxLayout()
+        line1.addWidget(QLabel('Name: ', self))
+        self._name= QLineEdit(self)
+        line1.addWidget(self._name)
+        
+        layout.addLayout(line1)
+        
+        # Next line contains parameter chooser array and
+        # editable list.
+        
+        line2 = QHBoxLayout()
+        self._parameter = LabeledParameterChooser(self)
+        line2.addWidget(self._parameter)
+        self._parameters = EditableList('Parameters', self)
+        line2.addWidget(self._parameters)
+        
+        layout.addLayout(line2)
+        
+        # next line contains low/high entries.
+        
+        line3 = QHBoxLayout()
+        
+        line3.addWidget(QLabel('Low:', self))
+        self._low = QLineEdit(self)
+        self._low.setValidator(QDoubleValidator())
+        line3.addWidget(self._low)
+        
+        line3.addWidget(QLabel("High:", self))
+        self._high = QLineEdit(self)
+        self._high.setValidator(QDoubleValidator())
+        line3.addWidget(self._high)
+        
+        layout.addLayout(line3)
+        
+        # Finally the Create/ReplaceButton.
+        
+        self._accept = QPushButton('Create/Replace',self)
+        layout.addWidget(self._accept)
+        
+        self.setLayout(layout)
 #-------------------------- test code: ---------------------------------------
 
 
@@ -176,9 +239,18 @@ if __name__ == "__main__":
     app = QApplication([])
     win = QMainWindow()
     
+    w = QWidget()
+    layout = QHBoxLayout()
+    
     widget = EditorView()
     widget.commit.connect(create)
-    win.setCentralWidget(widget)
+    layout.addWidget(widget)
+    
+    gwidget = GammaEditorView()
+    layout.addWidget(gwidget)
+    
+    w.setLayout(layout)
+    win.setCentralWidget(w)
     
     win.show()
     app.exec()
