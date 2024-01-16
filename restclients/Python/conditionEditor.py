@@ -171,6 +171,14 @@ class GammaBandController(GateController):
             name,  self._view.parameters(), self._view.points()
         )
 
+class GSliceController(GateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+    def create(self, name):
+        self._client.condition_make_gamma_slice(
+            name, self._view.parameters(), self._view.low(), self._view.high()
+        )
+
 _condition_table = {
     ConditionTypes.Slice: ('Slice', SliceConditionEditor.EditorView, SliceGateController),
     ConditionTypes.Contour: ("Contour", TwodConditionEditor.TwodConditionEditor, ContourController),
@@ -180,7 +188,7 @@ _condition_table = {
     ConditionTypes.Band: ("Band", TwodConditionEditor.TwodConditionEditor, BandController),
     ConditionTypes.GammaContour: ("G Contour", TwodConditionEditor.Gamma2DEditor, GammaContourController),
     ConditionTypes.GammaBand: ('G Band', TwodConditionEditor.Gamma2DEditor, GammaBandController),
-    ConditionTypes.GammaSlice: ('G Slice', TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.GammaSlice: ('G Slice', SliceConditionEditor.GammaEditorView, GSliceController),
     ConditionTypes.MaskEqual: ('Mask==', TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.MaskAnd: ("Mask *", TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.MaskOr: ("Mask +", TrueFalseConditionEditor.TrueFalseView, GateController),
