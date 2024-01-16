@@ -501,7 +501,7 @@ class rustogramer:
         )
     def condition_make_gamma_contour(self, name, parameters, points):
         x = self._marshall(points, 'x')
-        y = self._marhsall(points, 'y')
+        y = self._marshall(points, 'y')
         return self._transaction(
             'gate/edit',
             {
@@ -511,7 +511,7 @@ class rustogramer:
         )
     def condition_make_gamma_band(self, name, parameters, points):
         x = self._marshall(points, 'x')
-        y = self._marhsall(points, 'y')
+        y = self._marshall(points, 'y')
         return self._transaction(
             'gate/edit',
             {

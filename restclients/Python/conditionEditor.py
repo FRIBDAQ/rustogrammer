@@ -153,6 +153,24 @@ class BandController(GateController):
             name, self._view.xparam(), self._view.yparam(), self._view.points()
         )
 
+class GammaContourController(GateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+        view.setMinpoints(3)
+    def create(self, name):
+        self._client.condition_make_gamma_contour(
+            name,  self._view.parameters(), self._view.points()
+        )
+
+class GammaBandController(GateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+        view.setMinpoints(2)
+    def create(self, name):
+        self._client.condition_make_gamma_band(
+            name,  self._view.parameters(), self._view.points()
+        )
+
 _condition_table = {
     ConditionTypes.Slice: ('Slice', SliceConditionEditor.EditorView, SliceGateController),
     ConditionTypes.Contour: ("Contour", TwodConditionEditor.TwodConditionEditor, ContourController),
@@ -160,8 +178,8 @@ _condition_table = {
     ConditionTypes.Or: ("Or", CompoundConditionEditor.EditorView, OrGateController),
     ConditionTypes.Not: ("Not", NotConditionEditor.EditorView, NotGateController),
     ConditionTypes.Band: ("Band", TwodConditionEditor.TwodConditionEditor, BandController),
-    ConditionTypes.GammaContour: ("G Contour", TrueFalseConditionEditor.TrueFalseView, GateController),
-    ConditionTypes.GammaBand: ('G Band', TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.GammaContour: ("G Contour", TwodConditionEditor.Gamma2DEditor, GammaContourController),
+    ConditionTypes.GammaBand: ('G Band', TwodConditionEditor.Gamma2DEditor, GammaBandController),
     ConditionTypes.GammaSlice: ('G Slice', TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.MaskEqual: ('Mask==', TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.MaskAnd: ("Mask *", TrueFalseConditionEditor.TrueFalseView, GateController),
