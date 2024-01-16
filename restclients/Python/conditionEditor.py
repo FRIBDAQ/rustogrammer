@@ -161,6 +161,12 @@ _condition_table = {
     ConditionTypes.Not: ("Not", NotConditionEditor.EditorView, NotGateController),
     ConditionTypes.Band: ("Band", TwodConditionEditor.TwodConditionEditor, BandController),
     ConditionTypes.GammaContour: ("G Contour", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.GammaBand: ('G Band', TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.MaskEqual: ('Mask==', TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.MaskAnd: ("Mask *", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.MaskOr: ("Mask +", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.MaskNand: ("Mask -*", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.C2Band: ('C2Band', TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.FalseCondition: ('False', 
         TrueFalseConditionEditor.TrueFalseView,  FalseGateController
     ),
