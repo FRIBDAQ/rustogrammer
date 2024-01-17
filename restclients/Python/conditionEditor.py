@@ -9,6 +9,7 @@ import CompoundConditionEditor
 import NotConditionEditor
 import SliceConditionEditor
 import TwodConditionEditor
+import MaskGateEditor
 from capabilities import (
     ConditionTypes, get_supported_condition_types, set_client, get_client
 )
@@ -179,6 +180,24 @@ class GSliceController(GateController):
             name, self._view.parameters(), self._view.low(), self._view.high()
         )
 
+class MaskEqualController(GateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+    def create(self, name):
+        self._client.condition_make_mask_equal(name, self._view.parameter(), self._view.mask())
+
+class MaskAndController(GateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+    def create(self, name):
+        self._client.condition_make_mask_and(name, self._view.parameter(), self._view.mask())
+        
+class MaskNandController(GateController):
+    def __init__(self, view, client, editor):
+        super().__init__(view, client, editor)
+    def create(self, name):
+        self._client.condition_make_mask_nand(name, self._view.parameter(), self._view.mask())
+        
 _condition_table = {
     ConditionTypes.Slice: ('Slice', SliceConditionEditor.EditorView, SliceGateController),
     ConditionTypes.Contour: ("Contour", TwodConditionEditor.TwodConditionEditor, ContourController),
@@ -189,10 +208,9 @@ _condition_table = {
     ConditionTypes.GammaContour: ("G Contour", TwodConditionEditor.Gamma2DEditor, GammaContourController),
     ConditionTypes.GammaBand: ('G Band', TwodConditionEditor.Gamma2DEditor, GammaBandController),
     ConditionTypes.GammaSlice: ('G Slice', SliceConditionEditor.GammaEditorView, GSliceController),
-    ConditionTypes.MaskEqual: ('Mask==', TrueFalseConditionEditor.TrueFalseView, GateController),
-    ConditionTypes.MaskAnd: ("Mask *", TrueFalseConditionEditor.TrueFalseView, GateController),
-    ConditionTypes.MaskOr: ("Mask +", TrueFalseConditionEditor.TrueFalseView, GateController),
-    ConditionTypes.MaskNand: ("Mask -*", TrueFalseConditionEditor.TrueFalseView, GateController),
+    ConditionTypes.MaskEqual: ('Mask==', MaskGateEditor.View, MaskEqualController),
+    ConditionTypes.MaskAnd: ("Mask *", MaskGateEditor.View, MaskAndController),
+    ConditionTypes.MaskNand: ("Mask -*", MaskGateEditor.View, MaskNandController),
     ConditionTypes.C2Band: ('C2Band', TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.FalseCondition: ('False', 
         TrueFalseConditionEditor.TrueFalseView,  FalseGateController
