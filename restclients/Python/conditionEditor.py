@@ -211,7 +211,6 @@ _condition_table = {
     ConditionTypes.MaskEqual: ('Mask==', MaskGateEditor.View, MaskEqualController),
     ConditionTypes.MaskAnd: ("Mask *", MaskGateEditor.View, MaskAndController),
     ConditionTypes.MaskNand: ("Mask -*", MaskGateEditor.View, MaskNandController),
-    ConditionTypes.C2Band: ('C2Band', TrueFalseConditionEditor.TrueFalseView, GateController),
     ConditionTypes.FalseCondition: ('False', 
         TrueFalseConditionEditor.TrueFalseView,  FalseGateController
     ),
