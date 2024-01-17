@@ -10,13 +10,18 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, 
     QApplication, QMainWindow
 )
-from PyQt5.QtCore import pyqtSignal
+
+from PyQt5.QtCore import pyqtSignal, QSortFilterProxyModel
 import gatelist
 import parse
 
 #  We need this separate model so that filters applied here don't affect the
 #  comboboxes etc.
-filtered_gate_model = gatelist.ConditionModel()
+filtered_gate_model = QSortFilterProxyModel()
+filtered_gate_model.setSourceModel(gatelist.common_condition_model)
+filtered_gate_model.setFilterKeyColumn(0)
+filtered_gate_model.setFilterWildcard('*')
+
 
 class GateView(QTableView):
     select = pyqtSignal()
@@ -33,7 +38,6 @@ class GateView(QTableView):
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
     def selectionChanged(self, new, old):
         # (override)
-        print("selection changed")
         super().selectionChanged(new, old)
         self.select.emit()   
 
@@ -123,15 +127,17 @@ class FilteredConditions(QWidget):
     #  private utilities:
     def _make_row(self, row_num):
         model = self._list.model()
-        name =  model.item(row_num, 0).text()
-        type_str = model.item(row_num, 1).text()
-        gates    = self._make_string_list(model.item(row_num, 2).text())
-        params = self._make_string_list(model.item(row_num, 3).text())
-        points  = self._make_point_list(model.item(row_num, 4).text())
-        hilo    = self._make_limits(model.item(row_num, 5).text())
+        name =  model.index(row_num, 0).data()
+        type_str = model.index(row_num, 1).data()
+        gates    = self._make_string_list(model.index(row_num, 2).data())
+        params = self._make_string_list(model.index(row_num, 3).data())
+        points  = self._make_point_list(model.index(row_num, 4).data())
+        hilo    = self._make_limits(model.index(row_num, 5).data())
+        mask    = model.index(row_num, 6).data()
         return {
                 'name': name, 'type': type_str, 'gates' : gates,
-                'parameters': params, 'points': points, 'low': hilo[0], 'high': hilo[1]
+                'parameters': params, 'points': points, 'low': hilo[0], 'high': hilo[1],
+                'mask': mask
                 }
     def _make_string_list(self, gates):
         if gates == '' or gates.isspace():
@@ -186,7 +192,8 @@ class GateActionView(QWidget):
 
 def update() :
     pattern = w.filter()
-    filtered_gate_model.load(c, pattern)
+    gatelist.common_condition_model.load(c)
+    filtered_gate_model.setFilterWildcard(pattern)
     print('contents:', w.contents())
 
 def select():
@@ -221,7 +228,7 @@ if __name__ == "__main__":
 
     app = QApplication([])
     win = QMainWindow()
-    filtered_gate_model.load(c)
+    gatelist.common_condition_model.load(c)
     w = FilteredConditions()
     
     # Check signals and attributes>
