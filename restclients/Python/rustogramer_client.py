@@ -523,21 +523,24 @@ class rustogramer:
         return self._transaction(
             'gate/edit',
             {
-                'name': name, 'type': 'em', 'value': value
+                'name': name, 'type': 'em', 'value': value,
+                'parameter': parameter
             }
         )
     def condition_make_mask_and(self, name, parameter, value):
         return self._transaction(
             'gate/edit',
             {
-                'name': name, 'type': 'am', 'value': value
+                'name': name, 'type': 'am', 'value': value,
+                'parameter': parameter
             }
         )
-    def condition_make_mask_nand():
+    def condition_make_mask_nand(self, name, parameter, value):
         return self._transaction(
             'gate/edit',
             {
-                'name': name, 'type': 'nm', 'value': value
+                'name': name, 'type': 'm', 'value': value,
+                'parameter': parameter
             }
         )
     #----------------------- Statistics API.
