@@ -519,7 +519,27 @@ class rustogramer:
                 'parameter': parameters, 'xcoord': x, 'ycoord': y
             }
         )
-    
+    def condition_make_mask_equal(self, name, parameter, value):
+        return self._transaction(
+            'gate/edit',
+            {
+                'name': name, 'type': 'em', 'value': value
+            }
+        )
+    def condition_make_mask_and(self, name, parameter, value):
+        return self._transaction(
+            'gate/edit',
+            {
+                'name': name, 'type': 'am', 'value': value
+            }
+        )
+    def condition_make_mask_nand():
+        return self._transaction(
+            'gate/edit',
+            {
+                'name': name, 'type': 'nm', 'value': value
+            }
+        )
     #----------------------- Statistics API.
 
     def get_statistics(self, pattern="*"):
