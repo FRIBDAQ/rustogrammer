@@ -26,7 +26,7 @@ class ConditionModel(QStandardItemModel):
     def __init__(self, *args):
         super().__init__(*args)
         self._colheadings = [
-            'Name', 'Type', 'Gates', 'Parameters', 'Points', 'Limits'
+            'Name', 'Type', 'Gates', 'Parameters', 'Points', 'Limits', 'Mask'
         ]
     def load(self, client, pattern = '*'):
         data = client.condition_list(pattern)['detail']
@@ -48,7 +48,8 @@ class ConditionModel(QStandardItemModel):
         parameters = QStandardItem(self._get_string_list(c, 'parameters'))
         points     = QStandardItem(self._get_points(c))
         limits     = QStandardItem(self._get_limits(c))
-        self.appendRow([name, type_string, gates, parameters, points, limits])
+        mask      = QStandardItem(self._get_mask(c))
+        self.appendRow([name, type_string, gates, parameters, points, limits, mask])
     def _get_field(self, item, key):
         #  If there is no field, None is returned, else the contents
         # of that field are returned...irregardless of type
@@ -73,7 +74,10 @@ class ConditionModel(QStandardItemModel):
                 y = p['y']
                 result_strings.append(f'({x}, {y})')
             result = ', '.join(result_strings)
+    
         return result
+    def _get_mask(self, c):
+        return self._get_field(c, 'value')
     def _get_limits(self, c):
         # Return the approprate limits string. Note that
         # low implies a high:
@@ -84,7 +88,7 @@ class ConditionModel(QStandardItemModel):
         else :
             high = c['high']     # Low implies a high.
             return f'{low}, {high}'
-
+    
 common_condition_model = ConditionModel()   # So all gate things look the same.
 
 ''' We provide the following GUI elements;
