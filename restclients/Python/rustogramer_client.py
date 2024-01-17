@@ -539,7 +539,7 @@ class rustogramer:
         return self._transaction(
             'gate/edit',
             {
-                'name': name, 'type': 'm', 'value': value,
+                'name': name, 'type': 'nm', 'value': value,
                 'parameter': parameter
             }
         )
