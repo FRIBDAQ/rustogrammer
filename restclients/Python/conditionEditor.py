@@ -219,6 +219,25 @@ _condition_table = {
     )
 }
 
+#  This is a table of condition type strings to tab label strings. It must be
+#  kept synchonrized with the _condition_table above:
+
+_type_to_label_table = {
+    's' : 'Slice',
+    'c' : "Contour",
+    '*' : "And",
+    '+' : "Or",
+    '-' : "Not",
+    'b' : "Band",
+    'gc': "G Contour", 
+    'gb': 'G Band',
+    'gs': 'G Slice',
+    'em': 'Mask==',
+    'am': "Mask *",
+    'nm': "Mask -*",
+    'F' : 'False', 
+    'T' : 'True', 
+}
 class ConditionEditor(QTabWidget):
     
     '''This provides the tabbed widget and stocks it with tabs that are germane to the
@@ -234,12 +253,15 @@ class ConditionEditor(QTabWidget):
         self._client = client
         supported_conditions = get_supported_condition_types()
         self._controllers = dict()
-        for ctype in _condition_table.keys():
+        self._views       = dict()
+
+        for  ctype in _condition_table.keys():
             if ctype in supported_conditions:
                 (label, viewclass, controllerclass) = _condition_table[ctype]
                 widget = viewclass(self)
                 controller = controllerclass(widget, client, self)
                 self._controllers[label] = controller
+                self._views[label] = widget
                 self.addTab(widget, label)
     #  Utilities the controller might need.
     
@@ -250,7 +272,14 @@ class ConditionEditor(QTabWidget):
         # This is always called after signal_removal so we don't do anything in test mode.
         self.condition_added.emit(name)
         
-
+    def getController(self, type_string):
+        return self._controllers[_type_to_label_table[type_string]]
+    def getView(self, type_string):
+        return self._views[_type_to_label_table[type_string]]
+    def selectTab(self, type_string):
+        widget = self.getView(type_string)
+        tab_no = self.indexOf(widget)
+        self.setCurrentIndex(tab_no)
 
 if __name__ == '__main__':
         from ParameterChooser import update_model
