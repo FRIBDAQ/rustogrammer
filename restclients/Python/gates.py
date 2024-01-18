@@ -9,10 +9,11 @@
 from PyQt5.QtWidgets import(
     QWidget, QVBoxLayout
 )
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, QObject
 
 import conditionEditor
 import filteredgates
+from spectrumeditor import error
 
 class Gates(QWidget):
     '''
@@ -35,12 +36,15 @@ class Gates(QWidget):
         validate_load - Called when the load button is clicked to ensure that
             load can be emitted.  If  overriding this to add validations, call super().validate_load()
             last to ensure the signal does not get emitted prematurely.
-        select    - Called when the gate selection has changed.  The current selection is 
+        select_changed    - Called when the gate selection has changed.  The current selection is 
                     marshalled and our select is emitted with that selection as a a parameter
+        del_selected - marshall the selected items for he delete_selected signals.
     Attributes:
         gatelist - (readonly) returns the filtered gate list widget.
         editor   - (readonly) returns the editor widget.
-        actions  - (readonly) returns the GateActionView at the bottom of the table.
+        actions  - (readonly) returns the GateActionView above the table.
+        NOTE: In general you don't need to connect to any signals in these widgets,
+              they get filtered and relayed through our signals.
     '''
     update_gates = pyqtSignal()
     update_params= pyqtSignal()
@@ -54,6 +58,8 @@ class Gates(QWidget):
     
     def __init__(self, *args):
         super().__init__(*args)
+        
+        # -- Layout the controls:
         
         layout = QVBoxLayout()
         
@@ -73,8 +79,89 @@ class Gates(QWidget):
         layout.addWidget(self._list)
         
         self.setLayout(layout)
+        
+        #  Direct signal relays:
+        
+        self._list.update.connect(self.update_gates)
+        self._list.clear.connect(self.clear)
+        self._editor.condition_removed.connect(self.condition_removed)
+        self._editor.condition_added.connect(self.condition_added)
+        
+        # Signals that connect to slots which may or may not emit our signals:
+        
+        self._list.select.connect(self.select_changed)
+        self._actions.loadeditor.connect(self.validate_load)
+        self._actions.delselected.connect(self.del_selected)
+        self._actions.delall.connect(self._deleteall)
     
+    # Slots:
     
+    def select_changed(self):
+        '''  invoked when the list sends a select signal.  All we do is
+            get the selection and pass it on to our own select signal:
+        '''
+        selection = self._list.selection()
+        self.select.emit(selection)
+        
+    def validate_load(self):
+        '''
+        Determine if the load signal can be emitted.  This is the
+        case if there is exactly one selection.  
+        
+        '''
+        selection = self._list.selection()
+        if len(selection) == 1:
+            self.load.emit(selection[0])
+        else:
+            error("The 'Load Editor' button requires exactly one condition be selected from the list")
+    def del_selected(self):
+        '''
+        This slot is invoked when the delete selected button is clicked on the
+        action widget.  We pull the list of selected items from the condition
+        list element and emit it via our delete_selected signal:
+        '''
+        items = self._list.selection()
+        self.delete_selected.emit(items)
+    
+    # Non-public slots:
+    
+    def _deleteall(self):
+        # Get the contents of the list and emit them with the delete_displayed signal:
+        items = self._list.contents()
+        self.delete_displayed.emit(items)
+        
+        
+        
+    
+    #  Implement attributes:
+    def gatelist(self):
+        return self._list
+    def editor(self):
+        return self._editor
+    def actions(self):
+        return self._actions
+    
+class  Controller:
+    '''
+    This controller mediates between the signals the Gates widget emits and actions
+    done in the server.  It should be instantiated along with the Gate widget as that's
+    just a view in the MVC architecture where we are a controller and the model is the
+    server state.
+    '''
+    def __init__(self, view, client):
+        '''
+           view - A Gates widget object that we are the controller of.
+           client - a REST client to the server.
+        '''
+        
+        #  Save our internal state:
+        
+        self._view = view
+        self._client = client
+        
+        #  Connect singnals to our handlers:
+        
+        
 #-----------------------------------------------------------------
 # Test code:
 

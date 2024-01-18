@@ -71,6 +71,7 @@ param_controller = parametercontroller.ParameterController(
 if capabilities.get_program() == capabilities.Program.SpecTcl:
     tabs.addTab(QWidget(), 'Variables')
 condition_view = gates.Gates()
+condition_controller = gates.Controller(condition_view, client)
 tabs.addTab(condition_view, 'Gates')
 
 main.setCentralWidget(tabs)
