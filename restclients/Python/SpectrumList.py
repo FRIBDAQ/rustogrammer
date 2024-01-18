@@ -240,12 +240,14 @@ class SpectrumModel(QStandardItemModel):
 #  Test the model/view.
 
 theClient = None
-
+model = None
 def update(pattern):
     global theClient
+    global model
     model.load_spectra(theClient, pattern)
 def testmv(host, port):
     global theClient
+    global model
     client = rustogramer({'host': host, 'port': port})
     theClient = client
     # Make parameter(s) and spectra try/catch in case we've already
