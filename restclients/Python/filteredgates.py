@@ -36,6 +36,7 @@ class GateView(QTableView):
         self.setModel(filtered_gate_model)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
     def selectionChanged(self, new, old):
         # (override)
         super().selectionChanged(new, old)
