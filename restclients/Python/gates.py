@@ -166,6 +166,12 @@ class  Controller:
         view.load.connect(self._load)
         view.delete_selected.connect(self._delete_list)
         view.delete_displayed.connect(self._delete_list)
+        
+        # For now, condition_removed and condition_added just update
+        # Later we may want a more targeted approach:
+        
+        view.condition_removed.connect(self._update)
+        view.condition_added.connect(self._update)
     # Slots   
     
     def _update(self):
