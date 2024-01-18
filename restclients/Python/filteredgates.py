@@ -148,10 +148,8 @@ class FilteredConditions(QWidget):
             return None
         text_list = gates.split('), ')
         result = list()
-        print("Points: ", text_list)
         for pt_s in text_list:
             pt = parse.parse('({}, {}', pt_s)
-            print('point:', pt)
             result.append({'x': pt[0], 'y': pt[1]})
         return result
     def _make_limits(self, gates):
