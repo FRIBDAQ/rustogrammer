@@ -40,6 +40,7 @@ class SpectrumView(QTableView):
         super().__init__(parent)
         self.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._selected_spectra = []
         self._selected_rows = []
 
