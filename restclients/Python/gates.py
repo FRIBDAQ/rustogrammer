@@ -219,7 +219,7 @@ if __name__ == '__main__':
     client = rc({'host': 'localhost', 'port':8000})
     set_client(client)
     common_condition_model.load(client)
-    update_model(client)
+    ParameterChooser.update_model(client)
     
     app = QApplication([])
     win = QMainWindow()
