@@ -170,6 +170,8 @@ class  Controller:
         # For now, condition_removed and condition_added just update
         # Later we may want a more targeted approach:
         
+        # Need them both because deletion is possible with creation.
+        
         view.condition_removed.connect(self._update)
         view.condition_added.connect(self._update)
     # Slots   
@@ -196,6 +198,23 @@ class  Controller:
         # Load the appropriate editor and select its tab
         
         print('load stub would load', condition)
+        type_string = condition['type']
+        self._view.editor().selectTab(type_string)
+        eview = self._view.editor().getView(type_string)
+        
+        # How a view is loaded depends on the type however they all have the name attribute:
+        
+        eview.setName(condition['name']) 
+        if type_string == 's':
+            eview.setParameter(condition['parameters'][0])
+            eview.setLow(condition['low'])
+            eview.setHigh(condition['high'])
+        elif type_string == 'c' or type_string == 'b':  # Contour and Band are the same view:
+            eview.setXparam(condition['parameters'][0])
+            eview.setYparam(condition['parameters'][1])
+            eview.setPoints(condition['points'])
+        elif type_string == '*' or type_string == '+':   # And, Or are the same view:
+            eview.setDependencies(condition['gates'])   
         
     def _delete_list(self, names):
         # Deletes a list of conditions by name:
