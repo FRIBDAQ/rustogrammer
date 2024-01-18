@@ -236,7 +236,7 @@ class SpectrumModel(QStandardItemModel):
         result = QStandardItem(s)  
         result.setEditable(False)
         return result
-
+#--------------------------   test code --------------------
 #  Test the model/view.
 
 theClient = None
