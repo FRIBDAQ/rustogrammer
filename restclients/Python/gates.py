@@ -14,7 +14,9 @@ from PyQt5.QtCore import pyqtSignal, QObject
 import conditionEditor
 import filteredgates
 from spectrumeditor import error
-
+from gatelist import common_condition_model    # Condition model.
+import ParameterChooser
+from rustogramer_client import RustogramerException
 class Gates(QWidget):
     '''
     Widget that is what belongs in the Gates tab of the GUI.
@@ -47,7 +49,7 @@ class Gates(QWidget):
               they get filtered and relayed through our signals.
     '''
     update_gates = pyqtSignal()
-    update_params= pyqtSignal()
+    update_params= pyqtSignal()              # TODO - not yet signalled!!!!
     select      = pyqtSignal(list)
     clear       = pyqtSignal()
     load        = pyqtSignal(dict)
@@ -120,18 +122,15 @@ class Gates(QWidget):
         action widget.  We pull the list of selected items from the condition
         list element and emit it via our delete_selected signal:
         '''
-        items = self._list.selection()
+        items = [x['name'] for x in self._list.selection()]
         self.delete_selected.emit(items)
     
     # Non-public slots:
     
     def _deleteall(self):
         # Get the contents of the list and emit them with the delete_displayed signal:
-        items = self._list.contents()
+        items = [x['name'] for x in self._list.contents()]
         self.delete_displayed.emit(items)
-        
-        
-        
     
     #  Implement attributes:
     def gatelist(self):
@@ -160,6 +159,49 @@ class  Controller:
         self._client = client
         
         #  Connect singnals to our handlers:
+    
+        view.update_gates.connect(self._update)
+        view.update_params.connect(self._pupdate)
+        view.clear.connect(self._clear)
+        view.load.connect(self._load)
+        view.delete_selected.connect(self._delete_list)
+        view.delete_displayed.connect(self._delete_list)
+    # Slots   
+    
+    def _update(self):
+        # note that the mask might have changed so the filtered gates model might need to
+        # get modified too - do this first:
+        mask = self._view.gatelist().filter()
+        filteredgates.filtered_gate_model.setFilterWildcard(mask)
+        common_condition_model.load(self._client)
+        
+    def _pupdate(self):
+        #  Update the full parameter name model.
+        
+        ParameterChooser.update_model(self._client)   
+        
+    def _clear(self): 
+        #  Clear the pattern back to * and update:
+        
+        self._view.gatelist().setFilter('*')
+        self._update()
+        
+    def _load(self, condition):
+        # Load the appropriate editor and select its tab
+        
+        print('load stub would load', condition)
+        
+    def _delete_list(self, names):
+        # Deletes a list of conditions by name:
+        
+        for condition in names:
+            try:
+                self._client.condition_delete(condition)
+                self._view.editor().signal_removal(condition)
+            except RustogramerException as e:
+                error(f'Unable to remove condition {condition} : {e} - prior conditions in the selected list were deleted')
+                return
+        
         
         
 #-----------------------------------------------------------------
@@ -167,8 +209,7 @@ class  Controller:
 
 if __name__ == '__main__':
     from rustogramer_client import rustogramer as rc
-    from gatelist import common_condition_model    # Condition model.
-    from ParameterChooser import update_model      # Update parameter model.   
+       
     from capabilities import set_client 
     
     from PyQt5.QtWidgets import (
