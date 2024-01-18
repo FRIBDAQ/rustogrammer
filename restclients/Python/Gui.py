@@ -21,6 +21,7 @@ import capabilities
 import parametercontroller
 import parameditor
 import gatelist
+import gates
 from rustogramer_client import rustogramer as RestClient
 
 PORTMAN_PORT=30000
@@ -69,7 +70,8 @@ param_controller = parametercontroller.ParameterController(
 
 if capabilities.get_program() == capabilities.Program.SpecTcl:
     tabs.addTab(QWidget(), 'Variables')
-tabs.addTab(QWidget(), 'Gates')
+condition_view = gates.Gates()
+tabs.addTab(condition_view, 'Gates')
 
 main.setCentralWidget(tabs)
 
