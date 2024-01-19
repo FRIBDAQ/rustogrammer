@@ -701,10 +701,11 @@ class ProjectionController(AbstractController):
         #   1. A contour or multi contour ('c' or 'gc')
         #   2. Its x and y parameters are all present on the spectrum_def
 
+        print('condition', condition)
         xpars = spectrum_def['xparameters']
         ypars = spectrum_def['yparameters']
 
-        gate_params = condition['parameters']
+        gate_params = self._index_or_none(condition, 'parameters')
 
         # Interpretation  of gate_params depends on the condition type.
 
@@ -717,7 +718,11 @@ class ProjectionController(AbstractController):
             return True
         else:
             return False
-
+    def _index_or_none(self, map, idx):
+        if idx in map.keys():
+            return map[idx]
+        else:
+            return None
 
 #   Controller to handle stript chart spectra.
 
