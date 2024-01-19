@@ -197,7 +197,6 @@ class  Controller:
     def _load(self, condition):
         # Load the appropriate editor and select its tab
         
-        print('load stub would load', condition)
         type_string = condition['type']
         self._view.editor().selectTab(type_string)
         eview = self._view.editor().getView(type_string)
