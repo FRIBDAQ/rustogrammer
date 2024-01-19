@@ -214,7 +214,16 @@ class  Controller:
             eview.setYparam(condition['parameters'][1])
             eview.setPoints(condition['points'])
         elif type_string == '*' or type_string == '+':   # And, Or are the same view:
-            eview.setDependencies(condition['gates'])   
+            eview.setDependencies(condition['gates']) 
+        elif type_string ==  '-':
+            eview.setCondition(condition['gates'][0])
+        elif type_string == 'gc' or type_string == 'gb':
+            eview.setParameters(condition['parameters'])
+            eview.setPoints(condition['points'])
+        elif type_string == 'gs':
+            eview.setParameters(condition['parameters'])
+            eview.setLow(condition['low'])
+            eview.setHigh(condition['high'])            
         
     def _delete_list(self, names):
         # Deletes a list of conditions by name:

@@ -256,7 +256,7 @@ class GammaEditorView(QWidget):
         except:
             return None
     def setHigh(self, value):
-        self._high.setText('f{value}')
+        self._high.setText(f'{value}')
     
     # Slots:
     
