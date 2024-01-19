@@ -12,7 +12,8 @@
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
-    QComboBox, QWidget, QPushButton, QCheckBox,
+    QComboBox, QWidget, QPushButton, QCheckBox, QTableWidget, QAbstractItemView,
+    QLabel, QLineEdit,
     QHBoxLayout, QVBoxLayout
 )
 
@@ -173,29 +174,135 @@ class VariableSelector(QWidget):
     
     
 
+class VariableTable(QTableWidget):
+    '''
+    This is a table for tree variables each row has a name, value and units column.
+    Methods:
+       clear - Remove all rows from the table.
+       append - Append a row.
+       replace - Replace an existing row.
+       remove  - Remove an existing row.
+       selection - Return the currently selected rows.
+    '''
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.setColumnCount(3)
+        self.setHorizontalHeaderLabels(['Name', 'Value', 'Units'])
+        self.showGrid()
+        self.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+    
+    # Public methods:
+    def clear(self):
+        ''' Clear all table rows.'''
+        while self.rowCount() > 0:
+            self.remove(0)
+    def append(self, definition):
+        ''' 
+            Appends a new row to the table.  definition is a definition of a tree variable
+            that may have come from the model's get_definition  method.
+        '''
+        
+        self._append_row(definition)
+    
+    def replace(self, row, definition):
+        ''' 
+        Replaces the contents of 'row' with 'definition'.  If row is out of range, 
+        raises indexerror.
+        '''
+
+        self._check_row(row)
+        row_items = self._make_row(definition)
+        col = 0
+        for item in row_items:
+            self.setCellWidget(row, col, item)
+            col += 1
+    
+    def remove(self, row):
+        '''
+        Remove row number 'row' from the table.  Again if row is out of range raises index error
+        '''
+        self._check_row(row)
+        self.removeRow(row)
+    
+    def selection(self):
+        '''
+        Return the contents of the current selection. This is a (possibly empty) list of dicts
+        with the keys:
+        'name'   - Name of the treevariable in that row.
+        'value'  - Value field in that row.
+        'units'  - Units in that row.
+        'row'    - Row number in the table.
+        '''
+        
+        
+        selected_rows = self._selected_rows()
+        result = list()
+        for row in selected_rows:
+            name = self.cellWidget(row, 0).text()
+            value = float(self.cellWidget(row,1).text())
+            units = self.cellWidget(row, 2).text()
+            result.append({
+                'name': name, 'value': value, 'units': units, 'row' : row
+            })
+        return result
+        
+        
+    #   Utilities (private):
+    def _selected_rows(self):
+        ranges=  self.selectedRanges()
+        rows = list()
+        for r in ranges:
+            bottom = r.bottomRow()
+            top    = r.topRow()
+            for row in range(top, bottom+1):
+                rows.append(row)
+        return rows
+        
+    def _append_row(self, definition):
+        oldcount =self.rowCount()
+        self.setRowCount(oldcount + 1)
+        self.replace(oldcount, definition)
+    
+    def _check_row(self, row):
+        if row > self.rowCount() - 1:
+            raise IndexError(f"No such row in VariableTable {row}")
+    def _make_row(self, definition):
+        name = QLabel(definition['name'], self)
+        value = QLineEdit(str(definition['value']) ,self) 
+        units = QLineEdit(definition['units'], self)
+        return [name, value, units]
+
+        
 #------------------------------------- Test code ------------------------
 
-def selected():
-    print(wid.definition())
-def append():
-    print("append")
-    selected()
-def replace():
-    print('replace')
-    selected()
-def remove():
-    print('remove')
-    selected()
-def load():
-    print('load', wid.array())
-def setvalue(): 
-    print('set', wid.array())
+
 
 if __name__ == '__main__':
     
-    
     from rustogramer_client import rustogramer as rcl
     from PyQt5.QtWidgets import (QApplication, QMainWindow)
+    
+    def selected():
+        return  wid.definition()
+    def append():
+        table.append(selected())
+    def replace():
+        selection = table.selection()
+        if len(selection) == 1:
+            row = selection[0]['row']
+            table.replace(row, selected())
+        selected()
+    def remove():
+        sel = table.selection()
+        rows = [x['row'] for x in sel]
+        rows.sort(reverse=True)
+        for row in rows:
+            table.remove(row)
+    def load():
+        print('load', wid.array())
+    def setvalue(): 
+        print('set', wid.array())
     
     client = rcl({'host':'localhost', 'port': 8000})
     common_treevariable_model.load(client)
@@ -210,7 +317,16 @@ if __name__ == '__main__':
     wid.load.connect(load)
     wid.set.connect(setvalue)
     
-    win.setCentralWidget(wid)
+    table = VariableTable()
+    
+    widget = QWidget()
+    layout= QVBoxLayout()
+    layout.addWidget(wid)
+    layout.addWidget(table)
+    widget.setLayout(layout)
+    
+    
+    win.setCentralWidget(widget)
     win.show()
     app.exec()
         
