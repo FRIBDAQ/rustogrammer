@@ -10,8 +10,11 @@
 '''
 
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import (QComboBox)
+from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtWidgets import (
+    QComboBox, QWidget, QPushButton, QCheckBox,
+    QHBoxLayout, QVBoxLayout
+)
 
 
 class TreeVariableModel(QStandardItemModel):
@@ -80,13 +83,116 @@ class VariableChooser(QComboBox):
         super().__init__(*args)
         self.setEditable(False)
         self.setModel(common_treevariable_model)
+        
+class VariableSelector(QWidget):
+    '''
+    Provides the controls needed to choose tree variables and add them to some
+    editable thing.  This consists of a variable chooser and the buttons:
+    Append, Replace, Remove, Load and Set. A checkbutton called 'array' is also present.
+    
+    Signals:
+        append  - the append button was clicked.
+        replace - the replace button was clicked.
+        remove  - the remove button was clicked.
+        load    - the load button was clicked.
+        set     - the set button was clicked.
+        
+    Slots:
+        None
+    Attributes:
+        name - (readonly) Selected name.
+        definition - (readonly) - definition of selected item.
+        array - Value of the array checkbutton.
+        
+    '''
+    append = pyqtSignal()
+    replace = pyqtSignal()
+    remove = pyqtSignal()
+    load   = pyqtSignal()
+    set    = pyqtSignal()
+    
+    def __init__(self, *args):
+        super().__init__(*args)
+        
+        layout = QVBoxLayout()
+        
+        # Top row is the chooser, the append replace and array controls:
+        
+        top = QHBoxLayout()
+        
+        self._chooser = VariableChooser(self)
+        top.addWidget(self._chooser)
+        self._append = QPushButton('Append', self)
+        top.addWidget(self._append)
+        self._replace = QPushButton('Replace', self)
+        top.addWidget(self._replace)
+        self._remove = QPushButton('Remove', self)
+        top.addWidget(self._remove)
+        self._array = QCheckBox('Array', self)
+        top.addWidget(self._array)
+        
+        layout.addLayout(top)
+        
+        # The bottom row is just the Load and Set buttons...with a strectch on the
+        # end:
+        
+        bottom = QHBoxLayout()
+        
+        self._load = QPushButton('Load', self)
+        bottom.addWidget(self._load)
+        self._set  = QPushButton('Set', self)
+        bottom.addWidget(self._set)
+        bottom.addStretch(1)
+        
+        layout.addLayout(bottom)
+        
+        self.setLayout(layout)
+    
+        # Relay signals:
+        
+        self._append.clicked.connect(self.append)
+        self._replace.clicked.connect(self.replace)
+        self._remove.clicked.connect(self.remove)
+        self._load.clicked.connect(self.load)
+        self._set.clicked.connect(self.set)
+    # Implement attributes:
+    
+    def name(self):
+        return self._chooser.currentText()
+    def definition(self):
+        name = self._chooser.currentText()
+        return self._chooser.model().get_definition(name)
+    def array(self):
+        return self._array.checkState() == Qt.Checked
+    def setArray(self, value):
+        if value:
+            newstate = Qt.Checked
+        else:
+            newstate = Qt.Unchecked
+        self._array.setCheckState(newstate)
+    
+    
 
 #------------------------------------- Test code ------------------------
 
+def selected():
+    print(wid.definition())
+def append():
+    print("append")
+    selected()
+def replace():
+    print('replace')
+    selected()
+def remove():
+    print('remove')
+    selected()
+def load():
+    print('load', wid.array())
+def setvalue(): 
+    print('set', wid.array())
+
 if __name__ == '__main__':
-    def definition(name):
-        info = wid.model().get_definition(name)
-        print(info)
+    
     
     from rustogramer_client import rustogramer as rcl
     from PyQt5.QtWidgets import (QApplication, QMainWindow)
@@ -97,8 +203,12 @@ if __name__ == '__main__':
     app = QApplication([])
     win = QMainWindow();
     
-    wid = VariableChooser()
-    wid.textActivated.connect(definition)
+    wid = VariableSelector()
+    wid.append.connect(append)
+    wid.replace.connect(replace)
+    wid.remove.connect(remove)
+    wid.load.connect(load)
+    wid.set.connect(setvalue)
     
     win.setCentralWidget(wid)
     win.show()
