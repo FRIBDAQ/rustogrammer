@@ -77,7 +77,10 @@ class ConditionModel(QStandardItemModel):
     
         return result
     def _get_mask(self, c):
-        return self._get_field(c, 'value')
+        mask =  self._get_field(c, 'value')
+        if mask is not None:
+            mask = f'{mask}'
+        return mask
     def _get_limits(self, c):
         # Return the approprate limits string. Note that
         # low implies a high:
