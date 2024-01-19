@@ -154,8 +154,8 @@ class FilteredConditions(QWidget):
             result.append({'x': pt[0], 'y': pt[1]})
         return result
     def _make_limits(self, gates):
-        if gates == '' or gates.isspace():
-            return None
+        if  gates == '' or gates.isspace():
+            return [0.0, 0.0]
         return parse.parse('{}, {}', gates)
 
 
