@@ -204,7 +204,7 @@ class  Controller:
         
         # How a view is loaded depends on the type however they all have the name attribute:
         
-        eview.setName(condition['name']) 
+        
         if type_string == 's':
             eview.setParameter(condition['parameters'][0])
             eview.setLow(condition['low'])
@@ -223,7 +223,16 @@ class  Controller:
         elif type_string == 'gs':
             eview.setParameters(condition['parameters'])
             eview.setLow(condition['low'])
-            eview.setHigh(condition['high'])            
+            eview.setHigh(condition['high']) 
+        elif type_string in ['em', 'am', 'nm']:
+            eview.setParameter(condition['parameters'][0])
+            eview.setMask(condition['mask'])
+        elif type_string == 'T' or type_string == 'F':
+            pass                                  # Placeholder because this is a legal type:
+        else:
+            error(f'Load for condition type {type_string} is not supported')
+            return
+        eview.setName(condition['name'])       # Success is assured at this oint.
         
     def _delete_list(self, names):
         # Deletes a list of conditions by name:
