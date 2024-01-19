@@ -134,7 +134,7 @@ class FilteredConditions(QWidget):
         params = self._make_string_list(model.index(row_num, 3).data())
         points  = self._make_point_list(model.index(row_num, 4).data())
         hilo    = self._make_limits(model.index(row_num, 5).data())
-        mask    = model.index(row_num, 6).data()
+        mask    = self._make_mask(model.index(row_num, 6).data())
         return {
                 'name': name, 'type': type_str, 'gates' : gates,
                 'parameters': params, 'points': points, 'low': hilo[0], 'high': hilo[1],
@@ -157,6 +157,11 @@ class FilteredConditions(QWidget):
         if  gates == '' or gates.isspace():
             return [0.0, 0.0]
         return parse.parse('{}, {}', gates)
+    def _make_mask(self, m):
+        if m is not None:
+            return int(m)
+        else:
+            return None
 
 
 class GateActionView(QWidget):
