@@ -203,7 +203,7 @@ class  Controller:
         
         # How a view is loaded depends on the type however they all have the name attribute:
         
-        
+    
         if type_string == 's':
             eview.setParameter(condition['parameters'][0])
             eview.setLow(condition['low'])
