@@ -281,6 +281,61 @@ class VariableTable(QTableWidget):
         units = QLineEdit(definition['units'], self)
         return [name, value, units]
 
+
+class TreeVariableView(QWidget):
+    ''' 
+    This is the full tree variable editor view.  It's just a stack of the 
+    Variable selector on top of a VariableTable with
+    - Signals relayed from the two componets for convenience and
+    - Read-only attributes that allow access to the compnents of the view.
+    Signals:
+        append  - the append button was clicked.
+        replace - the replace button was clicked.
+        remove  - the remove button was clicked.
+        load    - the load button was clicked.
+        set     - the set button was clicked.
+    Attributes:
+        table - return the table widget.
+        selector - return the selector widget.
+    Slots:
+        None
+    Attributes:
+        selector - return the VariableSelector widget reference (readonly).
+        table    - return the VariableTable widget reference (readonly).
+    '''       
+    append = pyqtSignal()
+    replace= pyqtSignal()
+    remove = pyqtSignal()
+    load   = pyqtSignal()
+    set    = pyqtSignal()
+    
+    def __init__(self, *args):
+        super().__init__(*args)
+        layout = QVBoxLayout()
+        
+        self._selector = VariableSelector(self)
+        layout.addWidget(self._selector)
+        
+        self._table = VariableTable(self)
+        layout.addWidget(self._table)
+        
+        self.setLayout(layout)
+        
+        # Relay signals from the selector for convenience:
+        
+        self._selector.append.connect(self.append)
+        self._selector.replace.connect(self.replace)
+        self._selector.remove.connect(self.remove)
+        self._selector.load.connect(self.load)
+        self._selector.set.connect(self.set)
+        
+    # Implement the attributes:
+    
+    def table(self):
+        return self._table
+    def selector(self):
+        return self._selector
+        
         
 #------------------------------------- Test code ------------------------
 
@@ -300,34 +355,34 @@ if __name__ == '__main__':
         return None
     
     def selected():
-        return  wid.definition()
+        return  wid.selector().definition()
     def append():
-        table.append(selected())
+        wid.table().append(selected())
     def replace():
-        selection = table.selection()
+        selection = wid.table().selection()
         if len(selection) == 1:
             row = selection[0]['row']
-            table.replace(row, selected())
+            wid.table().replace(row, selected())
         selected()
     def remove():
-        sel = table.selection()
+        sel = wid.table().selection()
         rows = [x['row'] for x in sel]
         rows.sort(reverse=True)
         for row in rows:
-            table.remove(row)
+            wid.table().remove(row)
     def load():
-        print('load', wid.array())
-        selection = table.selection()
+        print('load', wid.selector().array())
+        selection = wid.table().selection()
         data = client.treevariable_list()['detail']    # Load current data from server.
         for item in selection:
             name = item['name']
             info = _find_def(name, data)
             if info is not None:
-                table.replace(item['row'], info)
+                wid.table().replace(item['row'], info)
             
     def setvalue(): 
-        print('set', wid.array())   # We don't respect that....
-        selection = table.selection()
+        print('set', wid.selector().array())   # We don't respect that....
+        selection = wid.table().selection()
         for var in selection:
             client.treevariable_set(var['name'], var['value'], var['units'])
             common_treevariable_model.set_definition(var) # update the model.
@@ -338,23 +393,17 @@ if __name__ == '__main__':
     app = QApplication([])
     win = QMainWindow();
     
-    wid = VariableSelector()
+    wid = TreeVariableView()
     wid.append.connect(append)
     wid.replace.connect(replace)
     wid.remove.connect(remove)
     wid.load.connect(load)
     wid.set.connect(setvalue)
     
-    table = VariableTable()
-    
-    widget = QWidget()
-    layout= QVBoxLayout()
-    layout.addWidget(wid)
-    layout.addWidget(table)
-    widget.setLayout(layout)
     
     
-    win.setCentralWidget(widget)
+    
+    win.setCentralWidget(wid)
     win.show()
     app.exec()
         
