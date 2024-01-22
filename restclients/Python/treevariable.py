@@ -61,6 +61,14 @@ class TreeVariableModel(QStandardItemModel):
             
         else:
             return None     # We don't know how to handle multiple matches.
+    def set_definition(self, definition):
+        matches = self.findItems(definition['name'], Qt.MatchExactly, 0)
+        if len(matches)  ==1:
+            index = self.indexFromItem(matches[0])
+            row   = index.row()
+            self.item(row,1).setText(str(definition['value']))
+            self.item(row,2).setText(definition['units'])
+            
     # Private methods:
     
     def _add_line(self, var):
@@ -283,6 +291,14 @@ if __name__ == '__main__':
     from rustogramer_client import rustogramer as rcl
     from PyQt5.QtWidgets import (QApplication, QMainWindow)
     
+    def _find_def(name, data):
+        # Find the matching definition in data.
+        
+        for item in data:
+            if name == item['name']:
+                return item
+        return None
+    
     def selected():
         return  wid.definition()
     def append():
@@ -301,8 +317,20 @@ if __name__ == '__main__':
             table.remove(row)
     def load():
         print('load', wid.array())
+        selection = table.selection()
+        data = client.treevariable_list()['detail']    # Load current data from server.
+        for item in selection:
+            name = item['name']
+            info = _find_def(name, data)
+            if info is not None:
+                table.replace(item['row'], info)
+            
     def setvalue(): 
-        print('set', wid.array())
+        print('set', wid.array())   # We don't respect that....
+        selection = table.selection()
+        for var in selection:
+            client.treevariable_set(var['name'], var['value'], var['units'])
+            common_treevariable_model.set_definition(var) # update the model.
     
     client = rcl({'host':'localhost', 'port': 8000})
     common_treevariable_model.load(client)
