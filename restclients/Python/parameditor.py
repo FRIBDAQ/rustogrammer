@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
     QLineEdit, QPushButton, QCheckBox, QWidget, QLabel, QTableWidget,
     QDialog, QDialogButtonBox,
     QHBoxLayout, QVBoxLayout,
-    QAbstractItemView, QHeaderView,
+    QAbstractItemView, 
     QApplication, QMainWindow
 )
 from PyQt5.QtGui import QDoubleValidator, QIntValidator
