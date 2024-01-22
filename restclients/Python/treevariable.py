@@ -9,7 +9,7 @@
     We also provide a load method to fill the model given a client.
 '''
 
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QDoubleValidator
 from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtWidgets import (
     QComboBox, QWidget, QPushButton, QCheckBox, QTableWidget, QAbstractItemView,
@@ -47,20 +47,15 @@ class TreeVariableModel(QStandardItemModel):
         '''
         matches = self.findItems(name, Qt.MatchExactly, 0)   # only match name field.
         if len(matches) == 1:
-            index = self.indexFromItem(matches[0])
-            row   = index.row()
-            
-            valueItem = self.item(row, 1)
-            unitsItem = self.item(row, 2)
-            value = float(valueItem.text())
-            units = unitsItem.text()
-            
-            return {
-                'name': name, 'value': value, 'units': units
-            }
-            
+            return self._name_item_to_def(matches[0])
         else:
             return None     # We don't know how to handle multiple matches.
+    def get_matching_definitions(self, pattern):
+        matches = self.findItems(pattern, Qt.MatchWildcard, 0)
+        result = list()
+        for match in matches:
+            result.append(self._name_item_to_def(match))
+        return result
     def set_definition(self, definition):
         matches = self.findItems(definition['name'], Qt.MatchExactly, 0)
         if len(matches)  ==1:
@@ -80,6 +75,18 @@ class TreeVariableModel(QStandardItemModel):
         self.appendRow([
             QStandardItem(name), QStandardItem(strvalue), QStandardItem(units)
         ])
+    def _name_item_to_def(self, item):
+        index = self.indexFromItem(item)
+        row   = index.row()
+        name  = self.item(row, 0).text()
+        valueItem = self.item(row, 1)
+        unitsItem = self.item(row, 2)
+        value = float(valueItem.text().replace(',',''))
+        units = unitsItem.text()
+        
+        return {
+            'name': name, 'value': value, 'units': units
+        }
         
 common_treevariable_model = TreeVariableModel()
 # Now some views:
@@ -248,7 +255,7 @@ class VariableTable(QTableWidget):
         result = list()
         for row in selected_rows:
             name = self.cellWidget(row, 0).text()
-            value = float(self.cellWidget(row,1).text())
+            value = float(self.cellWidget(row,1).text().replace(',',''))
             units = self.cellWidget(row, 2).text()
             result.append({
                 'name': name, 'value': value, 'units': units, 'row' : row
@@ -278,6 +285,7 @@ class VariableTable(QTableWidget):
     def _make_row(self, definition):
         name = QLabel(definition['name'], self)
         value = QLineEdit(str(definition['value']) ,self) 
+        value.setValidator(QDoubleValidator(self))
         units = QLineEdit(definition['units'], self)
         return [name, value, units]
 
