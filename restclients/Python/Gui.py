@@ -22,6 +22,8 @@ import parametercontroller
 import parameditor
 import gatelist
 import gates
+from treevariable import TreeVariableView, common_treevariable_model
+from treevariableController import TreeVariableController
 from rustogramer_client import rustogramer as RestClient
 
 PORTMAN_PORT=30000
@@ -69,7 +71,10 @@ param_controller = parametercontroller.ParameterController(
 )
 
 if capabilities.get_program() == capabilities.Program.SpecTcl:
-    tabs.addTab(QWidget(), 'Variables')
+    common_treevariable_model.load(client)
+    var_view = TreeVariableView()
+    var_controller = TreeVariableController(var_view, client)
+    tabs.addTab(var_view, 'Variables')
 condition_view = gates.Gates()
 condition_controller = gates.Controller(condition_view, client)
 tabs.addTab(condition_view, 'Gates')

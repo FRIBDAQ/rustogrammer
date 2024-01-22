@@ -61,7 +61,7 @@ class TreeVariableController:
     def _set(self):
         data = self._get_vars_to_set()
         for var in data:
-            client.treevariable_set(var['name'], var['value'], var['units'])
+            self._client.treevariable_set(var['name'], var['value'], var['units'])
             common_treevariable_model.set_definition(var)
     
     # Utiltities:
