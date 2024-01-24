@@ -26,12 +26,14 @@
 
 from PyQt5.QtWidgets import (
     QTableView, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLineEdit, QAbstractItemView
+    QPushButton, QLineEdit, QAbstractItemView, QListView
 )
 from PyQt5.QtCore import pyqtSignal, Qt
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
 from rustogramer_client import rustogramer
+import editablelist
+
 
 '''  This is the view for spectra - the table that contains the spectra listed.
 '''
@@ -50,7 +52,7 @@ class SpectrumView(QTableView):
         self._selected_rows = [x.row() for x in self.selectedIndexes() if x.column() == 0]
         
     def getSelectedSpectra(self):
-        return self._selected_spectra
+        return self._list.list()
     def getSelectedDefinitions(self):
         # Return a list of lists where each sublist is the contents of the 
         # selected row in the table.
@@ -62,6 +64,19 @@ class SpectrumView(QTableView):
                 arow.append(self.model().item(row, c).data(Qt.DisplayRole))
             result.append(arow)
         return result
+
+class SpectrumNameList(QListView):
+    '''
+        List of spectrum names
+        
+    '''
+    def __init__(self, client, *args):
+        super().__init__(*args)
+        self._model = SpectrumModel(self)   
+        self._model.load_spectra(client)
+        self.setModel(self._model)
+        self.setModelColumn(0)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
 
 '''  This is the list with all the other bells and whistles.
      You construct this actually.
@@ -133,19 +148,6 @@ class SpectrumList(QWidget) :
         self.clear_signal.emit()
         self.filter_relay()
 
-# Test the widget:
-from PyQt5.QtWidgets import QApplication
-def test_view() :
-    def onFilter(txt):
-        print("Filter clicked: ", txt)
-    def onClear() :
-        print("cleared")
-    app = QApplication([])
-    window = SpectrumList()
-    window.show()
-    window.filter_signal.connect(onFilter)
-    window.clear_signal.connect(onClear)
-    app.exec()
 
 
    
@@ -236,7 +238,57 @@ class SpectrumModel(QStandardItemModel):
         result = QStandardItem(s)  
         result.setEditable(False)
         return result
+    
+
+# A widget for selecting spectra from a SpectrumNameList:
+
+class SpectrumSelector(QWidget):
+    ''' 
+    This widget consists of a SpectrumNameList on the left and an editablelist
+    on the right.   The editablelist signals are autonmosly handled so that
+    spectr are loaded into the editable box etc. etc.
+    
+    '''
+    def __init__(self, client, *args):
+        super().__init__(*args)
+        layout = QHBoxLayout()
+        self._list = SpectrumNameList(client, self)
+        layout.addWidget(self._list)
+        
+        self._selected = editablelist.EditableList('Selected Spectra', self)
+        layout.addWidget(self._selected)
+        self.setLayout(layout)
+        
+        self._selected.add.connect(self._add_selected)
+    
+    def selected(self):
+        return self._selected.list()
+        
+    def _add_selected(self):
+        selected_indices = self._list.selectedIndexes()
+        for index in selected_indices:
+            item = self._list.model().item(index.row(), 0)
+            self._selected.appendItem(item.text())
+        self._list.clearSelection()      # Unselect the transfered items.
+        
+        
 #--------------------------   test code --------------------
+
+# Test the SpectrumList view.
+from PyQt5.QtWidgets import QApplication
+def test_view() :
+    def onFilter(txt):
+        print("Filter clicked: ", txt)
+    def onClear() :
+        print("cleared")
+    app = QApplication([])
+    window = SpectrumList()
+    window.show()
+    window.filter_signal.connect(onFilter)
+    window.clear_signal.connect(onClear)
+    app.exec()
+
+
 #  Test the model/view.
 
 theClient = None
