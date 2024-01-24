@@ -26,6 +26,27 @@ from treevariable import TreeVariableView, common_treevariable_model
 from treevariableController import TreeVariableController
 from rustogramer_client import rustogramer as RestClient
 
+
+def setup_menubar(win):
+    '''
+    Sets up the menubar and the menus in it:
+    File, "Data Source", Filters[If SpecTcl], Gate, Help
+    
+    Note as well, that the contents of some menus will depend on the 
+    program capabilties as well.
+    
+    The 'win' parameter must be the application main window.
+
+    '''
+    menubar = win.menuBar()
+    menubar.addMenu('&File')
+    menubar.addMenu('Data &Source')
+    if capabilities.get_program == capabilities.Program.SpecTcl:
+        menubar.addMenu('Filters')
+    menubar.addMenu("&Gate")
+    menubar.addMenu("&Help")
+    
+
 PORTMAN_PORT=30000
 
 parser = argparse.ArgumentParser(
@@ -80,6 +101,10 @@ condition_controller = gates.Controller(condition_view, client)
 tabs.addTab(condition_view, 'Gates')
 
 main.setCentralWidget(tabs)
+
+# 
+
+setup_menubar(main)
 
 main.show()
 app.exec()
