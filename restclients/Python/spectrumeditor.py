@@ -649,7 +649,7 @@ class ProjectionController(AbstractController):
         # to overwrite it:
 
         if not ok_to_create(self._client, self._editor, name):
-            returns
+            return
         
         # Now we can get on with making the spectrum and
         # binding it into display memory.
