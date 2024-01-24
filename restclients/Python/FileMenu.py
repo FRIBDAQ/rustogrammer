@@ -18,7 +18,7 @@ class FileMenu(QObject):
         '''
         super().__init__(*args)
         program = capabilities.get_program()
-        
+        self._program = program   
         self._menu = menu
         self._client = client
         
@@ -62,11 +62,25 @@ class FileMenu(QObject):
         if program == capabilities.Program.Rustogramer:
             self._kill = QAction('Stop Histogramer')
             self._menu.addAction(self._kill)
+            self._kill.triggered.connect(self._exitHistogramerAndSelf)
+        
+    
+    def _saveSpectra(self):
+        #  Prompt for spectra to save and the format
+        #  and prompt for a file to save them into...
+        pass
         
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
         if confirm('Are you sure you want to exit the GUI (note the histogramer will continue to run)'):
             exit()
+            
+    def _exitHistogramerAndSelf(self):
+        if confirm('Are you sure you want to exit the GUI and the histogramer?'):
+            self._client.kill_histogramer()
+            exit()
+            
+            
         
         
         

@@ -1344,6 +1344,7 @@ class rustogramer:
         monitor a tree variable value that is set programmatically.
         """
         return self._transaction("treevariable/firetraces", {"pattern": pattern})
+    
     #----------------------------- Version:
 
     def get_version(self):
@@ -1351,7 +1352,11 @@ class rustogramer:
         """
         return self._transaction("/version", {})
 
+    #------ 000 destruct, kill.
     
+    def kill_histogramer(self):
+        ''' Attempts to stop the histogramer.'''
+        return self._transaction('/exit')
     
 
 
