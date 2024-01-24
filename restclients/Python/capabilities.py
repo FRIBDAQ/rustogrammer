@@ -236,4 +236,15 @@ def get_supported_condition_types():
     global supported_condition_types
     program = get_program()
     return supported_condition_types[program]
+
+supported_spectrum_format_strings = {
+    Program.Rustogramer : ['json'],
+    Program.SpecTcl: ['ascii', 'json', 'binary'],
+    Program.Unknown: []
+}
+
+def get_supported_spectrum_format_strings():
+    global supported_spectum_format_strings
+    program = get_program()
+    return supported_spectrum_format_strings[program]
     
