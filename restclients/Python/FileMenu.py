@@ -90,6 +90,11 @@ class FileMenu(QObject):
             pass
         saver = DefinitionIO.DefinitionWriter(filename)
         
+        # Save the parameters:
+        
+        parameter_defs = self._client.parameter_list()['detail']
+        saver.save_parameter_definitions(parameter_defs)
+        
     
     def _saveSpectra(self):
         #  Prompt for spectra to save and the format
