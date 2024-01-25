@@ -9,7 +9,7 @@
 '''
 
 from argparse import ArgumentParser
-import os
+import OsServices
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTabWidget, QWidget
@@ -58,23 +58,24 @@ def setup_menubar(win, client):
 
 PORTMAN_PORT=30000
 
-parser = argparse.ArgumentParser(
+parsed_args = argparse.ArgumentParser(
     prog='Gui.py',
     description='User interface GUI for SpecTcl and rustogramer programs',
     epilog ='If --service and --port are provided, --service overrides.  If --service is not provided, --port is used.'
 )
-parser.add_argument('-H', '--host', 
+parsed_args.add_argument('-H', '--host', 
     default='localhost', action='store', help='Host on which the histogram program is running'
 )
-parser.add_argument('-p', '--port', 
+parsed_args.add_argument('-p', '--port', 
     default=8000, action='store', help='Port on which the histogramer REST server is listening for connections defaults to "8000"'
 )
-parser.add_argument('-s', '--service', default=None, action='store', help='Service the REST server advertises defaults to None')
-parser.add_argument('-u', '--service-user', default=os.getlogin(), action='store', help=f'Username the REST server advertises under defaults to "{os.getlogin()}"')
+parsed_args.add_argument('-s', '--service', default=None, action='store', help='Service the REST server advertises defaults to None')
+parsed_args.add_argument('-u', '--service-user', default=OsServices.getlogin(), action='store', help=f'Username the REST server advertises under defaults to "{OsServices.getlogin()}"')
 
-args = parser.parse_args()
+args = parsed_args.parse_args()
 
 client_args = {'host' : args.host, 'port':args.port, 'pmanport': PORTMAN_PORT}
+print(client_args)
 if args.service is not None:
     client_args['service'] = args.service
     client_args['user']    = args.service_user

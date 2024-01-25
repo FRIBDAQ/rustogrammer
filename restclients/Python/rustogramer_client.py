@@ -7,7 +7,7 @@ with a running rustogramer program.
 
 import requests
 import PortManager
-import os
+import OsServices
 
 class RustogramerException(Exception):
     """Exception type raised if the server replies with an error JSON
@@ -37,7 +37,7 @@ class rustogramer:
         #  'port'  to a service port, returning the port.
 
         if user is None:
-            user  = os.getlogin()
+            user  = OsServices.getlogin()
         pm = PortManager.PortManager(host, port)
         matches = pm.find(service=name, user=user)
         if len(matches) != 1:
