@@ -7,6 +7,7 @@ from spectrumeditor import confirm, error
 import SpectrumList
 import os
 from  rustogramer_client import RustogramerException
+import DefinitionIO
 
 class FileMenu(QObject):
     ''' 
@@ -30,6 +31,7 @@ class FileMenu(QObject):
         # We need to retain ownership of our actions:
         
         self._save = QAction('Save...', self)
+        self._save.triggered.connect(self._save_definitions)
         self._menu.addAction(self._save)
         
         self._save_treevars = QAction('Save Treevariables...', self)
@@ -70,6 +72,24 @@ class FileMenu(QObject):
             self._menu.addAction(self._kill)
             self._kill.triggered.connect(self._exitHistogramerAndSelf)
         
+    def _save_definitions(self):
+        #  Prompt for the file and defer the actual save to the 
+        #  DefintionIO module.
+        
+        file = QFileDialog.getSaveFileName(self._menu, 'Definition File', os.getcwd(), 'sqlite')
+        if file == ('',''):
+            return
+        filename = self._genfilename(file)
+        print(filename)
+        
+        # If the file exists, delete it:
+        
+        try:
+            os.remove(filename)
+        except:
+            pass
+        saver = DefinitionIO.DefinitionWriter(filename)
+        
     
     def _saveSpectra(self):
         #  Prompt for spectra to save and the format
@@ -90,11 +110,13 @@ class FileMenu(QObject):
                 default_ext = 'spec'
             if len(names) > 0:
                 name = QFileDialog.getSaveFileName(self._menu, 'Spectrum File', wdir, default_ext)
-                filename  = self._genfilename(name)
-                try:
-                    self._client.spectrum_write(filename, format, names)
-                except RustogramerException as e:
-                    error(f'Failed to save spectra to {filename} : {e}')
+                if not name == ('', ''):
+                    filename  = self._genfilename(name)
+                    
+                    try:
+                        self._client.spectrum_write(filename, format, names)
+                    except RustogramerException as e:
+                        error(f'Failed to save spectra to {filename} : {e}')
         
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
