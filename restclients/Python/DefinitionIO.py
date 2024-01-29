@@ -70,6 +70,8 @@ class DefinitionWriter:
         
         '''  
         
+        # Note that I believe this creates a transaction that encapsulates all of the
+        # INSERTs below but it's not clear from the docs.
         cur = self._sqlite.cursor()
         cur.executemany(f'''
             INSERT INTO parameter_defs (save_id, name, number, low, high, bins, units)
@@ -108,6 +110,8 @@ class DefinitionWriter:
         
         c.execute('RELEASE SAVEPOINT spectrum_save')
         self._sqlite.commit()
+        
+    
         
     # Private methods    
     def _create_schema(self):
