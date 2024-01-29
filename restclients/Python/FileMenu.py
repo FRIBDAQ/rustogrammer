@@ -90,10 +90,17 @@ class FileMenu(QObject):
             pass
         saver = DefinitionIO.DefinitionWriter(filename)
         
+        # TODO:  catch exceptions and report as failures in a message box.
+        
         # Save the parameters:
         
         parameter_defs = self._client.parameter_list()['detail']
         saver.save_parameter_definitions(parameter_defs)
+        
+        # Spectrum definitions:
+        
+        spectrum_defs = self._client.spectrum_list()['detail']
+        saver.save_spectrum_definitions(spectrum_defs)
         
     
     def _saveSpectra(self):

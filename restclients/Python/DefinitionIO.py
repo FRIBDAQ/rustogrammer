@@ -76,6 +76,38 @@ class DefinitionWriter:
                 VALUES({self._saveid}, :name, :id, :low, :hi, :bins, :units)
                         ''', defs)
         self._sqlite.commit()
+    
+    def save_spectrum_definitions(self, defs):
+        '''
+            Save the definitions of all spectra to the database file.  Note that since
+            inserting a spectrum is not an atomic database operation,  everything is done
+            in a transaction.  This implies the spectrum save is an all or nothing thing.
+            
+            *   defs - the specturm definitions from e.g. 
+                rustogramer_client.rustogramer.spectrum_list()['detail']
+            
+            If the save fails, the exception raised is passed onward to the caller with the
+            transation rolled back.
+        '''   
+        c = self._sqlite.cursor()
+        # I want expclicit control over the transaction and I'm not sure when/what needs
+        # committing if I just use the auto so we'll use a save point for that:
+        
+        c.execute('SAVEPOINT spectrum_save')
+        try :
+            for s in defs:
+                self._save_specdef(c, s)
+        except:
+            #  If there are any errors rollback the save point and any
+            #  tansaction and re-raise.
+            c.execute('ROLLBACK TRANSACTION TO SAVEPOINT spectrum_save')
+            c.execute('RELEASE SAVEPOINT spectrum_save')       # Save points are tricky this way.
+            self._sqlite.rollback()
+            raise
+        # Success so commit:
+        
+        c.execute('RELEASE SAVEPOINT spectrum_save')
+        self._sqlite.commit()
         
     # Private methods    
     def _create_schema(self):
@@ -90,6 +122,8 @@ class DefinitionWriter:
         #
         
         cursor = self._sqlite.cursor()
+        
+        #  Table for savesets.
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS  save_sets 
                 (id  INTEGER PRIMARY KEY,
@@ -97,6 +131,7 @@ class DefinitionWriter:
                 timestamp INTEGER)
                              ''')
         
+        #  Table for parameter and metadata definitions.
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS parameter_defs
                 (id      INTEGER PRIMARY KEY,                    
@@ -108,6 +143,8 @@ class DefinitionWriter:
                 bins    INTEGER,
                 units   TEXT)
                                 ''')
+        
+        # Tables for spectrum definitions
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS spectrum_defs
@@ -129,7 +166,11 @@ class DefinitionWriter:
                 bins         INTEGER NOT NULL
             )
                              ''')
-        
+        #     Note this definition means that gd spectra can't be recovered.
+        #     we really need spectrum_x_params and spetrum_y_params tables.
+        #     That also means reworking the SpecTcl part of the equation.
+        #     We'll generate those tables, and stock them with an issue in SpecTcl
+        #     to fix.
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS spectrum_params   
             (   id          INTEGER PRIMARY KEY,          
@@ -137,6 +178,21 @@ class DefinitionWriter:
                 parameter_id INTEGER NOT NULL             
             )
                             ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS spectrum_x_params   -- Rustogramer.
+            (   id          INTEGER PRIMARY KEY,          
+                spectrum_id INTEGER NOT NULL,             
+                parameter_id INTEGER NOT NULL             
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS spectrum_y_params   -- Rustogramer.
+            (   id          INTEGER PRIMARY KEY,          
+                spectrum_id INTEGER NOT NULL,             
+                parameter_id INTEGER NOT NULL             
+            )
+        ''')
+        # Tables for condition (gate) definitions
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS gate_defs       
                 (   id          INTEGER PRIMARY KEY,   
@@ -175,13 +231,19 @@ class DefinitionWriter:
                 mask        INTEGER NOT NULL         
             )
                              ''')
+        
+        # Join table defining which conditions are applied to which 
+        # spectra.
+        
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS gate_applications (
                 id                INTEGER PRIMARY KEY,  
                 spectrum_id       INTEGER NOT NULL,     
                 gate_id           INTEGER NOT NULL      
             )
+        
                              ''')
+        # Define tree variables (only used by SpecTcl).
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS treevariables (   
                 id             INTEGER PRIMARY KEY,   
@@ -191,5 +253,90 @@ class DefinitionWriter:
                 units          TEXT                   
             )
                              ''')
+    def _save_specdef(self, cursor, d):
+        # Given a database cursor 'cursor' and spectrum definition 'd', performs the
+        # SQL to save that defintiion to file.  Note that it is best if there's a transaction
+        # or savepoint active on the database so that the non-atomic save of the spectrum
+        # becomes atomic over some timeline.
         
+        # Write the root record and save it's id for foreign keys in the child records:
+        
+        cursor.execute('''INSERT INTO spectrum_defs 
+            (save_id, name, type, datatype) 
+            VALUES (:sid, :name, :type, :dtype)
+        ''', 
+        {
+            'sid': self._saveid, 'name': d['name'], 'type': d['type'], 'dtype': d['chantype']
+        })
+        specid = cursor.lastrowid
+        for axis in d['axes']:
+            cursor.execute('''
+                INSERT INTO axis_defs (spectrum_id, low, high, bins)
+                    VALUES (:sid, :low, :high, :bins)
+            ''', {
+                'sid': specid, 'low': axis['low'], 'high': axis['high'], 'bins': axis['bins']
+            }
+        )
+        #   Inserts are done  in a tricky way using a subselect that gets both the 
+        #   spectrum id and parameter ids we have to do it in this tricky way because
+        #   we can't mix VALUES and subselects on one INSERT Alternatives:
+        #    Do an INSERT and an UPDATE
+        #    Do a separate SELEC\T to get the parameter id from the name then do the insert
+        #
+        #  For non SQL fluent people.  the INSERT will insert as many rows as will match the
+        #  query in the subselect.   The columns in parentheses will be inserted with values pulled 
+        #  from the query in order:  spectrum_id stocked with the spectrum_defs.id value and
+        #  parmaeter_id with parameter_defs.id
+        #  
+        #   The INNER JOIN joins the spectrum_defs table with the parameter_defs table wherever
+        #   the save_id field on each matches (for the same save set id).
+        #   The WHERE clause requires a match with the id of the spectrum we're saving,
+        #           and a match for the parameter name as well as a match for our saveset.
+        #    this should result in one match that will have our spectrum id, our saveset an the
+        #    parameter id we're looking up for parameter name in that saveset.
+        #
+        for p in d['parameters']:
+            cursor.execute('''
+                INSERT INTO spectrum_params (spectrum_id, parameter_id)
+                SELECT spectrum_defs.id AS spectrum_id, 
+                        parameter_defs.id AS param_id FROM spectrum_defs 
+                        INNER JOIN parameter_defs ON spectrum_defs.save_id = parameter_defs.save_id   
+                    WHERE spectrum_defs.id = :specid 
+                        AND parameter_defs.name = :paramname 
+                        AND spectrum_defs.save_id = :saveid
+            ''', {
+                'specid': specid, 'paramname': p, 'saveid': self._saveid
+            })
+        # x parameters, same subselect trick, different target table:
+        
+        for p in d['xparameters']:
+            cursor.execute('''
+                INSERT INTO spectrum_x_params (spectrum_id, parameter_id)
+                SELECT spectrum_defs.id AS spectrum_id, 
+                        parameter_defs.id AS param_id FROM spectrum_defs 
+                        INNER JOIN parameter_defs ON spectrum_defs.save_id = parameter_defs.save_id   
+                    WHERE spectrum_defs.id = :specid 
+                        AND parameter_defs.name = :paramname 
+                        AND spectrum_defs.save_id = :saveid
+            ''', {
+                'specid': specid, 'paramname': p, 'saveid': self._saveid
+            })
+        
+        # y parameters
+        
+        for p in d['yparameters']:
+            cursor.execute('''
+                INSERT INTO spectrum_y_params (spectrum_id, parameter_id)
+                SELECT spectrum_defs.id AS spectrum_id, 
+                        parameter_defs.id AS param_id FROM spectrum_defs 
+                        INNER JOIN parameter_defs ON spectrum_defs.save_id = parameter_defs.save_id   
+                    WHERE spectrum_defs.id = :specid 
+                        AND parameter_defs.name = :paramname 
+                        AND spectrum_defs.save_id = :saveid
+            ''', {
+                'specid': specid, 'paramname': p, 'saveid': self._saveid
+            })
+        
+        
+            
         
