@@ -701,7 +701,6 @@ class ProjectionController(AbstractController):
         #   1. A contour or multi contour ('c' or 'gc')
         #   2. Its x and y parameters are all present on the spectrum_def
 
-        print('condition', condition)
         xpars = spectrum_def['xparameters']
         ypars = spectrum_def['yparameters']
 
