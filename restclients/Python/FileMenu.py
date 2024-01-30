@@ -34,9 +34,13 @@ class FileMenu(QObject):
         self._save.triggered.connect(self._save_definitions)
         self._menu.addAction(self._save)
         
-        self._save_treevars = QAction('Save Treevariables...', self)
-        self._menu.addAction(self._save_treevars)
+        # Only for SpecTcl:
         
+        if program == capabilities.Program.SpecTcl:
+            self._save_treevars = QAction('Save Treevariables...', self)
+            self._menu.addAction(self._save_treevars)
+            self._save_treevars.triggered.connect(self._save_vars)
+            
         self._save_spectra = QAction('Save spectrum contents...', self)
         self._save_spectra.triggered.connect(self._saveSpectra)
         self._menu.addAction(self._save_spectra)
@@ -76,11 +80,10 @@ class FileMenu(QObject):
         #  Prompt for the file and defer the actual save to the 
         #  DefintionIO module.
         
-        file = QFileDialog.getSaveFileName(self._menu, 'Definition File', os.getcwd(), 'sqlite')
+        file = self. _getSqliteFilename()
         if file == ('',''):
             return
         filename = self._genfilename(file)
-        print(filename)
         
         # If the file exists, delete it:
         
@@ -109,12 +112,21 @@ class FileMenu(QObject):
             
             gate_defs = self._client.apply_list()['detail']
             saver.save_gates(gate_defs)
+            
+            # SpecTcl has variables:
+            
+            if capabilities.get_program() == capabilities.Program.SpecTcl:
+                var_defs = self._client.treevariable_list()['detail']
+                saver.save_variables(var_defs)
         except Exception as  e:
             error(f'Failed to write {filename}: {e}')
             # For debugging:
             raise e
         
-    
+    def _save_vars(self):
+        #  Save only the tree variables to a database file:
+        pass
+        
     def _saveSpectra(self):
         #  Prompt for spectra to save and the format
         #  and prompt for a file to save them into...
@@ -125,15 +137,16 @@ class FileMenu(QObject):
             
             wdir = os.getcwd()
             if format == 'json':
-                default_ext = 'json'
+                default_ext = 'Json (*.json);; Text (*.txt)'
             elif format == 'ascii':
-                default_ext = 'spec'
+                default_ext = 'Spectrum (*.spec);; Text (*.txt)'
             elif format == 'binary':
-                default_ext = 'bin'
+                default_ext = 'Binary (*.bin);; Any (*.*)'
             else:
                 default_ext = 'spec'
             if len(names) > 0:
-                name = QFileDialog.getSaveFileName(self._menu, 'Spectrum File', wdir, default_ext)
+                name = QFileDialog.getSaveFileName(
+                    self._menu, 'Spectrum File', wdir, default_ext)
                 if not name == ('', ''):
                     filename  = self._genfilename(name)
                     
@@ -161,12 +174,15 @@ class FileMenu(QObject):
         # otherwise we need to glue on the default extension.
         
         parts = os.path.splitext(name)
-        print(parts)
         if '.' in parts[1]:
             return name
         else:
             return name + '.' + dialog_name[1]
-            
+    def _getSqliteFilename(self):
+          return  QFileDialog.getSaveFileName(
+            self._menu, 'Definition File', os.getcwd(), 
+            'Sqlite3 (*.sqlite)'
+        )      
             
         
         
