@@ -52,7 +52,7 @@ class TreeVariableController:
             self._table.remove(row)
     def _load(self):
         selection = self._table.selection()
-        data = client.treevariable_list()['detail']    # Load current data from server.
+        data = self._client.treevariable_list()['detail']    # Load current data from server.
         for item in selection:
             name = item['name']
             info = self._find_def(name, data)
