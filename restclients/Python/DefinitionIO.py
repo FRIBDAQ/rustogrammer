@@ -138,7 +138,64 @@ class DefinitionWriter:
             
         c.execute('RELEASE SAVEPOINT condition_save')
         self._sqlite.commit()
+    def save_gates(self, applications):
+        '''
+          I use Rustogramer parlance here - a condition in rustogramer
+          is what SpecTcl calls a gate.  A gate application is what
+          Rustogramer calls a gate.  A gate is a condition applied to
+          a spectrum such that it only increments for events which
+          make that condition true.
+          
+          This method writes the gates (applications) to the database.
+          
+          *  applications is the ['detail'] of the returned value
+          from a successful call to
+          rustogramer_client.rustogramer.apply_list
+          This is a list of dicts with the fields:
+             'spectrum' a spectrum name
+             'gate'     a possibly null gate on that spectrum.
+            If the value of the 'gate' is none, then the spectrum
+            is ungated (in Rustogramer this can happen, in 
+            SpecTcl all spectra are gated even if with a special
+            'true' gate).
+        '''
+        # There will be some fancy subselecting done to 
+        # get the gate id and spectrum id given their names as
+        #  the gate_applications table is really just a join table
+        #  Between spectrum_defs and gate_defs
         
+        # Let's marshall the list of subsitutions:
+        #  :saveid  - will be the current save set id.
+        #  :specname - will be the name of the spectrum.
+        #  :condname - will be the name of the condition 
+        #
+        #  There will only be entries for spectra that are 
+        #  actually gated.
+        #
+        substitutions = list()
+        for application in applications:
+            if application['gate'] is not None:
+                substitutions.append({
+                    'saveid': self._saveid,
+                    'specname': application['spectrum'],
+                    'condname' : application['gate']
+                })
+        
+        # We only need to do anything if there are applications:
+        
+        if len(substitutions) > 0:
+            cursor = self._sqlite.cursor()
+            cursor.executemany('''
+                INSERT INTO gate_applications (spectrum_id, gate_id)
+                    SELECT spectrum_defs.id AS spectrumid,
+                           gate_defs.id     AS gateid FROM spectrum_defs
+                    INNER JOIN gate_defs ON spectrum_defs.save_id = gate_defs.saveset_id
+                    WHERE spectrum_defs.save_id = :saveid
+                     AND  spectrum_defs.name   = :specname
+                     AND  gate_defs.name       = :condname
+            ''', substitutions)
+            self._sqlite.commit()
+           
     # Private methods    
     def _create_schema(self):
         # Create the databas schema; again see 
@@ -266,7 +323,10 @@ class DefinitionWriter:
                              ''')
         
         # Join table defining which conditions are applied to which 
-        # spectra.
+        # spectra.  You might think that a save set id is needed
+        # as well but the spectrum_id and gate_id foreign keys
+        # represent spectra and conditions that are
+        # implicitly qualified by save set.
         
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS gate_applications (
@@ -394,8 +454,7 @@ class DefinitionWriter:
                 if not name_map[name]['written']:
                     reordered.append(cond)
                     name_map[name]['written'] = True
-        
-        print("Reordered conds: ", reordered)        
+             
         return reordered
     def _enumerate_dependencies(self, cond, name_map):
         #  Given a condition, provide an ordered list of dependencies

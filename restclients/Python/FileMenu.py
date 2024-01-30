@@ -106,6 +106,9 @@ class FileMenu(QObject):
             
             condition_defs = self._client.condition_list()['detail']
             saver.save_condition_definitions(condition_defs)
+            
+            gate_defs = self._client.apply_list()['detail']
+            saver.save_gates(gate_defs)
         except Exception as  e:
             error(f'Failed to write {filename}: {e}')
             # For debugging:
