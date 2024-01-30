@@ -603,7 +603,42 @@ class DefinitionWriter:
             
     
         
-            
+class DefinitionReader:
+    '''
+    This class reads definitions from a database file.  At present,
+    we only support the single saveset defined in the global variable
+    save_set_name.  However we do provide the open_save_set method
+    to select a different save-set -- you should not consider this
+    to be well supported.
+    '''
+    def __init__(self, filename):
+        ''' 
+            Connect to the saved data in the sqlite3 database 'filename'
+            see DefinitionWriter's _create_schema method to see the
+            expected database schema.
+        '''
+        self._sqlite = sqlite3.connect(filename)
+        self._saveid = None
+        self.open_save_set(save_set_name)
+    def __del__(self):
+        self._sqlite.close()
         
+    def open_save_set(self, name):
+        '''
+        Make the saveset 'name' current.  If there is no such save set
+        in the database, LookupError is raised.
+        '''
+        cursor = self._sqlite.cursor()
+        cursor.execute('''
+            SELECT id FROM save_sets WHERE name = :name
+        ''', {'name' : name})
+        matches = cursor.fetchall()
+        if len(matches) != 1:
+            raise LookupError(
+                f"There were no (or more than one) matches to the save set {name}"
+            )
+        self._saveid = matches[0][0]
+        
+    pass    
             
         

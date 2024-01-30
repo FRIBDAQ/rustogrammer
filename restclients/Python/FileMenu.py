@@ -48,6 +48,7 @@ class FileMenu(QObject):
         self._menu.addSeparator()
         
         self._load = QAction('Load...', self)
+        self._load.triggered.connect(self._load_definitions)
         self._menu.addAction(self._load)
         
         self._read_spectrum = QAction('Read Spectrum contents...', self)
@@ -115,7 +116,7 @@ class FileMenu(QObject):
             
             # SpecTcl has variables:
             
-            if capabilities.get_program() == capabilities.Program.SpecTcl:
+            if self._program == capabilities.Program.SpecTcl:
                 var_defs = self._client.treevariable_list()['detail']
                 saver.save_variables(var_defs)
         except Exception as  e:
@@ -128,6 +129,7 @@ class FileMenu(QObject):
         if file == ('',''):
             return
         filename = self._genfilename(file)
+        
         # If the file exists, delete it:
         
         try:
@@ -169,6 +171,14 @@ class FileMenu(QObject):
                     except RustogramerException as e:
                         error(f'Failed to save spectra to {filename} : {e}')
         
+    def _load_definitions(self):
+        #  Load definitions from a database file:
+        
+        file = self._getExistingSqliteFilename()
+        if file[0] == '':
+            return
+        filename = self._genfilename(file)
+        reader = DefinitionIO.DefinitionReader(filename)
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
         if confirm('Are you sure you want to exit the GUI (note the histogramer will continue to run)'):
@@ -197,7 +207,11 @@ class FileMenu(QObject):
             self._menu, 'Definition File', os.getcwd(), 
             'Sqlite3 (*.sqlite)'
         )      
-            
+    def _getExistingSqliteFilename(self):
+           return  QFileDialog.getOpenFileName(
+            self._menu, 'Definition File', os.getcwd(), 
+            'Sqlite3 (*.sqlite)'
+        )        
         
         
         
