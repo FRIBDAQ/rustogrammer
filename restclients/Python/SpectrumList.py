@@ -52,7 +52,7 @@ class SpectrumView(QTableView):
         self._selected_rows = [x.row() for x in self.selectedIndexes() if x.column() == 0]
         
     def getSelectedSpectra(self):
-        return self._list.list()
+        return self._selected_spectra
     def getSelectedDefinitions(self):
         # Return a list of lists where each sublist is the contents of the 
         # selected row in the table.
