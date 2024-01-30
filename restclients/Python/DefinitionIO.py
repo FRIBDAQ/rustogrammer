@@ -28,7 +28,6 @@ class DefinitionWriter:
         self._create_schema()
         self._saveid = self.open_saveset(save_set_name)
     def __del__(self):
-        print('closing database')
         self._sqlite.close()
         
     def open_saveset(self, name):
@@ -49,10 +48,8 @@ class DefinitionWriter:
                              ''', (name,))
         id = cur.fetchone()
         if id is None:
-            print('inserting')
             cur = self._sqlite.execute('INSERT INTO save_sets (name, timestamp) VALUES (?,?)', (name, time.time()))
             id = cur.lastrowid
-            print('id = ', id)
             self._saveid = id
             self._sqlite.commit()
             return id
@@ -111,7 +108,36 @@ class DefinitionWriter:
         c.execute('RELEASE SAVEPOINT spectrum_save')
         self._sqlite.commit()
         
-    
+    def save_condition_definitions(self, defs):
+        '''
+        Save condition definitions to the database file.   See the discussion of transactions
+        in save_spectrum_definitions above.
+        
+        *  defs - the defintitions to save. Results of e.g. 
+            rustgrammer_client.rustogramer.condition_list()['detail']
+            
+        If the save fails, transactions are rolledback and the exception is re-raised to the caller.
+        '''
+        
+        # It's important that we re-order that definitions so that we define dependent gates
+        # Before they are needed:
+        
+        defs = self._reorder_conditions(defs)
+        
+        c = self._sqlite.cursor()
+        c.execute('SAVEPOINT condition_save')    # See notes in save_spectrum_definitions.
+        
+        try:
+            for condition in defs:
+                self._save_condition(c, condition)
+        except:
+            c.execute('ROLLBACK TRANSACTION TO SAVEPOINT condition_save')
+            c.execute('RELEASE SAVEPOINT condition_save')
+            self._sqlite.rollback()
+            raise
+            
+        c.execute('RELEASE SAVEPOINT condition_save')
+        self._sqlite.commit()
         
     # Private methods    
     def _create_schema(self):
@@ -122,6 +148,9 @@ class DefinitionWriter:
         #         indices.. that provides for fastest inserts (I think).
         #  Note:  This schema is pretty much assured to be correct since
         #         it's literally copy/pasted from the SpecTcl main/db/SpecTclDatabase.cpp  module
+        #  Note:  Some tables have been added to spectrum definitions to make it possible
+        #         to read back all spectrum types.  An issue was added to github.com/FRIBDAQ/SpecTcl 
+        #         to bring these back into synch (#91).
         #  This method is rather lengthy but straightforward so I don't bother to break it up
         #
         
@@ -340,7 +369,150 @@ class DefinitionWriter:
             ''', {
                 'specid': specid, 'paramname': p, 'saveid': self._saveid
             })
+    
+    def _reorder_conditions(self, definitions):
+        #  Reorders the condition definitions so that if a condition is dependent on other
+        #  conditions all of those will get written out before us.
+
+        reordered = list()
+        # Toss all conditions up into a map indexed by name:
         
+        name_map = dict()
+        for cond in definitions:
+            cond['written'] = False       # Not yet written to file.
+            name_map[cond['name']] = cond
+        
+        #  The work:
+        
+        for cond in definitions:
+            name = cond['name']
+            if not name_map[name]['written']:
+                deps = self._enumerate_dependencies(cond, name_map)
+                reordered.extend(deps)
+                # Unlikely but possible that cond is in deps:
+                
+                if not name_map[name]['written']:
+                    reordered.append(cond)
+                    name_map[name]['written'] = True
+        
+        print("Reordered conds: ", reordered)        
+        return reordered
+    def _enumerate_dependencies(self, cond, name_map):
+        #  Given a condition, provide an ordered list of dependencies
+        #  that have not yet been 'written'  This is recursive
+        #  as dependent conditions might, themselves have
+        #  dependencies.
+        #  NOTE:  The condition itself is not  in the returned list.
+        result = list()
+        for dep_name in cond['gates']:
+            if not name_map[dep_name]['written']:
+                dep = name_map[dep_name]
+                deps = self._enumerate_dependencies(dep, name_map)
+                result.extend(deps)
+                # Unlikely but maybe written was set in dep:
+                if not name_map[dep_name]['written']:
+                    result.append(dep)
+                    name_map[dep_name]['written'] = True
+        return result
+    
+    def _save_condition(self, cursor, condition):
+        #  Save a single condition to the database.  Since this is not atomic, the
+        # caller shouild have a transaction going in the cursor.
+        # It is also important that the conditions be ordered so that conditions
+        # are defined prior to being needed by compound conditions.  This is the
+        # calller's responsibility.
+        
+        # root record - and get the row id so we can connect child records to this:
+        
+        cursor.execute('''
+                INSERT INTO gate_defs (saveset_id, name, type)
+                    VALUES (:saveid, :name, :type)
+            ''',
+            {
+                'saveid': self._saveid, 'name': condition['name'], 'type': condition['type']
+                
+            }
+        )
+        gateid = cursor.lastrowid
+        
+        #  If here are gate points, they need to be saved; We check the size because
+        #  We can marshall all poinst up for an executemany:  
+        
+        if len(condition['points']) > 0:
+            point_bindings = list()
+            for p in condition['points']:    # Build the bindings for executemany.
+                point_bindings.append(
+                    {'gid': gateid, 'x': p['x'], 'y': p['y']}
+                )
+            cursor.executemany('''
+                INSERT INTO gate_points (gate_id, x, y) VALUES (:gid, :x, :y)
+                ''', point_bindings)
+            
+        
+        # See spectrum creation for the trick we use with subselects and INSERT here.
+        
+        for pname in condition['parameters']:
+            cursor.execute('''
+                    INSERT INTO gate_parameters (parent_gate, parameter_id)
+                    SELECT gate_defs.id AS gateid, parameter_defs.id FROM gate_defs
+                    INNER JOIN parameter_defs 
+                       ON gate_defs.saveset_id = parameter_defs.save_id
+                    WHERE gate_defs.name = :gatename
+                        AND gate_defs.saveset_id = :saveset
+                        AND parameter_defs.name = :paramname
+                ''',
+                {
+                    'gatename': condition['name'], 'saveset': self._saveid, 'paramname': pname
+                }
+            )
+        # Can't really play the same trick with componet conditions because we'd need to match
+        # both the gate name and dependent gate name in the root table so (sigh):
+        
+        for dependent_condition  in condition['gates']:
+            cursor.execute('''
+                SELECT id FROM gate_defs WHERE name = :name AND saveset_id = :sid
+            ''', {
+                'name' : dependent_condition, 'sid' : self._saveid
+            })
+            ids = cursor.fetchall()
+            if len(ids)  != 1:
+                raise LookupError(f'0 or more than one matches for {dependent_condition} in condition id lookup')
+            id = ids[0][0]
+            cursor.execute('''
+                INSERT INTO component_gates (parent_gate, child_gate) 
+                    VALUES (:gateid, :depid)
+                ''', {
+                    'gateid': gateid, 'depid': id
+                }
+            )
+        # Now some special cases:
+        #  if low/high are defined, then those are points with only the x axis meaningful:
+        
+        if 'low' in condition.keys() and 'points' not in condition.keys():
+            low = condition['low']  
+            high = condition['high']    # Can't have one without the other:
+            
+            point_bindings = (
+                {'id': gateid, 'x': low, 'y': 0.0},
+                {'id': gateid, 'x': high, 'y': 0.0}
+            )
+            cursor.executemany('''
+                INSERT INTO gate_points  (gate_id, x, y) VALUES (:id, :x, :y)
+            ''', point_bindings)
+        
+        # If there's a 'value' field, then it's a mask gate:
+        
+        if 'value' in condition.keys():
+            cursor.execute('''
+                    INSERT INTO gate_masks (parent_gate, mask)
+                    VALUES (:id, :mask)
+                ''', {
+                  'id': gateid, 'mask': condition['value']  
+                })
+            
+    
+        
+            
         
             
         
