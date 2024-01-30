@@ -195,7 +195,39 @@ class DefinitionWriter:
                      AND  gate_defs.name       = :condname
             ''', substitutions)
             self._sqlite.commit()
-           
+    def save_variables(self, definitions):
+        '''
+        Saves the tree variable definitions/values to the database.
+        
+        definitions - is the ['detail'] that comes from 
+        rustogramer_client.rustogramer.treevariable_list.  This is a list
+        of dicts where each dict has the field:
+          'name'  - the name of the variable.
+          'value' - The current value (double) of the variable.
+          'units' - The units of measure of the variable.
+          
+          Saving this stuff should be relatively straightforward.
+        '''
+        
+        # Generate the substitutions:
+        
+        substitutions = list()
+        for var in definitions:
+            substitutions.append({
+                'saveid':  self._saveid,
+                'name'  : var['name'],
+                'value' : var['value'],
+                'units' : var['units']
+            })
+        
+        if len(substitutions) > 0:
+            cursor = self._sqlite.cursor()
+            cursor.executemany('''
+                    INSERT INTO  treevariables (save_id, name, value, units)
+                       VALUES (:saveid, :name, :value, :units)
+                ''', substitutions)
+            self._sqlite.commit()
+               
     # Private methods    
     def _create_schema(self):
         # Create the databas schema; again see 

@@ -120,12 +120,21 @@ class FileMenu(QObject):
                 saver.save_variables(var_defs)
         except Exception as  e:
             error(f'Failed to write {filename}: {e}')
-            # For debugging:
-            raise e
+            
         
     def _save_vars(self):
         #  Save only the tree variables to a database file:
-        pass
+        file = self._getSqliteFilename()
+        if file == ('',''):
+            return
+        filename = self._genfilename(file)
+        
+        try:
+            writer = DefinitionIO.DefinitionWriter(filename)
+            vars = self._client.treevariable_list()['detail']
+            writer.save_variables(vars)
+        except Exception as e:
+            error(f'Failed to write tree variables to {filename} : {e}')
         
     def _saveSpectra(self):
         #  Prompt for spectra to save and the format
