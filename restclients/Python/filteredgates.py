@@ -158,7 +158,7 @@ class FilteredConditions(QWidget):
             return [0.0, 0.0]
         return parse.parse('{}, {}', gates)
     def _make_mask(self, m):
-        if m is not None:
+        if m is not None and (not m == ''):
             return int(m)
         else:
             return None
