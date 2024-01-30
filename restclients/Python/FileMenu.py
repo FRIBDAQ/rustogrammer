@@ -128,7 +128,12 @@ class FileMenu(QObject):
         if file == ('',''):
             return
         filename = self._genfilename(file)
+        # If the file exists, delete it:
         
+        try:
+            os.remove(filename)
+        except:
+            pass
         try:
             writer = DefinitionIO.DefinitionWriter(filename)
             vars = self._client.treevariable_list()['detail']
