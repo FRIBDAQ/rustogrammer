@@ -179,6 +179,12 @@ class FileMenu(QObject):
             return
         filename = self._genfilename(file)
         reader = DefinitionIO.DefinitionReader(filename)
+        
+        #  Read the parameters from the database and restore them (not so simple actually):
+        
+        parameters = reader.read_parameter_defs()
+        self._update_parameters(parameters)
+        
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
         if confirm('Are you sure you want to exit the GUI (note the histogramer will continue to run)'):
@@ -212,7 +218,37 @@ class FileMenu(QObject):
             self._menu, 'Definition File', os.getcwd(), 
             'Sqlite3 (*.sqlite)'
         )        
+    def _update_parameters(self, definitions):
+        #  Takes a set of parameter definitions and does what's needed.
+        # What's needed:
+        #   If the parameter does not exist, first just create it.
+        #   Then edit the parameter's properties to match what's in its new definition.
         
+        existing_defs = self._client.parameter_list()['detail']
+        existing_map = dict()
+        for p in existing_defs:
+            existing_map[p['name']] = p
+        print(existing_map)
+        # Now we can run through the new definitions:
+        
+        names = existing_map.keys()
+        for p in definitions:
+            name = p['name']
+            if not name in names:
+                self._client.parameter_create(name, {})
+            # Only pull the non null ones out:
+            
+            mods = dict()
+            if p['low'] is not None:
+                mods['low'] = p['low']
+            if p['high'] is not None:
+                mods['high'] = p['high']
+            if p['units'] is not None:
+                mods['units'] = ['units']
+            
+            if mods:
+                # Dicts are true if non-empty:
+                self._client.parameter_modify(name, mods)
         
         
 class SpectrumSaveDialog(QDialog):

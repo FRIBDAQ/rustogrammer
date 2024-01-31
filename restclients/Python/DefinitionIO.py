@@ -639,6 +639,50 @@ class DefinitionReader:
             )
         self._saveid = matches[0][0]
         
-    pass    
-            
+    def read_parameter_defs(self):
+        '''
+        Reads all of the parameter definitions from the current save set.
+        returns a list of dicts each dict has the following keys:
+        
+        'name'    - Parameter name.
+        'number'  - Parameter number.
+        'low'     - Low value (if empty None)
+        'high'    - High value (if empty None)
+        'bins'    - Suggested axis binning.
+        'units'   - Units of measure string (None if empty).
+        
+        '''
+        
+        # Query all parameter definitions for our saveset:
+        
+        cursor = self._sqlite.cursor()
+        cursor.execute('''
+            SELECT  name, number, low, high, bins, units FROM parameter_defs 
+            WHERE save_id = :saveid
+        ''', {'saveid': self._saveid})
+        data = cursor.fetchall()
+        
+        # I think we got back a list of tuples where the elements of each tuple are, in order the
+        # columns queried:
+        
+        result = list()
+        for item in data:
+            row = {
+                'name': item[0],
+                'number': item[1],
+                'low': item[2],
+                'high': item[3],
+                'bins': item[4],
+                'units': item[5]
+            }
+            # The empty items might look like '' not None.  Depends on the Sqlite3 package impl.
+            if row['low'] == '':
+                row['low'] = None
+            if row['high'] == '':
+                row['high'] = None
+            if row['units'] == '':
+                row['units'] = None
+            result.append(row)
+        return result
+        
         
