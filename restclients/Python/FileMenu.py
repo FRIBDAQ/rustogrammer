@@ -124,7 +124,7 @@ class FileMenu(QObject):
             
         
     def _save_vars(self):
-        #  Save only the tree variables to a database file:
+        #  Save only the tree variables to a database file
         file = self._getSqliteFilename()
         if file == ('',''):
             return
@@ -185,6 +185,9 @@ class FileMenu(QObject):
         parameters = reader.read_parameter_defs()
         self._update_parameters(parameters)
         
+        spectra = reader.read_spectrum_defs()
+
+        
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
         if confirm('Are you sure you want to exit the GUI (note the histogramer will continue to run)'):
@@ -228,7 +231,7 @@ class FileMenu(QObject):
         existing_map = dict()
         for p in existing_defs:
             existing_map[p['name']] = p
-        print(existing_map)
+
         # Now we can run through the new definitions:
         
         names = existing_map.keys()

@@ -684,5 +684,120 @@ class DefinitionReader:
                 row['units'] = None
             result.append(row)
         return result
+    def read_spectrum_defs(self):
+        '''
+        Produces a list of dicts where each dict is a spectrum definition pulled from the database.
+        Each spectrum definition dict will have the following keys:
+            'name'  - The spectrum name
+            'type'  - The spectrum type string (e.g. '1').
+            'datatype' - the channel data type (e.g. f64).
+            'axes'  - array of dicts for the axes ('low', 'high', 'bins' for each axis)
+            'xaxis' - If appropriate an Xaxis definition.
+            'yaxis' - If appropriate a Y axis definition.
+            'parameters' - The entire set of parameters
+            'xparameters' - The set of X parameters.
+            'yparameters' - the set of Y parameter names.
         
+        We can get the name, type, and axes easily but I'm not SQLSmart enuough to get the parameters
+        without separate queries.  I'll leave that to someone smarter than I.
+        
+        '''
+        
+        definition_dict = dict()             # Indexed by spectrum name:
+        
+        # Note the order by below is used to ensure we get axes in x/y order.
+        
+        cursor = self._sqlite.cursor()
+        cursor.execute('''
+            SELECT name, type, datatype, low, high, bins  FROM spectrum_defs
+            FULL OUTER JOIN axis_defs 
+               ON spectrum_defs.id = axis_defs.spectrum_id
+            WHERE spectrum_defs.save_id = :saveset
+            ORDER BY axis_defs.id
+        ''', {'saveset' : self._saveid})   
+        
+        data = cursor.fetchall()
+        
+        # Build the initial dict with name, type, datatype, axes, xaxis and yaxis.  There are some
+        # Funky special cases for axes:
+        
+        for spectrum in data:
+            name = spectrum[0]
+            axis = {
+                    'low': spectrum[3],
+                    'high' : spectrum[4],
+                    'bins' : spectrum[5]
+                }
+            if not name in definition_dict.keys():
+                # Initial occurrence of spectrum:
+                
+                
+                sdef = {
+                    'name': spectrum[0],
+                    'type': spectrum[1],
+                    'datatype': spectrum[2],
+                    'axes': [axis,],
+                    'xaxis': list(),
+                    'yaxis': list(),
+                    'parameters': list(),
+                    'xparameters': list(),
+                    'yparameters': list()
+                }
+                sdef['xaxis'] = axis   
+                definition_dict[name] = sdef
+            else:
+                # Just need to fold in a second axis.
+                
+                definition_dict[name]['axes'].append(axis)
+                definition_dict[name]['yaxis'].append(axis)   # Second is always Y.
+                
+                
+        # Now fold in parameters  The first inner join associates the parameter ids
+        # in spectrum_params with their names in the definition table
+        # the second associates the spectrum id with the specturm name.
+        
+        cursor.execute('''
+            SELECT spectrum_defs.name, parameter_defs.name FROM spectrum_params
+            INNER JOIN parameter_defs ON spectrum_params.parameter_id = parameter_defs.id
+            INNER JOIN spectrum_defs ON spectrum_params.spectrum_id = spectrum_defs.id
+            WHERE spectrum_defs.save_id = :saveset
+        ''', {'saveset': self._saveid})
+        
+        data = cursor.fetchall()
+        for d in data:
+            spname = d[0]
+            pname  = d[1]
+            definition_dict[spname]['parameters'].append(pname)
+        
+        # and X parameters - same as above but with the spectrum_x_params table:
+        
+        cursor.execute('''
+            SELECT spectrum_defs.name, parameter_defs.name FROM spectrum_x_params
+            INNER JOIN parameter_defs ON spectrum_x_params.parameter_id = parameter_defs.id
+            INNER JOIN spectrum_defs ON spectrum_x_params.spectrum_id = spectrum_defs.id
+            WHERE spectrum_defs.save_id = :saveset
+        ''', {'saveset': self._saveid})
+        
+        data = cursor.fetchall()
+        for d in data:
+            spname = d[0]
+            pname  = d[1]
+            definition_dict[spname]['xparameters'].append(pname)
+        
+        # and Y parameters
+        
+        cursor.execute('''
+            SELECT spectrum_defs.name, parameter_defs.name FROM spectrum_y_params
+            INNER JOIN parameter_defs ON spectrum_y_params.parameter_id = parameter_defs.id
+            INNER JOIN spectrum_defs ON spectrum_y_params.spectrum_id = spectrum_defs.id
+            WHERE spectrum_defs.save_id = :saveset
+        ''', {'saveset': self._saveid})
+        
+        data = cursor.fetchall()
+        for d in data:
+            spname = d[0]
+            pname  = d[1]
+            definition_dict[spname]['yparameters'].append(pname)
+        
+        return definition_dict.values()
         
