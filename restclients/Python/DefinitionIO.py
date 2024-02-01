@@ -800,4 +800,95 @@ class DefinitionReader:
             definition_dict[spname]['yparameters'].append(pname)
         
         return definition_dict.values()
+    def read_condition_defs(self):
+        '''
+        Reads all condition definitions from file's open saveset and returns them as a 
+        list of dicts.  Each dict will have the following keys:
+          name - The name of the condition type.
+          type - The type string of the condition type.
+          points - list of (x,y) pairs that are the condition points for conditions that have points
+                 This can be empty.
+          parameters - List of parameters that are used by the condition
+          dependencies - List of condition names this condition depends on.
+          mask   - If the condition is a mask the value of this mask.
+          
+          Note that conditions are guaranteed to be in an order such that iterating over
+          the list allows the conditions to be defined (e.g. dependent conditions before
+          conditions that depend on them).   This is a natural consequence of the fact
+          that the writer writes them in that order and, by ordering by primary key,
+          we get them out of the database in that order.
+          
+          Unfortunately, the variability of condition definitions does not really allow us to make
+          much use of fancy queries to reduce the number of queries needed to reconstruct
+          a condition.  We are able to do the usual fancy things to turn ids into names
+          for the parameters and dependent conditions.
+        '''    
+        result = list()
+        cursor = self._sqlite.cursor()
         
+        #  Get the root records:
+        
+        cursor.execute('''
+            SELECT name, type, id FROM gate_defs 
+            WHERE saveset_id = :saveid
+            ORDER BY id ASC
+        ''', {'saveid': self._saveid})
+        
+        roots = cursor.fetchall()
+        
+        # Now iterate over each root record doing the appropriate single shot joins
+        # to get the child records.  If I were smart, I'd use the gate type to
+        # minimize queries but that would mean propagating knowledge of those types
+        # down to this level which I'm avoiding.
+        
+        for root in roots:
+            name  = root[0]
+            ctype = root[1]
+            id    = root[2]
+            #        Gate points.
+            cursor.execute('''
+                    SELECT x,y FROM gate_points
+                    WHERE gate_id = :id
+                    ORDER BY id ASC  
+                ''', {'id': id})
+            pts = cursor.fetchall() # [(x,y), (x,y)....]
+            #         Parmeter names:
+            cursor.execute('''
+                SELECT name FROM parameter_defs
+                INNER JOIN gate_parameters ON parameter_defs.id = gate_parameters.parameter_id
+                WHERE parent_gate = :id
+                ORDER BY gate_parameters.id ASC
+            ''', {'id': id})
+            pnames = [x[0] for x in cursor.fetchall()]
+            
+            #      Component condition names:
+            
+            cursor.execute('''
+                SELECT name from gate_defs
+                INNER JOIN component_gates ON component_gates.child_gate = gate_defs.id
+                WHERE parent_gate = :id
+                ORDER BY component_gates.id ASC
+            ''', {'id': id})
+            components = [x[0] for x in cursor.fetchall()]
+            
+            #  Mask:
+            
+            cursor.execute('''
+                SELECT mask FROM gate_masks WHERE parent_gate = :id
+            ''', {'id': id})
+            mask = cursor.fetchall()
+            
+            definition = {
+                'name' :name,
+                'type' :ctype,
+                'points': pts,
+                'parameters' : pnames,
+                'dependencies' : components
+            }
+            if len(mask) == 1:
+                definition['mask'] = mask[0]
+            else:
+                definition['mask'] = None
+            result.append(definition)
+            
+        return result

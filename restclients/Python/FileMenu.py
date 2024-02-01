@@ -206,6 +206,9 @@ class FileMenu(QObject):
                 pass
             self._restore_spectra(choice, spectra, existing)
         
+        conditions = reader.read_condition_defs()
+        print(conditions)
+        
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
         if confirm('Are you sure you want to exit the GUI (note the histogramer will continue to run)'):
