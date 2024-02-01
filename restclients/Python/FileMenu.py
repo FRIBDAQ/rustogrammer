@@ -207,7 +207,8 @@ class FileMenu(QObject):
             self._restore_spectra(choice, spectra, existing)
         
         conditions = reader.read_condition_defs()
-        print(conditions)
+        for condition in conditions:
+            self._recreate_condition(condition)
         
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
@@ -389,9 +390,72 @@ class FileMenu(QObject):
             print(' gamma summary def looks like: ', definition)
         else:
             error(f'Specturm if type {stype} is not supported at this time.')
-            
+    
+    def _recreate_condition(self, cond):
+        # Re create a condition in the server:
+        # JUst return if the condition type is not supported by our histogramer:
         
         
+        cname = cond['name']
+        ctype = cond['type']
+        
+        if not capabilities.has_condition_type(capabilities.ConditionTypeNamesToType[ctype]):
+            return
+        
+        if ctype == 'T':
+            self._client.condition_make_true(cname)
+        elif ctype == 'F':
+            self._client.condition_make_false(cname)
+        elif ctype == '-':
+            self._client.condition_make_not(cname, cond['dependencies'][0])
+        elif ctype == '*':
+            self._client.condition_make_and(cname, cond['dependencies'])
+        elif ctype == '+':
+            self._client.condition_make_or(cname, cond['dependencies'])
+        elif ctype == 's':
+            self._client.condition_make_slice(
+                cname, cond['parameters'][0], 
+                cond['points'][0][0], cond['points'][1][0]
+            ) 
+        elif ctype== 'c':
+            self._client.condition_make_contour(
+                cname, cond['parameters'][0], cond['parameters'][1],
+                [{'x': x[0], 'y': x[1]} for x in cond['points']]
+            )
+        elif ctype== 'b':
+            self._client.condition_make_band(
+                cname, cond['parameters'][0], cond['parameters'][1],
+                [{'x': x[0], 'y': x[1]} for x in cond['points']]
+            )
+        elif ctype =='gs':
+            self._client.condition_make_gamma_slice(
+                cname, cond['parameters'],
+                cond['points'][0][0], cond['points'][1][0]
+            )
+        elif ctype == 'gc':
+            self._client.conditino_make_gamma_contour(
+                cname, cond['parameters'],
+                [{'x': x[0], 'y': x[1]} for x in cond['points']]
+            )
+        elif ctype == 'gb':
+            self._client.condition_make_gamma_band(
+                cname, cond['parameters'],
+                [{'x': x[0], 'y': x[1]} for x in cond['points']]
+            )
+        elif ctype == 'em':
+            self._client.condition_make_mask_equal(
+                cname, cond['parameters'][0], cond['mask']
+            )
+        elif ctype == 'am':
+            self._client.condition_make_mask_and(
+                cname, cond['parameters'][0], cond['mask']
+            )
+        elif ctype =='nm':
+            self._client.condition_make_mask_nand(
+                cname, cond['parameters'][0], cond['mask']
+            )
+        else:
+            error(f'Gate type {ctype} is not supported.')
 class SpectrumSaveDialog(QDialog):
     '''
     This class provides:

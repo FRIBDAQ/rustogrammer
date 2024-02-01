@@ -225,9 +225,25 @@ class ConditionTypes(Enum):
     TrueCondition = auto()
     MaskEqual = auto()           # SpecTclOnly.
     MaskAnd = auto()             # SpecTclOnly.
-    MaskOr  = auto()           # SpecTclOnly.
     MaskNand = auto()          # SpecTclOnly.
     C2Band   = auto()          # SpecTl only.
+
+ConditionTypeNamesToType = {
+    '*': ConditionTypes.And,
+    'b': ConditionTypes.Band,
+    'c': ConditionTypes.Contour,
+    'F': ConditionTypes.FalseCondition,
+    'gb': ConditionTypes.GammaBand,
+    'gc': ConditionTypes.GammaContour,
+    '-' : ConditionTypes.Not,
+    '+' : ConditionTypes.Or,
+    's' : ConditionTypes.Slice,
+    'T' : ConditionTypes.TrueCondition,
+    'em': ConditionTypes.MaskEqual,
+    'am': ConditionTypes.MaskAnd,
+    'nm': ConditionTypes.MaskNand,
+    
+}
 
 supported_condition_types = {
     Program.Rustogramer : {
@@ -244,7 +260,7 @@ supported_condition_types = {
         ConditionTypes.Not, ConditionTypes.Or, ConditionTypes.Slice,
         ConditionTypes.TrueCondition,
         ConditionTypes.GammaBand, ConditionTypes.MaskEqual, ConditionTypes.MaskAnd,
-        ConditionTypes.MaskOr, ConditionTypes.MaskNand, 
+        ConditionTypes.MaskNand, 
         ConditionTypes.C2Band
     },
     Program.Unknown: {}
