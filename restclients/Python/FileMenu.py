@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import (
-    QAction, QDialog, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QRadioButton, QFileDialog
+    QAction, QDialog, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QRadioButton, QFileDialog,
+    QLabel
 )
 from PyQt5.QtCore import QObject
 import capabilities
@@ -186,7 +187,12 @@ class FileMenu(QObject):
         self._update_parameters(parameters)
         
         spectra = reader.read_spectrum_defs()
-
+        # There are several things they may want to do with existing spectra:
+        # figure them out:
+        if len(spectra) > 0:
+            existing_dialog = DupSpectrumDialog(self._menu)
+            choice = existing_dialog.exec()
+            print(choice)
         
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
@@ -311,5 +317,73 @@ class SpectrumSaveDialog(QDialog):
         return result
         
         
+
+# This dialog is used to get how to handle spectra read in.  There are three choices:
+#  -   Delete all first.
+#  -   Replace any duplicates.
+#  -   Keep the duplicates as is.
+#
+#  Instantiate this dialog then its exec method will
+#  return one of:
+#    - 1  - Delete all
+#    - 2  - Replace duplicates.
+#    - 3  - Keep duplicates.
+#    - 0  - The dialog was cancelled you should not recover the spectra.
+#        
+class DupSpectrumDialog(QDialog):
+    def __init__(self, *args):
+        super().__init__(*args)
+        layout = QVBoxLayout()
         
+        # At the top is the explanatory text.
         
+        self._explanation = QLabel(self)
+        self._explanation.setWordWrap(True)
+        self._explanation.setText(" \
+You are about to recover spectrum definitions from a file.  It is possible there are already \
+spectra defined with the same names as this in the file.  Decide what you want to do with \
+existing spectra:")
+        layout.addWidget(self._explanation)
+        
+        # Second row is an hbox layout that has the radio buttons.  The
+        # initial value is delete all spectra first.
+        
+        radios = QHBoxLayout()
+        self._deleteall = QRadioButton('Delete all existing', self)
+        self._deleteall.setChecked(True)
+        radios.addWidget(self._deleteall)
+        
+        self._deletedups = QRadioButton("Ovewrite existing defs", self)
+        radios.addWidget(self._deletedups)
+        
+        self._keepdups = QRadioButton("Don'r re-define duplicates", self)
+        radios.addWidget(self._keepdups)
+        
+        layout.addLayout(radios)
+        
+        # Now the dialog buttons:
+        
+        self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self._buttonBox.accepted.connect(self.accept)
+        self._buttonBox.rejected.connect(self.reject)
+        
+        layout.addWidget(self._buttonBox)
+        
+        self.setLayout(layout)
+    
+    def exec(self):
+        # Override the exec - after the base class finishes interrogate the radios
+        # to decide what to return:
+        
+        if super().exec():
+            if self._deleteall.isChecked():
+                return 1
+            if self._deletedups.isChecked():
+                return 2
+            if self._keepdups.isChecked():
+                return 3
+            # Should not land here but...
+            
+            return 0      # Treat it like  a cancel.
+        else:
+            return 0      #  Canacel
