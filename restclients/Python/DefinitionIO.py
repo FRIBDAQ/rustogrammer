@@ -749,7 +749,7 @@ class DefinitionReader:
                 # Just need to fold in a second axis.
                 
                 definition_dict[name]['axes'].append(axis)
-                definition_dict[name]['yaxis'].append(axis)   # Second is always Y.
+                definition_dict[name]['yaxis'] = axis   # Second is always Y.
                 
                 
         # Now fold in parameters  The first inner join associates the parameter ids

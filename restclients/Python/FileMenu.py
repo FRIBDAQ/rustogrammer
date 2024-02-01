@@ -192,7 +192,19 @@ class FileMenu(QObject):
         if len(spectra) > 0:
             existing_dialog = DupSpectrumDialog(self._menu)
             choice = existing_dialog.exec()
-            print(choice)
+            existing = set()               # Will be existing indexed by name:
+            existing_spectra = self._client.spectrum_list()['detail']
+            if choice == 1:
+                # Existing is an empty set after we delete everything:
+                for spectrum in existing_spectra:
+                    self._client.spectrum_delete(spectrum['name'])
+            elif choice == 2 or choice == 3:
+                # Need the existing spectrum names set:
+                for spectrum in existing_spectra:
+                    existing.add(spectrum['name'])
+            else:
+                pass
+            self._restore_spectra(choice, spectra, existing)
         
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
@@ -258,6 +270,123 @@ class FileMenu(QObject):
             if mods:
                 # Dicts are true if non-empty:
                 self._client.parameter_modify(name, mods)
+    def _restore_spectra(self, dupchoice, spectra, existing):
+        #  dupchoice - selection from the DupSpectrumDialog   
+        #  spectra   - Description of spectra to restore.
+        #  existing  - Set of existing spectrum names.
+        
+        for spectrum in spectra:
+            if spectrum['name'] in existing:
+                if dupchoice == 2:          # Replace
+                    self._client.spectrum_delete(spectrum['name'])
+                else:
+                    # Else is ok because existing is empty if dupchoice is 1 so
+                    # Choice must be 3 (keep existing).
+                    continue            # Do nothing with that definition.
+            # At this point we can create the spectrum:
+            
+            self._create_spectrum(spectrum)
+    def _create_spectrum(self, definition):
+        
+        # Create a spectrum given its definition;  how depends on type:
+        
+        name = definition ['name']
+        stype = definition['type']
+        dtype = definition['datatype']
+        
+        
+        # If interchanging spectra between SpecTcl <--> Rustogramer we may need to 
+        # massage the data type:
+        
+        if capabilities.DataTypeStringsToChannelTypes[dtype] not in \
+            capabilities.get_supported_channelTypes():
+            dtype = capabilities.ChannelTypesToDataTypeStrings[
+                capabilities.get_default_channelType()]
+        
+        
+        if stype == '1':
+            self._client.spectrum_create1d(
+                name, definition['xparameters'][0], 
+                definition['xaxis']['low'], definition['xaxis']['high'], definition['xaxis']['bins'],
+                dtype
+            )
+        elif stype == '2':
+            self._client.spectrum_create2d(
+                name, definition['xparameters'][0], definition['yparameters'][0],
+                definition['xaxis']['low'], definition['xaxis']['high'], definition['xaxis']['bins'],
+                definition['yaxis']['low'], definition['yaxis']['high'], definition['yaxis']['bins'],
+                dtype
+            )
+        elif stype == 'g1':
+            self._client.spectrum_createg1(
+                name, definition['parameters'],
+                definition['xaxis']['low'], definition['xaxis']['high'], definition['xaxis']['bins'],
+                dtype
+            )
+        elif stype == 'g2':
+            self._client.spectrum_createg2(
+                name, definition['parameters'],
+                definition['xaxis']['low'], definition['xaxis']['high'], definition['xaxis']['bins'],
+                definition['yaxis']['low'], definition['yaxis']['high'], definition['yaxis']['bins'],
+                dtype
+            )
+        elif stype == 'gd':
+            self._client.spectrum_creategd(
+                name, definition['xparameters'], definition['yparameters'],
+                definition['xaxis']['low'], definition['xaxis']['high'], definition['xaxis']['bins'],
+                definition['yaxis']['low'], definition['yaxis']['high'], definition['yaxis']['bins'],
+                dtype
+            )
+        elif stype == 's':
+            # Axis definition...if there's a y axis we use it otherwise the X
+            # That may be a SpecTcl Rustogramer difference:
+            
+            if definition['yaxis'] is not None:
+                axis = definition['yaxis']
+            else:
+                axis = definition['xaxis']
+            self._client.spectrum_createsummary(
+                name, definition['parameters'],
+                axis['low'], axis['high'], axis['bins'],
+                dtype
+            )
+        elif stype == 'm2':
+            # If there's no y parameters, then every other parameter in x/y is 
+            # x,y
+            if definition['yparameters'] is None:
+                xparams =list()
+                yparams = list()
+                p  = iter(definition['parameters'])
+                for x in p:
+                    xparams.append(x)
+                    yparams.append(next(p))
+            else:
+                xparams = definition['xparameters']
+                yparams = definition['yparameters']
+            self._client.spectruM_create2dsum(
+                name, xparams, yparams,
+                definition['xaxis']['low'], definition['xaxis']['high'], definition['xaxis']['bins'],
+                definition['yaxis']['low'], definition['yaxis']['high'], definition['yaxis']['bins'],
+                dtype
+            )
+        elif stype == 'S':
+            self._client.spectrum_createstripchart(
+                name, definition['xparameters'][0], definition['yparameters'][1],
+                definition['xaxis']['low'], definition['xaxis']['high'], definition['xaxis']['bins'],
+                definition['yaxis']['low'], definition['yaxis']['high'], definition['yaxis']['bins'],
+                dtype
+            )
+        elif stype == 'b':
+            self._client.spectrum_createbitmask(
+                name, definition['xparameters'][0],
+                definition['xaxis']['low'], definition['xaxis']['high'], definition['xaxis']['bins'],
+                dtype
+            )
+        elif stype == 'gs':
+            print(' gamma summary def looks like: ', definition)
+        else:
+            error(f'Specturm if type {stype} is not supported at this time.')
+            
         
         
 class SpectrumSaveDialog(QDialog):
@@ -356,7 +485,7 @@ existing spectra:")
         self._deletedups = QRadioButton("Ovewrite existing defs", self)
         radios.addWidget(self._deletedups)
         
-        self._keepdups = QRadioButton("Don'r re-define duplicates", self)
+        self._keepdups = QRadioButton("Don't re-define duplicates", self)
         radios.addWidget(self._keepdups)
         
         layout.addLayout(radios)

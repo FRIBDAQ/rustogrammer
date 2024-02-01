@@ -162,6 +162,19 @@ class ChannelTypes(Enum):
     Short = auto()
     Byte = auto()
 
+DataTypeStringsToChannelTypes = {
+    'byte': ChannelTypes.Byte,
+    'short': ChannelTypes.Short,
+    'long' : ChannelTypes.Long,
+    'f64'  : ChannelTypes.Double
+}
+ChannelTypesToDataTypeStrings = {
+    ChannelTypes.Byte : 'byte',
+    ChannelTypes.Short : 'short',
+    ChannelTypes.Long : 'long',
+    ChannelTypes.Double : 'f64'
+}
+
 supported_channel_types = {
     Program.Rustogramer : {
         ChannelTypes.Double
@@ -188,6 +201,15 @@ def get_supported_channelTypes():
     global supported_channel_types
     program = get_program()
     return supported_channel_types[program]
+
+def get_default_channelType():
+    program = get_program()
+    if program == Program.SpecTcl:
+        return ChannelTypes.Long
+    elif program == Program.Rustogramer:
+        return ChannelTypes.Double
+    else:
+        return ChannelTypes.Long     # Should not be here.
 
 class ConditionTypes(Enum):
     And = auto()
