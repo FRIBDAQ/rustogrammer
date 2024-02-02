@@ -221,7 +221,26 @@ class FileMenu(QObject):
         response = dlg.exec()
         if not response:
             return
-        print(dlg.snapshot(), dlg.replace(), dlg.bind(), dlg.format())
+        snapshot = dlg.snapshot()
+        replace  = dlg.replace()
+        bind     = dlg.bind()
+        format   = dlg.format()
+        #  Prompt for a filename:
+        
+        file = QFileDialog.getOpenFileName(
+            self._menu,  'Spectrum Filename', os.getcwd(),
+            f'{format} files (*.{format})'
+        )
+        if file[0] == '':
+            return
+        filename = self._genfilename(file)
+        try:
+            self._client.spectrum_read(filename, format, 
+                {'snapshot': snapshot, 'replace': replace, 'bind': bind}
+            )
+        except Exception as e:
+            error("Failed to read spectrum file {filename}: {e}")
+        
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
         if confirm('Are you sure you want to exit the GUI (note the histogramer will continue to run)'):
