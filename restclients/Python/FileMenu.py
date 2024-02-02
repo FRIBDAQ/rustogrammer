@@ -1,8 +1,9 @@
 from PyQt5.QtWidgets import (
     QAction, QDialog, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QRadioButton, QFileDialog,
-    QLabel
+    QLabel, QCheckBox
 )
 from PyQt5.QtCore import QObject
+from PyQt5.Qt import *
 import capabilities
 from spectrumeditor import confirm, error
 import SpectrumList
@@ -209,6 +210,11 @@ class FileMenu(QObject):
         conditions = reader.read_condition_defs()
         for condition in conditions:
             self._recreate_condition(condition)
+            
+            
+        applications = reader.read_applications()
+        self._restore_gate_applications(applications)
+        
         
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
@@ -456,6 +462,34 @@ class FileMenu(QObject):
             )
         else:
             error(f'Gate type {ctype} is not supported.')
+    
+    def _restore_gate_applications(self, apps):
+        # Restore the gate applications.  Doing this in a separate
+        # method makes handling the cancel from the ExistingApplcationsDialog eaiser.
+        
+        current = self._get_current_applications()
+        if len(current) > 0:
+            dlg = ExistingApplicationsDialog()
+            response = dlg.exec()
+            if response == 0:
+                return                # Cancel.
+            elif response == 1:
+                names =  [x['spectrum'] for x in current]
+                self._client.ungate_spectrum(names)
+            else:
+                pass                          # Should be 2.
+        # make the applications:
+        
+        for app in apps:
+            self._client.apply_gate(app['condition'], app['spectrum'])
+    def _get_current_applications(self):
+        # This is hidden in a method because there's some actual massaging in both Rustogramer
+        # and SpecTcl needed to make the actual list of spectra with gates applied:
+        
+        apps = self._client.apply_list()['detail']
+        apps = [x for x in apps if x['gate'] is not None]
+        print(apps)
+        return apps
 class SpectrumSaveDialog(QDialog):
     '''
     This class provides:
@@ -583,3 +617,46 @@ existing spectra:")
             return 0      # Treat it like  a cancel.
         else:
             return 0      #  Canacel
+
+# Dialog to determine how existing gate applications are to be handled.
+#  Instantiating and invoking exec returns:
+#    1  - Kill all existing applications.
+#    2  - Retain any existing applications not overwritten.
+#    0  - User cancelled don't restore the aplications.
+class ExistingApplicationsDialog(QDialog): 
+    def __init__(self, *args):
+        super().__init__(*args)
+        layout = QVBoxLayout()
+        
+        self._explanation = QLabel(self)
+        self._explanation.setText(" \
+Choose how existing gate applications will be handled.   If you check the \
+box below, all existing gate applications will be removed before restoring \
+the applications in the file.  If you leave the box unchecked, \
+existing gate applications that are not overidden from the file will remain \
+        ")
+        self._explanation.setWordWrap(True)
+        layout.addWidget(self._explanation)
+        
+        self._killfirst = QCheckBox('Kill existing gate applications', self)
+        layout.addWidget(self._killfirst)
+        
+        # Now the dialog buttons:
+        
+        self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self._buttonBox.accepted.connect(self.accept)
+        self._buttonBox.rejected.connect(self.reject)
+        
+        layout.addWidget(self._buttonBox)
+        
+        self.setLayout(layout)
+        
+    def exec(self):                  # Override:
+        if super().exec():
+            if self._killfirst.checkState() == Qt.Checked:
+                return 1
+            else:
+                return 2
+        else:
+            return 0 
+        

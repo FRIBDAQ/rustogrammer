@@ -892,3 +892,26 @@ class DefinitionReader:
             result.append(definition)
             
         return result
+    def read_applications(self):
+        '''
+        Return a  list of dicts that describe which conditions are applied to which spectra.
+        The dicts have the keys:
+        spectrum - name of a spectrum.
+        condition - Name of the condition applied to the spectrum.
+        
+        The list can be empty.
+        '''
+        
+        cursor = self._sqlite.cursor()
+        
+        cursor.execute('''
+            SELECT spectrum_defs.name, gate_defs.name FROM spectrum_defs
+            INNER JOIN gate_applications on spectrum_id = spectrum_defs.id
+            INNER JOIN gate_defs ON gate_defs.id = gate_applications.gate_id
+            WHERE spectrum_defs.save_id = :saveid
+        ''', {'saveid': self._saveid})
+        
+        data = cursor.fetchall()
+        
+        return [{'spectrum': x[0], 'condition': x[1]} for x in data]
+    
