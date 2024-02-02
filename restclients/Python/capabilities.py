@@ -276,7 +276,7 @@ def get_supported_condition_types():
     return supported_condition_types[program]
 
 supported_spectrum_format_strings = {
-    Program.Rustogramer : ['json'],
+    Program.Rustogramer : ['json', 'ascii'],
     Program.SpecTcl: ['ascii', 'json', 'binary'],
     Program.Unknown: []
 }

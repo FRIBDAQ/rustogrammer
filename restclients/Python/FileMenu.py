@@ -55,6 +55,7 @@ class FileMenu(QObject):
         
         self._read_spectrum = QAction('Read Spectrum contents...', self)
         self._menu.addAction(self._read_spectrum)
+        self._read_spectrum.triggered.connect(self._read_spectrum_file)
         
         # SpecTcl supports sourcing a Tcl script:
         
@@ -123,7 +124,6 @@ class FileMenu(QObject):
                 saver.save_variables(var_defs)
         except Exception as  e:
             error(f'Failed to write {filename}: {e}')
-            raise
             
         
     def _save_vars(self):
@@ -216,7 +216,12 @@ class FileMenu(QObject):
         applications = reader.read_applications()
         self._restore_gate_applications(applications)
         
-        
+    def _read_spectrum_file(self):
+        dlg = ReadSpectraOptionsDialog(self._menu)
+        response = dlg.exec()
+        if not response:
+            return
+        print(dlg.snapshot(), dlg.replace(), dlg.bind(), dlg.format())
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
         if confirm('Are you sure you want to exit the GUI (note the histogramer will continue to run)'):
@@ -488,7 +493,6 @@ class FileMenu(QObject):
         
         apps = self._client.apply_list()['detail']
         apps = [x for x in apps if x['gate'] is not None]
-        print(apps)
         return apps
 class SpectrumSaveDialog(QDialog):
     '''
@@ -659,4 +663,76 @@ existing gate applications that are not overidden from the file will remain \
                 return 2
         else:
             return 0 
+
+# A dialog that allows users to select how spectra are read from file.  Has a bunch of checkboxes
+# and a radio button set for formats:
+# that turn on/off options.  The options are:
+#  snapshot - Spectra read in won't be incremented by future events.
+#  replace  - If the spectrum exists alread it will be replaced.
+#  bind     - Spectra get bound into the display memory
+#  
+#  Default have snapshot and bind checked but replace not.
+#
+#  Formats depend on the server capabilities and are chosen from the 
+#  set:
+#    json - supported by SpecTcl and rustogramer data files are in JSON format
+#    ascii - Supported by SpecTcl and rustogramer - old SpecTcl ASCII format.
+#    binary - only supported by SpecTcl - SMAUG binary format from Betty days.
+#
+class ReadSpectraOptionsDialog(QDialog):
+    def __init__(self, *args):
+        super().__init__(*args)
         
+        layout = QVBoxLayout()
+        
+        # Top is a vertical set of save options:
+        
+        layout.addWidget(QLabel('Save options:', self))
+        self._snapshot = QCheckBox('Save as snapshots', self)
+        self._snapshot.setCheckState(Qt.Checked)
+        layout.addWidget(self._snapshot)
+        
+        self._replace = QCheckBox('Replace spectra with same names', self)
+        layout.addWidget(self._replace)
+        
+        self._bind = QCheckBox('Bind to display memory', self)
+        self._bind.setCheckState(Qt.Checked)
+        layout.addWidget(self._bind)
+        
+        layout.addWidget(QLabel('File format:'))
+        
+        formats = QHBoxLayout()
+        self._formats = list()
+        for fmt in capabilities.get_supported_spectrum_format_strings():
+            fmtwidget = QRadioButton(fmt, self)
+            self._formats.append(fmtwidget)
+            formats.addWidget(fmtwidget)
+        if len(self._formats) > 0:
+            self._formats[0].setChecked(True)
+        
+        layout.addLayout(formats)
+        
+        # Now the dialog buttons:
+        
+        self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self._buttonBox.accepted.connect(self.accept)
+        self._buttonBox.rejected.connect(self.reject)
+        
+        layout.addWidget(self._buttonBox)
+        
+        self.setLayout(layout)
+    
+    # Selectors to get the state of the box (e.g. after exec returns):
+    
+    def snapshot(self):
+        return self._snapshot.checkState() == Qt.Checked
+    def replace(self):
+        return self._replace.checkState() == Qt.Checked
+    def bind(self):
+        return self._bind.checkState() == Qt.Checked
+    
+    def format(self):
+        for fmt in self._formats:
+            if fmt.isChecked():
+                return fmt.text()
+        return None
