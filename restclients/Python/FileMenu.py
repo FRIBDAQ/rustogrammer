@@ -239,7 +239,7 @@ class FileMenu(QObject):
                 {'snapshot': snapshot, 'replace': replace, 'bind': bind}
             )
         except Exception as e:
-            error("Failed to read spectrum file {filename}: {e}")
+            error(f"Failed to read spectrum file {filename}: {e}")
         
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
