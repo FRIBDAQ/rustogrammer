@@ -205,7 +205,7 @@ pub trait Spectrum {
     fn handle_event(&mut self, e: &FlatEvent) {
         if self.check_gate(e) {
             self.increment(e);
-        }
+        } 
     }
     // informational methods:
 
@@ -403,7 +403,6 @@ impl SpectrumStorage {
     //
     fn increment_spectra(spectra: &SpectrumReferences, e: &FlatEvent) -> Vec<usize> {
         let mut result = Vec::<usize>::new();
-
         for (i, s_container) in spectra.iter().enumerate() {
             if let Some(spectrum) = s_container.upgrade() {
                 spectrum.borrow_mut().handle_event(e);
@@ -536,6 +535,7 @@ impl SpectrumStorage {
         for p in e.iter() {
             let id = p.id as usize;
             if id < self.spectra_by_parameter.len() {
+                
                 if let Some(spectra) = self.spectra_by_parameter[id].as_mut() {
                     let dropped_list = Self::increment_spectra(spectra, &fe);
                     Self::prune_spectra(spectra, &dropped_list);

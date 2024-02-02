@@ -672,6 +672,7 @@ impl SpectrumProcessor {
         cdict: &mut conditions::ConditionDictionary,
     ) -> SpectrumReply {
         for e in events.iter() {
+            
             conditions::invalidate_cache(cdict);
             self.dict.process_event(e);
         }
@@ -738,8 +739,6 @@ impl SpectrumProcessor {
 
         let xaxis = spec.borrow().axes().as_tuple().0.clone();
         let yaxis = spec.borrow().axes().as_tuple().1.clone();
-
-        println!("Xbin: {} bins: {}", xbin, xaxis.num_bins());
 
         if xbin >= xaxis.num_bins() {
             return Err(format!(

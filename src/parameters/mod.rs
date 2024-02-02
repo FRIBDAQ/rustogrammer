@@ -256,6 +256,7 @@ pub type Event = Vec<EventParameter>;
 /// The input dictionary is used to determine the map while
 /// which is an array of output ids indexed by input ids.
 ///
+#[derive(Debug)]
 pub struct ParameterIdMap {
     dict: HashMap<String, u32>,
     map: Vec<Option<u32>>,
