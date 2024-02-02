@@ -123,6 +123,7 @@ class FileMenu(QObject):
                 saver.save_variables(var_defs)
         except Exception as  e:
             error(f'Failed to write {filename}: {e}')
+            raise
             
         
     def _save_vars(self):
@@ -350,8 +351,7 @@ class FileMenu(QObject):
         elif stype == 's':
             # Axis definition...if there's a y axis we use it otherwise the X
             # That may be a SpecTcl Rustogramer difference:
-            
-            if definition['yaxis'] is not None:
+            if definition['yaxis'] is not None and len(definition['yaxis']) != 0:
                 axis = definition['yaxis']
             else:
                 axis = definition['xaxis']

@@ -608,6 +608,17 @@ class rustogramer:
         """
         props = properties
         props["name"] = name
+        # Need to set defaults for SpecTcl these are similar to those used by Treegui but 0-100 not 1-100
+        propkeys = props.keys()
+        if 'low' not in propkeys:
+            props['low'] = 0.0
+        if 'high' not in propkeys:
+            props['high'] = 100.0
+        if 'bins' not in propkeys:
+            props['bins'] = 100
+        if 'units' not in propkeys:
+            props['units'] = ''
+            
         return self._transaction("/parameter/create", props)
 
     def parameter_modify(self, name, properties):

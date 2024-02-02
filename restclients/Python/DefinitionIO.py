@@ -122,6 +122,7 @@ class DefinitionWriter:
         # It's important that we re-order that definitions so that we define dependent gates
         # Before they are needed:
         
+        defs = self._fill_missing_condition_keys(defs)
         defs = self._reorder_conditions(defs)
         
         c = self._sqlite.cursor()
@@ -461,7 +462,22 @@ class DefinitionWriter:
             ''', {
                 'specid': specid, 'paramname': p, 'saveid': self._saveid
             })
-    
+    def _fill_missing_condition_keys(self, definitions):
+        #  This is needed because SpecTcl only fills in the needed keys not the full set of keys so:
+        
+        for cond in definitions:
+            k = cond.keys()
+            if 'gates' not in k:
+                cond['gates'] = list()
+            if 'parameters' not in k:
+                cond['parameters']  = list()
+            if 'points' not in k:
+                cond['points'] = list()
+            if 'low' in k:
+                #   low/high also create points:
+                cond['points'] = [{'x': cond['low'], 'y': 0.0}, {'x': cond['high'], 'y': 0.0}]
+
+        return definitions
     def _reorder_conditions(self, definitions):
         #  Reorders the condition definitions so that if a condition is dependent on other
         #  conditions all of those will get written out before us.
