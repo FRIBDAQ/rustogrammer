@@ -61,7 +61,7 @@ def get_program():
         try:
             edit_level = int(info['editlevel'])
         except:
-            edit_level = 0                    # pre-release
+            edit_level = 0                    # pre-releasegit 
         combined_version = _make_combined_version(major_version, minor_version, edit_level)
         #  Get the program name.. note version of SpecTcl may
         # not return a program_name key:
@@ -313,6 +313,12 @@ def get_supported_spectrum_format_strings():
     global supported_spectum_format_strings
     program = get_program()
     return supported_spectrum_format_strings[program]
+
+def has_rest_runlist():
+    ''' 
+        True if the program can be asked to process a list of runs (cluster file) via REST:
+    '''
+    return False                  # To be added to SpecTcl
 
 # Make capability adjusments for version:
 # This will wind up looking like a cluster f**k most likely 

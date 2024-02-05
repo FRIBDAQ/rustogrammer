@@ -45,6 +45,7 @@ def setup_menubar(win, client):
     # Our menu objects need to be global:
     
     global file_menu_object
+    global data_source_menu_object
     
     menubar = win.menuBar()
     file_menu = menubar.addMenu('&File')
@@ -52,6 +53,7 @@ def setup_menubar(win, client):
     
     data_source_menu = menubar.addMenu('Data &Source')
     data_source_menu_object = DataSourceMenu.DataSourceMenu(data_source_menu, client, win)
+    
     if capabilities.get_program == capabilities.Program.SpecTcl:
         filter_menu = menubar.addMenu('Filters')
     gate_menu = menubar.addMenu("&Gate")
