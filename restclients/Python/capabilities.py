@@ -26,6 +26,8 @@ major_version = None
 minor_version = None
 edit_level = None
 client = None
+
+version_adjustments_made = False
 '''
    If the program is not known get it after that, return it:
    Note set_client must have been called.
@@ -36,12 +38,13 @@ def get_program():
     global minor_version
     global edit_level
     global client
+    global version_adjustments_made
     if server_program is None:
         info = client.get_version()
         info = info['detail']
-        major_version = info['major']
-        minor_version = info['minor']
-        edit_level = info['editlevel']
+        major_version = int(info['major'])
+        minor_version = int(info['minor'])
+        edit_level = int(info['editlevel'])
         #  Get the program name.. note version of SpecTcl may
         # not return a program_name key:
 
@@ -60,6 +63,8 @@ def get_program():
         else:
             server_program = Program.Unknown
 
+        if not version_adjustments_made:
+            _adjust_for_version()
     return server_program
 
 
@@ -280,9 +285,31 @@ supported_spectrum_format_strings = {
     Program.SpecTcl: ['ascii',  'binary'],
     Program.Unknown: []
 }
+# SpecTcl version 5.13-xxx
+# and later support JSON 
+
+
+
 
 def get_supported_spectrum_format_strings():
     global supported_spectum_format_strings
     program = get_program()
     return supported_spectrum_format_strings[program]
+
+# Make capability adjusments for version:
+# This will wind up looking like a cluster f**k most likely 
+# as capabilities are added over time:
+def _adjust_for_version():
+    #   SpecTcl 5.13-013 adds support for JSON spectrum I/O:
+    
+    if server_program == Program.SpecTcl:
+        has_json = False
+        if major_version > 5:
+            has_json = True
+        elif major_version == 5 and minor_version > 13:
+            has_json = True
+        elif major_version == 5 and minor_version == 13 and edit_level >= 13:
+            has_json = True
+        if has_json:
+            supported_spectrum_format_strings[Program.SpecTcl].append('json')
     
