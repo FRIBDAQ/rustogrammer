@@ -27,6 +27,7 @@ from treevariableController import TreeVariableController
 from rustogramer_client import rustogramer as RestClient
 
 import FileMenu
+import DataSourceMenu
 
 
 def setup_menubar(win, client):
@@ -50,6 +51,7 @@ def setup_menubar(win, client):
     file_menu_object = FileMenu.FileMenu(file_menu, client, win)
     
     data_source_menu = menubar.addMenu('Data &Source')
+    data_source_menu_object = DataSourceMenu.DataSourceMenu(data_source_menu, client, win)
     if capabilities.get_program == capabilities.Program.SpecTcl:
         filter_menu = menubar.addMenu('Filters')
     gate_menu = menubar.addMenu("&Gate")
