@@ -25,26 +25,44 @@ server_program = None
 major_version = None
 minor_version = None
 edit_level = None
+combined_version = None # (major * 100 + minor)*1000 + editlevel
 client = None
 
 version_adjustments_made = False
+
+def _make_combined_version(major, minor, edit):
+    # Creates the full version as a single number that can be numerically compared e.g.
+    # _make_combined_version(1,2,3) < make_combined_version(1,2, 4)
+    #  major - the major version number
+    #  minor - the minor version number
+    #  edit  - the edit level
+    #
+    #  Note pre-release versions don't work!!!
+    return (major*100 + minor)*1000 + edit
 '''
    If the program is not known get it after that, return it:
    Note set_client must have been called.
 '''
 def get_program():
+    #  Note pre release edit levels are treated as 0.
     global server_program
     global major_version
     global minor_version
     global edit_level
     global client
     global version_adjustments_made
+    global combined_version
+    
     if server_program is None:
         info = client.get_version()
         info = info['detail']
         major_version = int(info['major'])
         minor_version = int(info['minor'])
-        edit_level = int(info['editlevel'])
+        try:
+            edit_level = int(info['editlevel'])
+        except:
+            edit_level = 0                    # pre-release
+        combined_version = _make_combined_version(major_version, minor_version, edit_level)
         #  Get the program name.. note version of SpecTcl may
         # not return a program_name key:
 
@@ -300,16 +318,11 @@ def get_supported_spectrum_format_strings():
 # This will wind up looking like a cluster f**k most likely 
 # as capabilities are added over time:
 def _adjust_for_version():
+    
     #   SpecTcl 5.13-013 adds support for JSON spectrum I/O:
     
     if server_program == Program.SpecTcl:
-        has_json = False
-        if major_version > 5:
-            has_json = True
-        elif major_version == 5 and minor_version > 13:
-            has_json = True
-        elif major_version == 5 and minor_version == 13 and edit_level >= 13:
-            has_json = True
-        if has_json:
+        if combined_version >= _make_combined_version(5, 13, 13):
             supported_spectrum_format_strings[Program.SpecTcl].append('json')
+            
     
