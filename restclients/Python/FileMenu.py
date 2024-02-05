@@ -1,9 +1,9 @@
 from PyQt5.QtWidgets import (
     QAction, QDialog, QDialogButtonBox, QVBoxLayout, QHBoxLayout, QRadioButton, QFileDialog,
-    QLabel, QCheckBox
+    QLabel, QCheckBox, QPushButton, QTextEdit
 )
 from PyQt5.QtCore import QObject
-from PyQt5.Qt import *
+from PyQt5.Qt import Qt
 import capabilities
 from spectrumeditor import confirm, error
 import SpectrumList
@@ -61,7 +61,8 @@ class FileMenu(QObject):
         
         if program == capabilities.Program.SpecTcl:
             
-            self._source  = QAction('Source Tcl Script', self)
+            self._source  = QAction('Source Tcl Script...', self)
+            self._source.triggered.connect(self._execute_script)
             self._menu.addAction(self._source)
             
         # We'll add exit:
@@ -240,6 +241,21 @@ class FileMenu(QObject):
             )
         except Exception as e:
             error(f"Failed to read spectrum file {filename}: {e}")
+    def _execute_script(self):
+        #  Run a script in the interpreter of the server.  We support a twp ways to do this:
+        #  1.  Run a scrsipt file.
+        #  2.  Edit a script (which can include loading a file).
+        
+        #  Figure out the mode:
+        
+        prompt = EditOrLoad(self._menu)
+        how = prompt.exec()
+        if how == 0:
+            return             # Canceled
+        elif how == 1:
+            self._source_file()
+        else:
+            self._edit_script()
         
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
@@ -253,17 +269,8 @@ class FileMenu(QObject):
     # utilities
     
     def _genfilename(self, dialog_name):
-        # Generate he filename from what comes back from QFileDialog:
-        name = dialog_name[0]
+        return genFilename(dialog_name)
         
-        # IF this has an extension we're golden - that's the case if splitext[1] has a period.
-        # otherwise we need to glue on the default extension.
-        
-        parts = os.path.splitext(name)
-        if '.' in parts[1]:
-            return name
-        else:
-            return name + '.' + dialog_name[1]
     def _getSqliteFilename(self):
           return  QFileDialog.getSaveFileName(
             self._menu, 'Definition File', os.getcwd(), 
@@ -513,6 +520,26 @@ class FileMenu(QObject):
         apps = self._client.apply_list()['detail']
         apps = [x for x in apps if x['gate'] is not None]
         return apps
+    def _source_file(self):
+        file = QFileDialog.getOpenFileName(
+            self._menu, "Choose Script File", os.getcwd(), 
+            "Tcl File (*.tcl *.tk);;All files (*.*)", 
+            "Tcl File (*.tcl *.tk)"
+        )
+        if file[0] == '':
+            return             # Canceled file selection.
+        filename = self._genfilename(file)
+        try:
+            with open(filename, 'r') as f:
+                script = f.read()
+                self._client.execute_tcl(script)
+        except Exception as e:
+            error(f'Executing script file {filename} : {e}')
+    def _edit_script(self):
+        editor = ScriptEditor(self._menu)
+        if editor.exec():
+            script = editor.text()
+            self._client.execute_tcl(script)
 class SpectrumSaveDialog(QDialog):
     '''
     This class provides:
@@ -755,3 +782,175 @@ class ReadSpectraOptionsDialog(QDialog):
             if fmt.isChecked():
                 return fmt.text()
         return None
+
+class EditOrLoad(QDialog):
+    #  Prompt for how to load a script  into interpreter:
+    #  1 - Just run a file.
+    #  2 - Run a simple editor to prepare a script (including based on a file).
+    #  0 - Cancelled out.
+    #
+    def __init__(self, *args):
+        super().__init__(*args)
+        
+        #  Just a pair of radio buttons and the standard button box:
+        
+        layout = QVBoxLayout()
+        
+        self._file = QRadioButton("Load Script From File", self)
+        self._file.setChecked(True)
+        layout.addWidget(self._file)
+        
+        self._edit = QRadioButton("Edit a script and run it", self)
+        layout.addWidget(self._edit)
+        
+        # Now the dialog buttons:
+        
+        self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self._buttonBox.accepted.connect(self.accept)
+        self._buttonBox.rejected.connect(self.reject)
+        
+        layout.addWidget(self._buttonBox)
+        self.setLayout(layout)
+    
+    def exec(self):
+        if super().exec():
+            if self._file.isChecked():
+                return 1
+            if self._edit.isChecked():
+                return 2
+            else:
+                return 0             # shouldn ot happen!!
+        else:
+            return 0     
+    
+class ScriptEditor(QDialog):
+    # Dirt simple Script editor for to prepare a script to be edited for execution.
+    #
+    # Layout:
+    # +----------------------------------------------------------------------+
+    # |  [  Insert ... ]          [ Save ...]    [ Clear]                    |
+    # |  [              QTextEdit with script  ]                             |
+    # |  [ Ok ]  [Cancel ]                                                   |
+    # +----------------------------------------------------------------------+
+    #
+    #  The buttons:
+    #  *  Insert - prompts for a script file to edit and loads it at the cursor.
+    #  *  Save - Prompts for a file to which to save the contents of the QTextEit.
+    #  *  Clear - Clears all of the text in the QTextWidget.
+    #  *  Ok    - User is ready to execute the script in the server.
+    #  *  Cancel - User wants to give it all up as a bad job.
+    #
+    #  Attributes:
+    #    text - Get/Set text in the textwidget.
+    def __init__(self, *args):
+        super().__init__(*args)
+        
+        layout = QVBoxLayout()
+        
+        # Horizontal strip of buttons at the top of the dialog:
+        
+        buttons = QHBoxLayout()
+        self._load = QPushButton('Insert...', self)
+        buttons.addWidget(self._load)
+        
+        self._save = QPushButton('Save...', self)
+        buttons.addWidget(self._save)
+        
+        self._clear = QPushButton('Clear', self)
+        buttons.addWidget(self._clear)
+        
+        layout.addLayout(buttons)
+        
+        # Editor:
+        
+        self._editor = QTextEdit(self)
+        self._editor.setAcceptRichText(False)
+        self._editor.setLineWrapMode(QTextEdit.NoWrap)
+        layout.addWidget(self._editor)
+        
+        
+        self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self._buttonBox.accepted.connect(self.accept)
+        self._buttonBox.rejected.connect(self.reject)
+        
+        layout.addWidget(self._buttonBox)
+        self.setLayout(layout)
+        
+        # Hook the button to internal slots:
+        
+        self._load.clicked.connect(self.loadFile)
+        self._save.clicked.connect(self.saveFile)
+        self._clear.clicked.connect(self.clear)
+        
+    # Attributes:
+    
+    def text(self):
+        return self._editor.toPlainText()
+    def setText(self, text):
+        self._editor.setPlainText(text)    
+    
+    # Slots:
+    
+    def loadFile(self):
+        #  Load  file at the cursor.
+        
+        file =   file = QFileDialog.getOpenFileName(
+            self, "Choose Script File", os.getcwd(), 
+            "Tcl File (*.tcl *.tk);;All files (*.*)", 
+            "Tcl File (*.tcl *.tk)"
+        )
+        if file[0] == '':
+            return             # Canceled file selection.
+        filename = genFilename(file)
+        try:
+            with open(filename, 'r') as f:
+                script = f.read()
+        except Exception as e:
+            error(f'Unable to load {filename}: {e}')
+            return
+        
+        cursor = self._editor.textCursor()
+        cursor.insertText(script)
+        
+    def saveFile(self):
+        # Save the contents of the editor:
+        
+        file = QFileDialog.getSaveFileName(
+            self, 'Save script in...',
+            "Tcl Script (*.tcl);; Tk Script (*.tk);; All Files (*.*)",
+            "Tcl Script (*.tcl)"
+        )
+        if file[0] =='':
+            return
+        filename = genFilename(file)
+        
+        try:
+            with open(filename, 'w') as f:
+                f.write(self.text())
+        except Exception as e:
+            error(f'Failed to save script to {filename}: {e}')
+            
+    def clear(self):
+        # Clear the text editor.
+         
+        self._editor.setText('')   
+        
+       
+def genFilename(dialog_name):
+    # Generate he filename from what comes back from QFileDialog:
+        name = dialog_name[0]
+        # IF this has an extension we're golden - that's the case if splitext[1] has a period.
+        # otherwise we need to glue on the default extension.
+        
+        parts = os.path.splitext(name)
+        if '.' in parts[1]:
+            name = name.strip(') ')
+            return name
+        else:
+            filter = dialog_name[1]
+            ext = filter.strip(') ')
+            # Trim off the * and trailing )
+            
+            return name + ext
+        
+        
