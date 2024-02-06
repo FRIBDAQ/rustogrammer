@@ -259,11 +259,11 @@ class FileMenu(QObject):
         
     def _exitGui(self):
         #  Make sure the user is certain and if so, exit:
-        if confirm('Are you sure you want to exit the GUI (note the histogramer will continue to run)'):
+        if confirm('Are you sure you want to exit the GUI (note the histogramer will continue to run)', self._menu):
             exit()
             
     def _exitHistogramerAndSelf(self):
-        if confirm('Are you sure you want to exit the GUI and the histogramer?'):
+        if confirm('Are you sure you want to exit the GUI and the histogramer?', self._menu):
             self._client.kill_histogramer()
             exit()
     # utilities
