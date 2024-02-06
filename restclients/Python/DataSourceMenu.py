@@ -24,6 +24,7 @@ import os
 
 import capabilities
 from spectrumeditor import error
+from editablelist import EditableList
 
 
 class DataSourceMenu(QObject):
@@ -58,6 +59,7 @@ class DataSourceMenu(QObject):
         
         if program == spectcl:
             self._pipe = QAction('Pipe...', self)
+            self._pipe.triggered.connect(self._attach_pipe)
             self._menu.addAction(self._pipe)
         
         # This list of stuff is all SpecTcl at this time.
@@ -169,7 +171,21 @@ class DataSourceMenu(QObject):
                 self._client.start_analysis()
             except Exception as e:
                 error(f'Unable to attach online source {url} using {helper}: {e}')
+     
+    def _attach_pipe(self):
+        # Handler attaching an arbitrary pipe as a data source.
         
+        prompter = PipePrompter(self._menu)
+        if prompter.exec():
+            source = prompter.source()
+            format = prompter.format()
+            try:
+                self._client.attach_source('pipe', source)   
+                self._client.ringformat_set(format)
+                self._client.start_analysis()
+            except Exception as e:
+                error(f'Unable to start {source} as pipe data source: {e}')
+            
     def _isRawFile(self, filename, filter):
         # Figure out if the filename is a raw event file:
         
@@ -326,3 +342,95 @@ class OnlinePrompter(QDialog):
         )
         if filename[0] != '' :
             self._helper.setText(filename[0])
+            
+class PipePrompter(QDialog):
+    def __init__(self, *args):
+        super().__init__(*args)
+        
+        layout = QVBoxLayout()
+        
+        # At the top we have the program/browse button:
+        
+        program = QHBoxLayout()
+        program.addWidget(QLabel("Program: ", self))
+        self._program = QLineEdit(self)
+        program.addWidget(self._program)
+        self._browse = QPushButton('Browse...')
+        program.addWidget(self._browse)
+        
+        layout.addLayout(program)
+        
+        # Next we have the mechanism for adding parameters:
+        
+        
+        parameters = QHBoxLayout()
+        self._parameter = QLineEdit(self)
+        parameters.addWidget(self._parameter)
+        self._parameters = EditableList("Parameters", self)
+        parameters.addWidget(self._parameters)
+        
+        layout.addLayout(parameters)
+        
+        # Now the ring format:
+        
+        self._format = RingFormat(self)
+        layout.addWidget(self._format)
+        
+        # Finally the dialog button box:
+        
+        self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self._buttonBox.accepted.connect(self.accept)
+        self._buttonBox.rejected.connect(self.reject)
+        
+        layout.addWidget(self._buttonBox)
+        
+        
+        self.setLayout(layout)
+        
+        # Internal signal handling:
+        
+        self._browse.clicked.connect(self.browse_program)
+        self._parameters.add.connect(self.add_parameter)
+        
+    # Attributes:
+    #   source - the full data source specification.
+    #   format - The format of the ring items.
+    
+    def source(self):
+        program =self._program.text()
+        parameter_list = self._parameters.list()
+        parameters = ' '.join(parameter_list)
+        
+        return program + ' ' + parameters
+
+    def setSource(self, program):
+        #  THis may not be a completely faithful rendering:
+        
+        # Split the string at whitepsace:
+        
+        program_list = program.split()
+        
+        # Load the first element into the program line edit and the
+        # rest of the elements into the list box:
+        
+        self._program.setText(program_list[0])
+        self._parameters.setList(program_list[1:])
+    
+    def format(self):
+        return self._format.format()
+    def setFormat(self, level):
+        self._format.setFormat(format)
+    
+    #   Slots:
+    
+    def browse_program(self):
+        file = QFileDialog.getOpenFileName(
+            self, 'Choose program', os.getcwd(),
+            'All Files (*)', 'All files (*)'
+        )
+        filename = file[0]
+        if filename != '':
+            self._program.setText(filename)
+    def add_parameter(self):
+        parameter = self._parameter.text()
+        self._parameters.appendItem(parameter)
