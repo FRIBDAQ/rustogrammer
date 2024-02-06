@@ -331,6 +331,12 @@ def can_read_parfiles():
     return program == Program.Rustogramer or \
         (program == Program.SpecTcl and combined_version >= _make_combined_version(5, 13, 10))
 
+def can_rest_detach():
+    # The /attach/detach rest request exists.
+    
+    return get_program() == Program.Rustogramer
+        
+
 # Make capability adjusments for version:
 # This will wind up looking like a cluster f**k most likely 
 # as capabilities are added over time:
