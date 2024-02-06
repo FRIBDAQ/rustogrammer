@@ -157,6 +157,7 @@ class rustogramer:
            *   type - is the type of data source 'pipe' or 'file' Note that
            rustogramer only supports 'file' but SpecTcl supports both.
            *   source  - the type deependent sourc identification.
+           *   format - overall format (normally ring but theoreticlly for SpecTcl could be defaulted or jumbo)
            *   size    - (relevant only to SpecTcl - read block sizes). 
         """
     
