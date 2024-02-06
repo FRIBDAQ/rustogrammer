@@ -14,7 +14,8 @@ Abort Cluster File (SpecTcl only later than 5.13-xxx)
 
 '''
 from PyQt5.QtWidgets import (
-    QAction, QFileDialog, QDialog, QDialogButtonBox, QRadioButton, QLabel,
+    QAction, QFileDialog, QDialog, QDialogButtonBox, QRadioButton, QPushButton,
+    QLabel, QWidget, QLineEdit,
     QVBoxLayout, QHBoxLayout
 )
 from PyQt5.QtCore import QObject
@@ -48,6 +49,7 @@ class DataSourceMenu(QObject):
         
         if program == spectcl:
             self._online = QAction('Online...', self)
+            self._online.triggered.connect(self._attach_online)
             self._menu.addAction(self._online)
         
         self._file = QAction('File...', self)
@@ -128,7 +130,12 @@ class DataSourceMenu(QObject):
         #  This is only slightly complicated;  For histogramers that 
         #  dont' have a rest detach request we use an attach to /dev/null -- which
         #  implicitly assumes they run in an unix environment (e.g. SpecTcl):
+        # Must stop but we don't know if it's running:
         
+        try:
+            self._client.stop_analysis()
+        except:
+            pass
         try:
             if capabilities.can_rest_detach():
                 self._client.detach_source()
@@ -136,6 +143,33 @@ class DataSourceMenu(QObject):
                 self._client.attach_source('file', '/dev/null')
         except Exception as e:
             error(f"Unable to detach because: {e}")
+    
+    def _attach_online(self):
+        #  We need:
+        #   The ringselector 
+        #   Ring URL
+        #   Format of data (ring format).
+        #  We get that from OnlinePrompter:
+        
+        prompter = OnlinePrompter(self._menu)
+        if prompter.exec():
+        
+            #  Fish waht we need from the prompter:
+        
+            url = prompter.ring()
+            helper = prompter.ringselector()
+            format = prompter.format()
+            
+            # Build the source string:
+            
+            source = f'{helper} --source={url} --sample=PHYSICS_EVENT --non-blocking'
+            try:
+                self._client.attach_source('pipe', source)
+                self._client.ringformat_set(format)
+                self._client.start_analysis()
+            except Exception as e:
+                error(f'Unable to attach online source {url} using {helper}: {e}')
+        
     def _isRawFile(self, filename, filter):
         # Figure out if the filename is a raw event file:
         
@@ -144,7 +178,38 @@ class DataSourceMenu(QObject):
         return parts[1] == '.evt'
     
     
+
+#  A widget for selecting the RingFormat:
+
+class RingFormat(QWidget):  
+    _format_versions = [10, 11, 12]
+    def __init__(self, *args):
+        super().__init__(*args)
+        formats = QHBoxLayout()
+        self._formats = list()
+        for version in self._format_versions:
+            fmt = QRadioButton(f'NSCLDAQ-{version}', self)
+            self._formats.append(fmt)
+            formats.addWidget(fmt)
+            
+        #  Default to the most recent format:
+        
+        self._formats[-1].setChecked(True)    
+        self.setLayout(formats)
+    #  Attributes:
     
+    def setFormat(self, level):
+        for (i, version) in enumerate(self._format_versions):
+            if level == version:
+                self._formats[i].setChecked(True)
+                return
+        raise IndexError(f'Unrecognized format level {level}')
+    def format(self):
+        for (i, version) in enumerate(self._format_versions):
+            if self._formats[i].isChecked():
+                return version
+            
+        raise AssertionError("No radio buttons are checked!!")
 class FormatPrompter(QDialog):
     #  Provides a prompter dialog for the ring format.
     #  exec returns:
@@ -158,17 +223,8 @@ class FormatPrompter(QDialog):
         #  Top is a row of formats NSCLDAQ 10-12.
         
             
-        formats = QHBoxLayout()
-        self._formats = list()
-        for version in self._format_versions:
-            fmt = QRadioButton(f'NSCLDAQ-{version}', self)
-            self._formats.append(fmt)
-            formats.addWidget(fmt)
-            
-        #  Default to the most recent format:
-        
-        self._formats[-1].setChecked(True)
-        layout.addLayout(formats)
+        self._format = RingFormat(self)
+        layout.addWidget(self._format)
         
         #  Now the button box:
         
@@ -182,11 +238,91 @@ class FormatPrompter(QDialog):
     
     def exec(self):
         if super().exec():
-            for (i, version) in enumerate(self._format_versions):
-                if self._formats[i].isChecked():
-                    return version
-                
-            # No match is not possible but be graceful and return cancel code:
-            return 0
+            return self._format.format()
         else:
             return 0                       # Cancel.
+
+class OnlinePrompter(QDialog):
+    # Prompt for what's needed to attach online:
+    
+    def __init__(self, *args):
+        super().__init__(*args)
+        
+        # Figure out the helper string... use $DAQBIN if not defined
+        # we'll give up:
+        
+        daqbin = os.getenv('DAQBIN')
+        if daqbin is None:
+            helper = ''
+        else:
+            helper = os.path.join(daqbin, 'ringselector')
+        
+        layout = QVBoxLayout()
+        
+        # At the top is the ringURL:
+        
+        ringurl = QHBoxLayout()
+        self._url = QLineEdit(self)
+        ringurl.addWidget(self._url)
+        ringurl.addWidget(QLabel('Ring Buffer URL', self))
+        
+        layout.addLayout(ringurl)
+        
+        # Next is the helper with a Browse button.
+        
+        helper_layout = QHBoxLayout()
+        self._helper = QLineEdit(helper, self)
+        helper_layout.addWidget(self._helper)
+        self._browse = QPushButton('Browse...', self)
+        helper_layout.addWidget(self._browse)
+        
+        layout.addLayout(helper_layout)
+        
+        #  Next down is the ring format chooser:
+        
+        layout.addWidget(QLabel('ring format:', self))
+        self._format = RingFormat(self)
+        layout.addWidget(self._format)
+        
+        # Finally the dialog button box:
+        
+        self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self._buttonBox.accepted.connect(self.accept)
+        self._buttonBox.rejected.connect(self.reject)
+        
+        layout.addWidget(self._buttonBox)
+        
+        self.setLayout(layout)
+        
+        # Handle internal signals:
+        
+        self._browse.clicked.connect(self.browse_helper)
+    
+    #  Attribute implementations:
+    
+    def ring(self):
+        return self._url.text()
+    def setRing(self, url):
+        self._url.setText(url)
+    
+    def ringselector(self):
+        return self._helper.text()
+    def setRingselector(self, helper):
+        self._helper.setText(helper)
+    
+    def format(self):
+        return self._format.format()
+    def setFormat(self, level):
+        self._format.setFormat(level)
+        
+    # slots:
+    
+    def browse_helper(self):
+        #  Slot to browser for a helper file:
+        #  We just use QFileDialog.getOpenFileName:
+        
+        filename = QFileDialog.getOpenFileName(
+            self, "Select Helper program", os.getcwd(), "All Files (*)", "All Files (*)"
+        )
+        if filename[0] != '' :
+            self._helper.setText(filename[0])
