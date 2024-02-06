@@ -320,6 +320,17 @@ def has_rest_runlist():
     '''
     return False                  # To be added to SpecTcl
 
+def can_read_raw_events():
+    ''' Return TRUE if .evt files can be read. '''
+    program = get_program()
+    return program == Program.SpecTcl      # SpecTcl can but not rustogramer.
+
+def can_read_parfiles():
+    ''' Return true if .par files can be read '''
+    program = get_program()
+    return program == Program.Rustogramer or \
+        (program == Program.SpecTcl and combined_version >= _make_combined_version(5, 13, 10))
+
 # Make capability adjusments for version:
 # This will wind up looking like a cluster f**k most likely 
 # as capabilities are added over time:
@@ -331,4 +342,3 @@ def _adjust_for_version():
         if combined_version >= _make_combined_version(5, 13, 13):
             supported_spectrum_format_strings[Program.SpecTcl].append('json')
             
-    
