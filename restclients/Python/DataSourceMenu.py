@@ -73,6 +73,7 @@ class DataSourceMenu(QObject):
         self._menu.addSeparator()
         
         self._detach = QAction('Detach')
+        self._detach.triggered.connect(self._detach_source)
         self._menu.addAction(self._detach)
         
         if program == spectcl:
@@ -123,7 +124,18 @@ class DataSourceMenu(QObject):
         except Exception as e:
             error(f'Unable to analyze data from file {filename} : {e}')
     
-    
+    def _detach_source(self):
+        #  This is only slightly complicated;  For histogramers that 
+        #  dont' have a rest detach request we use an attach to /dev/null -- which
+        #  implicitly assumes they run in an unix environment (e.g. SpecTcl):
+        
+        try:
+            if capabilities.can_rest_detach():
+                self._client.detach_source()
+            else:
+                self._client.attach_source('file', '/dev/null')
+        except Exception as e:
+            error(f"Unable to detach because: {e}")
     def _isRawFile(self, filename, filter):
         # Figure out if the filename is a raw event file:
         
