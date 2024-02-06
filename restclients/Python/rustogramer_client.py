@@ -152,7 +152,7 @@ class rustogramer:
     
     #-------------- Data processing: /attach and /analyze:
 
-    def attach_source(self, type, source, size=8192):
+    def attach_source(self, type, source, format='ring', size=8192):
         """ Attach a data source
            *   type - is the type of data source 'pipe' or 'file' Note that
            rustogramer only supports 'file' but SpecTcl supports both.
@@ -161,7 +161,7 @@ class rustogramer:
         """
     
         return self._transaction(
-            "attach/attach", {"type": type, "source": source, "size":size}
+            "attach/attach", {"type": type, "source": source, "format": format, "size":size}
         )
 
     def attach_show(self) :
