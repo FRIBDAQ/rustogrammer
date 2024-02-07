@@ -13,8 +13,8 @@
 
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 from PyQt5.QtWidgets import (
-    QApplication, QWidget,  QMainWindow, QWidget, QLabel,
-    QHBoxLayout, QVBoxLayout, QTreeView
+    QApplication, QWidget,  QMainWindow, QWidget, QLabel, QPushButton,
+    QHBoxLayout, QVBoxLayout, QTreeView, QAbstractItemView
 )
 from ComboTree import ComboTree
 from rustogramer_client import rustogramer
@@ -102,8 +102,35 @@ class LabeledParameterChooser(QWidget):
     def setParameter(self, text):
         self._label.setText(text)
 
+class ParameterTree(QTreeView):
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.setModel(_parameter_model)
+        self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.setHeaderHidden(True)
+    
+    def selection(self):
+        '''
+          Returns a list of parameter names that are selected.
+          Note that only terminal nodes can be selected in this scheme.
+          
+        '''
+        selected_indices = self.selectedIndexes()
+        selected_items = [self.model().itemFromIndex(x) for x in selected_indices]
+        terminals = [x for x in selected_items if not x.hasChildren()]
+        
+        return [self._build_path(x) for x in terminals]
 
-
+    def _build_path(self, x):
+        # Given a terminal node - build the path to it 
+        
+        reversed_path = list()
+        while x is not None:
+            reversed_path.append(x.text())
+            x = x.parent()
+        reversed_path.reverse()    # Now it's from top to bottom:
+        return '.'.join(reversed_path)    
+        
 #  Test - Make widget 1, connect to SpecTcl to load the model,
 #  make widget 2... the two widgets should both list all parameters:
 
@@ -137,5 +164,30 @@ def test(host, port):
 
 
     mw.setCentralWidget(c)
+    mw.show()
+    app.exec()
+    
+def list_tree():
+    print(tree_widget.selection())
+def tree(host, port):
+    global tree_widget
+    client = rustogramer({'host': host, 'port': port})
+    update_model(client)
+    app = QApplication([])
+    mw = QMainWindow()
+
+    container = QWidget()
+    layout = QVBoxLayout()
+    
+    tree_widget  = ParameterTree()
+    layout.addWidget(tree_widget)
+    button = QPushButton('List')
+    layout.addWidget(button)
+    container.setLayout(layout)
+    
+    button.clicked.connect(list_tree)
+    
+    mw.setCentralWidget(container)
+    
     mw.show()
     app.exec()
