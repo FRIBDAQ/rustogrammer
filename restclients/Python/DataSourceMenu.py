@@ -74,7 +74,7 @@ class DataSourceMenu(QObject):
                 self._menu.addAction(self._cluster)
                 
             self._filter = QAction('Filter file...', self)
-            self._filter.triggered.connect(self._attach_filter)
+            self._filter.triggered.connect(self.attach_filter)
             self._menu.addAction(self._filter)
         
         self._menu.addSeparator()
@@ -189,11 +189,12 @@ class DataSourceMenu(QObject):
             except Exception as e:
                 error(f'Unable to start {source} as pipe data source: {e}')
                 
-    def _attach_filter(self):
-        #  Attach a filter file
-        
+    def attach_filter(self):
+        '''  Attach a filter file.  This is a public entry so
+             the filter menu can use it as well for Filter->Read Filter File...s
+        '''
         #  If we've never warned about needing a special event processor do it now
-        # and marked that we warned:
+        # and marked that we warned:'''
         
         if not self._warnedAboutFilters:
             self._warnedAboutFilters = True
