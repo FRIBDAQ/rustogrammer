@@ -23,7 +23,7 @@ from PyQt5.QtCore import QObject
 import os
 
 import capabilities
-from spectrumeditor import error
+from spectrumeditor import error, confirm
 from editablelist import EditableList
 
 
@@ -45,6 +45,8 @@ class DataSourceMenu(QObject):
         self._menu = menu
         self._client = client
         self._ui     = gui
+        
+        self._warnedAboutFilters = False
         
         #  Add the menu items appropriate to the server:
         
@@ -72,6 +74,7 @@ class DataSourceMenu(QObject):
                 self._menu.addAction(self._cluster)
                 
             self._filter = QAction('Filter file...', self)
+            self._filter.triggered.connect(self._attach_filter)
             self._menu.addAction(self._filter)
         
         self._menu.addSeparator()
@@ -185,7 +188,40 @@ class DataSourceMenu(QObject):
                 self._client.start_analysis()
             except Exception as e:
                 error(f'Unable to start {source} as pipe data source: {e}')
+                
+    def _attach_filter(self):
+        #  Attach a filter file
+        
+        #  If we've never warned about needing a special event processor do it now
+        # and marked that we warned:
+        
+        if not self._warnedAboutFilters:
+            self._warnedAboutFilters = True
+            if not confirm("\
+Reading filter files requires that you have set up a filter event processor. \
+If you have not done that your analysis of a filter file will fail.  If you ar sure \
+this SpecTcl has properly set up to analyze filter files, you can click 'Yes' below \
+If not click 'No' to do something else \
+"):
+                return
+        # Prompt for the filter file:
+        
+        file = QFileDialog.getOpenFileName(
+            self._menu,
+            'Filter file to process?', os.getcwd(),
+            'Filter files (*.flt);;All files (*)', 'Filter files (*.flt)'
+        )
+        filename = file [0]
+        if filename != '':
+            try:
+                self._client.attach_source('file', filename, 'filter')
+                self._client.start_analysis()
+            except Exception as e:
+                error("Unable to process filter file {file}: {e}")    
+                return              # Simplifies adding code beyond this.
             
+        
+               
     def _isRawFile(self, filename, filter):
         # Figure out if the filename is a raw event file:
         
