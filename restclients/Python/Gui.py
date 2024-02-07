@@ -28,6 +28,7 @@ from rustogramer_client import rustogramer as RestClient
 
 import FileMenu
 import DataSourceMenu
+import FilterMenu
 
 
 def setup_menubar(win, client):
@@ -46,6 +47,7 @@ def setup_menubar(win, client):
     
     global file_menu_object
     global data_source_menu_object
+    global filter_menu_object
     
     menubar = win.menuBar()
     file_menu = menubar.addMenu('&File')
@@ -54,8 +56,9 @@ def setup_menubar(win, client):
     data_source_menu = menubar.addMenu('Data &Source')
     data_source_menu_object = DataSourceMenu.DataSourceMenu(data_source_menu, client, win)
     
-    if capabilities.get_program == capabilities.Program.SpecTcl:
+    if capabilities.get_program() == capabilities.Program.SpecTcl:
         filter_menu = menubar.addMenu('Filters')
+        filter_menu_object = FilterMenu.FilterMenu(filter_menu, client, win, data_source_menu_object)
     gate_menu = menubar.addMenu("&Gate")
     help_menu = menubar.addMenu("&Help")
     
