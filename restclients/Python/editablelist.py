@@ -35,12 +35,13 @@ from PyQt5.QtWidgets import (
     QAbstractItemView
 )
 
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtCore import pyqtSignal, pyqtProperty
 from PyQt5.Qt import *
 
 class EditableList(QWidget):
     add = pyqtSignal()
     remove = pyqtSignal(str)
+    
 
     def __init__(self, label, *args):
         super().__init__(*args)
@@ -116,8 +117,10 @@ class EditableList(QWidget):
             
     #Attribute implementations:
 
+    @pyqtProperty(list)
     def list(self):
         return [self._list.item(x).text() for x in range(self._list.count())]
+    @list.setter
     def setList(self, items):
         self.clear()
         for i in items:
