@@ -11,7 +11,7 @@ import os
 from gatelist import ConditionChooser, common_condition_model
 from ParameterChooser import ParameterTree, update_model
 from editablelist import EditableList
-
+from spectrumeditor import error
 
 class FilterMenu(QObject):
     
@@ -40,7 +40,21 @@ class FilterMenu(QObject):
         
     def _filter_wizard(self):
         wiz = FilterWizard(self._client, self._menu)
-        print(wiz.exec())
+        if wiz.exec():
+            name = wiz.name()
+            gate = wiz.gate()
+            parameters = wiz.parameters()
+            filename = wiz.file()
+            enable = wiz.enable()
+            
+            try:
+                self._client.filter_new(name, gate, parameters)
+                self._client.filter_setfile(name, filename)
+                if enable:
+                    self._client.filter_enable(name)
+            except Exception as e:
+                error(f'Unable to create filter {name}: {e}')
+                return
 
 # Code int this section creates the filter wizard:
 
@@ -62,7 +76,16 @@ class FilterWizard(QWizard):
         
         self._file = FilePage(self)
         self.addPage(self._file)
-        
+    def name(self):
+        return self.field('name')
+    def gate(self):
+        return self._gate.gate()    
+    def parameters(self):
+        return self._parameters.parameters()
+    def file(self):
+        return self.field('file')
+    def enable(self):
+        return self.field('enable')
     
 class NamePage(QWizardPage):
     # Introduces the filter wizard and lets the filter name be set:
@@ -133,7 +156,9 @@ simply choose a True gate from the list below. \
         self.setLayout(layout)
     def _update_list(self):
         common_condition_model.load(self._client)
-        
+    
+    def gate(self):
+        return self._gate.currentText()
     
         
 
@@ -147,7 +172,6 @@ class ParametersPage(QWizardPage):
         chooser = QHBoxLayout()
         self._tree = ParameterTree(self)
         self._list = EditableList('Selected Parameters', self)
-        self.registerField('parameters', self._list, 'list')
         chooser.addWidget(self._tree)
         chooser.addWidget(self._list)
         layout.addLayout(chooser)
@@ -169,6 +193,8 @@ class ParametersPage(QWizardPage):
     def _add(self):
         for parameter  in self._tree.selection():
             self._list.appendItem(parameter)
+    def parameters(self):
+        return self._list.list()
 class FilePage(QWizardPage):
     def __init__(self, *args):
         super().__init__(*args)
