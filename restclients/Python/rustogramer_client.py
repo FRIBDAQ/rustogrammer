@@ -978,7 +978,7 @@ class rustogramer:
             {"name":name, "xlow": xl, "xhigh": xh, "ylow":yl, "yhigh":yh}
         )
     def spectrum_clear(self, pattern="*"):
-        print('spectrum_clear', pattern)
+
         """ Clear the contents of spectra that have names matching the
         'pattern' parameter.  Where 'pattern' is a glob match pattern.
         If omitted, 'pattern' defaults to "*" which matches all spectra.

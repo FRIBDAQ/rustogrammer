@@ -23,7 +23,7 @@ class SpectraMenu():
     win  - The main window.
     '''
     self._menu = menu
-    self._cient = client
+    self._client = client
     self._win = win
     self._file_menu = file_menu
     
@@ -38,6 +38,7 @@ class SpectraMenu():
     self._menu.addSeparator()
     
     self._clearall = QAction("Clear all ")
+    self._clearall.triggered.connect(self._client.spectrum_clear_all)  # Defaults to '*' pattern.
     self._menu.addAction(self._clearall)
     
     self._menu.addSeparator()
