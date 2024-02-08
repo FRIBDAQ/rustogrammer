@@ -17,6 +17,8 @@ from PyQt5.QtWidgets import (
   QVBoxLayout
 )
 from spectrumeditor import Editor
+from SpectrumList import SpectrumSelector
+import capabilities
 class SpectraMenu():
   def __init__(self, menu, client, win, file_menu):
     '''
@@ -50,6 +52,7 @@ class SpectraMenu():
     self._menu.addAction(self._create)
     
     self._delete = QAction('Delete...')
+    self._delete.triggered.connect(self._delete_spectra)
     self._menu.addAction(self._delete)
     
     self._menu.addSeparator()
@@ -57,8 +60,15 @@ class SpectraMenu():
     self._apply = QAction('Apply Gate...')
     
   def _create_spectra(self):
-    dlg = SpectrumCreator(self._win)
+    dlg = SpectrumCreator(self._menu)
     dlg.exec()
+    
+  def _delete_spectra(self):
+    dlg = SelectSpectra(self._menu)
+    if dlg.exec():
+      spectra = dlg.selectedSpectra()
+      for spectrum in spectra:
+        self._client.spectrum_delete(spectrum)
 class SpectrumCreator(QDialog):
   def __init__(self, *args):
     super().__init__(*args)
@@ -77,3 +87,21 @@ class SpectrumCreator(QDialog):
     
     self.setLayout(layout)
 
+class SelectSpectra(QDialog):
+  def __init__(self, *args):
+    super().__init__(*args)
+    
+    layout          = QVBoxLayout()
+    self._selection = SpectrumSelector(capabilities.get_client(), self)
+    layout.addWidget(self._selection)
+    
+    self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+    self._buttonBox.accepted.connect(self.accept)
+    self._buttonBox.rejected.connect(self.reject)
+    
+    layout.addWidget(self._buttonBox)
+    
+    self.setLayout(layout)
+    
+  def selectedSpectra(self):
+    return self._selection.selected()
