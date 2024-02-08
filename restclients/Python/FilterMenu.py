@@ -64,7 +64,19 @@ class FilterMenu(QObject):
         filter_info = self._client.filter_list()['detail']
         dialog = EnableFilters(filter_info, self._menu)
         if dialog.exec():
-            print(dialog.getChanges())
+            for changes in dialog.getChanges():
+                # Note that we ignore exceptions.  We're asynchronous to the server
+                # so it _is_ possibl someone else is changing the filter states as we
+                # run
+                name = changes['name']
+                try:
+                    if changes['enabled']:
+                        self._client.filter_enable(name)
+                    else:
+                        self._client.filter_disable(name)
+                except:
+                    pass
+                    
         
 # Code int this section creates the filter wizard:
 
