@@ -13,8 +13,10 @@
    
 '''
 from PyQt5.QtWidgets import (
-  QAction
+  QAction, QDialog, QDialogButtonBox, 
+  QVBoxLayout
 )
+from spectrumeditor import Editor
 class SpectraMenu():
   def __init__(self, menu, client, win, file_menu):
     '''
@@ -44,6 +46,7 @@ class SpectraMenu():
     self._menu.addSeparator()
     
     self._create = QAction("Create...")
+    self._create.triggered.connect(self._create_spectra)
     self._menu.addAction(self._create)
     
     self._delete = QAction('Delete...')
@@ -52,3 +55,25 @@ class SpectraMenu():
     self._menu.addSeparator()
     
     self._apply = QAction('Apply Gate...')
+    
+  def _create_spectra(self):
+    dlg = SpectrumCreator(self._win)
+    dlg.exec()
+class SpectrumCreator(QDialog):
+  def __init__(self, *args):
+    super().__init__(*args)
+    
+    layout = QVBoxLayout()
+    
+    self._editor = Editor(self)
+    self._editor.hideSidebar()
+    layout.addWidget(self._editor)
+    
+    self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok, self)
+    self._buttonBox.accepted.connect(self.accept)
+  
+    
+    layout.addWidget(self._buttonBox)
+    
+    self.setLayout(layout)
+
