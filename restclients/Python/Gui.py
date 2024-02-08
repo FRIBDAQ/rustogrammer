@@ -29,6 +29,7 @@ from rustogramer_client import rustogramer as RestClient
 import FileMenu
 import DataSourceMenu
 import FilterMenu
+import SpectraMenu
 
 
 def setup_menubar(win, client):
@@ -48,6 +49,7 @@ def setup_menubar(win, client):
     global file_menu_object
     global data_source_menu_object
     global filter_menu_object
+    global spectra_menu_object
     
     menubar = win.menuBar()
     file_menu = menubar.addMenu('&File')
@@ -59,6 +61,9 @@ def setup_menubar(win, client):
     if capabilities.get_program() == capabilities.Program.SpecTcl:
         filter_menu = menubar.addMenu('Filters')
         filter_menu_object = FilterMenu.FilterMenu(filter_menu, client, win, data_source_menu_object)
+    spectrum_menu = menubar.addMenu("&Spectra")
+    spectra_menu_object = SpectraMenu.SpectraMenu(spectrum_menu, client, win, file_menu_object)
+    
     gate_menu = menubar.addMenu("&Gate")
     help_menu = menubar.addMenu("&Help")
     
