@@ -800,7 +800,7 @@ pub fn get_contents(
 /// Note, in general, a spectrum name is a valid glob pattern allowing
 /// the client to clear a single spectrum.
 ///
-#[get("/clear?<pattern>")]
+#[get("/zero?<pattern>")]
 pub fn clear_spectra(
     pattern: Option<String>,
     hg: &State<SharedHistogramChannel>,
@@ -2483,7 +2483,7 @@ mod spectrum_tests {
         sapi.process_events(&events).expect("Providing events");
 
         let client = Client::untracked(rocket).expect("Rocket client");
-        let req = client.get("/clear"); // no pattern means *
+        let req = client.get("/zero"); // no pattern means *
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
@@ -2521,7 +2521,7 @@ mod spectrum_tests {
         sapi.process_events(&events).expect("Providing events");
 
         let client = Client::untracked(rocket).expect("Rocket client");
-        let req = client.get("/clear?pattern=m1d"); // no pattern means *
+        let req = client.get("/zero?pattern=m1d"); // no pattern means *
         let reply = req
             .dispatch()
             .into_json::<GenericResponse>()
