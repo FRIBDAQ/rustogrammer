@@ -304,6 +304,13 @@ class rustogramer:
         """
         return self._transaction("filter/file", {"name": name, "file": path})
     
+    def filter_list(self):
+        """
+
+           A list of the filters and their characteristics:
+           
+        """
+        return self._transaction("/filter/list", {})    
     #--------------------------- fit API.
 
     def fit_create(self, name, spectrum, low, high, type) :
