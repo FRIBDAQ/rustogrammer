@@ -1,6 +1,7 @@
 
 from PyQt5.QtWidgets import (
     QAction, QWizard, QWizardPage, QLabel, QLineEdit, QPushButton, QCheckBox, QFileDialog,
+    QTableWidget, QDialog, QDialogButtonBox,
     QVBoxLayout, QHBoxLayout
 )
 from PyQt5.QtCore import QObject
@@ -30,6 +31,7 @@ class FilterMenu(QObject):
         self._menu.addAction(self._wizard)
         
         self._enables = QAction('Enable/Disable Filters...')
+        self._enables.triggered.connect(self._enable_filters)
         self._menu.addAction(self._enables)
         
         self._menu.addSeparator()
@@ -55,7 +57,15 @@ class FilterMenu(QObject):
             except Exception as e:
                 error(f'Unable to create filter {name}: {e}')
                 return
-
+    def _enable_filters(self):
+        #  First we list the filters because we'll need the names and the 
+        #  enable status:
+        
+        filter_info = self._client.filter_list()['detail']
+        dialog = EnableFilters(filter_info, self._menu)
+        if dialog.exec():
+            print(dialog.getChanges())
+        
 # Code int this section creates the filter wizard:
 
 class FilterWizard(QWizard):
@@ -229,3 +239,80 @@ class FilePage(QWizardPage):
         name = file [0]
         if name != '':
             self._file.setText(name)
+            
+class EnableFilters(QDialog):
+    def __init__(self, filter_info, *args):
+        super().__init__(*args)
+        
+        #  The body of the dialog is a table wizard with rows that have:
+        #  name       |    enable
+        #  Where enable is a checkbutton.
+        #  users can alter the state of the checkbuttons to state their
+        #  intentions to enable/disable filters.
+        #
+        # 
+        
+        self._originally = filter_info   # so we can report changes.
+        
+        layout = QVBoxLayout()
+        self._table = QTableWidget(self)
+        self._configure_table()
+        layout.addWidget(self._table)
+        
+        # The button box:
+        
+        
+        self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self._buttonBox.accepted.connect(self.accept)
+        self._buttonBox.rejected.connect(self.reject)
+        
+        layout.addWidget(self._buttonBox)
+        
+        
+        self.setLayout(layout)
+        
+    def getChanges(self):
+        # returns the set of changed states in the table:
+        # This is a dict containing:
+        #   'name' - name of the filter.
+        #   'enabled' - new state of the enable (bool = true enabled).
+        
+        result = list()
+        
+        #  Toss the original state into a name indexed map:
+        
+        current = dict()
+        for filter in self._originally:
+            current[filter['name']] = filter
+        
+        for row in range(self._table.rowCount()):
+            name = self._table.cellWidget(row, 0).text()
+            state = self._table.cellWidget(row, 1).checkState() == Qt.Checked
+            
+            #  What to expect in the map:
+            
+            if state:
+                state_text = 'enabled'
+            else:
+                state_text = 'disabled'
+            if current[name]['enabled'] != state_text:
+                result.append({'name': name, 'enabled': state})
+        
+        return result
+            
+            
+    def _configure_table(self):
+        #  Configure the table and load it with the data in self._originally.
+        self._table.setColumnCount(2)
+        self._table.setHorizontalHeaderLabels(["Name", "Enabled"])
+        self._table.setRowCount(len(self._originally))
+        for (row, filter) in enumerate(self._originally):
+            name = filter['name']
+            enabled = filter['enabled'] == 'enabled'
+            self._table.setCellWidget(row, 0, QLabel(name))
+            state = QCheckBox()
+            if enabled:
+                state.setCheckState(Qt.Checked)
+            else:
+                state.setCheckState(Qt.Unchecked)
+            self._table.setCellWidget(row, 1, state)
