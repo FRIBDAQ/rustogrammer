@@ -55,7 +55,7 @@ class FileMenu(QObject):
         
         self._read_spectrum = QAction('Read Spectrum contents...', self)
         self._menu.addAction(self._read_spectrum)
-        self._read_spectrum.triggered.connect(self._read_spectrum_file)
+        self._read_spectrum.triggered.connect(self.read_spectrum_file)
         
         # SpecTcl supports sourcing a Tcl script:
         
@@ -220,7 +220,11 @@ class FileMenu(QObject):
         applications = reader.read_applications()
         self._restore_gate_applications(applications)
         
-    def _read_spectrum_file(self):
+    def read_spectrum_file(self):
+        '''
+           Prompt for how and which file to read spectra from...and do it.
+           This is public so it can be re-used by SpectraMenu.
+        '''
         dlg = ReadSpectraOptionsDialog(self._menu)
         response = dlg.exec()
         if not response:

@@ -32,6 +32,7 @@ class SpectraMenu():
     self._menu.addAction(self._save)
     
     self._read = QAction('Read Spectrum file...')
+    self._read.triggered.connect(self._file_menu.read_spectrum_file)
     self._menu.addAction(self._read)
     
     self._menu.addSeparator()
