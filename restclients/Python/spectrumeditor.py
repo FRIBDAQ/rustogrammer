@@ -991,10 +991,15 @@ class Editor(QWidget):
         right.addWidget(self._ungate)
         self._loadspectrum = QPushButton('Load editor')
         right.addWidget(self._loadspectrum)
-        right.addWidget(QLabel('Channel Type:'))
+        self.chtlabel = QLabel('Channel Type:')
+        right.addWidget(self.chtlabel)
         right.addWidget(self.channelType)
-        layout.addLayout(right)
+        self._sidebar = right
+        
+        layout.addLayout(self._sidebar)
+        
         self.setLayout(layout)
+        self.showSidebar()
         
         self._clear.clicked.connect(self.clear_selected)
         self._clearall.clicked.connect(self.clear_all)
@@ -1004,7 +1009,28 @@ class Editor(QWidget):
         self._loadspectrum.clicked.connect(self.load)
 
         self.tabs.currentChanged.connect(self._new_editor_visible)
-
+    
+    def hideSidebar(self):
+        sidebar = self._sidebar
+        i = 0
+        item = sidebar.itemAt(i)
+        while item is not None:
+            w = item.widget()
+            if w is not None and w != self.channelType and w != self.chtlabel:
+                w.hide()
+            i += 1
+            item = sidebar.itemAt(i)
+        
+    def showSidebar(self):
+        
+        sidebar = self._sidebar
+        i = 0
+        item = sidebar.itemAt(i)
+        while item is not None:
+            w = item.widget()
+            w.show()
+            i += 1
+            item = sidebar.itemAt(i)
     def _new_editor_visible(self, index):
         
         controller = self.controllers[self.tabs.tabText(index)]
