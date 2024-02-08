@@ -978,11 +978,16 @@ class rustogramer:
             {"name":name, "xlow": xl, "xhigh": xh, "ylow":yl, "yhigh":yh}
         )
     def spectrum_clear(self, pattern="*"):
+        print('spectrum_clear', pattern)
         """ Clear the contents of spectra that have names matching the
         'pattern' parameter.  Where 'pattern' is a glob match pattern.
         If omitted, 'pattern' defaults to "*" which matches all spectra.
         """
-        return self._transaction("spectrum/clear", {"pattern": pattern})
+        return self._transaction("spectrum/zero", {"pattern": pattern})
+    
+    def spectrum_clear_all(self):
+        ''' This is provided so it can be hooked as a slot to pyqt signals'''
+        self.spectrum_clear()
 
     #--------------- Spectrum I/O
     def spectrum_read(self, filename, format, options={}):
