@@ -44,7 +44,7 @@ class FileMenu(QObject):
             self._save_treevars.triggered.connect(self._save_vars)
             
         self._save_spectra = QAction('Save spectrum contents...', self)
-        self._save_spectra.triggered.connect(self._saveSpectra)
+        self._save_spectra.triggered.connect(self.saveSpectra)
         self._menu.addAction(self._save_spectra)
         
         self._menu.addSeparator()
@@ -147,9 +147,12 @@ class FileMenu(QObject):
         except Exception as e:
             error(f'Failed to write tree variables to {filename} : {e}')
         
-    def _saveSpectra(self):
-        #  Prompt for spectra to save and the format
-        #  and prompt for a file to save them into...
+    def saveSpectra(self):
+        '''
+          Prompt for a set of spectra to save and save them.  This is public so that
+          it is accessible to the spectrum menu.
+        '''
+        
         namePrompter = SpectrumSaveDialog(self._menu)
         if namePrompter.exec():
             names = namePrompter.selectedSpectra()
@@ -157,16 +160,16 @@ class FileMenu(QObject):
             
             wdir = os.getcwd()
             if format == 'json':
-                default_ext = 'Json (*.json);; Text (*.txt)'
+                default_ext = 'Json (*.json);;Text (*.txt)'
             elif format == 'ascii':
-                default_ext = 'Spectrum (*.spec);; Text (*.txt)'
+                default_ext = 'Spectrum (*.spec);;Text (*.txt)'
             elif format == 'binary':
                 default_ext = 'Binary (*.bin);; Any (*.*)'
             else:
                 default_ext = 'spec'
             if len(names) > 0:
                 name = QFileDialog.getSaveFileName(
-                    self._menu, 'Spectrum File', wdir, default_ext)
+                    self._menu, 'Spectrum File', wdir, default_ext, default_ext)
                 if not name == ('', ''):
                     filename  = self._genfilename(name)
                     
@@ -947,8 +950,8 @@ def genFilename(dialog_name):
             name = name.strip(') ')
             return name
         else:
-            filter = dialog_name[1]
-            ext = filter.strip(') ')
+            filter = dialog_name[1].split('(')[1]
+            ext = filter.strip('*) ')
             # Trim off the * and trailing )
             
             return name + ext
