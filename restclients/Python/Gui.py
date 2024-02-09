@@ -31,6 +31,7 @@ import DataSourceMenu
 import FilterMenu
 import SpectraMenu
 import GateMenu
+import HelpMenu
 
 
 def setup_menubar(win, client):
@@ -52,6 +53,7 @@ def setup_menubar(win, client):
     global filter_menu_object
     global spectra_menu_object
     global gate_menu_object
+    global help_menu_object
     
     menubar = win.menuBar()
     file_menu = menubar.addMenu('&File')
@@ -71,6 +73,7 @@ def setup_menubar(win, client):
     
     
     help_menu = menubar.addMenu("&Help")
+    help_menu_object = HelpMenu.Help(help_menu)
     
 
 PORTMAN_PORT=30000
