@@ -342,7 +342,7 @@ mod integrate_tests {
     use std::sync::mpsc;
 
     fn setup() -> Rocket<Build> {
-        let r = rest_common::setup().mount("/", routes![integrate::integrate]);
+        let r = rest_common::setup().mount("/", routes![super::integrate]);
 
         make_parameters(&r);
         make_conditions(&r);

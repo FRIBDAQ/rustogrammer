@@ -7,7 +7,7 @@ with a running rustogramer program.
 
 import requests
 import PortManager
-import os
+import OsServices
 
 class RustogramerException(Exception):
     """Exception type raised if the server replies with an error JSON
@@ -21,6 +21,8 @@ class RustogramerException(Exception):
     def __init__(self, response):
         self.status = response["status"]
         self.detail = response["detail"]
+    def __str__(self):
+        return f'Server Reported an error: {self.status} : {self.detail}'        
 
 class rustogramer:
     """
@@ -30,14 +32,16 @@ class rustogramer:
         via the REST interface the server exports. 
     """
 
-    def _service_port(self, host, port, name):
+    def _service_port(self, host, port, name, user=None):
         #  Translate the service 'name' using the port manager on
         #  'port'  to a service port, returning the port.
 
+        if user is None:
+            user  = OsServices.getlogin()
         pm = PortManager.PortManager(host, port)
-        matches = pm.find(service=name, user=os.getlogin())
+        matches = pm.find(service=name, user=user)
         if len(matches) != 1:
-            raise NameError(name=name)
+            raise NameError(name)
         return matches[0]["port"]
 
     def _transaction(self, request, queryparams = {}):
@@ -47,6 +51,7 @@ class rustogramer:
         # Create the URI:
 
         uri = "http://" + self.host + ":" + str(self.port) + "/spectcl/" + request
+        print(uri, queryparams)
         response = requests.get(uri, params=queryparams)
         response.raise_for_status()     # Report response errors.and
         result = response.json()
@@ -58,12 +63,13 @@ class rustogramer:
         return [x[key] for x in iterable]
 
     def _format_axis(self, low, high, bins):
-        return "{low:f} {high:f} {bins:d}".format(low=low, high=high, bins=bins)
+        bins = int(bins)
+        return "{{{low:f} {high:f} {bins:d}}}".format(low=low, high=high, bins=bins)
     
     def _format_xyaxes(self, xlow, xhigh, xbins, ylow, yhigh, ybins):
-        x = self._format_axis(xlow, xhigh, xbins)
-        y = self._format_axis(ylow, yhigh, ybins)
-        return "{" + x + "} {" + y + "}"
+        xbins = int(xbins)
+        ybins = int(ybins)
+        return f'{{{xlow:f} {xhigh:f} {xbins:d}}} {{{ylow:f} {yhigh:f} {ybins:d}}}'
 
     def _format_stringlist(self, strings):
         result=""
@@ -79,9 +85,9 @@ class rustogramer:
         It is a dict which has two mandatory members and one 
         optiona member:
 
-        *   'port' (mandatory) - This is either the port on
-        which the rustogramer listens for connections or the port on which
-        the NSCLDAQ port manager listens for connections.  See below.
+        *   'port' (mandatory) - This is the port on
+        which the rustogramer listens for connections 
+        *   'pmanport'  If doing service translation, this is the poprt on which the port manager is listening.
         *   'host' (mandatory) - Host running the rustogramer.
         *   'service'  (optional) - If provided, the port key provides
         the port manager listener port and this parameter is the service name
@@ -94,8 +100,14 @@ class rustogramer:
         """
         self.port = connection["port"]
         self.host = connection["host"]
+        if 'user' in connection.keys():
+            user = connection['user']
+        else:
+            user= None
         if "service" in connection:
-            self.port = self._service_port(connection['host'], self.port, connection["service"])
+            self.port = self._service_port(
+                connection['host'], connection['pmanport'],  connection["service"], user
+            )
 
     #--------------- Gate application domains: /apply, /ungate
 
@@ -140,16 +152,17 @@ class rustogramer:
     
     #-------------- Data processing: /attach and /analyze:
 
-    def attach_source(self, type, source, size=8192):
+    def attach_source(self, type, source, format='ring', size=8192):
         """ Attach a data source
            *   type - is the type of data source 'pipe' or 'file' Note that
            rustogramer only supports 'file' but SpecTcl supports both.
            *   source  - the type deependent sourc identification.
+           *   format - overall format (normally ring but theoreticlly for SpecTcl could be defaulted or jumbo)
            *   size    - (relevant only to SpecTcl - read block sizes). 
         """
     
         return self._transaction(
-            "attach/attach", {"type": type, "source": source, "size":size}
+            "attach/attach", {"type": type, "source": source, "format": format, "size":size}
         )
 
     def attach_show(self) :
@@ -291,6 +304,13 @@ class rustogramer:
         """
         return self._transaction("filter/file", {"name": name, "file": path})
     
+    def filter_list(self):
+        """
+
+           A list of the filters and their characteristics:
+           
+        """
+        return self._transaction("/filter/list", {})    
     #--------------------------- fit API.
 
     def fit_create(self, name, spectrum, low, high, type) :
@@ -480,6 +500,57 @@ class rustogramer:
             "xparameter":xparameter, "yparameter": yparameter, 
             "xcoord": xcoords, "ycoord": ycoords}
         )
+    def condition_make_gamma_slice(self, name, parameters, low, high):
+        return self._transaction(
+            'gate/edit',
+            {'name': name, 'type':'gs', 
+             'parameter':parameters, 
+             'low': low, 'high': high}
+        )
+    def condition_make_gamma_contour(self, name, parameters, points):
+        x = self._marshall(points, 'x')
+        y = self._marshall(points, 'y')
+        return self._transaction(
+            'gate/edit',
+            {
+                'name': name, 'type': 'gc', 
+                'parameter': parameters, 'xcoord': x, 'ycoord': y
+            }
+        )
+    def condition_make_gamma_band(self, name, parameters, points):
+        x = self._marshall(points, 'x')
+        y = self._marshall(points, 'y')
+        return self._transaction(
+            'gate/edit',
+            {
+                'name': name, 'type': 'gb', 
+                'parameter': parameters, 'xcoord': x, 'ycoord': y
+            }
+        )
+    def condition_make_mask_equal(self, name, parameter, value):
+        return self._transaction(
+            'gate/edit',
+            {
+                'name': name, 'type': 'em', 'value': value,
+                'parameter': parameter
+            }
+        )
+    def condition_make_mask_and(self, name, parameter, value):
+        return self._transaction(
+            'gate/edit',
+            {
+                'name': name, 'type': 'am', 'value': value,
+                'parameter': parameter
+            }
+        )
+    def condition_make_mask_nand(self, name, parameter, value):
+        return self._transaction(
+            'gate/edit',
+            {
+                'name': name, 'type': 'nm', 'value': value,
+                'parameter': parameter
+            }
+        )
     #----------------------- Statistics API.
 
     def get_statistics(self, pattern="*"):
@@ -545,6 +616,17 @@ class rustogramer:
         """
         props = properties
         props["name"] = name
+        # Need to set defaults for SpecTcl these are similar to those used by Treegui but 0-100 not 1-100
+        propkeys = props.keys()
+        if 'low' not in propkeys:
+            props['low'] = 0.0
+        if 'high' not in propkeys:
+            props['high'] = 100.0
+        if 'bins' not in propkeys:
+            props['bins'] = 100
+        if 'units' not in propkeys:
+            props['units'] = ''
+            
         return self._transaction("/parameter/create", props)
 
     def parameter_modify(self, name, properties):
@@ -687,19 +769,60 @@ class rustogramer:
     
     #--------------------------Spectrum API.
 
+    def _spectcl_spectra_to_rustogramer(self, info):
+        details = info['detail']
+        out_details = []
+        for spectrum in details:
+            if "xaxis" not in spectrum:
+                spectrum['xaxis'] = spectrum['axes'][0]
+                if len(spectrum['axes']) == 2:
+                    spectrum['yaxis'] = spectrum['axes'][1]
+                else:
+                    spectrum['yaxis'] = None
+            # Parameters depend on spectcrum type:
+
+            if "xparameters" not in spectrum:
+                stype = spectrum['type']
+                if stype  in ['1', 's', 'g1', 'g2', 'b', 'gs']:
+                    # These types only have 'xparameters':
+                    spectrum['xparameters'] = spectrum['parameters']
+                    spectrum['yparameters'] = []
+                if stype in ['2', 'm2', 'S']:
+                    # First 1/2 are x, second 1/2 are y so:
+                    split = int(len(spectrum['parameters'])/2)
+                    spectrum['xparameters'] = spectrum['parameters'][0:split]
+                    spectrum['yparameters'] = spectrum['parameters'][split:]
+                if stype == 'gd':
+                    # Two lists separated by ,'s:
+
+                    paramlist = spectrum['parameters']
+                    spectrum['xparameters'] = paramlist[0].split(' ')
+                    spectrum['yparameters'] = paramlist[1].split(' ')
+                if stype == 'gs':
+                    pass
+            out_details.append(spectrum)
+        info['details'] = out_details
+        return info
+
     def spectrum_list(self, pattern="*"):
         """ Return a list of spectra that match 'patttern' and their
         properties.  Note that 'pattern' is an optional parameter that is
         supports glob wild-cards.  If not provided, it defaults to '*' which
         matches all names.
         """
-        return self._transaction("spectrum/list", {"filter": pattern})
+        result = self._transaction("spectrum/list", {"filter": pattern})
+
+        # SpecTcl does not provide x/y information like rustogramer so
+        # we put it in if it's not there.  I
+
+        result = self._spectcl_spectra_to_rustogramer(result)
+        return result
     
     def spectrum_delete(self, name):
         """ Delete the named spectrum"""
         return self._transaction("spectrum/delete", {"name":name})
     
-    def spectrum_create1d(self, name, parameter, low, high, bins):
+    def spectrum_create1d(self, name, parameter, low, high, bins, chantype='f64'):
         """ Create a simple 1d spectrum:
         *   name - The name of the new spectrum (must be unique)
         *   parameter - the parameter that will be histogramed
@@ -708,10 +831,10 @@ class rustogramer:
         axis = self._format_axis(low, high, bins)
         return self._transaction(
             "spectrum/create", 
-            {"name":name, "type":"1", "parameters": parameter, "axes":axis}
+            {"name":name, "type":"1", "parameters": parameter, "axes":axis, 'chantype':chantype}
         )
 
-    def spectrum_create2d(self, name, xparam, yparam, xlow, xhigh, xbins, ylow, yhigh, ybins):
+    def spectrum_create2d(self, name, xparam, yparam, xlow, xhigh, xbins, ylow, yhigh, ybins, chantype='f64'):
         """ Create a simple 2d spectrum:
         *  name - the name of the new spectrum.
         *  xparam,yparam - the x and y parameters to be histogramed.
@@ -722,10 +845,10 @@ class rustogramer:
         axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
         return self._transaction(
             "spectrum/create",
-            {"type":2, "name":name, "parameters":xparam + " " + yparam, "axes":axes}
+            {"type":2, "name":name, "parameters":xparam + " " + yparam, "axes":axes, 'chantype': chantype}
         )
 
-    def spectrum_createg1(self, name, parameters, low, high, bins):
+    def spectrum_createg1(self, name, parameters, low, high, bins, chantype='f64'):
         """ Create a gamma 1 spectrum (multiply incremented 1d).
         *  name - name of the spectrum.
         *  parameters - iterable collection of parameter names
@@ -735,10 +858,10 @@ class rustogramer:
         params = self._format_stringlist(parameters)
         return self._transaction(
             "spectrum/create",
-            {"type":"g1", "name":name, "parameters":params, "axes":axes}
+            {"type":"g1", "name":name, "parameters":params, "axes":axes, 'chantype':chantype}
         )
 
-    def spectrum_createg2(self, name, parameters, xlow, xhigh, xbins, ylow, yhigh, ybins):
+    def spectrum_createg2(self, name, parameters, xlow, xhigh, xbins, ylow, yhigh, ybins, chantype='f64'):
         """ Create a gamma 2 spectrum (multiply incremented 2d).
         *  name - name of the spectrum
         *  parameters - parameters - incremented for each ordered pair present in the spectum.
@@ -749,9 +872,9 @@ class rustogramer:
         params = self._format_stringlist(parameters)
         return self._transaction(
             "spectrum/create",
-            {"type":"g2", "name":name, "parameters":params, "axes":axes}
+            {"type":"g2", "name":name, "parameters":params, "axes":axes, 'chantype':chantype}
         )
-    def spectrum_creategd(self, name, xparameters, yparameters, xlow, xhigh, xbins, ylow, yhigh, ybins):
+    def spectrum_creategd(self, name, xparameters, yparameters, xlow, xhigh, xbins, ylow, yhigh, ybins,chantype='f64'):
         """ Create a 'gamma deluxe' spectrum This is normally used for particle-gamma
         coincidence spectra.  Increments are done for every x/y pair that's defined.
         Consider e.g. that xparameters are  gamma detectors and y parameters are particle ids.
@@ -764,12 +887,12 @@ class rustogramer:
         axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
         xpars = self._format_stringlist(xparameters)
         ypars = self._format_stringlist(yparameters)
-        param_list = "{" + xpars + "}{" + ypars + "}"
+        param_list = "{" + xpars + "} {" + ypars + "}"
         return self._transaction(
             "spectrum/create",
-            {"type":"gd", "name":name, "parameters":param_list, "axes":axes}
+            {"type":"gd", "name":name, "parameters":param_list, "axes":axes, 'chantype':chantype}
         )
-    def spectrum_createsummary(self, name, parameters, low, high,  bins):
+    def spectrum_createsummary(self, name, parameters, low, high,  bins, chantype='f64'):
         """ Make a summary spectrum.  This is a 2d spectrum where every vertical
         channel strip is actually the one dimensional spectrum of one of the
         parameters in the spectum.
@@ -783,9 +906,9 @@ class rustogramer:
         axis = self._format_axis(low, high, bins)
         return self._transaction(
             "/spectrum/create",
-            {"type":"s", "name":name, "parameters":pars, "axes":axis}
+            {"type":"s", "name":name, "parameters":pars, "axes":axis, 'chantype':chantype}
         )
-    def spectrum_create2dsum(self, name, xpars, ypars, xlow, xhigh, xbins, ylow,yhigh,ybins):
+    def spectrum_create2dsum(self, name, xpars, ypars, xlow, xhigh, xbins, ylow,yhigh,ybins, chantype='f64'):
         """Create a 2d spectrum that is the sum of the 2d spectra defined
         by corresopnding xpars/ypars parameters. Note that the server enforces
         that len(xpars) must be the same as len(ypars)
@@ -798,14 +921,51 @@ class rustogramer:
         Increments are done for corresponding x/y pars e.g. for 
         xpars[0], ypars[0]  if those parameters are present in the event.
         """
-        xp = self._format_stringlist(xpars)
-        yp = self._format_stringlist(ypars)
-        pars = '{' + xp + '}{' + yp + '}'
+        
+        # Must interleave the xp and yps to make pairs:
+
+        params = []
+        for (x,y) in zip(xpars,ypars):
+            params.append(x)
+            params.append(y)
+
+        pars = self._format_stringlist(params)
         axes = self._format_xyaxes(xlow, xhigh, xbins, ylow, yhigh, ybins)
         return self._transaction(
             "spectrum/create",
-            {"type":"m2", "name":name, "parameters":pars, "axes":axes}
+            {"type":"m2", "name":name, "parameters":pars, "axes":axes, 'chantype': chantype}
         )
+    def spectrum_createstripchart(self, name, time, vertical, low, high, bins, chantype='f64'):
+        ''' Create a strip chart spectrum.  This will throw an error for
+        rustogramer but work for SpecTcl. 
+        *  name - name of the new spetrum.
+        *  time - the parameter on the time axis.
+        *  vertical - the parameter on the vertical axis.
+        *  low, high, bins - intial X axis definition.
+        '''
+        params = self._format_stringlist([time, vertical])
+        axis = self._format_axis(low, high, bins)
+        return self._transaction(
+            'spectrum/create',
+            {'type':'S', 'name':name, 'parameters':params, 'axes':axis, 'chantype':chantype }
+        )
+    def spectrum_createbitmask(self, name, parameter, bits, chantype = 'f64'):
+        params = self._format_stringlist([parameter])
+        axis = self._format_axis(0, bits, bits)
+        return self._transaction(
+            'spectrum/create',
+            {'type' :'b', 'name':name, 'parameters':params, 'axes':axis, 'chantype':chantype}
+        )
+    def spectrum_creategammasummary(self, name, parameters, ylow, yhigh, ybins, chantype='f64'):
+        axis = self._format_axis(ylow, yhigh, ybins)
+        # Each parameters list element is, itself a list.
+        params = ""
+        for p in parameters:
+            params =params + "{" +  self._format_stringlist(p)  + "} "
+        return self._transaction('spectrum/create',
+            {'type': 'gs', 'name': name, 'parameters': params, 'axes':axis, 'chantype': chantype}
+        )
+        
     def spectrum_getcontents(self, name, xl, xh, yl=0,yh=0):
         """ Get the contents of a spectrum within a region of interest.
         *   name - name of the spectrum.
@@ -818,14 +978,18 @@ class rustogramer:
             {"name":name, "xlow": xl, "xhigh": xh, "ylow":yl, "yhigh":yh}
         )
     def spectrum_clear(self, pattern="*"):
+
         """ Clear the contents of spectra that have names matching the
         'pattern' parameter.  Where 'pattern' is a glob match pattern.
         If omitted, 'pattern' defaults to "*" which matches all spectra.
         """
-        return self._transaction("spectrum/clear", {"pattern": pattern})
+        return self._transaction("spectrum/zero", {"pattern": pattern})
+    
+    def spectrum_clear_all(self):
+        ''' This is provided so it can be hooked as a slot to pyqt signals'''
+        self.spectrum_clear()
 
     #--------------- Spectrum I/O
-
     def spectrum_read(self, filename, format, options={}):
         """ Read one or more spectra from file.
 
@@ -839,7 +1003,7 @@ class rustogramer:
             a pretty obsolete format; SMAUG was a pre NSCL offline analysis program
             used by the 'Lynch' written by an undergraduate in their employ whose
             name now escapes me so I can't credit him).
-        *  options a dict (defaults to empty) that can override the options
+        *  options a dict (defaultsto empty) that can override the options
         that determine how the spectrum is read.  It is optional and the
         following keys matter:
             - snapshot - boolean - if true, the default, the spectrum will not
@@ -1042,7 +1206,7 @@ class rustogramer:
         the projection as new events arrive.  The spectrum must be separately
         bound to display memory if desired.
 
-        This is only implemented in SpecTcl.
+    
         """
         params = {
             "source":oldname, 
@@ -1204,6 +1368,7 @@ class rustogramer:
         monitor a tree variable value that is set programmatically.
         """
         return self._transaction("treevariable/firetraces", {"pattern": pattern})
+    
     #----------------------------- Version:
 
     def get_version(self):
@@ -1211,7 +1376,11 @@ class rustogramer:
         """
         return self._transaction("/version", {})
 
+    #------ 000 destruct, kill.
     
+    def kill_histogramer(self):
+        ''' Attempts to stop the histogramer.'''
+        return self._transaction('/exit')
     
 
 

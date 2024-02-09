@@ -388,6 +388,7 @@ impl ProcessingThread {
                 println!("Failed to read a ring item: {}", reason);
                 self.flush_events();
                 self.processing = false;
+                self.flush_events();
                 return true;
             }
             let item = try_item.unwrap();

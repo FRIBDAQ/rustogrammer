@@ -36,7 +36,7 @@ pub struct ParameterDefinition {
     id: u32,
     bins: Option<u32>,
     low: Option<f64>,
-    high: Option<f64>,
+    hi: Option<f64>,
     units: Option<String>,
     description: Option<String>, // New in rustogramer.
 }
@@ -84,7 +84,7 @@ pub fn list_parameters(
                     id: p.get_id(),
                     bins: p.get_bins(),
                     low: p.get_limits().0,
-                    high: p.get_limits().1,
+                    hi: p.get_limits().1,
                     units: p.get_units(),
                     description: p.get_description(),
                 })
@@ -514,7 +514,7 @@ mod parameter_tests {
         assert_eq!(1, pinfo.id);
         assert!(pinfo.bins.is_none());
         assert!(pinfo.low.is_none());
-        assert!(pinfo.high.is_none());
+        assert!(pinfo.hi.is_none());
         assert!(pinfo.units.is_none());
         assert!(pinfo.description.is_none());
 
@@ -589,7 +589,7 @@ mod parameter_tests {
         } else {
             false
         });
-        assert!(if let Some(high) = info.high {
+        assert!(if let Some(high) = info.hi {
             assert_eq!(1024.0, high);
             true
         } else {
@@ -1221,7 +1221,7 @@ mod parameter_tests {
         assert_eq!(1, info.id);
         assert!(info.bins.is_none());
         assert!(info.low.is_none());
-        assert!(info.high.is_none());
+        assert!(info.hi.is_none());
         assert!(info.units.is_none());
         assert!(info.description.is_none());
 

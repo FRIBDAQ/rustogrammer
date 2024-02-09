@@ -6,3 +6,6 @@ Cargo.lock
 __pycache__
 t
 clippy.txt
+/.vscode
+*-journal
+*.sqlite

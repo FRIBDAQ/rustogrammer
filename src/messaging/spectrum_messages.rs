@@ -672,6 +672,7 @@ impl SpectrumProcessor {
         cdict: &mut conditions::ConditionDictionary,
     ) -> SpectrumReply {
         for e in events.iter() {
+            
             conditions::invalidate_cache(cdict);
             self.dict.process_event(e);
         }
