@@ -30,6 +30,7 @@ import FileMenu
 import DataSourceMenu
 import FilterMenu
 import SpectraMenu
+import GateMenu
 
 
 def setup_menubar(win, client):
@@ -50,6 +51,7 @@ def setup_menubar(win, client):
     global data_source_menu_object
     global filter_menu_object
     global spectra_menu_object
+    global gate_menu_object
     
     menubar = win.menuBar()
     file_menu = menubar.addMenu('&File')
@@ -65,6 +67,9 @@ def setup_menubar(win, client):
     spectra_menu_object = SpectraMenu.SpectraMenu(spectrum_menu, client, win, file_menu_object)
     
     gate_menu = menubar.addMenu("&Gate")
+    gate_menu_object = GateMenu.Gate(gate_menu, client, win, spectra_menu_object)
+    
+    
     help_menu = menubar.addMenu("&Help")
     
 
