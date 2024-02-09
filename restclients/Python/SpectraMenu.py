@@ -13,12 +13,14 @@
    
 '''
 from PyQt5.QtWidgets import (
-  QAction, QDialog, QDialogButtonBox, 
-  QVBoxLayout
+  QAction, QDialog, QDialogButtonBox, QLabel,
+  QVBoxLayout, QHBoxLayout
 )
+from PyQt5.Qt import *
 from spectrumeditor import Editor
-from SpectrumList import SpectrumSelector
+from SpectrumList import SpectrumSelector, SpectrumNameList
 import capabilities
+from gatelist import ConditionChooser
 class SpectraMenu():
   def __init__(self, menu, client, win, file_menu):
     '''
@@ -58,6 +60,8 @@ class SpectraMenu():
     self._menu.addSeparator()
     
     self._apply = QAction('Apply Gate...')
+    self._apply.triggered.connect(self._apply_gate)
+    self._menu.addAction(self._apply)
     
   def _create_spectra(self):
     dlg = SpectrumCreator(self._menu)
@@ -69,6 +73,10 @@ class SpectraMenu():
       spectra = dlg.selectedSpectra()
       for spectrum in spectra:
         self._client.spectrum_delete(spectrum)
+  def _apply_gate(self):
+    dlg = ApplyGate(self._menu)
+    if dlg.exec():
+      pass
 class SpectrumCreator(QDialog):
   def __init__(self, *args):
     super().__init__(*args)
@@ -105,3 +113,47 @@ class SelectSpectra(QDialog):
     
   def selectedSpectra(self):
     return self._selection.selected()
+
+class ApplyGate(QDialog):
+  # Applies a gate to one or more spectra
+  #  The widget consists of a gate selector
+  #  And a spectrum name list:
+  #  The user selects the condition and one or more spectra
+  #  from the spectrum list. The widgtet allows the client to 
+  #  query the selected condition and selected spectra.
+  #
+  def __init__(self, *args):
+    super().__init__(*args)
+    layout = QVBoxLayout()
+    
+    # Gate and its label are vertically stacked:
+    
+    gate = QVBoxLayout()
+    gate.addWidget(QLabel('Condition:'), 0, Qt.AlignTop)
+    self._condition = ConditionChooser(self)
+    gate.addWidget(self._condition, 0, Qt.AlignTop)
+    gate.addStretch(1)
+    
+    # As are spectra and their label:
+    
+    spectra = QVBoxLayout()
+    spectra.addWidget(QLabel('Spectra:', self))
+    self._spectra = SpectrumNameList(capabilities.get_client(), self)
+    spectra.addWidget(self._spectra)
+    
+    controls = QHBoxLayout()
+    controls.addLayout(gate)
+    controls.addLayout(spectra)
+  
+    
+    layout.addLayout(controls)
+    
+    # The button box:
+    
+    self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+    self._buttonBox.accepted.connect(self.accept)
+    self._buttonBox.rejected.connect(self.reject)
+    
+    layout.addWidget(self._buttonBox)
+      
+    self.setLayout(layout)
