@@ -60,7 +60,7 @@ class SpectraMenu():
     self._menu.addSeparator()
     
     self._apply = QAction('Apply Gate...')
-    self._apply.triggered.connect(self._apply_gate)
+    self._apply.triggered.connect(self.apply_gate)
     self._menu.addAction(self._apply)
     
   def _create_spectra(self):
@@ -73,7 +73,7 @@ class SpectraMenu():
       spectra = dlg.selectedSpectra()
       for spectrum in spectra:
         self._client.spectrum_delete(spectrum)
-  def _apply_gate(self):
+  def apply_gate(self):
     dlg = ApplyGate(self._menu)
     if dlg.exec():
       condition = dlg.condition()
