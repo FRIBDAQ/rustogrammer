@@ -8,6 +8,7 @@ from PyQt5.QtWidgets import(
 )
 from PyQt5.QtCore import pyqtSignal
 from gatelist import ConditionList, common_condition_model
+from conditionEditor import ConditionEditor
 class Gate():
     def __init__(self, menu, client, main, spectra):
         '''
@@ -24,6 +25,7 @@ class Gate():
         self._spectra = spectra
         
         self._create = QAction('Create...')
+        self._create.triggered.connect(self._create_gates)
         self._menu.addAction(self._create)
         
         self._apply = QAction('Apply...')
@@ -35,6 +37,10 @@ class Gate():
         self._delete = QAction('Delete...')
         self._delete.triggered.connect(self._delete_gates)
         self._menu.addAction(self._delete)
+        
+    def _create_gates(self):
+        dlg = ConditionCreationDialog(self._menu)
+        dlg.exec()
         
     def _delete_gates(self):
         dlg = GateListPrompter(self._menu)
@@ -82,3 +88,18 @@ class GateListPrompter(QDialog):
             result.append(item.text())
             
         return result
+    
+class ConditionCreationDialog(QDialog):
+    def __init__(self, *args):
+        super().__init__(*args)
+        layout = QVBoxLayout()
+        
+        self._editor = ConditionEditor(self)
+        layout.addWidget(self._editor)
+        
+        self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok,  self)
+        self._buttonBox.accepted.connect(self.accept)
+        
+        layout.addWidget(self._buttonBox)
+        
+        self.setLayout(layout)
