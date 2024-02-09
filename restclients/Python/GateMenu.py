@@ -3,9 +3,11 @@ Proivides the Gate class which defines and implements the Gate menu items.
 '''
 
 from PyQt5.QtWidgets import(
-    QAction
+    QAction, QDialog, QDialogButtonBox, QAbstractItemView, QPushButton,
+    QVBoxLayout
 )
-
+from PyQt5.QtCore import pyqtSignal
+from gatelist import ConditionList, common_condition_model
 class Gate():
     def __init__(self, menu, client, main, spectra):
         '''
@@ -31,4 +33,52 @@ class Gate():
         self._menu.addSeparator()
         
         self._delete = QAction('Delete...')
+        self._delete.triggered.connect(self._delete_gates)
         self._menu.addAction(self._delete)
+        
+    def _delete_gates(self):
+        dlg = GateListPrompter(self._menu)
+        dlg.refresh.connect(self._refresh_gates)
+        if dlg.exec():
+            for condition in dlg.conditions():
+                self._client.condition_delete(condition)
+    
+    
+    def _refresh_gates(self):
+        common_condition_model.load(self._client)
+    
+
+class GateListPrompter(QDialog):
+    refresh = pyqtSignal()
+    def __init__(self, *args):
+        super().__init__(*args)
+        
+        layout = QVBoxLayout()
+        
+        self._conditions = ConditionList(self)
+        self._conditions.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        layout.addWidget(self._conditions)
+        
+        self._refresh = QPushButton('Refresh List',self)
+        layout.addWidget(self._refresh)
+        self._refresh.clicked.connect(self.refresh)
+        
+        self._buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self._buttonBox.accepted.connect(self.accept)
+        self._buttonBox.rejected.connect(self.reject)
+        
+        layout.addWidget(self._buttonBox)
+        
+        self.setLayout(layout)
+        
+    def conditions(self):
+        # Return the set of selected gates:
+        
+        selected_indices = self._conditions.selectedIndexes()
+        result = list()
+        for index in selected_indices:
+            model = index.model()
+            item = model.itemFromIndex(index)
+            result.append(item.text())
+            
+        return result
