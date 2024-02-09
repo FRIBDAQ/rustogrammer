@@ -76,7 +76,10 @@ class SpectraMenu():
   def _apply_gate(self):
     dlg = ApplyGate(self._menu)
     if dlg.exec():
-      pass
+      condition = dlg.condition()
+      for spectrum in dlg.selectedSpectra():
+        self._client.apply_gate(condition, spectrum)
+      
 class SpectrumCreator(QDialog):
   def __init__(self, *args):
     super().__init__(*args)
@@ -157,3 +160,18 @@ class ApplyGate(QDialog):
     layout.addWidget(self._buttonBox)
       
     self.setLayout(layout)
+  #  Fetchers for data in the controls.
+  
+  def condition(self):
+    return self._condition.currentText()
+  
+  def selectedSpectra(self):
+    selected_indices = self._spectra.selectedIndexes()
+    result = list()
+    for index in selected_indices:
+      model = index.model()
+      item = model.itemFromIndex(index)
+      result.append(item.text())
+    
+    return result
+    
