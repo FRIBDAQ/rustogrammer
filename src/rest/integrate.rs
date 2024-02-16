@@ -214,9 +214,9 @@ fn generate_aoi(
 ///
 /// The reply is an IntegrationResponse.
 ///
-#[get("/?<name>&<gate>&<low>&<high>&<xcoord>&<ycoord>")]
+#[get("/?<spectrum>&<gate>&<low>&<high>&<xcoord>&<ycoord>")]
 pub fn integrate(
-    name: String,
+    spectrum: String,
     gate: OptionalString,
     low: Option<f64>,
     high: Option<f64>,
@@ -224,6 +224,7 @@ pub fn integrate(
     ycoord: OptionalF64Vec,
     state: &State<SharedHistogramChannel>,
 ) -> Json<IntegrationResponse> {
+    let name = spectrum.clone();
     // A few errors to check for:
     // - the name must be for a valid spectrum - and we must be able to get
     //   the contents
@@ -305,8 +306,8 @@ pub fn integrate(
         IntegrationResponse {
             status: String::from("OK"),
             detail: IntegrationDetail {
-                centroid: vec![result.centroid.0],
-                fwhm: vec![result.fwhm.0],
+                centroid: vec![result.centroid.0, 0.0],   // Since CutiePie expects
+                fwhm: vec![result.fwhm.0, 0.0],           // both to always be there.
                 counts: result.sum as u64,
             },
         }
