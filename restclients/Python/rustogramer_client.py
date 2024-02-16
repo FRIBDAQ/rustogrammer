@@ -720,6 +720,21 @@ class rustogramer:
     
     def sbind_get_update_period(self) :
         return self._transaction("sbind/get_update", {})
+    
+    #--------- unbind:
+    
+    def unbind_by_names(self, names):
+        ''' Unbind spectra by a list of "names" '''
+        return self._transaction("unbind/byname", {'name': names})
+    
+    def unbind_by_ids(self, ids):
+        ''' unbind spectra by a list of 'ids' - may not work on rustogrmamer '''
+        return self._transaction("unbind/byid", {'id', ids});
+    
+    def unbind_all(self):
+        ''' UNbind all spectra '''
+        return self._transaction('unbind/all', {})
+    
         
     #---------- Shared memory information:
 

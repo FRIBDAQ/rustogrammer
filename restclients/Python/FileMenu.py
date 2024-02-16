@@ -220,6 +220,13 @@ class FileMenu(QObject):
         applications = reader.read_applications()
         self._restore_gate_applications(applications)
         
+        # Simplest is to unbind all and rebind all:
+        
+        self._client.unbind_all()
+        self._client.sbind_all()
+        
+        
+        
     def read_spectrum_file(self):
         '''
            Prompt for how and which file to read spectra from...and do it.
