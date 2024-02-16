@@ -491,7 +491,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("Unable to create client");
-        let req = c.get("/?name=junk");
+        let req = c.get("/?spectrum=junk");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -510,7 +510,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=oned&gate=no-such");
+        let req = c.get("/?spectrum=oned&gate=no-such");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -528,7 +528,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=oned&gate=true");
+        let req = c.get("/?spectrum=oned&gate=true");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -546,7 +546,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=oned&gate=good-contour");
+        let req = c.get("/?spectrum=oned&gate=good-contour");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -564,7 +564,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=twod&gate=good-cut");
+        let req = c.get("/?spectrum=twod&gate=good-cut");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -582,7 +582,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=oned&gate=good-cut&low=100&high=200");
+        let req = c.get("/?spectrum=oned&gate=good-cut&low=100&high=200");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -599,7 +599,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=twod&gate=good-contour?xcoord=10&xcoord=20&xcoord=10&ycoord=10&ycoord=20&ycoord=10");
+        let req = c.get("/?spectrum=twod&gate=good-contour?xcoord=10&xcoord=20&xcoord=10&ycoord=10&ycoord=20&ycoord=10");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -617,7 +617,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=oned");
+        let req = c.get("/?spectrum=oned");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -626,8 +626,8 @@ mod integrate_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(
             IntegrationDetail {
-                centroid: vec![150.0],
-                fwhm: vec![0.0],
+                centroid: vec![150.0, 0.0],
+                fwhm: vec![0.0, 0.0],
                 counts: 1234
             },
             reply.detail
@@ -643,7 +643,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=oned&gate=good-cut");
+        let req = c.get("/?spectrum=oned&gate=good-cut");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -652,8 +652,8 @@ mod integrate_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(
             IntegrationDetail {
-                centroid: vec![150.0],
-                fwhm: vec![0.0],
+                centroid: vec![150.0, 0.0],
+                fwhm: vec![0.0, 0.0],
                 counts: 1234
             },
             reply.detail
@@ -669,7 +669,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=oned&gate=empty-cut");
+        let req = c.get("/?spectrum=oned&gate=empty-cut");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -678,8 +678,8 @@ mod integrate_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(
             IntegrationDetail {
-                centroid: vec![0.0],
-                fwhm: vec![0.0],
+                centroid: vec![0.0, 0.0],
+                fwhm: vec![0.0, 0.0],
                 counts: 0
             },
             reply.detail
@@ -693,7 +693,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=oned&low=100&high=200");
+        let req = c.get("/?spectrum=oned&low=100&high=200");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -702,8 +702,8 @@ mod integrate_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(
             IntegrationDetail {
-                centroid: vec![150.0],
-                fwhm: vec![0.0],
+                centroid: vec![150.0, 0.0],
+                fwhm: vec![0.0, 0.0],
                 counts: 1234
             },
             reply.detail
@@ -717,7 +717,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=oned&low=0&high=50");
+        let req = c.get("/?spectrum=oned&low=0&high=50");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -726,8 +726,8 @@ mod integrate_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(
             IntegrationDetail {
-                centroid: vec![0.0],
-                fwhm: vec![0.0],
+                centroid: vec![0.0, 0.0],
+                fwhm: vec![0.0, 0.0],
                 counts: 0
             },
             reply.detail
@@ -743,7 +743,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=twod");
+        let req = c.get("/?spectrum=twod");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -769,7 +769,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=twod&gate=good-contour");
+        let req = c.get("/?spectrum=twod&gate=good-contour");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -795,7 +795,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=twod&gate=empty-contour");
+        let req = c.get("/?spectrum=twod&gate=empty-contour");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -821,7 +821,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=twod&xcoord=100&xcoord=500&xcoord=500&xcoord=100&ycoord=100&ycoord=100&ycoord=500&ycoord=500");
+        let req = c.get("/?spectrum=twod&xcoord=100&xcoord=500&xcoord=500&xcoord=100&ycoord=100&ycoord=100&ycoord=500&ycoord=500");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -847,7 +847,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let c = Client::untracked(r).expect("unable to create client");
-        let req = c.get("/?name=twod&xcoord=0&xcoord=50&xcoord=50&xcoord=0&ycoord=0&ycoord=0&ycoord=50&ycoord=50");
+        let req = c.get("/?spectrum=twod&xcoord=0&xcoord=50&xcoord=50&xcoord=0&ycoord=0&ycoord=0&ycoord=50&ycoord=50");
         let reply = req
             .dispatch()
             .into_json::<IntegrationResponse>()
@@ -873,7 +873,7 @@ mod integrate_tests {
         let (chan, p, b) = getstate(&r);
 
         let client = Client::untracked(r).expect("Making client");
-        let req = client.get("/?name=summary");
+        let req = client.get("/?spectrum=summary");
         let response = req
             .dispatch()
             .into_json::<IntegrationResponse>()
