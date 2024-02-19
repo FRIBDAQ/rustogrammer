@@ -114,16 +114,13 @@ mod version_tests {
 
         // See if the values are correct:
 
-        let major = env::var("CARGO_PKG_VERSION_MAJOR")
-            .expect("Getting major")
+        let major = env!("CARGO_PKG_VERSION_MAJOR")
             .parse::<u32>()
             .expect("Parsing major");
-        let minor = env::var("CARGO_PKG_VERSION_MINOR")
-            .expect("Getting minor version")
+        let minor = env!("CARGO_PKG_VERSION_MINOR")
             .parse::<u32>()
             .expect("Parsing minor");
-        let patch = env::var("CARGO_PKG_VERSION_PATCH")
-            .expect("Getting edit level")
+        let patch = env!("CARGO_PKG_VERSION_PATCH")
             .parse::<u32>()
             .expect("Parsing edit level");
 
