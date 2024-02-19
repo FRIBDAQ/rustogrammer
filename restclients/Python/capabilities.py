@@ -76,7 +76,7 @@ def get_program():
 
         if name == 'SpecTcl':
             server_program = Program.SpecTcl
-        elif name == 'rustogramer':
+        elif name == 'Rustogramer':
             server_program = Program.Rustogramer
         else:
             server_program = Program.Unknown
