@@ -51,55 +51,16 @@ pub struct VersionResponse {
 #[get("/")]
 pub fn get_version() -> Json<VersionResponse> {
     // initialize for failure:
-    let mut result = VersionResponse {
-        status: String::from("Unable to get the program version"),
+    let  result = VersionResponse {
+        status: String::from("OK"),
         detail: VersionDetail {
-            major: 0,
-            minor: 0,
-            editlevel: 0,
+            major: env!("CARGO_PKG_VERSION_MAJOR").parse().unwrap(),
+            minor: env!("CARGO_PKG_VERSION_MINOR").parse().unwrap(),
+            editlevel: env!("CARGO_PKG_VERSION_PATCH").parse().unwrap(),
             program_name: String::from("Rustogramer"),
         },
     };
 
-    match env::var("CARGO_PKG_VERSION_MAJOR") {
-        Err(_) => return Json(result),
-        Ok(ma) => {
-            if let Ok(m) = ma.parse::<u32>() {
-                result.detail.major = m;
-            } else {
-                return Json(result);
-            }
-        }
-    }
-
-    match env::var("CARGO_PKG_VERSION_MINOR") {
-        Err(_) => return Json(result),
-        Ok(mi) => {
-            if let Ok(m) = mi.parse::<u32>() {
-                result.detail.minor = m;
-            } else {
-                return Json(result);
-            }
-        }
-    }
-
-    match env::var("CARGO_PKG_VERSION_PATCH") {
-        Err(_) => {
-            return Json(result);
-        }
-        Ok(ed) => {
-            if let Ok(e) = ed.parse::<u32>() {
-                result.detail.editlevel = e;
-            } else {
-                return Json(result);
-            }
-        }
-    }
-
-    if let Ok(n) = env::var("CARGO_PKG_NAME") {
-        result.detail.program_name = n.clone();
-        result.status = String::from("OK");
-    }
     Json(result)
 }
 #[cfg(test)]
