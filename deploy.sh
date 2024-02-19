@@ -46,3 +46,9 @@ install -d $dest/share/restclients/Tcl
 
 install -m 0644  restclients/Python/* $dest/share/restclients/Python
 install -m 0644  restclients/Tcl/*    $dest/share/restclients/Tcl
+
+# Now make a script in bin to run the GUI:
+
+echo "#!/bin/bash" > $dest/bin/gui
+echo "(cd $dest/share/restclients/Python; python3 Gui.py)" >> $dest/bin/gui
+chmod 0755 $dest/bin/gui
