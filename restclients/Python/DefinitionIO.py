@@ -725,8 +725,8 @@ class DefinitionReader:
         
         cursor = self._sqlite.cursor()
         cursor.execute('''
-            SELECT name, type, datatype, low, high, bins  FROM spectrum_defs
-            FULL OUTER JOIN axis_defs 
+            SELECT name, type, datatype, low, high, bins  FROM axis_defs
+            LEFT JOIN  spectrum_defs 
                ON spectrum_defs.id = axis_defs.spectrum_id
             WHERE spectrum_defs.save_id = :saveset
             ORDER BY axis_defs.id
