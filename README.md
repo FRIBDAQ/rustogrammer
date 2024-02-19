@@ -40,8 +40,12 @@ On Linux, {destination}/bin will have the rustogrammer binary and a script named
 to run the gui front end.
 
 On Windows {destination} wll have rustogrammer.exe and gui.bat
+**BEWARE** {destination} on windows will be recursively deleted so don't specify e.g. \
+make sure {destination} is a directory you are willing to destroy if it exists.
+For example:  \rg or "\program files\rg"
 
-You may also want to get the CutiPie visualizer availalbe from 
+
+You may also want to get the CutiPie visualizer available from 
 https://github.com/FRIBDAQ/CutiePie  it allows you to visualize
 spectra and create graphical gates.
 
