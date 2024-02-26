@@ -31,15 +31,19 @@ class _AxisWidget(QWidget):
     def __init__(self, *args):
         super().__init__(*args)
 
-        layout = QGridLayout()
-        layout.addWidget(QLabel('Parameter: ', self), 0,0, Qt.AlignLeft)
+        layout = QVBoxLayout()
+        playout = QHBoxLayout()
+        playout.addWidget(QLabel('Parameter: ', self))
         self._parameter = Chooser(self)
-        layout.addWidget(self._parameter, 0, 1, Qt.AlignRight)
+        playout.addWidget(self._parameter)
         self._selected_parameter = QLabel('', self)
-        layout.addWidget(self._selected_parameter, 1, 0, Qt.AlignLeft)
+        playout.addWidget(self._selected_parameter)
+        playout.addStretch(1)
+        layout.addLayout(playout)
         self._axis_spec = AxisInput(self)
-        layout.addWidget(self._axis_spec, 2, 0, 1, 2, Qt.AlignLeft)
-
+        layout.addWidget(self._axis_spec)
+        layout.addStretch(1)
+        
         self.setLayout(layout)
 
         # Estalish signal handlers to map widget events to our signals:
@@ -116,7 +120,7 @@ class TwoDEditor(QWidget):
 
         super().__init__(*args)
 
-        layout = QGridLayout()
+        layout = QVBoxLayout()
 
         # Spectrum name stuff:
 
@@ -124,23 +128,43 @@ class TwoDEditor(QWidget):
         name_layout.addWidget(QLabel('Name: ', self))
         self._name = QLineEdit(self)
         name_layout.addWidget(self._name)
-
-        layout.addLayout(name_layout, 0,0)
+        name_layout.addStretch(1)
+        
+        layout.addLayout(name_layout)
 
         # Axis stuff:
 
-        layout.addWidget(QLabel('X', self), 1,0, Qt.AlignCenter)
-        layout.addWidget(QLabel('Y', self), 1,1, Qt.AlignCenter)
+        axislayout = QHBoxLayout()
+        xaxislayout = QVBoxLayout()
+        yaxislayout = QVBoxLayout()
+        
+        # Axis names
+        xaxislayout.addWidget(QLabel('X', self))
+        yaxislayout.addWidget(QLabel('Y', self))
+
+
 
         self._xaxis = _AxisWidget(self)
-        layout.addWidget(self._xaxis, 2, 0, Qt.AlignLeft)
+        xaxislayout.addWidget(self._xaxis)
 
         self._yaxis = _AxisWidget(self)
-        layout.addWidget(self._yaxis, 2, 1, Qt.AlignLeft)
+        yaxislayout.addWidget(self._yaxis)
+        xaxislayout.addStretch(1)
+        yaxislayout.addStretch(1)
+        axislayout.addLayout(xaxislayout)
+        axislayout.addLayout(yaxislayout)
+        axislayout.addStretch(1)
+        layout.addLayout(axislayout)
 
+
+        buttonlayout = QHBoxLayout()
         self._create = QPushButton('Create/Replace', self)
-        layout.addWidget(self._create, 3, 0, 1,2, Qt.AlignCenter)
-
+        buttonlayout.addWidget(self._create)
+        buttonlayout.addStretch(1)
+        layout.addLayout(buttonlayout)
+        layout.addStretch(1)
+        
+        
         self.setLayout(layout)
 
         # Connect individual signals... claim is that signals can be connected
