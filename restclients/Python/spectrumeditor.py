@@ -994,6 +994,7 @@ class Editor(QWidget):
         self.chtlabel = QLabel('Channel Type:')
         right.addWidget(self.chtlabel)
         right.addWidget(self.channelType)
+        right.addStretch(1)
         self._sidebar = right
         
         layout.addLayout(self._sidebar)
@@ -1027,8 +1028,9 @@ class Editor(QWidget):
         i = 0
         item = sidebar.itemAt(i)
         while item is not None:
-            w = item.widget()
-            w.show()
+            w = item.widget()     # Could be a stretch e.g.
+            if w is not None:
+                w.show()
             i += 1
             item = sidebar.itemAt(i)
     def _new_editor_visible(self, index):
