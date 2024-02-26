@@ -71,9 +71,9 @@
 '''
 
 from PyQt5.QtWidgets import (
-    QLabel, QListWidget, QPushButton, QCheckBox, QLineEdit,
-    QApplication, QMainWindow, QGridLayout, QVBoxLayout, QHBoxLayout,
-    QStyle, QWidget 
+    QLabel, QPushButton, QCheckBox, QLineEdit,
+    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
+    QWidget 
 )
 from PyQt5.Qt import *
 from PyQt5.QtCore import pyqtSignal
@@ -89,46 +89,57 @@ class SummaryEditor(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args)
         
-        main_layout = QGridLayout()
+        main_layout = QVBoxLayout()
 
         # Top row has title and QLineEditor for name:
 
-        main_layout.addWidget(QLabel('Name:'), 0,0, Qt.AlignRight)
+        row1 = QHBoxLayout()
+        row1.addWidget(QLabel('Name:', self))
         self._name = QLineEdit(self)
-        main_layout.addWidget(self._name, 0,1, 1, 2)
+        row1.addWidget(self._name)
+        row1.addStretch(1)
+        
+        main_layout.addLayout(row1)
 
         # Left side of next row is parameter chooser and 
         # array button.
-        pclayout = QHBoxLayout()
+        
+        row2 = QHBoxLayout()
         chooser_name = QVBoxLayout()
         self._parameter_chooser = pChooser(self)
         self._chosen_parameter = QLabel(self)
         chooser_name.addWidget(QLabel("Select Parameter(s)"))
         chooser_name.addWidget(self._parameter_chooser)
         chooser_name.addWidget(self._chosen_parameter)
+        row2.addLayout(chooser_name)
+        
         self._param_array       = QCheckBox('Array', self)
-        pclayout.addLayout(chooser_name)
-        pclayout.addWidget(self._param_array)
-        main_layout.addLayout(pclayout, 3, 0)
-
+        row2.addLayout(chooser_name)
+        row2.addWidget(self._param_array)
         self._list = EditableList('Parameters')
-        main_layout.addWidget(self._list, 1,1, 6, 1)
+        row2.addWidget(self._list)
+        row2.addStretch(1)
+        main_layout.addLayout(row2)
+
 
         # The axis specification with a from parameters checkbutton.
 
+        axis = QHBoxLayout()
         self._axis = AxisInput(self)
-        main_layout.addWidget(self._axis, 9, 0)
-        if 'from_par_row' in kwargs:
-            from_row = kwargs['from_par_row']
-        else :
-            from_row = 9
+        axis.addWidget(self._axis)
         self._from_params = QCheckBox('From Parameters', self)
-        main_layout.addWidget(self._from_params, from_row, 1, Qt.AlignBottom)
+        axis.addWidget(self._from_params)
+        axis.addStretch(1)
+        main_layout.addLayout(axis)
 
         # Finally the Create/Replace button in 10, all centered
 
+        button = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        main_layout.addWidget(self._commit, 10, 0, 1, 3, Qt.AlignHCenter)
+        button.addWidget(self._commit)
+        button.addStretch(1)
+        main_layout.addLayout(button)
+        main_layout.addStretch(1)
 
         self.setLayout(main_layout)
 

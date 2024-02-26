@@ -26,10 +26,10 @@ class Gamma2DEditor(SummaryEditor):
         
         # Additional axis input:
         
-        self.main_layout.addWidget(QLabel('Y axis'), 8, 0)
-        self._xaxis = AxisInput(self)
-        self.main_layout.addWidget(self._xaxis, 7, 0)
-        self.main_layout.addWidget(QLabel('X axis'), 6, 0)
+       # self.main_layout.addWidget(QLabel('Y axis'), 8, 0)
+       # self._xaxis = AxisInput(self)
+       # self.main_layout.addWidget(self._xaxis, 7, 0)
+       # self.main_layout.addWidget(QLabel('X axis'), 6, 0)
     # Xaxis is internal
     def xlow(self):
         return self._xaxis.low()
