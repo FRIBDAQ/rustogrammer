@@ -61,6 +61,7 @@ class EditorView(QWidget):
         line2.addWidget(QLabel("Parameter: "))
         self._parameter = LabeledParameterChooser(self)
         line2.addWidget(self._parameter)
+        line2.addStretch(1)
         
         layout.addLayout(line2)
         
@@ -80,15 +81,18 @@ class EditorView(QWidget):
         self._high.setText('4096.0')
         self._high.setValidator(QDoubleValidator())
         line3.addWidget(self._high)
+        line3.addStretch(1)
         layout.addLayout(line3)
         
-        layout.addStretch(1)
         
         # Bottom is our button.
         
+        commit = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        layout.addWidget(self._commit)
-        
+        commit.addWidget(self._commit)
+        commit.addStretch(1)
+        layout.addLayout(commit)
+        layout.addStretch(1)
         
         self.setLayout(layout)
         
