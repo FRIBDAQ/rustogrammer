@@ -459,7 +459,6 @@ class PGammaController(AbstractController):
         self._client = get_capabilities_client()
         self._view.addXParameters.connect(self.addx)
         self._view.addYParameters.connect(self.addy)
-        self._view.parameterChanged.connect(self.set_param_name)
         self._view.commit.connect(self.commit)
     def addx(self):
         params = self._get_parameters()
@@ -521,9 +520,7 @@ class PGammaController(AbstractController):
                     name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins, dtype
                 )
         self._editor.spectrum_added(name)
-    def set_param_name(self, path):
-        name = '.'.join(path)
-        self._view.setSelectedParameter(name)
+    
     # Utility methods
 
     def _create_ok(self, name):
