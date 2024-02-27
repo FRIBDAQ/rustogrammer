@@ -58,7 +58,7 @@ class SingleList(QWidget):
         left.addWidget(self._chooser_label)
         self._parameter_chooser = pChooser(self)
         left.addWidget(self._parameter_chooser)
-        left.addStretch(1)
+        
         
         layout.addLayout(left)
         
@@ -117,9 +117,137 @@ class SingleList(QWidget):
     # Public methods:
     
     def appendItem(self, s):
-        self._list.addItem(s)
+        self._list.appendItem(s)
     def insertItem(self, row, s):
         self._list.insertItem(row, s)
     def clear(self):
         self._list.clear()
         
+
+class DoubleList(QWidget):
+    ''' 
+    This is a widget suitable for getting two lists of parameters. It consists of a single
+    parameter selector and side by side editable lists to hold the parameters.
+    
+    Signals:
+        addXParameters    = pyqtSignal()
+        xParameterRemoved = pyqtSignal(str)
+        addYParameters    = pyqtSignal()
+        yParameterRemoved = pyqtSignal(str)
+    Attributes:
+        xparameters       - Contents of X parameters list box.
+        yparameters       - Contents of Y parameters list box.
+        selectedParameter -  currently selected parameter
+        array             - State of array checkbutton.
+        parameterLabel    - Label on the parameter chooser.
+        xLabel            - label on the xparameter list.
+        yLabel            - label on the yparameter list.
+       
+    Methods
+        appendXparam - Adds a parameter to the X list
+        insertXparam - Inserts an item at a specific row in the X list
+        clearX       - Clears the X parameter list
+        appendYparam - Adds a parameter to the Y list
+        insertYparam - Inserts an item at a specific row in the Y list
+        clearY       - Clears the Y parameter list
+            
+    '''
+    addXParameters    = pyqtSignal()
+    xParameterRemoved = pyqtSignal(str)
+    addYParameters    = pyqtSignal()
+    yParameterRemoved = pyqtSignal(str)
+    
+    def __init__(self, *args):
+        super().__init__(*args)
+        
+        layout = QHBoxLayout()
+        
+        #At the left is a single parameter chooser to which we add an editable listbox:
+        
+        self._left = SingleList(self)
+        self._left.setListLabel('X parameters')
+        layout.addWidget(self._left)
+        
+        self._right = EditableList('Y Parameters', self)
+        layout.addWidget(self._right)
+        
+        self.setLayout(layout)
+        
+        # Hook in some signals to relays:
+         
+        self._left.add.connect(self.addXParameters)
+        self._left.remove.connect(self.xParameterRemoved)
+        
+        self._right.add.connect(self.addYParameters)
+        self._right.remove.connect(self.yParameterRemoved)
+        
+    # Public methods:
+    '''
+    Methods
+        appendXparam - Adds a parameter to the X list
+        insertXparam - Inserts an item at a specific row in the X list
+        clearX       - Clears the X parameter list
+        appendYparam - Adds a parameter to the Y list
+        insertYparam - Inserts an item at a specific row in the Y list
+        clearY       - Clears the Y parameter list
+    '''
+    
+    def appendXparam(self, name):
+        self._left.appendItem(name)
+    def insertXParam(self, row, name):
+        self._left.insertItem(row, name)
+    def clearX(self):
+        self._left.clear()
+        
+    def appendYparam(self, name):
+        self._right.appendItem(name)
+    def insertYParam(self, row, name):
+        self._right.insertItem(row, name)
+    def clearY(self):
+        self._right.clear()
+    
+    # Attribute implementations.
+    '''
+        xparameters       - Contents of X parameters list box.
+        yparameters       - Contents of Y parameters list box.
+        selectedParameter -  currently selected parameter
+        array             - State of array checkbutton.
+        parameterLabel    - Label on the parameter chooser.
+        xLabel            - label on the xparameter list.
+        yLabel            - label on the yparameter list.
+    '''
+    
+    def xparameters(self):
+        return self._left.selectedParameters()
+    def setXparameters(self, l):
+        self._left.setSelectedParameters(l) 
+        
+    def yparameters(self):
+        return self._right.list()
+    def setYparameters(self, l):
+        self._right.setList(l)       
+    
+    def selectedParameter(self):
+        return self._left.parameter()
+    def setSelectedParameter(self, name):
+        self._right.setParameter(name)
+    
+    def array(self):
+        return self._left.array()
+    def setArray(self, b):
+        self._left.setArray(b)
+        
+    def parameterLabel(self):
+        return self._left.chooserLabel()
+    def setParameterLabel(self, l):
+        self._left.setChooserLabel(l)
+        
+    def xLabel(self):
+        return self._left.listLabel()
+    def setXLabel(self, s):
+        self._left.setListLabel(s)
+        
+    def yLabel(self):
+        return self._right.label()
+    def setYLabel(self, s):
+        self._right.setLabel(s)
