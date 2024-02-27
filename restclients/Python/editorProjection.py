@@ -42,7 +42,7 @@
 
 from PyQt5.QtWidgets import (
     QLabel, QLineEdit, QComboBox, QCheckBox, QPushButton,
-    QVBoxLayout, QGridLayout,
+    QVBoxLayout,  QHBoxLayout,
     QApplication, QMainWindow
 )
 from PyQt5.QtCore import pyqtSignal
@@ -57,30 +57,36 @@ class ProjectionEditor(QLabel):
         super().__init__(*args)
 
         # Layout the megawidget:
+        
+        layout = QVBoxLayout()        #  It's all a vertical w HBox rows.
 
         # The spectrum name:
-        layout = QGridLayout()
-        layout.addWidget(QLabel('Name', self), 0,0)
+        
+        row1 = QHBoxLayout()
+        row1.addWidget(QLabel('Name', self))
         self._name = QLineEdit(self)
-        layout.addWidget(self._name, 0,1)
+        row1.addWidget(self._name)
+        layout.addLayout(row1)
 
         # The Spectrum selector:
-
+        
+        row2 = QHBoxLayout()
+        
         s_layout = QVBoxLayout()
         s_layout.addWidget(QLabel('Spectrum:', self))
         self._spectrum = QComboBox(self)
         s_layout.addWidget(self._spectrum)
-        layout.addLayout(s_layout, 1, 0)
+        row2.addLayout(s_layout)
 
         # Snapshot?
-
+        
         self._snapshot = QCheckBox('Snapshot', self)
-        layout.addWidget(self._snapshot, 1,1)
+        row2.addWidget(self._snapshot)
 
         # Direction
 
         self._direction = DirectionChooser()
-        layout.addWidget(self._direction, 2, 0)
+        row2.addWidget(self._direction)
 
         # Contour?
 
@@ -90,13 +96,20 @@ class ProjectionEditor(QLabel):
         self._contour.setDisabled(True)
         c_layout.addWidget(self._incontour)
         c_layout.addWidget(self._contour)
-        layout.addLayout(c_layout, 2, 1)
+        row2.addLayout(c_layout)
+        
+        layout.addLayout(row2)
 
         # Create replace button:
 
+        commit = QHBoxLayout()
+
         self._commit = QPushButton('Create/Replace')
-        self._commit.setMaximumWidth(140)
-        layout.addWidget(self._commit, 3, 0, 1,2, Qt.AlignHCenter)
+        commit.addWidget(self._commit)
+        commit.addStretch(1)
+        
+        layout.addLayout(commit)
+        layout.addStretch(1)
 
         self.setLayout(layout)
 
