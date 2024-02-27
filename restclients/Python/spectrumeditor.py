@@ -301,7 +301,6 @@ class SummaryController(AbstractController):
 
         # Connect the signals to our handlers.
 
-        self._view.parameter_changed.connect(self.select_param)
         self._view.add.connect(self.add_params)
         self._view.commit.connect(self.create_spectrum)
     
@@ -351,12 +350,6 @@ class SummaryController(AbstractController):
     def view(self):
         return self._view
 
-    # If a parameter is selected:
-    #    put it's full name into the parameter text:
-
-    def select_param(self, path):
-        name = '.'.join(path)
-        self._view.setSelected_parameter(name)
 
     #  Called when the arrow key to put a parameter into the param list
     #  is clicked.  

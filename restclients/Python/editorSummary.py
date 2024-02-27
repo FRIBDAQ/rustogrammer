@@ -85,7 +85,7 @@ class SummaryEditor(QWidget):
     commit = pyqtSignal()
     add    = pyqtSignal()
     remove = pyqtSignal(str)
-    parameter_changed = pyqtSignal(list)
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args)
         
@@ -135,7 +135,7 @@ class SummaryEditor(QWidget):
         self._list.add.connect(self.add)
         self._list.remove.connect(self.remove)
         self._commit.clicked.connect(self.commit)
-        #self._list_chooser.selected.connect(self.parameter_changed)
+        
 
         
         self.main_layout = main_layout
