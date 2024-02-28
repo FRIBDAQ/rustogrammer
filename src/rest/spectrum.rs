@@ -415,7 +415,7 @@ fn make_1d(
     // Validate low high and bins - must have some range and some bins:
     if low == high || bins == 0 {
         return GenericResponse::err(
-            " Invalid Axis specification", 
+            "Invalid Axis specification", 
             "Low must not equal high and there must be at least one bin" 
         );
     }
@@ -601,6 +601,7 @@ fn make_summary(
     axes: &str,
     state: &State<SharedHistogramChannel>,
 ) -> GenericResponse {
+    println!("Making summary");
     let parameters = get_params(parameters);
 
     let axes = parse_axis_def(axes);
@@ -1721,6 +1722,45 @@ mod spectrum_tests {
         teardown(chan, &papi, &bind_api);
     }
     #[test]
+    fn create1d_5() {
+        // good axis syntax but invalid (low == high):
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req =
+            client.get("/create?name=test&type=1&parameters=parameter.0&axes=%7B-1%20-1%20512%7D");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Creating 1d spectrum");
+
+        assert_eq!("Invalid Axis specification", reply.status);
+        assert_eq!("Low must not equal high and there must be at least one bin", reply.detail);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create1d_6() {
+        // Good axis syntax but zero bins:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req =
+            client.get("/create?name=test&type=1&parameters=parameter.0&axes=%7B-1%201%200%7D");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Creating 1d spectrum");
+
+        assert_eq!("Invalid Axis specification", reply.status);
+        assert_eq!("Low must not equal high and there must be at least one bin", reply.detail);
+        teardown(chan, &papi, &bind_api);
+        
+    }
+    #[test]
     fn create2d_1() {
         // Create a valid 2d spectrum.
 
@@ -1874,6 +1914,81 @@ mod spectrum_tests {
         teardown(chan, &papi, &bind_api);
     }
     #[test]
+    fn create2d_8() {
+        // X axis parses ok but low == high:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Createing client");
+        let req = client.get("/create?name=test&type=2&parameters=parameter.0%20parameter.1&axes={0%200%20100}%20{-1%201%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Invalid X axis specification", reply.status);
+        assert_eq!("Low must differ from high and there mmust be at least one bin.", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+        
+    }
+    #[test]
+    fn create2d_9() {
+        // Xaxis parses oi, but bins == 0:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Createing client");
+        let req = client.get("/create?name=test&type=2&parameters=parameter.0%20parameter.1&axes={0%20100%200}%20{-1%201%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Invalid X axis specification", reply.status);
+        assert_eq!("Low must differ from high and there mmust be at least one bin.", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2d_10() {
+        // x axis ok ylow == yhigh however:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Createing client");
+        let req = client.get("/create?name=test&type=2&parameters=parameter.0%20parameter.1&axes={0%20100%20100}%20{-1%20-1%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Invalid Y axis specification", reply.status);
+        assert_eq!("Low must differ from high and there mmust be at least one bin.", reply.detail);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2d_11() {
+        // ybins == 0:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Createing client");
+        let req = client.get("/create?name=test&type=2&parameters=parameter.0%20parameter.1&axes={0%20100%20100}%20{-1%201%200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Decoding JSON");
+
+        assert_eq!("Invalid Y axis specification", reply.status);
+        assert_eq!("Low must differ from high and there mmust be at least one bin.", reply.detail);
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
     fn createg1_1() {
         // successful creation of a Multi1D (g1 in SpecTcl notation).
 
@@ -1953,6 +2068,44 @@ mod spectrum_tests {
         teardown(chan, &papi, &bind_api);
     }
     #[test]
+    fn createg1_4() {
+        // Axis syntax ok but low == high:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g1&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0%200%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("Invalid axis specification", reply.status);
+        assert_eq!("low cannot equal high and there must not be zero bins", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg1_5() {
+        // bins == 0:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g1&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0%20100%200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("Invalid axis specification", reply.status);
+        assert_eq!("low cannot equal high and there must not be zero bins", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
     fn createg2_1() {
         // succesfully create a Multi2d (g2 in SpecTcl parlance).
 
@@ -2028,6 +2181,82 @@ mod spectrum_tests {
             .into_json::<GenericResponse>()
             .expect("parsing JSON");
         assert_eq!("Failed to parse axes definitions", reply.status);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg2_4() {
+        // X axis spec ok but xlow == xhigh:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0%200%20100}%20{0%20100%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("Invalid x axis specification", reply.status);
+        assert_eq!("xlow cannot equal xhigh and there must be nonzero xbins.", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg2_5() {
+        // xbins = 0
+        
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0%20100%200}%20{0%20100%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("Invalid x axis specification", reply.status);
+        assert_eq!("xlow cannot equal xhigh and there must be nonzero xbins.", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg2_6() {
+        // ylow == yhigh:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0%20100%201000}%20{0%200%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("Invalid Y axis specification", reply.status);
+        assert_eq!("ylow cannot equal yhigh and there must be nonzero ybins.", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn createg2_7() {
+        // ybins == 0:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=g2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={0%20100%201000}%20{0%20100%200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("parsing JSON");
+
+        assert_eq!("Invalid Y axis specification", reply.status);
+        assert_eq!("ylow cannot equal yhigh and there must be nonzero ybins.", reply.detail);
 
         teardown(chan, &papi, &bind_api);
     }
@@ -2151,6 +2380,82 @@ mod spectrum_tests {
         teardown(chan, &papi, &bind_api);
     }
     #[test]
+    fn creategd_6() {
+        // xlow == xhigh:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.2}%20{parameter.3%20parameter.4}&axes={0%200%20100}%20{-1%201%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Invalid x axis specification", reply.status);
+        assert_eq!("xlow cannot equal xhigh and there must be nonzero xbins.", reply.detail);
+    
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_7() {
+        // Xbins == 0:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.2}%20{parameter.3%20parameter.4}&axes={0%20100%200}%20{-1%201%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Invalid x axis specification", reply.status);
+        assert_eq!("xlow cannot equal xhigh and there must be nonzero xbins.", reply.detail);
+    
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_8() {
+        //ylow==yhigh:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.2}%20{parameter.3%20parameter.4}&axes={0%20100%20100}%20{-1%20-1%20200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Invalid Y axis specification", reply.status);
+        assert_eq!("ylow cannot equal yhigh and there must be nonzero ybins.", reply.detail);
+    
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn creategd_9() {
+        // Ybins == 0:
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=gd&parameters={parameter.0%20parameter.1%20parameter.2}%20{parameter.3%20parameter.4}&axes={0%20100%20100}%20{-1%201%200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Invalid Y axis specification", reply.status);
+        assert_eq!("ylow cannot equal yhigh and there must be nonzero ybins.", reply.detail);
+    
+        teardown(chan, &papi, &bind_api);
+
+    }
+    #[test]
     fn createsummary_1() {
         // Create a valid summary spectrum.
 
@@ -2249,6 +2554,26 @@ mod spectrum_tests {
 
         teardown(chan, &papi, &bind_api);
     }
+    #[test]
+    fn createsummary_5() {
+        // low == high:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Creating client");
+        let req = client.get("/create?name=test&type=s&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3&axes={-1%20-1%20100}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Invalid axis specification", reply.status);
+        assert_eq!("low cannot equal high and there must not be zero bins", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+
     #[test]
     fn create2dsum_1() {
         // Correctly create a 2DSum (m2) spectrum.
@@ -2384,6 +2709,85 @@ mod spectrum_tests {
         assert_eq!("Failed to parse axes definitions", reply.status);
         teardown(chan, &papi, &bind_api);
     }
+    #[test]
+    fn create2dsum_7() {
+        // xlow == xhigh:
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=m2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3%20parameter.4%20parameter.5%20parameter.6%20parameter.7&axes={0.0%200.0%20100}%20{-1.0%201.0%20250}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Invalid x axis specification", reply.status);
+        assert_eq!("xlow cannot equal xhigh and there must be nonzero xbins.", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2dsum_8() {
+        // xbins == 0
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=m2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3%20parameter.4%20parameter.5%20parameter.6%20parameter.7&axes={0.0%201.0%200}%20{-1.0%201.0%20250}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Invalid x axis specification", reply.status);
+        assert_eq!("xlow cannot equal xhigh and there must be nonzero xbins.", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2dsum_9() {
+        // ylow == yhigh:
+        
+
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=m2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3%20parameter.4%20parameter.5%20parameter.6%20parameter.7&axes={0.0%201.0%20100}%20{-1.0%20-1.0%20250}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Invalid Y axis specification", reply.status);
+        assert_eq!("ylow cannot equal yhigh and there must be nonzero ybins.", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+    #[test]
+    fn create2dsum_10() {
+        // Ybins == 0:
+        let rocket = setup();
+        let (chan, papi, bind_api) = getstate(&rocket);
+
+        let client = Client::untracked(rocket).expect("Making client");
+        let req = client.get("/create?name=test&type=m2&parameters=parameter.0%20parameter.1%20parameter.2%20parameter.3%20parameter.4%20parameter.5%20parameter.6%20parameter.7&axes={0.0%201.0%20100}%20{-1.0%201.0%200}");
+        let reply = req
+            .dispatch()
+            .into_json::<GenericResponse>()
+            .expect("Parsing JSON");
+
+        assert_eq!("Invalid Y axis specification", reply.status);
+        assert_eq!("ylow cannot equal yhigh and there must be nonzero ybins.", reply.detail);
+
+        teardown(chan, &papi, &bind_api);
+    }
+
+
+    
     #[test]
     fn get_1() {
         // Initially, none of the test spectra have any data:
