@@ -297,17 +297,26 @@ class Gamma2DEditor(QWidget):
         row2.addWidget(self._parameter)
         self._parameters = EditableList('parameters', self)
         row2.addWidget(self._parameters)
+        row2.addStretch(1)
         layout.addLayout(row2)
         
         # Point list:
         
+        row3 = QHBoxLayout()
         self._points = PointListEditor(self)
-        layout.addWidget(self._points)
+        row3.addWidget(self._points)
+        row3.addStretch(1)
+        layout.addLayout(row3)
         
         # Confirmer:
         
+        row4 = QHBoxLayout()
         self._accept = QPushButton("Create/Replace")
-        layout.addWidget(self._accept)
+        row4.addWidget(self._accept)
+        row4.addStretch(1)
+        layout.addLayout(row4)
+        
+        layout.addStretch(1)
         
         self.setLayout(layout)
         
