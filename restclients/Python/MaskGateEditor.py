@@ -62,8 +62,14 @@ class View(QWidget):
         
         #  Finally the create/replace button:
         
+        accept = QHBoxLayout()
         self._accept = QPushButton('Create/Replace')
-        layout.addWidget(self._accept)
+        accept.addWidget(self._accept)
+        accept.addStretch(1)
+        
+        layout.addLayout(accept)
+        
+        layout.addStretch(1)
         
         self.setLayout(layout)
         
