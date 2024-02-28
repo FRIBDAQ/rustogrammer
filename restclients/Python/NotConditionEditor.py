@@ -48,14 +48,19 @@ class EditorView(QWidget):
         mid.addWidget(QLabel('Gate: ', self))
         self._condition = ConditionChooser(self)
         mid.addWidget(self._condition)
+        mid.addStretch(1)
         
         layout.addLayout(mid)
         
         #  Bottom is just the commit button:
         
-        layout.addStretch(1)
+        commit = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        layout.addWidget(self._commit)
+        commit.addWidget(self._commit)
+        commit.addStretch(1)
+        
+        layout.addLayout(commit)
+        layout.addStretch(1)
         
         self.setLayout(layout)
         
