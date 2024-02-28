@@ -429,9 +429,13 @@ class G2DController(SummaryController):
         xlow = view.xlow()
         xhigh = view.xhigh()
         xbins = view.xbins()
+        
+        ylow = view.ylow()
+        yhigh = view.yhigh()
+        ybins = view.ybins()
 
         self.client().spectrum_createg2(
-            name, params, xlow, xhigh, xbins, low, high, bins, chantype
+            name, params, xlow, xhigh, xbins, ylow, yhigh, ybins, chantype
         )
         self._editor.spectrum_added(name)
 
