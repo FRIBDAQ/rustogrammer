@@ -71,64 +71,62 @@
 '''
 
 from PyQt5.QtWidgets import (
-    QLabel, QListWidget, QPushButton, QCheckBox, QLineEdit,
-    QApplication, QMainWindow, QGridLayout, QVBoxLayout, QHBoxLayout,
-    QStyle, QWidget 
+    QLabel, QPushButton, QCheckBox, QLineEdit,
+    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
+    QWidget 
 )
 from PyQt5.Qt import *
 from PyQt5.QtCore import pyqtSignal
 from ParameterChooser import Chooser as pChooser
 from axisdef import AxisInput
 from editablelist import EditableList
-
+from ParameterListselector import SingleList
 class SummaryEditor(QWidget):
     commit = pyqtSignal()
     add    = pyqtSignal()
     remove = pyqtSignal(str)
-    parameter_changed = pyqtSignal(list)
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args)
         
-        main_layout = QGridLayout()
+        main_layout = QVBoxLayout()
 
         # Top row has title and QLineEditor for name:
 
-        main_layout.addWidget(QLabel('Name:'), 0,0, Qt.AlignRight)
+        row1 = QHBoxLayout()
+        row1.addWidget(QLabel('Name:', self))
         self._name = QLineEdit(self)
-        main_layout.addWidget(self._name, 0,1, 1, 2)
+        row1.addWidget(self._name)
+        row1.addStretch(1)
+        
+        main_layout.addLayout(row1)
 
         # Left side of next row is parameter chooser and 
         # array button.
-        pclayout = QHBoxLayout()
-        chooser_name = QVBoxLayout()
-        self._parameter_chooser = pChooser(self)
-        self._chosen_parameter = QLabel(self)
-        chooser_name.addWidget(QLabel("Select Parameter(s)"))
-        chooser_name.addWidget(self._parameter_chooser)
-        chooser_name.addWidget(self._chosen_parameter)
-        self._param_array       = QCheckBox('Array', self)
-        pclayout.addLayout(chooser_name)
-        pclayout.addWidget(self._param_array)
-        main_layout.addLayout(pclayout, 3, 0)
+        
+        
+        self._list = SingleList(self)
+        main_layout.addWidget(self._list)
 
-        self._list = EditableList('Parameters')
-        main_layout.addWidget(self._list, 1,1, 6, 1)
 
         # The axis specification with a from parameters checkbutton.
 
+        axis = QHBoxLayout()
         self._axis = AxisInput(self)
-        main_layout.addWidget(self._axis, 9, 0)
-        if 'from_par_row' in kwargs:
-            from_row = kwargs['from_par_row']
-        else :
-            from_row = 9
+        axis.addWidget(self._axis)
         self._from_params = QCheckBox('From Parameters', self)
-        main_layout.addWidget(self._from_params, from_row, 1, Qt.AlignBottom)
+        axis.addWidget(self._from_params)
+        axis.addStretch(1)
+        main_layout.addLayout(axis)
 
         # Finally the Create/Replace button in 10, all centered
 
+        button = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        main_layout.addWidget(self._commit, 10, 0, 1, 3, Qt.AlignHCenter)
+        button.addWidget(self._commit)
+        button.addStretch(1)
+        main_layout.addLayout(button)
+        main_layout.addStretch(1)
 
         self.setLayout(main_layout)
 
@@ -137,14 +135,7 @@ class SummaryEditor(QWidget):
         self._list.add.connect(self.add)
         self._list.remove.connect(self.remove)
         self._commit.clicked.connect(self.commit)
-        self._parameter_chooser.selected.connect(self.parameter_changed)
-
-        # Internal signals 
-
-        #self._delete.clicked.connect(self.deleteSelection)
-        #self._clear.clicked.connect(self.clear)  # relay to listbox.
-        #self._up.clicked.connect(self.up)
-        #self._down.clicked.connect(self.down)
+        
 
         
         self.main_layout = main_layout
@@ -157,15 +148,15 @@ class SummaryEditor(QWidget):
         self._name.setText(name)
 
     def selected_parameter(self):
-        return self._chosen_parameter.text()
+        return self._list.parameter()
     def setSelected_parameter(self, pname):
-        self._chosen_parameter.setText(pname)
+        self._list.setParameter(pname)
     
     def axis_parameters(self):
-        return self._list.list()
+        return self._list.selectedParameters()
 
     def setAxis_parameters(self, itemList):
-        self._list.setList(itemList)
+        self._list.setSelectedParameters(itemList)
 
     def low(self):
         return self._axis.low()
@@ -181,15 +172,10 @@ class SummaryEditor(QWidget):
         self._axis.setBins(value)
 
     def array(self):
-        if self._param_array.checkState() == Qt.Checked:
-            return True
-        else:
-            return False
+        return self._list.array()
     def setArray(self, onoff):
-        if onoff:
-            self._param_array.setCheckState(Qt.Checked)
-        else:
-            self._param_array.setCheckState(Qt.Unchecked)
+        self._list.setArrray(onoff)
+        
     
     def axis_from_parameters(self):
         if self._from_params.checkState() == Qt.Checked:

@@ -32,7 +32,7 @@
 
 from PyQt5.QtWidgets import (
     QWidget, QLabel, QLineEdit, QPushButton, 
-    QGridLayout, QVBoxLayout, QHBoxLayout,
+    QVBoxLayout, QHBoxLayout,
     QApplication, QMainWindow
 )
 from PyQt5.QtCore import pyqtSignal, Qt
@@ -46,29 +46,45 @@ class StripChartEditor(QWidget):
     commit = pyqtSignal()
     def __init__(self, *args):
         super().__init__(*args)
-        layout = QGridLayout()
+        layout = QVBoxLayout()
+        
+        # Row 1 is the name:
+        
+        row1 = QHBoxLayout()
+        
 
-        layout.addWidget(QLabel('Name:', self), 0,0)
+        row1.addWidget(QLabel('Name:', self))
         self._spectrumName = QLineEdit(self)
-        layout.addWidget(self._spectrumName, 0,1)
+        row1.addWidget(self._spectrumName)
+        layout.addLayout(row1)
 
+        row2 = QHBoxLayout()
         xplayout = QVBoxLayout()
         xplayout.addWidget(QLabel('Time parameter', self))
         self._time = LabeledParameterChooser(self)
         xplayout.addWidget(self._time)
-        layout.addLayout(xplayout, 1,0)
+        row2.addLayout(xplayout)
 
         yplayout = QVBoxLayout()
         yplayout.addWidget(QLabel('Vertical parameter', self))
         self._vparam = LabeledParameterChooser(self)
         yplayout.addWidget(self._vparam)
-        layout.addLayout(yplayout, 1,1)
+        row2.addLayout(yplayout)
+        row2.addStretch(1)
+        layout.addLayout(row2)
 
+        row3 = QHBoxLayout()
         self._axis = AxisInput(self)
-        layout.addWidget(self._axis, 2, 0, 1,2, Qt.AlignHCenter)
+        row3.addWidget(self._axis)
+        row3.addStretch(1)
+        layout.addLayout(row3)
 
+        row4 = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        layout.addWidget(self._commit, 3, 0, 1,2, Qt.AlignCenter)
+        row4.addWidget(self._commit)
+        row4.addStretch(1)
+        layout.addLayout(row4)
+        layout.addStretch(1)
 
         self.setLayout(layout)
 

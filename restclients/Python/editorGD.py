@@ -31,6 +31,9 @@ Here's a sample configuration:
 |           [Create/Replace]             |
 +----------------------------------------+
 
+NOTE: Per Issue #155 - the two parameter lists are laid out side
+by side. using a ParameterListSelector.DoubleList
+
 '''
 
 from PyQt5.QtWidgets import (
@@ -45,7 +48,7 @@ from PyQt5.Qt import *
 from axisdef import AxisInput
 from ParameterChooser import Chooser as ParameterChooser
 from editablelist import EditableList
-
+from ParameterListselector import DoubleList
 
 ##  Internal widget that is a labeled axis input:
 
@@ -91,8 +94,10 @@ class GammaDeluxeEditor(QWidget):
     '''
     Signals:
        addXParameters  - Click on add button for X parameters
+       xParameterRemoved - A parameter was removed from the X list.
        addYParameters  - Click on add button for Y parameters
-       parameterChanged - A terminal parameter node was selected.
+       yParameterRemoved - A parameter was removed from the Y list.
+       
        commit          - Create/Replace spectrum.
     Attributes:
        name - spectrum name.
@@ -109,74 +114,63 @@ class GammaDeluxeEditor(QWidget):
     xParameterRemoved = pyqtSignal(str)
     addYParameters    = pyqtSignal()
     yParameterRemoved = pyqtSignal(str)
-    parameterChanged  = pyqtSignal(list)
     commit            = pyqtSignal()
     def __init__(self, *args):
         super().__init__(*args)
         
-        top_layout = QGridLayout()
-
-        # Top row cols 0, 1 are the spectrum name input:
-
-        top_layout.addWidget(QLabel('Name', self), 0,0, Qt.AlignRight)
-        self._name =QLineEdit()
-        top_layout.addWidget(self._name, 0, 1, 1,2)
-
-        #  Xparameter list:
-
-        self._xparameters = EditableList('X Parameters', self)
-        top_layout.addWidget(self._xparameters, 1,1, 6, 1)
-
-
-        #  Row 8, col 0 has a labeled parameter chooser,
-        #  and label for the parameter.
-
-        param_layout = QVBoxLayout()
-        param_layout.addWidget(QLabel('Parameter(s):', self))
-        self._parameter_chooser = ParameterChooser(self)
-        param_layout.addWidget(self._parameter_chooser)
-        self._selected_parameter = QLabel('', self)
-        param_layout.addWidget(self._selected_parameter)
-        top_layout.addLayout(param_layout, 8, 0)
-
-        #  Row 8 col 1 has the array checkbox:
-
-        self._array = QCheckBox('Array', self)
-        top_layout.addWidget(self._array, 8,1)
-
-       
+        # As usual the whole thing is a bunch of vertically stacked
+        # horizontal boxes.
         
-        self._yparameters = EditableList('Y Parameters', self)
-        top_layout.addWidget(self._yparameters, 9, 1, 6, 1)
-
+        layout = QVBoxLayout()
         
-        # THe two axes in row 16 cols 0, 1:
-
-
-        self._xaxis = _Axis('X axis', self)
-        self._yaxis = _Axis('Y axis', self)
-        top_layout.addWidget(self._xaxis, 16, 0)
-        top_layout.addWidget(self._yaxis, 16, 1)
-        self._loadaxes = QCheckBox('From parameters', self)
-        top_layout.addWidget(self._loadaxes, 16, 2, Qt.AlignVCenter)
-
-        #  Finally the create/replace button
-
+        # Row 1 is the name of the spectrum:
+        
+        row1 = QHBoxLayout()
+        row1.addWidget(QLabel('Name: ', self))
+        self._name = QLineEdit(self);
+        row1.addWidget(self._name)
+        
+        layout.addLayout(row1)
+        
+        # Row 2 is the double list:
+        
+        self._parameters = DoubleList(self)
+        layout.addWidget(self._parameters)
+        
+        # Below are the axes and from parameters checkbox:
+        
+        axes = QHBoxLayout()
+        self._xaxis = _Axis('X axis')
+        axes.addWidget(self._xaxis)
+        self._from_parameters = QCheckBox('From Parameters', self)
+        axes.addWidget(self._from_parameters)
+        self._yaxis = _Axis('Y  axis')
+        axes.addWidget(self._yaxis)
+        
+        layout.addLayout(axes)
+        
+        # At the bottom of all of this is the Create/Replace button in an hbox 
+        # WITH A Stretch to keep it from filling the horizontal extent:
+        
+        commit = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        top_layout.addWidget(self._commit, 17,0, 1,3, Qt.AlignHCenter)
-
-
-        self.setLayout(top_layout)
-
-        # Signal relays:
-
-        self._xparameters.add.connect(self.addXParameters)
-        self._xparameters.remove.connect(self.xParameterRemoved)
-        self._yparameters.add.connect(self.addYParameters)
-        self._yparameters.remove.connect(self.yParameterRemoved)
-        self._parameter_chooser.selected.connect(self.parameterChanged)
+        commit.addWidget(self._commit)
+        commit.addStretch(1)
+        
+        layout.addLayout(commit)
+        layout.addStretch(1)
+        
+        self.setLayout(layout)
+        
+        # Signal relays
+        
+        self._parameters.addXParameters.connect(self.addXParameters)
+        self._parameters.xParameterRemoved.connect(self.xParameterRemoved)
+        self._parameters.addYParameters.connect(self.addYParameters)
+        self._parameters.yParameterRemoved.connect(self.yParameterRemoved)
+        
         self._commit.clicked.connect(self.commit)
-
+        
     #  Implementing attributes:
 
     def name(self):
@@ -185,44 +179,39 @@ class GammaDeluxeEditor(QWidget):
         self._name.setText(name)
 
     def xparameters(self):
-        return self._xparameters.list()
+        return self._parameters.xparameters()
     def setXparameters(self, param_list):
-        self._xparameters.setList(param_list)
+        self._parameters.setXparameters(param_list)
+        
     def addXparameter(self, name):
-        self._xparameters.appendItem(name)
+        self._parameters.appendXparam(name)
 
     def yparameters(self):
-        return self._yparameters.list()
+        return self._parameters.yparameters()
     def setYparameters(self,param_list):
-        self._yparameters.setList(param_list)
+        self._parameters.setYparameters(param_list)
     def addYparameter(self, name):
-        self._yparameters.appendItem(name)
+        self._parameters.appendYparam(name)
 
     def selectedParameter(self):
-        return self._selected_parameter.text()
+        return self._parameters.selectedParameter()
     def setSelectedParameter(self, name):
-        self._selected_parameter.setText(name)
+        self._parameters.setSelectedParameter(name)
     def array(self):
-        if self._array.checkState() == Qt.Checked:
-            return True
-        else:
-            return False
+        return self._parameters.array()
     def setArray(self, state):
-        if state:
-            self._array.setCheckState(Qt.Checked)
-        else:
-            self._array.setCheckState(Qt.Unchecked)
+        self._parameters.setArray(state)
 
     def axis_from_parameters(self):
-        if self._loadaxes.checkState() == Qt.Checked:
+        if self._from_parameters.checkState() == Qt.Checked:
             return True
         else:
             return False
     def setAxis_from_parameters(self, state):
         if state:
-            self._loadaxes.setCheckState(Qt.Checked)
+            self._from_parameters.setCheckState(Qt.Checked)
         else:
-            self._loadaxes.setCheckState(Qt.Unchecked)
+            self._from_parameters.setCheckState(Qt.Unchecked)
 
     def xlow(self):
         return self._xaxis.low()

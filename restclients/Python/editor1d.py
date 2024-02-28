@@ -57,7 +57,7 @@ a 1d spectrum has:
 from axisdef import AxisInput
 from ParameterChooser import Chooser as ParameterChooser
 from PyQt5.QtWidgets import (
-    QLineEdit, QWidget, QGridLayout, QVBoxLayout, QLabel,
+    QLineEdit, QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QApplication, QMainWindow, QPushButton, QCheckBox,
     QMessageBox
 )
@@ -73,48 +73,54 @@ class oneDEditor(QWidget):
     def __init__(self, *args):
         super().__init__(*args)
 
-        # Define the widgets in the UI:
+        layout = QVBoxLayout()
+        
+        # The top horizontal line names the spectrum and provides
+        # an option to make an array:
 
-        namel = QLabel('Name:', self)
+        line1 = QHBoxLayout()
+
+        line1.addWidget(QLabel('Name:', self))
         self.sname  = QLineEdit(self)
-        
+        line1.addWidget(self.sname)
         self.is_array = QCheckBox('Array?', self)
+        line1.addWidget(self.is_array)
+        line1.addStretch(1)               # Tight back to left.
+        layout.addLayout(line1)
         
-        paraml = QLabel('Parameter', self)
+        # Next the parameter chooser and axis on line 2:
+        
+        line2 = QHBoxLayout()
+        pchooser = QVBoxLayout()
+        
+        pchooser.addWidget(QLabel('Parameter', self))
         self.pchooser = ParameterChooser(self)
+        pchooser.addWidget(self.pchooser)
         self.chosen_param = QLabel('')
+        pchooser.addWidget(self.chosen_param)
+        line2.addLayout(pchooser)
         
-        param_layout = QVBoxLayout()
-        param_layout.addWidget(paraml)
-        param_layout.addWidget(self.pchooser)
-        param_layout.addWidget(self.chosen_param)
-
+       
 
         axisl = QLabel('X Axis:', self)
         self.axis = AxisInput(self)
         axis_layout = QVBoxLayout()
         axis_layout.addWidget(axisl)
         axis_layout.addWidget(self.axis)
+        line2.addLayout(axis_layout)
+        line2.addStretch(1)            # Left justified.
+        layout.addLayout(line2)
 
+        line3 = QHBoxLayout()
         c = QPushButton('Create/Replace')
-
-        #  Lay them out in a (hopefully) visually
-        #  appealing manner.
-
-        label_align = Qt.AlignLeft | Qt.AlignBottom
-        widget_align = Qt.AlignLeft | Qt.AlignTop
-
-        layout = QGridLayout()
-        layout.addWidget(namel,          0, 0, label_align)
-        layout.addWidget(self.sname,     1, 0, widget_align)
-        layout.addWidget(self.is_array,     1, 1, widget_align)
-
-        layout.addLayout(param_layout,   2, 0, widget_align)
-        layout.addLayout(axis_layout,    2, 1, widget_align)
+        line3.addWidget(c)
+        line3.addStretch(1)
         
-        layout.addWidget(c,              3, 1, widget_align)
+        layout.addLayout(line3)
+        layout.addStretch(1)
         
         self.setLayout(layout)
+
 
         # Connect internal signals to slots:
 

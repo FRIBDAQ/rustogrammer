@@ -301,7 +301,6 @@ class SummaryController(AbstractController):
 
         # Connect the signals to our handlers.
 
-        self._view.parameter_changed.connect(self.select_param)
         self._view.add.connect(self.add_params)
         self._view.commit.connect(self.create_spectrum)
     
@@ -351,12 +350,6 @@ class SummaryController(AbstractController):
     def view(self):
         return self._view
 
-    # If a parameter is selected:
-    #    put it's full name into the parameter text:
-
-    def select_param(self, path):
-        name = '.'.join(path)
-        self._view.setSelected_parameter(name)
 
     #  Called when the arrow key to put a parameter into the param list
     #  is clicked.  
@@ -466,7 +459,6 @@ class PGammaController(AbstractController):
         self._client = get_capabilities_client()
         self._view.addXParameters.connect(self.addx)
         self._view.addYParameters.connect(self.addy)
-        self._view.parameterChanged.connect(self.set_param_name)
         self._view.commit.connect(self.commit)
     def addx(self):
         params = self._get_parameters()
@@ -528,9 +520,7 @@ class PGammaController(AbstractController):
                     name, xparams, yparams, xlow, xhigh, xbins, ylow, yhigh, ybins, dtype
                 )
         self._editor.spectrum_added(name)
-    def set_param_name(self, path):
-        name = '.'.join(path)
-        self._view.setSelectedParameter(name)
+    
     # Utility methods
 
     def _create_ok(self, name):
@@ -994,6 +984,7 @@ class Editor(QWidget):
         self.chtlabel = QLabel('Channel Type:')
         right.addWidget(self.chtlabel)
         right.addWidget(self.channelType)
+        right.addStretch(1)
         self._sidebar = right
         
         layout.addLayout(self._sidebar)
@@ -1027,8 +1018,9 @@ class Editor(QWidget):
         i = 0
         item = sidebar.itemAt(i)
         while item is not None:
-            w = item.widget()
-            w.show()
+            w = item.widget()     # Could be a stretch e.g.
+            if w is not None:
+                w.show()
             i += 1
             item = sidebar.itemAt(i)
     def _new_editor_visible(self, index):

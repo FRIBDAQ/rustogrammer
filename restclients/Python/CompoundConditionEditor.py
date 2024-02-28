@@ -48,12 +48,17 @@ class EditorView(QWidget):
         mid.addWidget(self._chooser)
         self._dependencies = EditableList('Dependent conditions', self)
         mid.addWidget(self._dependencies)
+        mid.addStretch(1)
         layout.addLayout(mid)
         
         # On the bottom is just the commit button:
-        layout.addStretch(1)
+        
+        commit = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        layout.addWidget(self._commit)
+        commit.addWidget(self._commit)
+        commit.addStretch(1)
+        layout.addLayout(commit)
+        layout.addStretch(1)
         
         
         self.setLayout(layout)

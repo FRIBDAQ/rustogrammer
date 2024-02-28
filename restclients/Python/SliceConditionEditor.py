@@ -61,6 +61,7 @@ class EditorView(QWidget):
         line2.addWidget(QLabel("Parameter: "))
         self._parameter = LabeledParameterChooser(self)
         line2.addWidget(self._parameter)
+        line2.addStretch(1)
         
         layout.addLayout(line2)
         
@@ -80,15 +81,18 @@ class EditorView(QWidget):
         self._high.setText('4096.0')
         self._high.setValidator(QDoubleValidator())
         line3.addWidget(self._high)
+        line3.addStretch(1)
         layout.addLayout(line3)
         
-        layout.addStretch(1)
         
         # Bottom is our button.
         
+        commit = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        layout.addWidget(self._commit)
-        
+        commit.addWidget(self._commit)
+        commit.addStretch(1)
+        layout.addLayout(commit)
+        layout.addStretch(1)
         
         self.setLayout(layout)
         
@@ -196,6 +200,7 @@ class GammaEditorView(QWidget):
         line2.addWidget(self._parameter)
         self._parameters = EditableList('Parameters', self)
         line2.addWidget(self._parameters)
+        line2.addStretch(1)
         
         layout.addLayout(line2)
         
@@ -212,13 +217,19 @@ class GammaEditorView(QWidget):
         self._high = QLineEdit(self)
         self._high.setValidator(QDoubleValidator())
         line3.addWidget(self._high)
+        line3.addStretch(1)
         
         layout.addLayout(line3)
         
         # Finally the Create/ReplaceButton.
         
+        commit = QHBoxLayout()
         self._accept = QPushButton('Create/Replace',self)
-        layout.addWidget(self._accept)
+        commit.addWidget(self._accept)
+        commit.addStretch(1)
+        layout.addLayout(commit)
+        
+        layout.addStretch(1)
         
         self.setLayout(layout)
         

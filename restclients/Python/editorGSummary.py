@@ -300,6 +300,7 @@ class GammaSummaryEditor(QWidget):
         param_layout.addWidget(self._array, Qt.AlignTop)
         self._channels = ParametersWidget('Channels', self)
         param_layout.addWidget(self._channels)
+        param_layout.addStretch(1)
         layout.addLayout(param_layout)
 
         axis_layout = QVBoxLayout()
@@ -311,12 +312,16 @@ class GammaSummaryEditor(QWidget):
         alayout.addLayout(axis_layout)
         self._fromparameters = QCheckBox('From Parameters', self)
         alayout.addWidget(self._fromparameters)
+        alayout.addStretch(1)
         layout.addLayout(alayout)
 
+        commit = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        self._commit.setMaximumWidth(200)
-        layout.addWidget(self._commit, Qt.AlignHCenter)
+        commit.addWidget(self._commit)
+        commit.addStretch(1)
+        layout.addLayout(commit)
         
+        layout.addStretch(1)
         self.setLayout(layout)
 
         # Connect signals:

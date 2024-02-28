@@ -38,14 +38,19 @@ class TrueFalseView(QWidget):
         bottom.addWidget(self._true)
         self._false = QRadioButton('False', self)
         bottom.addWidget(self._false)
+        bottom.addStretch(1)
         
         layout.addLayout(bottom)
         
         #  Final row:  Accept button:
         
-        layout.addStretch(1)
+        commit = QHBoxLayout()
         self._accept = QPushButton('Create/Replace', self)
-        layout.addWidget(self._accept)
+        commit.addWidget(self._accept)
+        commit.addStretch(1)
+        
+        layout.addLayout(commit)
+        layout.addStretch(1)
         
         self.setLayout(layout)
         self.setGate_type(True)

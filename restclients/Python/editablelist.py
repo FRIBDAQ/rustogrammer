@@ -114,6 +114,9 @@ class EditableList(QWidget):
     def clear(self):
         while self._list.count() > 0:
             self._list.takeItem(0)
+    def count(self):
+        return self._list.count()
+    
             
     #Attribute implementations:
 

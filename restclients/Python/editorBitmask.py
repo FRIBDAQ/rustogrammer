@@ -37,10 +37,11 @@ class BitmaskEditor(QWidget):
         name_l.addWidget(self._name)
         layout.addLayout(name_l)
 
-        param_l = QHBoxLayout()
+        param_l = QVBoxLayout()
         param_l.addWidget(QLabel('Parameter:', self))
         self._param = Parameter(self)
         param_l.addWidget(self._param)
+        
         layout.addLayout(param_l)
 
         bits_l = QHBoxLayout()
@@ -50,10 +51,17 @@ class BitmaskEditor(QWidget):
         for i in range(1,33):
             self._bits.addItem(f'{i}')
         bits_l.addWidget(self._bits)
+        bits_l.addStretch(1)
+        
         layout.addLayout(bits_l)
 
+        commit = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        layout.addWidget(self._commit)
+        commit.addWidget(self._commit)
+        commit.addStretch(1)
+        
+        layout.addLayout(commit)
+        layout.addStretch(1)
 
         self.setLayout(layout)
 

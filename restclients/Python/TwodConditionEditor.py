@@ -165,20 +165,28 @@ class TwodConditionEditor(QWidget):
         line2.addWidget(QLabel('Y param', self))
         self._yparam = LabeledParameterChooser(self)
         line2.addWidget(self._yparam)
+        line2.addStretch(1)
         
         layout.addLayout(line2)
         
         # Line 3 is a point list editor.
         
+        ptlist = QHBoxLayout()
         self._pointlist = PointListEditor(self)
+        ptlist.addWidget(self._pointlist)
+        ptlist.addStretch(1)
+        layout.addLayout(ptlist)
         
-        layout.addWidget(self._pointlist)
         
         #  The create/replace is bottom.
         
-        layout.addStretch(1)
+        commit = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        layout.addWidget(self._commit)
+        commit.addWidget(self._commit)
+        commit.addStretch(1)
+        
+        layout.addLayout(commit)
+        layout.addStretch(1)
         
         self.setLayout(layout)
         
@@ -289,17 +297,26 @@ class Gamma2DEditor(QWidget):
         row2.addWidget(self._parameter)
         self._parameters = EditableList('parameters', self)
         row2.addWidget(self._parameters)
+        row2.addStretch(1)
         layout.addLayout(row2)
         
         # Point list:
         
+        row3 = QHBoxLayout()
         self._points = PointListEditor(self)
-        layout.addWidget(self._points)
+        row3.addWidget(self._points)
+        row3.addStretch(1)
+        layout.addLayout(row3)
         
         # Confirmer:
         
+        row4 = QHBoxLayout()
         self._accept = QPushButton("Create/Replace")
-        layout.addWidget(self._accept)
+        row4.addWidget(self._accept)
+        row4.addStretch(1)
+        layout.addLayout(row4)
+        
+        layout.addStretch(1)
         
         self.setLayout(layout)
         

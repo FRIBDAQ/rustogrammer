@@ -102,7 +102,7 @@ pub fn project(
         snapshot,
         contour,
     ) {
-        GenericResponse::err("Failed to crate projection spectrum", &s)
+        GenericResponse::err("Failed to create projection spectrum", &s)
     } else {
         GenericResponse::ok("")
     };
