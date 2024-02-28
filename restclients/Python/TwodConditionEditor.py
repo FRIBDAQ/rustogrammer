@@ -165,20 +165,28 @@ class TwodConditionEditor(QWidget):
         line2.addWidget(QLabel('Y param', self))
         self._yparam = LabeledParameterChooser(self)
         line2.addWidget(self._yparam)
+        line2.addStretch(1)
         
         layout.addLayout(line2)
         
         # Line 3 is a point list editor.
         
+        ptlist = QHBoxLayout()
         self._pointlist = PointListEditor(self)
+        ptlist.addWidget(self._pointlist)
+        ptlist.addStretch(1)
+        layout.addLayout(ptlist)
         
-        layout.addWidget(self._pointlist)
         
         #  The create/replace is bottom.
         
-        layout.addStretch(1)
+        commit = QHBoxLayout()
         self._commit = QPushButton('Create/Replace', self)
-        layout.addWidget(self._commit)
+        commit.addWidget(self._commit)
+        commit.addStretch(1)
+        
+        layout.addLayout(commit)
+        layout.addStretch(1)
         
         self.setLayout(layout)
         
