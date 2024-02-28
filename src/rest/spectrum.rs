@@ -412,6 +412,13 @@ fn make_1d(
         return GenericResponse::err("Invalid axis specification", &s);
     }
     let (low, high, bins) = parsed_axes.unwrap();
+    // Validate low high and bins - must have some range and some bins:
+    if low == high || bins == 0 {
+        return GenericResponse::err(
+            " Invalid Axis specification", 
+            "Low must not equal high and there must be at least one bin" 
+        );
+    }
     let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
 
     if let Err(s) = api.create_spectrum_1d(name, &parameter, low, high, bins) {
@@ -445,6 +452,21 @@ fn make_2d(
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
+    // Validate the axes:
+
+    if xlow == xhigh || xbins == 0 {
+        return GenericResponse::err(
+            "Invalid X axis specification",
+            "Low must differ from high and there mmust be at least one bin."
+        );
+    }
+    if ylow == yhigh || ybins == 0 {
+        return GenericResponse::err(
+            "Invalid Y axis specification",
+            "Low must differ from high and there mmust be at least one bin."
+        );
+    }
+
     // Now we can try to make the spectrum:
 
     let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
@@ -469,7 +491,12 @@ fn make_gamma1(
         return GenericResponse::err("Failed to process axis definition", &s);
     }
     let (low, high, bins) = axis.unwrap();
-
+    if low == high || bins == 0 {
+        return GenericResponse::err(
+            "Invalid axis specification",
+            "low cannot equal high and there must not be zero bins"
+        );
+    }
     let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     if let Err(s) = api.create_spectrum_multi1d(name, &parameters, low, high, bins) {
         GenericResponse::err("Failed to make multi1d spectrum", &s)
@@ -492,6 +519,20 @@ fn make_gamma2(
         }
         Ok(a) => a,
     };
+    // Validate the axes:
+
+    if xlow == xhigh || xbins == 0 {
+        return GenericResponse::err(
+            "Invalid x axis specification",
+            "xlow cannot equal xhigh and there must be nonzero xbins."
+        );
+    }
+    if ylow == yhigh || ybins == 0 {
+        return GenericResponse::err(
+            "Invalid Y axis specification",
+            "ylow cannot equal yhigh and there must be nonzero ybins."
+        );
+    }
 
     let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
 
@@ -525,6 +566,22 @@ fn make_pgamma(
         return GenericResponse::err("Failed to parse axes definitions", &s);
     };
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
+    
+    // Validate the axes:
+
+    if xlow == xhigh || xbins == 0 {
+        return GenericResponse::err(
+            "Invalid x axis specification",
+            "xlow cannot equal xhigh and there must be nonzero xbins."
+        );
+    }
+    if ylow == yhigh || ybins == 0 {
+        return GenericResponse::err(
+            "Invalid Y axis specification",
+            "ylow cannot equal yhigh and there must be nonzero ybins."
+        );
+    }
+    
 
     let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     if let Err(s) = api.create_spectrum_pgamma(
@@ -551,7 +608,12 @@ fn make_summary(
         return GenericResponse::err("Failed to process axis definition", &s);
     }
     let (low, high, bins) = axes.unwrap();
-
+    if low == high || bins == 0 {
+        return GenericResponse::err(
+            "Invalid axis specification",
+            "low cannot equal high and there must not be zero bins"
+        );
+    }
     let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     if let Err(s) = api.create_spectrum_summary(name, &parameters, low, high, bins) {
         GenericResponse::err("Failed to create spectrum", &s)
@@ -591,6 +653,21 @@ fn make_2dsum(
     }
     let ((xlow, xhigh, xbins), (ylow, yhigh, ybins)) = axes.unwrap();
 
+    // Validate axes:
+
+    if xlow == xhigh || xbins == 0 {
+        return GenericResponse::err(
+            "Invalid x axis specification",
+            "xlow cannot equal xhigh and there must be nonzero xbins."
+        );
+    }
+    if ylow == yhigh || ybins == 0 {
+        return GenericResponse::err(
+            "Invalid Y axis specification",
+            "ylow cannot equal yhigh and there must be nonzero ybins."
+        );
+    }
+    
     let api = SpectrumMessageClient::new(&state.inner().lock().unwrap());
     if let Err(s) =
         api.create_spectrum_2dsum(name, &xpars, &ypars, xlow, xhigh, xbins, ylow, yhigh, ybins)
