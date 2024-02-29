@@ -88,6 +88,13 @@ class EditorView(QWidget):
         self._dependencies.clear()
         for name in cond_list:
             self._dependencies.appendItem(name)
+    
+    #   Public methods:
+    
+    def clear(self):
+        self.setName('')
+        self.setDependencies(list())
+        self._chooser.setCurrentIndex(0)
 
 #------------------------------ Test code -------------------------------
 def commit():

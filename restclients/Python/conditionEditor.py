@@ -56,7 +56,7 @@ class GateController:          # Base class
             return
         try:
             self.create(name)
-            self.clear()
+            self._view.clear()
         except RustogramerException as e:
             error(f'Failed to create condition: {name}: {e}')
             return
@@ -70,9 +70,7 @@ class GateController:          # Base class
     def create(self, name):
         pass                                 # Derived classes must override.
     
-    def clear(self):
-        self._view.setName('')
-
+    
 class ConstantGateController(GateController):
     # Base class for  T and F gates.
     def __init__(self, view, client, editor):
@@ -110,10 +108,6 @@ class CompoundGateController(GateController):
     
     def create(self, name): 
         self.make_gate(name, self._view.dependencies())
-        self.clear()
-    def clear(self):
-        super().clear()
-        self._view.setDependencies(list())
     
 class AndGateController(CompoundGateController):
     def __init__(self, view, client, editor):
@@ -135,10 +129,7 @@ class NotGateController(GateController):
     def create(self, name):
         self._client.condition_make_not(name, self._view.condition())
         
-    def clear(self):
-        super().clear()
-        self._view.setCondition('')
-        
+    
 
 class SliceGateController(GateController):
     def __init__(self, view, client, editor):
@@ -148,11 +139,7 @@ class SliceGateController(GateController):
             name, self._view.parameter(), self._view.low(), self._view.high()
         )
         
-    def clear(self):
-        super().clear()
-        self._view.setParameter('')
-        self._view.setLow(0.0)
-        self._view.setHigh(4096.0)
+    
 
 class ContourController(GateController):
     def __init__(self, view, client, editor):
@@ -163,11 +150,7 @@ class ContourController(GateController):
             name, self._view.xparam(), self._view.yparam(), self._view.points()
         )
         
-    def clear(self):
-        super().clear()
-        self._view.setXparam('')
-        self._view.setYparam('')
-        self._view.setPoints(list())
+    
 
 class BandController(GateController):
     def __init__(self, view, client, editor):
@@ -178,12 +161,7 @@ class BandController(GateController):
             name, self._view.xparam(), self._view.yparam(), self._view.points()
         )
         
-    def clear(self):
-        super().clear()
-        self._view.setXparam('')
-        self._view.setYparam('')
-        self._view.setPoints(list())
-
+    
 
 class GammaContourController(GateController):
     def __init__(self, view, client, editor):
@@ -194,10 +172,7 @@ class GammaContourController(GateController):
             name,  self._view.parameters(), self._view.points()
         )
         
-    def clear(self):
-        super().clear()
-        self._view.setParameters(list())
-        self._view.setPoints(list())
+   
 
 class GammaBandController(GateController):
     def __init__(self, view, client, editor):
@@ -208,10 +183,7 @@ class GammaBandController(GateController):
             name,  self._view.parameters(), self._view.points()
         )
         
-    def clear(self):
-        super().clear()
-        self._view.setParameters(list())
-        self._view.setPoints(list())
+    
 
 class GSliceController(GateController):
     def __init__(self, view, client, editor):
@@ -220,22 +192,13 @@ class GSliceController(GateController):
         self._client.condition_make_gamma_slice(
             name, self._view.parameters(), self._view.low(), self._view.high()
         )
-    def clear(self):
-        super().clear()
-        self._view.setParameters(list())
-        self._view.setLow(0.0)
-        self._view.setHigh(4096.0)
+    
 
 class MaskEqualController(GateController):
     def __init__(self, view, client, editor):
         super().__init__(view, client, editor)
     def create(self, name):
         self._client.condition_make_mask_equal(name, self._view.parameter(), self._view.mask())
-        
-    def clear(self):
-        super().clear()
-        self._view.setParameter('')
-        self._view.setMask(0)
         
 
 class MaskAndController(GateController):
@@ -244,21 +207,13 @@ class MaskAndController(GateController):
     def create(self, name):
         self._client.condition_make_mask_and(name, self._view.parameter(), self._view.mask())
         
-    def clear(self):
-        super().clear()
-        self._view.setParameter('')
-        self._view.setMask(0)
-        
+    
 class MaskNandController(GateController):
     def __init__(self, view, client, editor):
         super().__init__(view, client, editor)
     def create(self, name):
         self._client.condition_make_mask_nand(name, self._view.parameter(), self._view.mask())
         
-    def clear(self):
-        super().clear()
-        self._view.setParameter('')
-        self._view.setMask(0)
         
 _condition_table = {
     ConditionTypes.Slice: ('Slice', SliceConditionEditor.EditorView, SliceGateController),

@@ -79,7 +79,11 @@ class EditorView(QWidget):
         return self._condition.currentText()
     def setCondition(self, name):
         self._condition.setCurrentText(name)
-
+    # PUblic methods:
+    
+    def clear(self):
+        self.setName('')
+        self._condition.setCurrentIndex(0)
 #------------------------ Test code --------------------------------------
 
 def create():

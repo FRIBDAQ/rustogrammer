@@ -93,6 +93,13 @@ class View(QWidget):
         return self._mask.mask()
     def setMask(self, new_mask):
         self._mask.setMask(new_mask)
+    
+    #   Public methods:
+    
+    def clear(self):
+        self.setName('')
+        self.setParameter('')
+        self.setMask(0)    
         
     # Slots:
     

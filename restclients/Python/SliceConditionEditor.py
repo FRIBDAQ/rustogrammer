@@ -20,6 +20,10 @@ from spectrumeditor import error
 from ParameterChooser import LabeledParameterChooser
 from editablelist import EditableList
 
+
+default_low =  0.0
+default_high = 4096.0
+
 class EditorView(QWidget):
     '''
         Signals:
@@ -126,6 +130,15 @@ class EditorView(QWidget):
         return self._parameter.parameter()
     def setParameter(self, name):
         self._parameter.setParameter(name)
+        
+    # Public methods:
+    
+    def clear(self):
+        ''' Clear the view for next use: '''
+        self.setName('')
+        self.setLow(default_low)
+        self.setHigh(default_high)
+        self.setParameter('')
         
     # Slots:
     
@@ -266,6 +279,14 @@ class GammaEditorView(QWidget):
             return None
     def setHigh(self, value):
         self._high.setText(f'{value}')
+    
+    # Public methods:
+    
+    def clear(self):
+        self.setName('')
+        self.setParameters(list())
+        self.setLow(default_low)
+        self.setHigh(default_high)
     
     # Slots:
     
