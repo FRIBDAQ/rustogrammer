@@ -70,7 +70,9 @@ class TrueFalseView(QWidget):
             self._true.setChecked(True)
         else:
             self._false.setChecked(True)
-            
+    # Public methods:
+    def clear(self):
+        self.setName('')
 
 #---------------------- Testing -------------------------------
 

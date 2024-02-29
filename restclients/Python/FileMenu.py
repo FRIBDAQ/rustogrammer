@@ -532,7 +532,13 @@ class FileMenu(QObject):
         # and SpecTcl needed to make the actual list of spectra with gates applied:
         
         apps = self._client.apply_list()['detail']
-        apps = [x for x in apps if x['gate'] is not None]
+        #
+        #  SpecTcl has no ungated spectra.. the special true gates '-Ungated-' or '-TRUE-' is applied to
+        #  What rustogramer would call ungated spectra
+        #
+        apps = [x for x in apps 
+                if (x['gate'] is not None) and (x['gate'] != '-Ungated-') and (x['gate'] != '-TRUE-')]
+        print(apps)
         return apps
     def _source_file(self):
         file = QFileDialog.getOpenFileName(

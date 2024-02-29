@@ -57,13 +57,13 @@ class PointListEditor(QWidget):
         coord = QVBoxLayout()
         
         x.addWidget(QLabel('X ', self))
-        self._x = QLineEdit(self)
+        self._x = QLineEdit('0.0', self)
         self._x.setValidator(QDoubleValidator())
         x.addWidget(self._x)
         coord.addLayout(x)
         
         y.addWidget(QLabel("Y ", self))
-        self._y = QLineEdit(self)
+        self._y = QLineEdit('0.0', self)
         self._y.setValidator(QDoubleValidator())
         y.addWidget(self._y)
         coord.addLayout(y)
@@ -95,7 +95,7 @@ class PointListEditor(QWidget):
         except:
             return None
     def setY(self, value):
-        set._y.setText(f'{value}')
+        self._y.setText(f'{value}')
         
     def points(self):
         text_list = self._points.list()
@@ -229,6 +229,18 @@ class TwodConditionEditor(QWidget):
         return self._pointlist.points()
     def setPoints(self, pts):
         self._pointlist.setPoints(pts)
+    
+    # Public Methods:
+    
+    def clear(self):
+        self.setName('')
+        self.setXparam('')
+        self.setYparam('')
+        self.setPoints(list())
+        self._pointlist.setX(0.0)
+        self._pointlist.setY(0.0)
+        
+    
         
     #   slots...note that if derived classes want additional
     #  Validations they should perform the first before invoking
@@ -350,6 +362,15 @@ class Gamma2DEditor(QWidget):
         return self._minpoints
     def setMinpoints(self, value):
         self._minpoints = value
+    
+    #  Public methods:
+    
+    def clear(self):
+        self.setName('')
+        self.setParameters(list())
+        self.setPoints(list())
+        self._points.setX(0.0)
+        self._points.setY(0.0)
     # Slots:
     
     def validate(self):
