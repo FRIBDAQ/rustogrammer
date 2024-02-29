@@ -12,10 +12,11 @@ of the slice.
 
 from PyQt5.QtWidgets import (
     QLabel, QLineEdit, QWidget, QPushButton,
-    QVBoxLayout, QHBoxLayout
+    QVBoxLayout, QHBoxLayout, QCheckBox
 )
 from PyQt5.QtGui import QDoubleValidator
 from PyQt5.QtCore import  pyqtSignal
+from PyQt5.Qt import *
 from spectrumeditor import error
 from ParameterChooser import LabeledParameterChooser
 from editablelist import EditableList
@@ -179,6 +180,8 @@ class GammaEditorView(QWidget):
     are like slices but allow for an arbitrary number of parameters
     to be accepted on the slice.
     Signals:
+        appendarray - Help me by appending an array of params that match the
+                    wild card.
        commmit - The condition is filled in and can be added.
     Slots:
        validate - Validates that the condition is fully filled.
@@ -191,6 +194,7 @@ class GammaEditorView(QWidget):
         
     '''
     commit = pyqtSignal()
+    appendarray = pyqtSignal(str)
     def __init__(self, *args):
         super().__init__(*args)
         layout = QVBoxLayout()
@@ -207,8 +211,13 @@ class GammaEditorView(QWidget):
         # editable list.
         
         line2 = QHBoxLayout()
+        param = QVBoxLayout()
         self._parameter = LabeledParameterChooser(self)
-        line2.addWidget(self._parameter)
+        param.addWidget(self._parameter)
+        self._array = QCheckBox('Array', self)
+        param.addWidget(self._array)
+        param.addStretch(1)
+        line2.addLayout(param)
         self._parameters = EditableList('Parameters', self)
         line2.addWidget(self._parameters)
         line2.addStretch(1)
@@ -261,6 +270,8 @@ class GammaEditorView(QWidget):
         return self._parameters.list()
     def setParameters(self, ps):
         self._parameters.setList(ps)
+    def appendParameter(self, name):
+        self._parameters.appendItem(name) 
         
     def low(self):
         txt = self._low.text()
@@ -309,7 +320,21 @@ class GammaEditorView(QWidget):
         self.commit.emit()
     
     def _add(self):
-        self._parameters.appendItem(self._parameter.parameter()) 
+        name = self._parameter.parameter()
+        if self._arrayChecked():
+            name_list = name.split('.')
+            
+            name_list = name_list[:-1]
+            name_pattern = '.'.join(name_list) + '.*'
+            self.appendarray.emit(name_pattern)
+        else:
+            self._parameters.appendItem(name) 
+        
+    def _arrayChecked(self):
+        if self._array.checkState() == Qt.Checked:
+            return True
+        else:
+            return False
 #-------------------------- test code: ---------------------------------------
 
 

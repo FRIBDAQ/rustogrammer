@@ -167,10 +167,17 @@ class GammaContourController(GateController):
     def __init__(self, view, client, editor):
         super().__init__(view, client, editor)
         view.setMinpoints(3)
+        view.appendarray.connect(self._appendarray)
     def create(self, name):
         self._client.condition_make_gamma_contour(
             name,  self._view.parameters(), self._view.points()
         )
+    def _appendarray(self, pattern):
+        param_descs = self._client.parameter_list(pattern)['detail']
+        names = [x['name'] for x in param_descs]
+        names.sort()
+        for name in names:
+            self._view.appendParameter(name)
         
    
 
@@ -178,20 +185,33 @@ class GammaBandController(GateController):
     def __init__(self, view, client, editor):
         super().__init__(view, client, editor)
         view.setMinpoints(2)
+        view.appendarray.connect(self._appendarray)
     def create(self, name):
         self._client.condition_make_gamma_band(
             name,  self._view.parameters(), self._view.points()
         )
-        
+    def _appendarray(self, pattern):
+        param_descs = self._client.parameter_list(pattern)['detail']
+        names = [x['name'] for x in param_descs]
+        names.sort()
+        for name in names:
+            self._view.appendParameter(name)
     
 
 class GSliceController(GateController):
     def __init__(self, view, client, editor):
         super().__init__(view, client, editor)
+        view.appendarray.connect(self._appendarray)
     def create(self, name):
         self._client.condition_make_gamma_slice(
             name, self._view.parameters(), self._view.low(), self._view.high()
         )
+    def _appendarray(self, pattern):
+        param_descs = self._client.parameter_list(pattern)['detail']
+        names = [x['name'] for x in param_descs]
+        names.sort()
+        for name in names:
+            self._view.appendParameter(name)
     
 
 class MaskEqualController(GateController):

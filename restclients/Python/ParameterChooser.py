@@ -101,6 +101,9 @@ class LabeledParameterChooser(QWidget):
         return self._label.text()
     def setParameter(self, text):
         self._label.setText(text)
+    def model(self):
+        # Return the parameter model.
+        return self._chooser.model()
 
 class ParameterTree(QTreeView):
     def __init__(self, *args):

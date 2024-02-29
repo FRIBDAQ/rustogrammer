@@ -12,10 +12,11 @@
 
 from PyQt5.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QWidget,
-    QHBoxLayout, QVBoxLayout
+    QHBoxLayout, QVBoxLayout, QCheckBox
 )
 from PyQt5.QtGui import QDoubleValidator
 from PyQt5.QtCore import pyqtSignal
+from PyQt5.Qt import *
 
 
 from editablelist import EditableList
@@ -272,6 +273,8 @@ class Gamma2DEditor(QWidget):
     2 for a band):
     
     Signals:
+        appendarray - Help me by appending an array of params that match the
+                    wild card.
         commmit - A valid condition can be accepted.
     Slots:
         validate - Called when the Create/Replace button is 
@@ -288,6 +291,7 @@ class Gamma2DEditor(QWidget):
                      
     '''
     commit = pyqtSignal()
+    appendarray = pyqtSignal(str)
     def __init__(self, *args):
         super().__init__(*args)
         
@@ -302,11 +306,18 @@ class Gamma2DEditor(QWidget):
         layout.addLayout(row1)
         
         # Next is the parameter chooser and editable list
-        # of parmaeter names:
+        # of parameter names:
         
         row2 = QHBoxLayout()
+        
+        params = QVBoxLayout()
         self._parameter = LabeledParameterChooser(self)
-        row2.addWidget(self._parameter)
+        params.addWidget(self._parameter)
+        self._array = QCheckBox('Array', self)
+        params.addWidget(self._array)
+        params.addStretch(1)
+        
+        row2.addLayout(params)
         self._parameters = EditableList('parameters', self)
         row2.addWidget(self._parameters)
         row2.addStretch(1)
@@ -371,6 +382,12 @@ class Gamma2DEditor(QWidget):
         self.setPoints(list())
         self._points.setX(0.0)
         self._points.setY(0.0)
+    
+    # Append parameter
+    
+    def appendParameter(self, name):
+        self._parameters.appendItem(name)
+        
     # Slots:
     
     def validate(self):
@@ -397,13 +414,34 @@ class Gamma2DEditor(QWidget):
             error(f'At least {m} points must be accepted.')
             return
         #  All validations passed so:
-        
         self.commit.emit()
+        
+    # Private methods:
+    
     def _addparameter(self):
+        
         name = self._parameter.parameter()
         if name == '' or name.isspace():
             return
-        self._parameters.appendItem(name)
+        if self._arrayChecked() :
+            name_list = name.split('.')
+            
+            name_list = name_list[:-1]
+            name_pattern = '.'.join(name_list) + '.*'
+            self.appendarray.emit(name_pattern)
+        else:
+            self._parameters.appendItem(name)
+    
+    def _arrayChecked(self):
+        if self._array.checkState() ==  Qt.Checked:
+            return True
+        else: 
+            return False      
+    
+    
+    
+        
+        
     
 #----------------- Test code ---------------------
 
