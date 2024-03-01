@@ -789,11 +789,17 @@ class rustogramer:
         out_details = []
         for spectrum in details:
             if "xaxis" not in spectrum:
-                spectrum['xaxis'] = spectrum['axes'][0]
-                if len(spectrum['axes']) == 2:
-                    spectrum['yaxis'] = spectrum['axes'][1]
+                if spectrum['type'] == 'gs' :  # Gs spectra, the axis is the y axis:
+                    spectrum['xaxis'] = None
+                    spectrum ['yaxis'] = spectrum['axes'][0]
+                    spectrum['yaxis']['bins'] -= 2
+                    pass
                 else:
-                    spectrum['yaxis'] = None
+                    spectrum['xaxis'] = spectrum['axes'][0]
+                    if len(spectrum['axes']) == 2:
+                        spectrum['yaxis'] = spectrum['axes'][1]
+                    else:
+                        spectrum['yaxis'] = None
             # Parameters depend on spectcrum type:
 
             if "xparameters" not in spectrum:
