@@ -1039,7 +1039,7 @@ mod make_spectrum_tests {
             &spectrum_api,
             "test1",
             &properties,
-            ProjectionDirection::Y,
+            ProjectionDirection::X,
             vec![]
         )
         .is_ok());
@@ -1067,8 +1067,8 @@ mod make_spectrum_tests {
         assert_eq!(
             spectrum_messages::AxisSpecification {
                 low: 0.0,
-                high: 512.0,
-                bins: 514 // Over/underflow.
+                high: 1024.0,
+                bins: 1026 // Over/underflow.
             },
             created_props.xaxis.unwrap()
         );
