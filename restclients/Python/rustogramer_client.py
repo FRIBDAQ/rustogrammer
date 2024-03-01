@@ -802,11 +802,15 @@ class rustogramer:
                     # These types only have 'xparameters':
                     spectrum['xparameters'] = spectrum['parameters']
                     spectrum['yparameters'] = []
-                if stype in ['2', 'm2', 'S']:
+                if stype in ['2', 'S']:
                     # First 1/2 are x, second 1/2 are y so:
                     split = int(len(spectrum['parameters'])/2)
                     spectrum['xparameters'] = spectrum['parameters'][0:split]
                     spectrum['yparameters'] = spectrum['parameters'][split:]
+                if stype in ['m2']:
+                    # Every other is x every other is y:
+                    spectrum['xparameters'] = spectrum['parameters'][::2]
+                    spectrum['yparameters'] = spectrum['parameters'][1::2]
                 if stype == 'gd':
                     # Two lists separated by ,'s:
 
