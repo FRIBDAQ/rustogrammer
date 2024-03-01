@@ -139,6 +139,7 @@ pub fn make_projection_spectrum(
 
     let mut resulting_axis = match direction {
         ProjectionDirection::X => {
+            
             if let Some(a) = desc.xaxis {
                 a
             } else {
@@ -146,6 +147,7 @@ pub fn make_projection_spectrum(
             }
         }
         ProjectionDirection::Y => {
+            
             if let Some(a) = desc.yaxis {
                 a
             } else {
@@ -156,11 +158,12 @@ pub fn make_projection_spectrum(
     resulting_axis.bins -= 2; // they'll get added back when the ndhistogram is created.
                               // For most cases this is true:
 
+    
     let params = match direction {
         ProjectionDirection::X => desc.xparams.clone(),
         ProjectionDirection::Y => desc.yparams.clone(),
     };
-
+    
     // What we do depends on both the spectrum type and direction.
     // Would be nice figure that out all in one swoop but sadly not
 
@@ -168,7 +171,7 @@ pub fn make_projection_spectrum(
         "Multi2D" => {
             // Multi-1d spectrum
 
-            let params = desc.xparams.clone();
+            println!("M2d projection");
             api.create_spectrum_multi1d(
                 new_name,
                 &params,
@@ -1036,7 +1039,7 @@ mod make_spectrum_tests {
             &spectrum_api,
             "test1",
             &properties,
-            ProjectionDirection::Y,
+            ProjectionDirection::X,
             vec![]
         )
         .is_ok());
@@ -1064,8 +1067,8 @@ mod make_spectrum_tests {
         assert_eq!(
             spectrum_messages::AxisSpecification {
                 low: 0.0,
-                high: 512.0,
-                bins: 514 // Over/underflow.
+                high: 1024.0,
+                bins: 1026 // Over/underflow.
             },
             created_props.xaxis.unwrap()
         );

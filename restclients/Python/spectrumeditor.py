@@ -634,7 +634,7 @@ class ProjectionController(AbstractController):
         else:
             contour_name = None
         direction = self._view.direction()
-        if direction == Direction.X.value:
+        if direction.value == Direction.X.value:
             direction_str ='x'
         else:
             direction_str = 'y'
