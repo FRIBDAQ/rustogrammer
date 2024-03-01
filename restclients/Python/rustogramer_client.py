@@ -789,10 +789,11 @@ class rustogramer:
         out_details = []
         for spectrum in details:
             if "xaxis" not in spectrum:
-                if spectrum['type'] == 'gs' :  # Gs spectra, the axis is the y axis:
+                if spectrum['type'] == 'gs' or spectrum['type'] == 's' :  # s/Gs spectra, the axis is the y axis:
                     spectrum['xaxis'] = None
                     spectrum ['yaxis'] = spectrum['axes'][0]
-                    spectrum['yaxis']['bins'] -= 2
+                    if spectrum['type'] == 'gs':     # GS has bins including the over/underflows....
+                        spectrum['yaxis']['bins'] -= 2  
                     pass
                 else:
                     spectrum['xaxis'] = spectrum['axes'][0]
