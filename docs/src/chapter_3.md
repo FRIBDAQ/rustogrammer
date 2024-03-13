@@ -19,7 +19,7 @@ Before you take this approach note that you'll need to assign port numbers that 
 you use the NSCLDAQ port manager to assign and advertise services.  See
 [the next section](#using-the-port-manager-to-assign-server-port-values) below for a description of this process and the prerequisites it requires.
 
-The rustogramer command is in the ```bin``` directory of the rustogramer installation tree and is named ```rustogrammer``` (note  the doubled m). The command accepts serveral options that are described fully in [Command Line Options](./chap10_1.md).  To run with manuall assigned ports you'll need:
+The rustogramer command is in the ```bin``` directory of the rustogramer installation tree and is named ```rustogrammer``` (note  the doubled m). The command accepts serveral options that are described fully in [Command Line Options](./chap7_1.md).  To run with manuall assigned ports you'll need:
 
 * ```--shm-mbytes``` (which can be abbreviated ```-s```).  The value that follows this option are the number of megabytes of shared spectrum memory rustogramer will create.  Note that you must have sufficient disk quota in your home directory to support the creation of the shared memory file.  If not specified, this defaults to ```32```
 * ```--rest-port``` (which can be abbreviated ```-r```).  Specifies the port on which the REST server will listen for connections.  This defaults to ```8000```.

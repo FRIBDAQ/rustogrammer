@@ -3,6 +3,7 @@
 ## What is Rustogramer
 
 Rustogramer is a histograming application written in the Rust programming language.
+
 The Rust programing language is a language that is optimized for reliable programing.
 By this I mean:
 
