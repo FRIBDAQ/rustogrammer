@@ -6,6 +6,7 @@
     - [The FRIB analysis pipeline](./chap2_1.md)
     - [Format of data Rustogramer accepts](./chap2_2.md)
 - [Chapter 3 - Running Rustogramer](./chapter_3.md)
+- [Chapter 4 - Using the Rustogramer GUI](./chapter_4.md)
 - [Chapter 10 - Reference material](./chapter10.md)
     - [Command Line Options](./chap10_1.md)
 
