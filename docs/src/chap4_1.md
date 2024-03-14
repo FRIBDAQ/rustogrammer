@@ -64,3 +64,75 @@ The tabs allow you to select spectrum editors that allow you to create/replace s
 If, when you click the ```Create/Replace``` button, spectra with the same name exist, a dialog will ask you to confirm the replacement of those spectra (which will be listed in the dialog).
 
 The set of editors (tabs) will depend on the spectrum types that are supported by the histogramer we are connected to.
+
+The subsections below will describe each of the spectrum types and their editors:
+
+* [1D spectrum editor](#1-d-spectrum)
+* [2D Spectrum editor](#2-d-spectrum)
+* [Summary Spectra](#summary-spectrum)
+* [Gamma 1D spectra](#gamma-1-d-spectrum)
+* [Gamma 2D spectrum editor](#gamma-2-d-spectrum)
+* [Gamma Deluxe spectrum editor](#particle-gamma-spectrum)
+
+### 1-D Spectrum
+
+1-D spectra (SpecTcl type ```1```), histogram the values of a single parameter over a range with a specified binning.  The editor looks like this:
+
+![1D Spectrum Editor](./images/spectrum-1d.png)
+
+Select the parameter to histogram from the Parmater pull down.  It's a hierarchical menu using the ```.``` character as a path separator.  When you have selected a parameter, the full name of the parameter will appear below the pull down.  If the parameter has metadata definining the range and suggested binning, that information will initially populate the Axis pulldowns.  The Low, High and Bins pull-downs pre-load with a set of common values but you can also type a value you want in the pulldown.  If you do so, that value is added to the list of values.
+
+The ```Array?``` checkbox allows you to create a group of spectra very quickliy.  Suppose, for example, you have paramters ```p.0, p.1...p.15``` and you want to create spectra named ```p.raw.0 ... p.raw.15```.  If yo uchose any of the ```p.```*n* parameters and set the name to ```p.raw```, checking the ```Array?``` checkbox will create those spectra.
+
+### 2-d Spectrum
+
+2-d spectram (SpecTcl type ```2```) are two dimensional heat map spectra that histogram the correlated values of an x and a y parameter.  The editor for these looks like this:
+
+![2D Spectrum Editor](./images/spectrum-2d.png)
+
+The mechanics of this editor are very similar to those of the [1D editor](#1-d-spectrum).  Select X and Y axis parameters from the pulldowns associated with each axis, ensure the axis specifications for the X and Y axes are what you want, provide a spectrum name and click ```Create/Replace``` to create the spectrum or overwrite (after confirmation) an exising spectrum with the same name.
+
+### Summary Spectrum:
+
+Summary spectra (SpecTcl type ```s```)  are a 2-d spectrum that allow you to look at the health of several identical spectra simultaneously.   Each X axis bin is associated with a parameter and the 1-d histogram of that parameter's values appears on the Y axis of that bin.
+
+The summary spectrum editor editor looks like this:
+
+![Summary Spectrum Editor](./images/spectrum-summary.png)
+
+Parameter selection involves filling in the ```Parameters``` box to the right of the parameter chooser dropdown.  If you have selected a parameter you can add it to the list of parameters in the box by clicking the right arrow button.  To remove parameters fromt the list, select them and click the X button.  You can add a related set of parameters to the list box by checking the ```array``` checkbox before clicking the right arrow button.
+
+For example, if you have parameters named ```p.0, p.1 ... p.15``` and you want them all in the list box, select one of them, check the ```array``` checkbox and click the right arrow button.  That will add all parameters that match ```p.*```
+
+You can re-order parameters.  Move parameters up in the list by selecting them (you can select more than one) and clicking the up arrow button. Similarly the down arrow button moves parameters down in the list.  The ```Clear``` button clears the parameter list.
+
+The Axis inputs define the Y axis.  If ```From  Parameters``` is checked, than the right arrow button also loads the axis description from the parameter metadata for the parameter(s) it added.
+
+Once the desired list of parameters has been selected, the Y axis defined and a spectrum name input; Clicking the ```Create/Replace``` button will create the spectrum (or replace an identically named spectrum after confirming)
+
+### Gamma 1-D spectrum
+
+Gamma 1-d spectra (SpecTcl type g1) are multiply incremented 1-d spectra.  The histogram is incremented for all of the values of its parameters.  You can think of it as a sum of the 1D spectra of all of its parameters.  The Gamma-1D spectrum looks exactly like the summary spectrum:
+
+![G1D Spectrum Editor](./images/spectrum-summary.png)
+
+When creating a Gamma 1d spectrum, however, the list of parameters determines the set of parameters that can increment the spectrum for any event.  Note that while in summary spectra the order of the parameters in the list box determines which X axis bin that parameter occupies, for Gamma-1D Spectra, the order is meaningless.
+
+### Gamma 2-D spectrum
+
+Gamma 2d spectra (SpecTcl type ```g2```) are 2-d spectra that increment for all pairs of spectrum parameters present in any events.  The editor for this spectrum type is similar to the summary spectrum editor but has a pair of axes:
+
+![G2 editor](images/spectrum-g2.png)
+
+Normally the X and Y axes have the same definition but neither rustogramer nor SpecTcl require this
+
+### Particle Gamma Spectrum.
+
+Particle gamma spectra (SpecTcl type gd) allow you to define a set of X and Y parameters.  The resulting 2d spectrum is incremented for each ordered pair of parameters in the event.  In general, this results in more than one increment per event.
+
+The editor, therefore looks like:
+
+![Gamma Deluxe editor](./images/spectrum-gd.png)
+
+The mechanics of using this editor are the same as using the editor for a 
+[summary spectrum](#summary-spectrum), however:  There are two editable parameter lists. Having selected a parameter you can put it in either the X or Y parameters list depending on which of the arrow buttons you click.
