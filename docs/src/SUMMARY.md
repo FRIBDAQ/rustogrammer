@@ -17,5 +17,7 @@
     - [Tcl REST reference](./chap7_3.md)
     - [Python REST reference](./chap7_4.md)
     - [Looking at the Rustogramer internals documentation](./chap7_5.md)
-- [Appendix I - Installing Rustogramer]()./apppendix_1.md)
+    - [Schema of configuration files](./chap7_6.md)
+    - [Format of JSON Spectrum contents files](./chap7_7.md)
+- [Appendix I - Installing Rustogramer](./apppendix_1.md)
 
