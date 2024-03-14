@@ -973,8 +973,6 @@ class Editor(QWidget):
         right.addWidget(self._clear)
         self._clearall= QPushButton('Clear all', self)
         right.addWidget(self._clearall)
-        self._load = QPushButton('Copy', self)
-        right.addWidget(self._load)
         self._del = QPushButton("Delete", self)
         right.addWidget(self._del)
         self._gateselection = ConditionChooser( self)
