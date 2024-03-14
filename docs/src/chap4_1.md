@@ -73,7 +73,11 @@ The subsections below will describe each of the spectrum types and their editors
 * [Gamma 1D spectra](#gamma-1-d-spectrum)
 * [Gamma 2D spectrum editor](#gamma-2-d-spectrum)
 * [Gamma Deluxe spectrum editor](#particle-gamma-spectrum)
-
+* [2d Sum Spectrum](#2-d-sum-spectrum)
+* [Projection Spectra](#projection-spectra)
+* [Strip charts](#strip-charts)
+* [Bit mask spectra](#bit-mask-parameters)
+* [Gamma summary spectra](#gamma-summary-spectra)
 ### 1-D Spectrum
 
 1-D spectra (SpecTcl type ```1```), histogram the values of a single parameter over a range with a specified binning.  The editor looks like this:
@@ -136,3 +140,60 @@ The editor, therefore looks like:
 
 The mechanics of using this editor are the same as using the editor for a 
 [summary spectrum](#summary-spectrum), however:  There are two editable parameter lists. Having selected a parameter you can put it in either the X or Y parameters list depending on which of the arrow buttons you click.
+
+
+### 2-D Sum spectrum
+
+2d Sum spectra (SpecTcl type ```m2```), are spectra that, effectively are the sum of one or more 2-d specctra.  They require an equal number of x and y paramters (unlike gamm deluxe where the number of X paramters need not be the same as the number of y parameters).  Channels are incremented for matching pairs of parameters in the event.  
+
+Suppose, for example, the X parameters are x1, x2 and the y parameters are y1 and y2.  If all four parameters are present, then two channels will be incremented.  One at the values of x1, y1 and the other at x2, y2.
+
+The editor is identical, however to the [Gamma Deluxe editor](#particle-gamma-spectrum):
+
+![2d sum editor](./images/spectrum-gd.png)
+
+### Projection spectra.
+
+Projection spectra are spectra that are created by initially projecting a suitable 2d spectrum onto one of its axes.  The projection can also occur within a Contoure that is displayable on the spectrum.  The spectrum could be created either as a snapshot, in which case it does not increment, or a "normal" spectrum in which case, if possible it will increment as addition data are analyzed.
+
+The editor is a bit odd looking compared with the other ones we've looked at:
+
+![Projection spectrum editor](./images/spectrum_proj.png)
+
+After selecting a name for the spectrum and choosing whether or not the spectrum is a snapshot or not; select a source spectrum in the Spectrum pulldown menu.  Choose if an X or Y projection is desired.
+
+If the projection is within a contour; check the contour checkbox and choose the contour from the dropdown below the checkbox.  As usual the ```Create/Replace``` button, when clicked, creates the spectrum.
+
+### Strip charts
+
+Strip chart spectra (SpecTcl type ```S```), show the time evolution of one parameter against another.
+Typically the X parameter is something that changes monotonically with time and the Y parameter represents a count of the number of times something occured within some time bucket (usually it's a computed parameter that is just set to 1 if the event of interest occured).  Strip chart spectra have the interesting characteristic that if an X value appears that is off the end of the spectrum (in either direction), the X axis is scrolled to accomodate that new value (the data too are scrolled).
+
+The Strip chart spectrum editor looks like this:
+
+![Strip chart editor](./images/spectrum-strip.png)
+
+In addition to the name of the spectrum you need to select a time (X) parameter and a Y parameter.  The values of the Y parmeter that occur within a time bin are summed.   The axis specification is an initial axis range and a fixed binning along that range.  The range may scroll, but the number of bins in the range will be fixed.
+
+### Bit mask parameters
+
+Spectra can also be created on parameters that represent integer bit masks (for example a trigger mask).
+The editor for a bitmask spectrum looks like this:
+
+![Bit mask spectrum](./images/spectrum_bitmask.png)
+
+In addition to the spectrum name, select a paramter and define the number of bits that are significan (starting from the low order bit).  The spectrum will be incremented for each bit that is set in the parameter within the number of bits desired.
+
+### Gamma summary spectra
+
+A gamma summary spectrum is a bit like a summary spectrum, however, each vertical channel is a gamma spectrum.  Thus each X bin requires a list of parameters and increments will occur in the vertical stripe defined by that bin for each of those parameters present in the event.
+
+As such the editor for Gamma Summary Spectra is a bit complicated:
+
+![Gamma Summary editor](./images/spectrum_gsummary.png)
+
+Let's start by looking at the tabbed set of list-boxes at the right of the editor.  The tabs are labeled numerically with the exception of the right most tab which is labeled ```+```.  The numbered tabs represent lists of parameters for the gamma spectrum that's stacked on that bin.   E.g. The tab labled ```0``` which is the only numbered tab initially available should be filled in with the parameters you want on that bin.   The process of filling in these parameter list boxes should, by now, be familiar.
+
+Clicking the tab labeled ```+``` will add a new tab with the next sequential X bin number.  This allows you to build up, bin-by-bin, the list of parameters for each bin.
+
+The remainder of the editor should be familiar by now.  A spectrum name, a Y axis specification and the usual ```Create/Replace``` button to actually create the spectrum.
