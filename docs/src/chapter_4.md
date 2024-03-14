@@ -21,3 +21,21 @@ When connected to Rustogramer, the GUI will look like this:
 ![Initial GUI view](images/gui_spectra.png)
 
 Prior to describing each of the user interface elements let's look at a few features of this image.
+
+*  The menubar at the top of the window provides access to operations that are not as frequent as those available on the main window.  Note that the contents of the menubar depends on the actual application the GUI is connectec to. 
+*  The tabs below the menu-bar provide access to the sections of functionality of the GUI.  Note that the set of tabs will, again, depend on the application the GUI is connected to.   For example, Rustogramer does not have TreeVariable like functionality as that capability is pushed back onto the code that prepares data-sets.  If connected to SpecTcl, however, a ```Variables``` tab will be present.
+*  Below the Tabs are controls for the things that Tab manages.  In the figure above, the ```Spectra``` tab is selected and shows a tabbed notebook that allows you to create and edit the definitions of Spectra as well as a filtered list of spectra and their applications.  More about this tab in the documentation [the spectra tab](./chap4_1.md)
+* Note that the only thing the ```Help``` menu provides is information about the program (the ```About``` menu command).
+
+For information about the contents of each tab:
+- [The ```Spectra``` Tab](./chap4_1.md)
+- [The ```Parameters``` Tab](./chap4_2.md)
+- [The ```Variables``` Tab](./chap4_3.md) (SpecTcl only).
+- [The ```Gate``` Tab](./chap4_4.md)
+
+For information about the Menus:
+- [The ```File``` Menu](./chap4_5.md)
+- [The ```Data Source``` Menu](./chap4_6.md)
+- [The ```Filters``` Menu](./chap4_filters.md) (SpecTcl only).
+- [The ```Spectra``` Menu](./chap4_7.md)
+- [The ```Gate``` Menu](./chap4_8.md)
