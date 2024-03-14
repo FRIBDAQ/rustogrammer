@@ -1,0 +1,1 @@
+# Schema of configuration files
