@@ -71,6 +71,7 @@ class DataSourceMenu(QObject):
 
             if capabilities.has_rest_runlist():
                 self._cluster = QAction('Cluster file...', self)
+                self._cluster.triggered.connect(self._attach_cluster)
                 self._menu.addAction(self._cluster)
                 
             self._filter = QAction('Filter file...', self)
@@ -86,10 +87,15 @@ class DataSourceMenu(QObject):
         if program == spectcl:
             if capabilities.has_rest_runlist():   # Part of runlist functionality.
                 self._abortlist = QAction('Abort Cluster File')
+                self._abortlist.triggered.connect(self._stop_cluster)
                 self._menu.addAction(self._abortlist)
                                    
         
-        
+    
+    def _attach_cluster(self):
+        pass
+    def _stop_cluster(self):
+        pass
     def _read_event_file(self):
         #  Prompt for an event file and 
         # Figure out the possible event file formats:
