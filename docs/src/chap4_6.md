@@ -62,8 +62,28 @@ The Entry and editable list box below it allow you to provide an ordered set of 
 
 ## Data Source->Cluster File (SpecTcl Only)
 
+Cluster file processing is not yet implemented in the GUI see issue [#168](https://github.com/FRIBDAQ/rustogrammer/issues/168)
+
 ## Data Source->Filter file... (SpecTcl Only)
+
+A filter file is a file written by SpecTcl that is very much like a parameter file.  Filter files contain a subset of the parameters for a subset of events that have made a condition true.  Filter files and how to make them are described in [The SpecTcl User guide](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/UserGuide/index.html).  See the chapters named:
+
+*  Using event filters
+*  Analyzing filter files
+
+Before attempting to analyze a filter file, be sure your SpecTcl analysis pipeline is properly configured to do so.  Filter files have the following advantages over parameter files
+
+*  They can be written from SpecTcl without any additional code.
+*  They can be used as the first stage of the analysis pipeline allowing additional stages to follow.
+
+Because you must take special care to ensure the version of SpecTcl you are running has been prepared to analyze filter data, the first time you select ```Data Source->Filter file``` you'll be prompted with a reminder that you must have the correctly tailored version of SpecTcl running.
+
+The GUI simply prompts for a filter file and, when one is selected from a standard file chooser dialog, analysis from that file begins.
 
 ## Data Source->Detach
 
+Stops analysis of the current data source and detaches from it.  
+
 ## Data Source->Abort Cluster File (SpecTcl Only)
+
+Cluster file processing is not yet implemented in the GUI see [#168](https://github.com/FRIBDAQ/rustogrammer/issues/168)
