@@ -319,7 +319,7 @@ def has_rest_runlist():
         True if the program can be asked to process a list of runs (cluster file) via REST:
     '''
     
-    return server_program == Program.SpecTcl && (combined_version > 514000)
+    return server_program == (get_program == Program.SpecTcl) && (combined_version >= _make_combined_version(5,14,0)
     
 
 def can_read_raw_events():
