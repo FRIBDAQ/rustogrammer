@@ -25,11 +25,11 @@ Allows you to read a file that contains the contents of one or more spectra.  Se
 
 Clears the contents of all spectra.  All spectrum channels are set to zero.
 
-# Create
+## Create
 
 Allows you to create one or more spectra.  The spectrum editor tabbed widget is displayed.  When you are done creating the spectra you want, click ```Ok``` to dismiss the dialog.  A section of the Spectra Tab page describes how to use the [spectrum editors](./chap4_1.md#the-spectrum-editors)
 
-# Delete
+## Delete
 
 Allows you to delete one or more spectra.   You can select the spectra to delete using:
 
@@ -41,10 +41,10 @@ Improvements are planned to the spectrum selection  see issue [#170](https://git
 
 You can achieve the same effect in the Spectra tab using the [Delete Button](./chap4_1.md#the-button-bar) on the Spectra tab button bar after selecting the spectra you want deleted from the spectrum listing in that tab.
 
-# Apply Gate
+## Apply Gate
 
 Allows you to apply a gate/condition to one or more spectra;
 
 ![Apply dialog](./images/apply-dialog.png)
 
-Select the condition on the left and select however many spectra you want (selections need not be contiguous) on the right and click ```Ok``` to apply the gate to the selected spectra.
+Select the condition on the left and select however many spectra you want (selections need not be contiguous) on the right and click ```Ok``` to apply the gate to the selected spectra. 
