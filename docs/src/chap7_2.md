@@ -1,1 +1,1 @@
-# REST requestas and responses
+# REST requests and responses

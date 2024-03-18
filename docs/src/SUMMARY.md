@@ -22,7 +22,7 @@
     - [Python REST interface](./chap6_2.md)
 - [Chapter 7 - Reference material](./chapter7.md)
     - [Command Line Options](./chap7_1.md)
-    - [REST requestas and responses](./chap7_2.md)
+    - [REST requests and responses](./chap7_2.md)
     - [Tcl REST reference](./chap7_3.md)
     - [Python REST reference](./chap7_4.md)
     - [Looking at the Rustogramer internals documentation](./chap7_5.md)
