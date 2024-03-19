@@ -53,7 +53,7 @@
         - [/spectcl/specstats requests](./chap7_2_specstats.md)
         - [/spectcl/swrite requests](./chap7_2_swrite.md)
         - [/spectcl/sread requests](./chap7_2_sread.md)
-        - [/spectcl/trace requests](./chap7_2_trace)
+        - [/spectcl/trace requests](./chap7_2_trace.md)
     - [Tcl REST reference](./chap7_3.md)
     - [Python REST reference](./chap7_4.md)
     - [Looking at the Rustogramer internals documentation](./chap7_5.md)
