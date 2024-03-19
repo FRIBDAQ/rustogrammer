@@ -44,7 +44,7 @@ The Tcl low level client is implemented in an object oriented manner.  You insta
 Here's a very brief example of how all this works.
 
 ```tcl
-#    Somewhere above tclrest_dir was defined:
+#    Somewhere above tclrest_dir was defined to point to the package directory.
 
 lappend auto_path $tclrest_dir
 package rquire SpecTclRESTClient;      # 1
@@ -86,3 +86,64 @@ Refer to the numbered comments above when reading the remarks below
 4.  This is the first (and  only) interaction with the server.  The ```version``` subcommand requests the server identify itself and its current version number.  The resulting information is stored in the dict ```versionInfo```
 5. Originally, when there was only SpecTcl, the only information returned was the major and minor versions and the edit lievel.  When rustogramer's Rest interface was written it, and later SpecTcl added the ```program_name``` key.  This block of code determines if the returned inforation has the ```program_name``` key and, if so, sets the value of ```name``` to it. Otherwise, the value of ```name``` is set to ```*unknown*```
 6. The version information is pulled out of the dict and finally everything is printed.
+
+## Using the high level client.
+
+The high level client implements much of the SpecTcl command set on top of the 
+[low level Tcl REST client](#using-the-low-level-client).  To use it you must:
+
+1.  Pull the SpecTclRestCommand package into your script.
+2.  Provide the connection parameters to SpecTclRest package.  
+3.  Use SpecTcl commands as you might normally do.
+
+Here's a sample script to provide the version of the server and a list of the tree parameters and their metadata:
+
+```tcl
+...
+#   some where above tclrest_dir is defined as the path to the package directory.
+
+lappend auto_path $tlclrest_dir
+package require SpecTclRestCommand
+
+set host localhost
+set port 8000
+
+SpecTclRestCommand::initialize $host $port;   # 1
+
+puts "SpecTcl/Rustogramer version [version]" ;  # 2
+
+
+#   3
+
+foreach param [treeparameter -list] {
+    set name [lindex $param 0]
+    set bins [lindex $param 1]
+    set low  [lindex $param 2];         # 4
+    set high [lindex $param 3]
+    set units [lindex $param 5]
+
+    puts "Name: $name  recommended axis: \[$low - $high\]$units $bins bins";  # 5
+}
+```
+
+As before we assume that somewhere above the script shown, the script defines tclrest_dir to point to the package installation directory.  
+
+1.  The ```SpecTclRestCommand::initialize``` command sets the connection parameters for the pacakge.  The parameters correspond in turn to the ```-host``` and ```-port``` option values to the constructor for the ```SZpecTclRestClient``` described in the [previous section](#using-the-low-level-client).
+Note that a third optional parameter, which defaults to ```0``` is used as the value for the ```-debug``` option.  This allows you to run the high level package with debugging output enabled on the low level package.
+2.  The ```version``` command in SpecTcl and the ```SpecTclRestCommand``` package provides the version of the histogramer.  This line simply outputs it.
+3.  The loop below iterates over the output of the ```treeparameter -list``` command.  This command, in SpecTcl and the ```SpecTclRestCommand``` package provides a list of information about parmeters and their metadata.  A REST endpoint is also defined for rustogramer that is identical to the one provided by SpecTcl that provides the same information for all parameters it knows about (you can think of all Rustogramer parameters as treeparameters in the SpecTcl sense of the word).  
+4.  Each element of the list returned by ```treeparameter -list``` provides the following information:
+    *  The name of the parameter.
+    *  The number of bins recommended for axes on the parameter.
+    *  The suggested axis low limit for the parameter.
+    *  The suggested axis high limit for the parameter.
+    *  The width of an axis bin if the suggested limits and bin count are used.  We don't pull this out of the lst.
+    *  The units of measure for the parameter.
+5.  This line just outputs the information we extracted about the tree parameter.
+
+The main point to take awayh from this example is that once you've pulled in the ```SpecTclRestCommand``` package and initialized it withthe connection parameters, you can treat your script as if it was running natively in SpecTcl (even if the server is Rustogramer) with the command descdribed in [the SpecTcl Command Reference](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html) all defined.
+
+
+
+
+
