@@ -8,9 +8,9 @@ Several operations are supported on parameters:
 *  [```/promote```](#spectclparameterpromote) - Promote a raw parameter to a tree parameter.
 *  [```/create```](#spectclparametercreate) - Create a new parameter (Rustogramer only)
 *  [```/listnew```](#spectclparameterlistnew) - lists parameters that have modified metadata.
-*  ```/check``` - Checks the modified state of parameters.
-*  ```/uncheck``` - Turns off the modified state of parameters.
-*  ```/version``` - Provides version information about the capabilities of the parameter system (earlier versions of the SpecTcl ```treeparameter``` did not support the ```-create``` operation).
+*  [```/check```](#spectclparametercheck) - Checks the modified state of parameters.
+*  [```/uncheck```](#spectclparameteruncheck) - Turns off the modified state of parameters.
+*  [```/version```](#spectclparameterversion) - Provides version information about the capabilities of the parameter system (earlier versions of the SpecTcl ```treeparameter``` did not support the ```-create``` operation).
 
 
 ## /spectcl/parameter/list
@@ -209,3 +209,85 @@ SpecTcl response:
 ```
 
 The parameter **george** was created.
+
+## /spectcl/parameter/check
+
+SpecTcl has a modification flag associated with each tree parameter.  The check flag is set if the parameter's metadta are modified.  This determines if that parameter has the check flag set.
+
+### Query parameters
+
+* name (required string) - Name of the parameter to check on.
+
+### Reponse format detail
+
+* detail is an integer which is ```0``` if the check flag is not set and nonzero if it is.
+
+
+
+#### Sample Responses.
+
+Found the parameter but its check flag is clear:
+
+
+```json
+{
+    "status" : "OK",
+    "detail" : 0
+}
+```
+
+Nte that rustogramer will always have  a **detail** = 0.
+
+No such parameter (SpecTcl)
+```json
+{
+    "status" : "'treeparameter -check failed: ",
+    "detail" : "Could not find parameter event.raw.000"
+}
+```
+
+Note that in SpecTcl, **detail** is a string that describes why the request failed in detail. For Rustogramer, in case of failure, the **detail** string is ```None```
+
+## /spectcl/parameter/uncheck
+
+Sets the check flag for a parameter to ```0```.  This is implemented in Rustogramer but, unlike SpecTcl, has no effect
+
+### Query parameters
+
+* **name** (Required string) - Name of the parameter to unceck.
+
+### Reponse format detail
+
+A generic response.  For SpecTcl, on success, this is only the **status** field, and the request never fails.  For Rustogramer; **detail** field is ```null```
+
+
+#### Sample Responses.
+
+Sample successful completion:
+
+```json
+{
+    "status" : "OK",
+    "detail" : null
+}
+```
+## /spectcl/parameter/version
+
+Reports the version of the tree paramter subsystem.
+
+### Query parameters
+
+None
+
+### Reponse format detail
+
+Generic response with the stringified version number in the **detail** field
+
+#### Sample Responses.
+```json
+{ 
+    "status" : "OK", 
+    "detail" : "2.1" 
+}
+```
+
