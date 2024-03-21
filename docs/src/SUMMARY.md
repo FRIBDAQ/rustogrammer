@@ -23,6 +23,7 @@
 - [Chapter 7 - Reference material](./chapter7.md)
     - [Command Line Options](./chap7_1.md)
     - [REST requests and responses](./chap7_2.md)
+        - [Response format](./chap7_2_responses.md)
         - [/spectcl/parameter requests](./chap7_2_parameter.md)
         - [/spectcl/rawparameter requests](./chap7_2_rawparameter.md)
         - [/spectcl/gate requests](./chap7_2_gates.md)
