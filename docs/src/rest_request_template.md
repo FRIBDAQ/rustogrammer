@@ -4,7 +4,7 @@
 
 * param 1...
 
-### Reponse format detail
+### Response format detail
 
 
 #### Sample Responses.
