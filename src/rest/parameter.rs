@@ -419,7 +419,20 @@ pub fn delete_rawparameter() -> Json<GenericResponse> {
     );
     Json(result)
 }
-
+// List new parameters - stub implementation.
+#[derive(Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct ListNewResponse {
+    status : String,
+    detail : Vec<String>,
+}
+#[get("/listnew")]
+pub fn listnew_parameter() -> Json<ListNewResponse> {
+    Json(ListNewResponse {
+        status: String::from("OK"),
+        detail: vec![]
+    })
+}
 #[cfg(test)]
 mod parameter_tests {
     use super::*;

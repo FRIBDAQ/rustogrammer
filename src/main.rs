@@ -126,7 +126,8 @@ fn rocket() -> _ {
                 rest_parameter::edit_parameter,
                 rest_parameter::promote_parameter,
                 rest_parameter::check_parameter,
-                rest_parameter::uncheck_parameter
+                rest_parameter::uncheck_parameter,
+                rest_parameter::listnew_parameter
             ],
         )
         .mount(
