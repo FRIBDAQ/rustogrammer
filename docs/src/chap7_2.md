@@ -21,3 +21,4 @@ http://hostname:rest-port/spectcl/spectrum/...
 requests manipulate spectra.
 
 
+The number of request families is large.   Refer to the sidebar table of contents to home in on a particular family.
