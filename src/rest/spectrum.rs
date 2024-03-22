@@ -749,8 +749,10 @@ pub struct Channel {
 #[derive(Serialize, Deserialize)]
 #[serde(crate= "rocket::serde")]
 struct Statistics {
-    underflow : u32,
-    overflow: u32
+    xunderflow : u32,
+    xoverflow: u32,
+    yunderflow : Option<u32>,
+    yoverflow : Option<u32>
 }
 
 #[derive(Serialize, Deserialize)]
@@ -813,7 +815,7 @@ pub fn get_contents(
         return Json(ContentsResponse {
             status: format!("Failed to fetch info for {} : {}", name, s),
             detail: GetDetail {
-                statistics: Statistics {underflow: 0, overflow:0},
+                statistics: Statistics {xunderflow: 0, xoverflow:0, yunderflow: None, yoverflow: None},
                 channels: vec![]
             }
         });
@@ -826,7 +828,7 @@ pub fn get_contents(
                 name,
             ),
             detail: GetDetail {
-                statistics: Statistics {underflow: 0, overflow:0},
+                statistics: Statistics{xunderflow: 0, xoverflow:0, yunderflow: None, yoverflow: None},
                 channels: vec![]
             }
         });
@@ -864,7 +866,7 @@ pub fn get_contents(
         ContentsResponse {
             status: format!("Failed to get spectrum contents: {}", s),
             detail: GetDetail {
-                statistics: Statistics { underflow: 0, overflow: 0},
+                statistics: Statistics {xunderflow: 0, xoverflow:0, yunderflow: None, yoverflow: None},
                 channels: vec![]
             }
         }
@@ -872,7 +874,7 @@ pub fn get_contents(
         let mut reply = ContentsResponse {
             status: String::from("OK"),
             detail: GetDetail {
-                statistics: Statistics { underflow: 0, overflow: 0},
+                statistics: Statistics {xunderflow: 0, xoverflow:0, yunderflow: None, yoverflow: None},
                 channels: vec![]
             }
         };
