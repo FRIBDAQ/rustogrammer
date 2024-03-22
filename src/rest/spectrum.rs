@@ -742,9 +742,9 @@ pub fn create_spectrum(
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Channel {
-    xchan: f64,
-    ychan: f64,
-    value: f64,
+    x: f64,
+    y: f64,
+    v: f64,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(crate= "rocket::serde")]
@@ -881,9 +881,9 @@ pub fn get_contents(
         let contents = contents.unwrap();
         for c in contents {
             reply.detail.channels.push(Channel {
-                xchan: c.x,
-                ychan: c.y,
-                value: c.value,
+                x: c.x,
+                y: c.y,
+                v: c.value,
             });
         }
         reply
@@ -2860,8 +2860,8 @@ mod spectrum_tests {
 
         assert_eq!("OK", reply.status);
         assert_eq!(1, reply.detail.channels.len());
-        assert_eq!(512.0, reply.detail.channels[0].xchan);
-        assert_eq!(1.0, reply.detail.channels[0].value);
+        assert_eq!(512.0, reply.detail.channels[0].x);
+        assert_eq!(1.0, reply.detail.channels[0].v);
 
         teardown(chan, &papi, &bind_api);
     }
@@ -2919,9 +2919,9 @@ mod spectrum_tests {
         assert_eq!("OK", reply.status);
         assert_eq!(1, reply.detail.channels.len());
 
-        assert_eq!(512.0, reply.detail.channels[0].xchan);
-        assert_eq!(256.0, reply.detail.channels[0].ychan);
-        assert_eq!(1.0, reply.detail.channels[0].value);
+        assert_eq!(512.0, reply.detail.channels[0].x);
+        assert_eq!(256.0, reply.detail.channels[0].y);
+        assert_eq!(1.0, reply.detail.channels[0].v);
 
         teardown(chan, &papi, &bind_api);
     }
