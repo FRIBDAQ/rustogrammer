@@ -22,3 +22,8 @@ requests manipulate spectra.
 
 
 The number of request families is large.   Refer to the sidebar table of contents to home in on a particular family.
+
+## Pre-requisites to understand this reference section:
+
+*  You should understand the form of Uniform Resource Identifiers URIs; specifically query parameters and how to format them.
+*  You should be able to read simple Java Script Object Notation (JSON) objects.
