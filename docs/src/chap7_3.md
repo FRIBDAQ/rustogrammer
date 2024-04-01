@@ -1129,6 +1129,61 @@ List of dicts.  Each dict describes a parameter. Dicts may have the following ke
 * **high** High limit if set or emitted if not.
 * **units** Units of measure of the parameter.  Only present if supplied to the parameter.
 
+### $client pseudoCreate
+
+Creates a pseudo parameter. Pseudo parameter are only supported by SpecTcl.
+
+### Parameters
+
+* *name* - name of the new pseudo parameter
+* *parameters* - Parameters that are required to compute the pseudo.
+* *body*  - Body of the Tcl proc to use to compute the parameters.  See the ```pseudo``` command in the [SpecTcl Command Reference](http://https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html) for a description of this. 
+
+### Description
+
+Creates a new psueod parameter that is computed via the script  in *body* and depends on the *parameters* for its computation.  Only SpecTcl supports pseudo parameters computed via Tcl scripts.
+
+Note SpecTcl does not ensure that all *parameters* are present in the event as it is possible the computation may not always need them all.
+
+### Returns
+Nothing
+
+### $client pseudoList
+
+List pseudo parameters and their definitions.
+
+### Parameters
+
+* *pattern* - An optional glob pattern that psuedo names must match to be included in the list.  If not supplied the pattern ```*``` is used which matches everything.
+
+### Description
+
+Returns a listing of pseudo parameters and their properties. The pseudos with name matching *pattern* are returned.
+
+### Returns
+
+List of dicts. Each dict describes a pseudo parameter and has the keys:
+
+* **name** - name of the pseudo.
+* **parameters** - list of parameters used by the pseudo. 
+* **computation** - A Tcl body that computes the pseudo parameter value for each event.  See the ```pseudo``` command in the [SpecTcl Command Reference](http://https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html) for a description of this. 
+
+
+### $client pseudoDelete
+
+Delete an existing pseudo parameter.
+
+### Parameters
+
+@param *name* - name of the pseudo to delete.
+
+### Description
+
+Deletes a pseudo parameter.  While the parameter will no longer be computed, its definition (use of name and id) will remain.
+
+### Returns
+None
+
 ## SpecTcl Command Simulation
 
 
