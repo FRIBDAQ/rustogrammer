@@ -1024,6 +1024,110 @@ Creates a gate that depends on other gates.  These are ```*```, ```+````, ```-``
 ### Returns
 None
 
+### $client integrate
+
+### Parameters
+
+*  *name* - name of the spectrum to integrate.
+*  *roi* region of interest in which to integrate.  See Description below.
+
+### Description
+
+Performs a 1d or 2d integration of a spectrum within a region of interest.   The *roi* parameter must be one of the following:
+*  A dict containing the key **gate** gate name - in which case it must be a slice-like gate for 1d integrations and a contour-like gate for 2ds.
+*  A dict containing keys **low** and **high** which are the limits of integration for a 1d integration.
+*   A dict containing the keys **xcoords** and **ycoords** in which case these define the x and y coordinates of a contour-like area of interest.
+
+For example
+
+```tcl
+$client integrate aspectrum [dict create gate acontour]
+$client integrate oned [dict create low 100 high 200]
+$client integrate apectrum [dict create xcoords [list 100 200 200] ycoords [list 100 100 400]]
+```
+
+### Returns
+
+A dict containing the keys:
+* **centroid** - one or two element list with the centroid (coorinates).
+* **fwhm** - one or two element list with the FWHM under gaussian peak shape assumptions.
+* **counts** - total counts within the AOI.
+
+### $client parameterNew 
+
+Create a new raw parameter and its metadata.
+
+### Parameters
+* *name* - name of the new parameter (must not exist)
+* *id*   - identifying integer (must not exist).
+* *metadata* - dict containing the metadata.
+
+### Description
+Note in rustogramer there is no distinction between a treeparameter and a raw parameter.  In SpecTcl, for historic reasons there is.  In SpecTcl, parameters have limited metadata while tree parameters in SpecTcl and Rustogramer have full metadata.
+
+The *id** binds  the parameter to a specific array-like object index in which that parameter should be unpacked.  In SpecTcl this allows user code to explicitly set ```CEvent``` elements in Rustogramer, there are only parameter name/id correspondences and you are better using the tree parameter create as it will assign and id.
+
+The *metadata* is a dict (possibly empty if you do not require/desire metadata).  The possible dict keys are:
+
+* **resolution** - number of bits of resolution the parameter (assumed to be a raw digitizer has).  If the value is *m*, the parameter low is 0 and high 2^m - 1.
+*  **low** - low value metadata.  This cannot be used with **resolution**
+* **high** - high value metadat.  This cannot be used with **resolution**
+** units** - Units of measure metadata.
+
+### Returns
+
+None.
+
+### $client parameterDelete
+
+Deletes a raw parameter.
+
+### Parameters
+
+* *name* - name of the parameter to delete.
+* *id*  - id of the parameter to delete.
+
+### Description
+
+Delete a parameter by naem or id.  Only one should be supplied for example:
+
+```tcl
+$client parameterDelete george;   # Delete parameter george by name
+$client parameterDelete {} 123;   # Delete parameter no. 123 by id.
+
+```
+
+### Returns
+None
+
+
+### $client parameterList 
+
+Lists raw parameter and their metadata.
+
+### Parameters
+* *pattern*  - Glob pattern matched against the names to determine which are listied. Defaults to ```*``` which matches everything.
+* *id*  - Id of single parameter to list.
+
+### Description
+Either the pattern should be provided or the id or neither. Here is an exhaustive list of examples:
+
+```tcl
+$client parameterList event*;   # lists all params beginning with "event"
+$client parameterList {} 1234;  # Lists parameter id 1234
+$client parameterList;          # Lists all parameters.
+```
+
+### Returns
+
+List of dicts.  Each dict describes a parameter. Dicts may have the following keys:
+
+*  **name** name of the parameter.
+* **id** id of the parameter.
+* **resolution** bits of resolution (if that was set or omitted if not).
+* **low** low limit if set or omitted if not.
+* **high** High limit if set or emitted if not.
+* **units** Units of measure of the parameter.  Only present if supplied to the parameter.
 
 ## SpecTcl Command Simulation
 
