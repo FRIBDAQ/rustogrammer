@@ -1388,6 +1388,100 @@ Delete a spectrum.
 ### Returns
 None
 
+### $client unbindByName
+Undbind spectra from display shared memory given their names.
+### Parameters
+* *names* - List of names of the spectra to unbind.
+
+### Description
+
+Removes spectra from display shared memory given their names.  This releases all resources used by them in shared memory. This includes its header description and the chunk of the channel soup it consumed.
+
+### Returns
+None.
+
+### $client unbindById
+
+Unbinds spectra from display shared memory given their ids.
+
+### Parameters
+* *ids* - List of spectrum ids to unbind.
+
+### Description
+
+Removes spectra from display shared memory given their ids.  This releases all resources used by them in shared memory. This includes its header description and the chunk of the channel soup it consumed.
+
+```unbindByName``` should be preferred to this.
+
+
+### Returns
+None.
+
+### $client unbindAll
+Unbind all spectra from display shared memory
+
+### Parameters
+
+None
+
+### Returns
+None
+
+### $client ungate
+
+Removes gating conditions from spectra.
+
+### Parameters
+* *names* - list of names of spectra to ungate.
+
+### Description
+
+For each spectrum name in *names* any gating condition is removed from that spectrum.  
+
+### Returns
+None
+
+### $client version
+
+Get server version information.
+
+### Parameters
+None
+
+### Description
+Returns version information and, possibly program name, for the server. Note that only older SpecTcl does not return the pogram name and therefore the lack of a program name implies a SpecTcl server.
+
+
+### Returns
+
+A dict containing the following keys:
+
+* **major** - program major version number.
+* **minor** - program minor version number.
+* **editlevel** - programe edit/patch-level version number.
+* **program_name** - may be omitted by older SpecTcl's. The name of the program. For now this can be the strings:
+    * ```Rustogramer```
+    * ```SpecTcl```
+
+### $client swrite
+
+Write spectra and contents to file.
+
+### Parameters
+* *filename* - name of the file to write to.  This path must make sense in the context of the server program.
+* *spectra* - list of names of spectra to write to file.
+* *format* - Format specifier. This can be:
+    * *ascii*  - Simple ASCII format.
+    * *json*   - Json ASCII format. was added to SpecTcl in 5.13-014.
+    * *binary* - Legacy VMS/SMAUG format which onlyi SpecTcl can write.
+
+
+### Description
+
+Writes the list of spectra to file in the selected *format*. Note that it is the server that does the actual write and therefore *filename* must make sense in its context rather than the client's.  This point is important in environments where the client and server don't share the same filesystem mappings. A simple FRIB example might be the client running in a container with a different set of ```--bind``` options that the container the server is running in.
+
+### Returns
+None
 
 ## SpecTcl Command Simulation
 
