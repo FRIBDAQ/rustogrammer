@@ -1483,6 +1483,81 @@ Writes the list of spectra to file in the selected *format*. Note that it is the
 ### Returns
 None
 
+### $client start
+
+Start analysis.
+
+### Parameters
+None
+
+### Description
+Once an event source is specified for the server, it is still necessary to start analyzing data from that source.  This method asks the server to start analyzing data from it current source.
+
+### Returns
+None
+
+### $client stop
+Stop analysis.
+
+### Parameters
+None
+
+### Description
+Stops analyzing data from the current data source. Note the data source is _not_ detached.  This can be problematic for blocking data sources that are adaptors for an online system.  Specifically, stopping analysis in the midst of a run can result in back-pressure flow control that eventually works its way back to the data source halting acquisition.
+
+For NSCLDAQ see the ```--non-blocking``` option in the ringselector application to avoid this problem.  This is decribed in the [NSCLDAQ Documentation](https://docs.nscl.msu.edu/daq/newsite/nscldaq-11.3/index.html).  See the ```1daq``` section of that table of contents and click on the ```ringselector``` link.
+
+### Returns
+None.
+
+### $client rootTreeCreate
+
+Create a root tree.
+
+### Parameters
+
+* *name* - name of the root tree.
+* *parameterPatterns* - list of glob patterns that specify the parameters that will be booked into the tree.
+* *gate* Optional patern.  Specifies a gate that will determine which events are added to the tree.  The default is an empty string which applies a True gate.
+
+### Description
+Roottrees are a bit like SpecTcl filters.  They too are only supported by SpecTcl.  Root trees  are file backed Root data files.  The tree created in that file by a root tree is a selected set of decoded parameters for each event.   The selection criterion is an ordinary SpecTcl gate.
+
+Unlike filters, which are only part of the event sink pipeline; RootTrees have feet both in the event processing pipeline and the event sink pipeline.  The event processing pipeline parts are responsible for opening/closing new files as new runs are encountered an the event sink pipeline is responsible for booking tree leaves for each event that satisfies the tree's gate.
+
+### Returns
+None
+
+### $client rootTreeDelete
+Deletes a root tree
+
+### Parameters
+* *name* - name of the tree to delete.
+
+### Description
+Flushes and closes the file associated with a root tree and then destroys the tree releasing all resources associated with it.
+
+### Returns
+None
+
+### $client rootTreeList
+Lists root trees and their properties.
+
+### Parameters
+* *pattern*  optional glob pattern.  If provided, only trees with names that match the pattern are included int the list.  If omitted, the pattern is treated as ```*``` which matches everything.
+
+### Description
+Lists the properties of all root trees that match the *pattern*.
+
+### Returns
+A list of dicts that have the following keys:
+
+* **tree** - name of of the tree.
+* **parameters** - list of the parameter patterns that are booked into the tree.
+* **gate** - Name of the gate that determines which event are booked into the tree.
+
+
+
 ## SpecTcl Command Simulation
 
 
