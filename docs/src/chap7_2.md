@@ -27,3 +27,7 @@ The number of request families is large.   Refer to the sidebar table of content
 
 *  You should understand the form of Uniform Resource Identifiers URIs; specifically query parameters and how to format them.
 *  You should be able to read simple Java Script Object Notation (JSON) objects.
+
+## Other notes:
+
+*  The client, when making requests of SpecTcl must be able to accept data with ```Content-Encoding: deflate``` as this is used in the resonses to the [```spectrum/contents``` request](./chap7_2_spectrum.md#spectclspectrumcontents).
