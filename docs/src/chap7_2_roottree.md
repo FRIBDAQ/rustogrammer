@@ -97,7 +97,7 @@ Lists the properties of root trees.
 **detail** is an array of objects.  Each object describes one root tree and has the following attributes:
 
 * **tree** (string) - name of the tree.
-* **params** (array of strings) - names of parameters that will be written to the tree.
+* **params** (array of strings) - Array of parameter patterns that are booked into the tree.
 * **gate** (string) - name of the tree's gate.  If the tree does not have a gate, this will be an empty string.
 
 
@@ -122,9 +122,8 @@ SpecTcl success with one matching tree:
         {
             "tree" : "atree",
             "params": [
-                "event.raw.00", "event.raw.01",
-                "event.raw.02", "event.raw.03",
-                "event.raw.04", "event.raw.05"
+                "event.raw.*",
+                "event.sum"
             ],
             "gate": "tree-gate"
         }
