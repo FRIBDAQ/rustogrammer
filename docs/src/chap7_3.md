@@ -1320,6 +1320,75 @@ Returns the shared memory update period.  See also [shm_set](#client-shmupdate_s
 ### Returns
 Number of seconds between updates of the rustogramer shared display memory.
 
+### $client spectrumList
+
+List spectrum properties.
+
+### Parameters
+
+* *pattern* - optional glob pattern. If provided, to be included in the resonse a spectrum's name must match the pattern. If not provided, the matching pattern defaults to ```*``` which matches all spectra.
+
+### Description
+
+Produces a list of the properties spectra  defined in the server.  Note that spectra do not have to be bound to display memory to be listed.  The *pattern* optional parameter allows the list to be filtered by names that match a glob pattern.
+
+### Returns
+List of dicts.  Each dict describes a spectrum.   In rustogramer all keys of the dict are returned but some may have empty values, if they are not relevantt o that type of spectrum.  In SpecTcl, irrelevant keys may be omitted.
+
+Dict keys are:
+
+* **id** - Integer id of the spectrum.  This is not really all that useful.
+* **name** - Name of the spectrum.
+* **type** - Spectrum types.  See the [SpecTcl command reference](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html) description of the ```spectrum``` command for a list of the valid spectrum type codes.
+* **parameter** - List of parameter required by the spectrum.  These are the same as you might provide to a ```spectrum -create``` command to SpecTcl
+* **axes** - List of axis definitions.  Each dict has the keys **low**, **high**, and **bins**.
+* **chantype**  - Data type of channels in the spectrum.  THis can be one of:
+    * *f64* - Rustogramer only - channels are 64 bit floating values.
+    * *long* - SpecTcl only, channels contain a 32 bit unsigned integer.
+    * *short* - SpecTcl only, channels contain a 16 bit unsigned integer.
+    * *byte*  - SpecTcl only, channels contain an 8 bit unsiged integer,
+* **gate** - If the spectrum is gated, the name of the gate.
+
+### $client spectrumCreate
+
+Get the server to make a new specttrum.
+
+### Parameters
+
+* *name*  - Name of the new spectrum.  This must not be the name of an existing spectcrum.
+* *type* - Spectrum type.  See the [SpecTcl command reference](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html) description of the ```spectrum``` command for a list of the valid spectrum type codes you can use here.
+* *parameters*  - List of parameters the spectrum uses. This is in the form used by the SpecTcl ```spectrum -create``` command.
+* *axes* List of spectrum axes.  With the exception of summary spectrum types, where this is a Y axis specification, there is always an X axis specification and, if the spectrum is a 2d type, a second axis in the list which is a Y axis specification.
+* *opts* - A dict of options.  Not all options are required.
+    *  *chantype*  Channel data type of the spectrum.  In SpecTcl, this defaults to *long* but can be *word* or *byte*.  In rustogramer, the channel type is unconditionally *f64*.
+    *  *direction* - Needed for *2dmproj* spectrum types.  This is the projection direction.
+    *  *roigate* - Optional for *2dmproj* spectrum types.  This can be an contour displayable on an underlying *m2* spectrum type within which the projection is done.
+
+Note that this allows the creation of a *2dmproj* spectrum without the initial creation of the underlying *m2* spectrum which is projected.   If this is done, you'll get a new spectrum with no initial counts but which is incremented as new data come in and which, would be a faithful representation of a projection of a virtual underlying *m2* spectrum.
+
+### Description
+
+Creates a new spectrum.  Note that this also allows the creatino of a *2dmproj* spectrum without requiring a source spectrum from which to make the initial projection.
+
+Spectra created will have no counts but will increment as new data arrive.
+
+### Returns
+None
+
+### $client spectrumDelete
+
+Delete a spectrum.
+
+### Parameters
+* *name* - name of the spectrum to delete.
+
+### Description
+* Deletes a spectrum.  If the spectrum is bound to display memory, resources it used in the display shared memory (the description header and channel soup section it used) are freed for re-use. 
+
+### Returns
+None
+
+
 ## SpecTcl Command Simulation
 
 
