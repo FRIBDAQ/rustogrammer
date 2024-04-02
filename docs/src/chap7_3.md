@@ -1184,6 +1184,142 @@ Deletes a pseudo parameter.  While the parameter will no longer be computed, its
 ### Returns
 None
 
+### $client sread
+
+Read spectrum from file.
+
+### Parameters
+
+* *filename* - Path, in the context of the server, to the file to read.
+* *options*  - Dict describing the options for the read:
+    *  **format** Format of the file (defaults to ASCII).
+    *  **snapshot** True if the spectrum read is a snapshot (true by default).
+    *  **replace** If true any existing spectrum with the same name is replaed (false by default).
+    *  **bind** If true, the spectrum read will be bound into display memory (true by default).
+
+### Description
+
+Reads a spectrum from a spectrum definition file.  Valid values for **format** are:
+*  ```ascii``` - SpecTcl ASCII format.
+*  ```json``` - Rustogramer JSON format (Supported by SpecTcl beginning with 5.13-014)
+*  ```binary``` - Deprecated VMS/SMAUG format (SpecTcl only).
+
+Note that while the ```sread``` command has the ability to read several spectra serially from a file (see ```sread``` in the [SpecTcl Command Reference](http://https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html)) the lack of shared state between ReST client anb server for this makes it impossible for ReST clients to do so.
+
+### Returns
+Nothing
+
+### $client ringformat
+
+Set the ring format for event file processing.
+
+### Parameters
+
+* *major* - major version of NSCLDAQ that took the data in the source.
+* *minor* - minor version of NSCLDAQ that took the data in the source. 
+
+### Description
+
+Data taken by NSCLDAQ are in ring item format, however, there are several payload formats.  The format of the ring item depends, largely on the major version of the NSCLDAQ that read it.
+This method sets the ring format.  Note tha the existence of a ring format item in the data itself can override this.
+
+### Returns
+None.
+
+### $client scontents
+
+Get the contents of  a spectrum.
+
+### Parameters
+
+* *name* - name of the spectrum.
+
+### Description
+
+Returns information about the spectrum statistics and the non zero channels.  For large 2-axis histograms this can be time/bandwidth expensive both due to the number of spectrum bins to look at in the server and the amount of data that might be returned in a dense spectrum.  If you really need to access spectrum contents at high bandwidt, you should look into the mirroring API as that provides much better bandwidth and much lower latency.
+
+### Returns
+
+A dict is returned. Note, for Rustogramer, all keys are present while for SpecTcl, the keys that don't make sense for the spectrum type (e.g. **yoverflow** for 1d spectrum types) can be omitted.
+The dict can have the following keys:
+
+* **xoverflow**  Number of overflow counts on the X axis.
+* **xunderflow** Number of underflow counts on the X axis.
+* **yoverflow**  Number of overflow counts for the Y axis of a 2d spectrum type.
+* **yunderflow** Number of underflow counts for the Y axis of a 2d spectrum type.
+* **channels**   List of bin content information dicts.  There will only be entries for bins that have non-zero counts.  Each dict has the keys:
+    * **x** - the X bin number.
+    * **y** - the Y bins number for 2d spectrum types.  Omitted in SpecTcl for 1d types and shold be ignored for 1d types in Rustogramer.
+    * **v** - The value of the bin (number of counts).
+
+
+The **channels** spectrum dicts have shortened keys to somewhat decrease the bandwidth requirements.  SpecTcl may also send its return value with ```deflate``` Content-Encoding as well to reduce the bandwidth requirements.
+
+### $client shmkey
+
+Return the server's shared memory identifier.
+
+### Parameters
+None
+
+### Description
+Returns the display shared memory identifier for the server. 
+
+### Returns
+A string with any of the following forms:
+
+*  Four characters with no ```:``` This is an SYSV shared memory key.
+*  A string that begins with ```sysv:``` and has four more characters; a SYSV shared memory key.
+*  A string that begins with ```file:``` the remainder of the string is the path to a file that can be memory mapped to get access to the shared memory.
+* A string that begins with ```posix:``` the remainder of the string is a POSIX shared memory identifier that can be accessed via ```shm_open```.
+
+
+### $client shmemsize
+
+Get display memory size.
+
+### Parameters
+None
+
+### Description
+Obtains the size of the shared display memory in bytes.
+
+
+### Returns
+
+Size of shared memory in bytes.
+
+### $client shmupdate_set 
+
+Rustogramer only - sets the shared memory update period.
+
+### Parameters
+
+* *seconds*  - minimum number of seconds between shared memory updates.
+
+### Description
+
+Rustogramer's display bound histograms are not directly incremented in shared memory, unlike SpecTcl.  This returns the update period in seconds.  Note that this is the minimum time between updates as load may stretch it out.;
+
+
+### Returns
+none
+
+
+### $client shmupdate_get
+get the shared memory update period (Rustogramer only).
+
+### Parameters
+
+None
+
+### Description
+
+Returns the shared memory update period.  See also [shm_set](#client-shmupdate_set).
+
+### Returns
+Number of seconds between updates of the rustogramer shared display memory.
+
 ## SpecTcl Command Simulation
 
 
