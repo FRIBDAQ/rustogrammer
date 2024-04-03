@@ -6,7 +6,7 @@ The following URIs are supported in this domain:
 
 * [```/spectcl/shmem/key```](#spectclshmemkey) Get shared memory attachment information
 * [```/spectcl/shmem/size```](#spectclshmemsize) Get the total size of the shared memory region.
-* [```spectcl/shmem/variables```'](#spectclshmemevariables) Provide the values of some "interesting" shared memory variables.
+* [```spectcl/shmem/variables```](#spectclshmemvariables) Provide the values of some "interesting" shared memory variables.
 
 ## /spectcl/shmem/key
 
@@ -87,8 +87,6 @@ Success:
 ```
 
 In this case the entire shared memory region, headers and spectrum channels  is ```209715200``` bytes.
-
-
 
 ## /spectcl/shmem/variables
 
