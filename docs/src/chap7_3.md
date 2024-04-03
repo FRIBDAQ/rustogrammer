@@ -1756,6 +1756,57 @@ Lists the event builder event processors (Those reated via [evbCreate](#client-e
 ### Returns
 List of strings that are the evb event processor names.
 
+### $client command
+
+Execute a Tcl command in the server's interpreter (SpecTcl only)
+
+### Parameters
+* *script* - The script to execute.
+
+### Description
+
+Executes a script in the server's interpreter.  
+
+### Returns
+The result of the command.
+
+### $client getVars
+
+Return informational variables.
+
+### Parameters
+None
+
+### Description
+SpecTcl holds some useful information in Tcl variables.  Rustogramer has muh of the same information available (in Rust data/variables).  This method returns these variables.
+
+### Returns
+A dict with the following keys:
+
+
+* **Displaymegabytes** (unsigned) - Megabytes of shared memory spectrum storage.
+* **OnlineState** (bool) - set ``true`` by some SpecTcl scripts that use ```attach -pipe``` to attach to the online DAQ system.  Rustogramer sets this to ```false```
+* **EventListSize** - The size of the event batch.  For SpecTcl this is the number of decoded events sent on each histogramming operation. For Rustogramer, the number of event ring items sent to the histogram thread in each operation.
+* **ParameterCount** (unsigned/string)- In SpecTcl, this is the initial size used for ```CEvent``` objects, while for Rusgtogramer this is the value "-undefined-"
+* **SpecTclHome** (string) - SpecTcl - the top level of the installation directory tree. for Rustogramer, this is the directory in which the executable was installed.
+* **LastSequence** (unsigned/string) - Number of ring items processed in the most recent run for SpecTcl, for Rustogramer, this is "--undefined-"
+* **RunNumber** (unsigned/string) - for SpecTcl, this is the run number of the most recently seen state change ring item.  For rustogramer this is "-undefined-"
+* **RunState** (int/string) - For SpecTcl this is nonzero if analysis is active or zero if not.  For Rustogramer this is "-undefined-".
+* **DisplayType** (string) - For SpecTcl this identifies the type of the displayer, e.g. ```qtpy```.  Rustogramer has no integrated displayer so it always returns ```None``` to be consistent with headless SpecTcl.
+* **BuffersAnalyzed** (unsigned/string) - The total number of ring items analyzed.  For SpecTcl, taken with **LastSequence** the fraction of events analyzed can be computed.  Rustogramer returns "-undefined-"
+* **RunTitle** (string) - Title from the most recent state change item for SpecTcl, "-undefined-" for rustohgramer.
+
+The following statistics attributes are present in SpecTcl but not in Rustogramer:
+
+* **Statistics(EventsRejectedThisRun)** (unsigned) - Number of eevents for which the event processing pipeline returned ```kfFALSE``` in this run.
+* **Statistics(RunsAnalyzed)** - Number of times a ```BEGIN_RUN``` ring item was seen when analyzing data.
+* **Statistics(EventsAnalyzed)** - Number of events analyzed.
+* **Statistics(EventsAccepted)** - Number of events for which the event processing pipline returned ```kfTRUE```
+* **Statistics(EventsAnalyzedThisRun)** - Number of events analyzed in the current run.
+* **Statistics(EventsRejected)** - Total number of events for which the event processing pipeline returned ```kfFALSE```.
+* **Statistics(EventsAcceptedThisRun)** - Number of  events in this run for which the event processing pipeline retunrned ```kfTRUE```
+
+
 ## SpecTcl Command Simulation
 
 
