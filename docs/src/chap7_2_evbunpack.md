@@ -43,7 +43,7 @@ Successful resopnse:
 ## /spectcl/evbunpack/add
 
 
-Associates an exiting, registered event processing pipeline with a source-id.  Events with fragments that match the source id will invoke that pipeline, passed the fragment's payload.
+Associates an exiting, registered event processor with a source-id.  Events with fragments that match the source id will invoke that pipeline, passed the fragment's payload.
 
 ### Query parameters
 
@@ -51,7 +51,7 @@ All parameters are mandatory.
 
 * **evpname**  (string) - Name of an event processor made via e.g. [/spectcl/evbunpack/create](#spectclevbunpackadd).
 * **source** (unsigned) - Source id that will be associated with the next parameter.
-* **pipe** (string) - Name of a registered event processing pipeline that will be run to process fragments from **source** in each event.
+* **pipe** (string) - Name of a registered event processor that will be run to process fragments from **source** in each event.  Note this is a badly named parameter.
 
 
 ### Response format detail

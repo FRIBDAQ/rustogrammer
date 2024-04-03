@@ -1702,6 +1702,59 @@ Create a copy of an existing pipeline (SpecTcl only).
 ### Returns
 None
 
+### $client evbCreate
+Create an event builder event processor (SpecTcl only).
+
+### Parameters
+* *name* - name of the new event processor.  This must be unique amongst event processors.
+* *frequency* - The timestamp clock frequency in floating point MHz.  This is used to create some time evolution diagnostic parameters.
+* *basename* - Textual base name for the diagnostic parameters.
+
+### Description
+To understand the event builder interfaces, see the [SpecTcl program reference](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/pgmref/index.html) description of ```CEventBuilderEventProcessor``` as these are the objects this set of interfaces manipulate.  See also the ```evbunpack``` command in the [SpecTcl command reference](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html) as that's the underlying command that these requests will invoke.
+
+This request creates a new event processor and registers it. The event processor itself is a ```CEventBuilderEventProcesssor```.  That processor understands how to iterate over the fragments in an event and dispatch to event processors registered to handle each expected source id.
+The new event processor has no registered source id handlers when created. 
+
+The idea is that you can use this to unpack raw data from event built data, as e.g. the first element of some event processing pipeline that is made current.
+
+### Returns
+Nothing.
+
+### $client evbAdd
+
+Register an event processor to handle a source id for a an event builder unpacker (SpecTcl only)
+
+### Parameters
+
+* *name*  - name of the event build event processor created with [evbCreate](#client-evbcreate) above.
+* *source* - Integer source id the processor will handle.
+* *processor* - Name of an event processor that will handle that source id.
+
+### Description
+The event builder unpackers managed by this API subset have an event processor registered for each source id that is expected from the raw data.   Note that for hierarchical event building, nothing stops you from using another event built event processor for the *processor* parameter.
+
+This method associates an event processor, *processor* with fragments from the source id *source*.  If there already was one for that source, it is no longer associated with that source.
+It is important to note that in spite of some mis-naming and inconsistencies in the source-code, *processor* is a processor not a pipeline.  This is usually not a problem because:
+
+*  Usually a single processor can make the raw data for the pipeline and additional processors after the event built data processor can compute from the resulting raw unpacking.
+*  It is pretty trivial to have an event processor that, itself, implements a pipeline of event processors which could be registered if needed.
+
+### Returns
+None
+
+### $client evbList
+
+Lists the event builder event processors (SpecTcl only).
+
+### Parameters
+* *pattern* - Optional glob pattern which the name of an evb event processor must match to be listed.  If omitted the matching pattern defaults to ```*``` which matches everything.
+
+### Description
+Lists the event builder event processors (Those reated via [evbCreate](#client-evbcreate)) with names that match the pattern.
+
+### Returns
+List of strings that are the evb event processor names.
 
 ## SpecTcl Command Simulation
 
