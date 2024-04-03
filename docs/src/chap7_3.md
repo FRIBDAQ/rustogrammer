@@ -1556,6 +1556,151 @@ A list of dicts that have the following keys:
 * **parameters** - list of the parameter patterns that are booked into the tree.
 * **gate** - Name of the gate that determines which event are booked into the tree.
 
+### $client pmanCreate
+
+Make an analyss pipeline (SpecTcl only).
+
+### Parameters
+
+* *name* - name of the new analysis pipeline.  This must not be the name of an existing pipeline.  The pipeline will, intially, have no event processors.
+
+### Description
+Creates a new, empty event processing pipeline.  A feature of SpecTcl 5 and later is that in addition to the initial, compiled in event analysis pipeline, applications can register event processors, create additional pipelines and switch them in and out as required.
+
+One use case.  An event analysis pipeline consisting of the filter decoder processing element could be created then made current to analyze filter files.  Other use cases might be to have a sigle SpecTcl with event processors registered for all of the detector systems you use with the analysis pipeline composed at startup from them, depending on the actual experiment.
+
+Note that the SpecTcl plug-in capability can also be used to dynamically load and register event processors and pipelines at run time.  See the [SpecTcl programming guide](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/pgmguide/index.html) chatper 11.
+
+### Returns
+None
+
+### $client pmanList
+
+List the names of all of the event processing pipelines (SpecTcl Only).
+
+### Parameters
+* *pattern* - optional pattern.  If supplied, this is a glob pattern. Only names matching the patter will be returned.  If not supplied, the matching pattern defaults o ```*``` which matches everything.
+
+### Description
+Lists the names (only) of all of the registered event processing pipelines.  Pipelines can be registered programmatically or at run time via [pmanCreate](#client-pmancreate), or in user C++ code.
+
+
+### Returns
+A Tcl list whose elements are the event processing piplines.  While the current pipeline manager dictionary will spit out the names in alphabetical order, you should not rely on that or any other order.
+
+### $pmanCurrent
+List the information about the current event procesing pipeline (SpecTcl only).
+
+### Parameters
+None
+
+### Description
+The current event processing pipeline is the one that raw events are dispatched to by SpecTcl to be turned into parameters.  This returns details about the current processing pipeline.  Note that the even processing pipeline created in the classical ```MySpecTclApp::CreateAnalysisPipeline``` method is called ```default```
+
+### Returns
+A dict that contains:
+*  **name** - the name of the current pipeline. The initial pipeline, unless changed by the user's MySpecTclApp implementation is ```default```
+* **processors** -Tcl  list of the event names of the event processors in the pipeline.  These names are in registration order and, therefore reflect the order in which they will be invoked to process an event. 
+
+
+### $client pmanListAll
+List all information about event procesing pipelines (SpecTcl only).
+
+### Parameters
+* *pattern* - optional glob pattern.  If supplied the names of pipelines must match the pattern to be included in the listing.  IF not provided the pattern matched against is ```*``` which matches everything.
+
+### Description
+Provides detailed information about all event processors that match *pattern*.  
+
+### Returns
+A Tcl list of Tcl dicts. Each dict contains the following keys:
+* **name** - name of the event processing pipeline.
+* **processors** - Tcl list of the names of the event processors in the pipeline.  The order of this list will be the order in which processors were added to the pipeline which, in turn, is the order in which the pipeline processors are called.
+
+### $client pmanListEventProcessors
+
+Lists the registered event processors (SpecTcl only).
+
+### Parameters
+* *pattern* - Optional glob pattern.  If supplied, processor names must match the pattern to be included.   If omitted, the match pattern defaults to ```*``` which matches everything.
+
+### Description
+Returns a list of the event processors that have been registered with the dynamic pipeline subsystem.  These are processors that can be added to event processing pipelines.  As a side note, an event processor, can be registered to more than one pipeline.  
+
+### Returns
+Tcl list of event processor names.  You should not rely on these to be in any order.
+
+### $client pmanUse
+
+Select the current event processing pipeline (SpecTcl only)
+
+### Parameters
+* *pipeline* - name of the event  processing pipeline to make current.
+
+### Description
+Select *pipeline* to be the current event processing pipeline.  The current event processing pipeline is the one that SpecTcl will hand events to for processing into parameters.  There can only be one current event processing pipeline.  If this succeeds, the previous current pipeline is available for future use (to be made current) but is not invoked for events.
+
+### Returns
+None
+
+### $client pmanAdd
+Adds an event processor to an event processing pipeline (SpecTcl only).
+
+### Parameters
+* *pipeline* - name of the event processing pipeline.
+* *processor* - name of the event processor to add.
+
+### Description
+
+Event processing pipelines are made up of an ordered list of event processors.  This method appends an event processor to the end of the list of event processors that make up a pipeline.  If or when the event processor  is made current, this implies tha the event processor will be invoked to process events fromt he data source.
+
+### Returns
+None.
+
+### $client pmanRemove
+
+Removes an event processor from an pipeline (SpecTcl only).
+
+### Parameters
+* *pipeline* - name of the pipeline to be edited.
+* *processor* - name of the event processor to remove from the pipeline.
+
+
+### Description
+Removes the named event processor from the named event processinug pipeline.
+
+
+### Returns
+None.
+
+### $client pmanClear
+Removes all event processors from a pipeline (SpecTcl only).
+
+### Parameters
+* *pipeline* - name of the pipeline to clear
+
+### Description
+Removes all event processors fromt he named pipeline.  Once this is done, if the pipeline were current, it would do nothing.
+
+### Returns
+None
+
+### $client pmanClone
+Create a copy of an existing pipeline (SpecTcl only).
+
+### Parameters
+* *source* - existing pipeline to clone.
+* *new* - Name of the new pipeline to create.
+
+### Description
+  You can think of this request as a way of using an existing event processing pipeline as a starting point for the create of a new pipeline.  
+  
+  For example, suppose you have a pipeline named
+  ```raw``` that has event processors  that create raw parameters from the detector data in the event.  Suppose further that you have event processors that create computed parameters from the raw parameters, and that during setup, you need to understand how to set treevariables to properly parameterize *those* event processors.  You could make a new pipeline named ```raw+computed``` by cloning ```raw``` and adding the computational event processors to ```raw+computed```.  
+
+  You could, during setup, make ```raw``` current and then, once the treevariables are set, make ```raw+computed``` current at which time SpecTcl will populate the computed values.
+### Returns
+None
 
 
 ## SpecTcl Command Simulation
