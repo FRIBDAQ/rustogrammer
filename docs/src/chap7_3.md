@@ -1666,6 +1666,31 @@ Removes an event processor from an pipeline (SpecTcl only).
 * *processor* - name of the event processor to remove from the pipeline.
 
 
+### $client mirror
+
+Return a list of the mirrors that are currently being served.
+
+### Parameters
+
+* *pattern* - Optional, if supplied this is a glob pattern.  The mirrors listed must have hosts that match *pattern*. If *pattern* is omitted, it defaults to ```*```
+
+### Description
+
+Both SpecTcl and Rustogramer can serve their display shared memories via a mirror server.  On linux the clients are smart enough to know if a specific host is already mirroring to a local shared memory and just attach to the mirror.
+
+This service provides a list of the mirrors active on the host to support exactly that sort of intelligence.
+
+### Returns
+
+A list of dicts that describe the active mirror clients.  Each dict contains the following keys:
+
+* **host** - A host which is mirroring.
+* **memory** - Identifies the shared memory local to the **host** in which the mirror is being maintained.  This has the forms:
+    *  Four characters - the key to a SYSV shared memory segment.
+    *  ```sysv:`` followed by four characters, the four characters are a SYSV memory key.
+    *  ```posix:``` followed by a string.  The string is A POSIX shared memory file.
+    *  ```file:``` followed by a stsring.  The string is a path to a file that is the backing store for the shared memory.  A ```mmap(2)``` of that file will, if permissions allow, gain access to that memory.
+
 ### Description
 Removes the named event processor from the named event processinug pipeline.
 
@@ -1806,6 +1831,85 @@ The following statistics attributes are present in SpecTcl but not in Rustograme
 * **Statistics(EventsRejected)** - Total number of events for which the event processing pipeline returned ```kfFALSE```.
 * **Statistics(EventsAcceptedThisRun)** - Number of  events in this run for which the event processing pipeline retunrned ```kfTRUE```
 
+### $client traceEstablish
+
+Establish an interest in obtaining changes to the parameter, spectrum, bindings and gate dictionaries.
+
+### Parameters
+
+* *retention* - minimum retention time for queued trace data.  Note that traces may be retained longer because trace data queues are only pruned when new trace data can be queued.
+
+### Description
+
+Traces in SpecTcl support notifying scripts of events that might require action in e.g. user interfaces.  They are a mechanism to avoid having applications poll for full spectrum, gate, parameter and display shared memory bindings to understand how to update their models of what is going on in SpecTcl (e.g. Tk displays).  ReST interfaces are inherently unable to directly implement the sorts of server notifications that tracing requires.
+
+Therefore, tracing in Rustogramer and SpecTcl works as follows:
+
+1.  A client registers interest in trace data by invoking the traceEstablish request.
+2.  Periodically, the client polls for new traces by invoking the [traceFetch](#client-tracefetch) request.
+3.  When no longer interested in trace data (e.g. on exit) the client performs a [traceDone](#client-tracedone) request.
+
+Clients that have established an interest in traces are given a token to use when polling for traces and when declaring they are done with traces.  In order to prevent the queued trace data from growing without bound if a client never does a traceDone request or  just does not perform traceFetch requests, the ReST server associates a *retention time* with each client/token.  When new trace data arrives, any queued trace data older than a client's retention time is removed fromt he queue.
+
+Therefore the client should set *retention* to a value significantly larger than it intends to poll for new traces.
+
+### Returns
+
+An integer trace token that should be used to identify iteself when performing
+[tracFetch](#client-tracefetch) and [traceDone](#client-tracedone) requests.
+
+Note it is possible for a cilent to outlast a server.  When that happens, the trace token will be invalid and an attemp to do a traceFetch will fail.   What to do at that point depends on the client.  It could re-establish its concept of the server's state and do another traceEstablish or, more usually exit.
+
+
+### $client traceDone
+
+Mark no longer interested in trace data.
+
+### Parameters
+* *token*  - The client token returned from [traceEstablish](#client-traceestablish).
+
+### Description
+Indicates the client is no longer interseted in polling for trace data.  The *token* passed in will no longer be valid on return.
+
+### Returns
+None
+
+### $client traceFetch
+Fetch client trace data
+
+### Parameters
+* *token* - the token gotten from [traceEstablish](#client-traceestablish).
+
+### Description
+
+Returns any trace data since the last invokation of traceFetch on this token.  Note that if the time since the last poll was longer than the retention period specified on [traceEstablish](#client-traceestablish) some traces may be lost.
+
+### Returns
+
+A dict containing the following keys:
+
+* **parameter** - array of parameter trace strings.
+* **spectrum** - array of spectrum trace strings.
+* **gate** - array of gate trace strings.
+* **binding** - array of display bindings trace strings.
+
+The value of each element of a trace array is a string the form of the string is:
+```
+operation target
+```
+
+where ```target``` is the name of the object that was affected by the operation (e.g. for spectrum traces a spectrum name)
+
+Valid trace operations for all but **binding** traces are:
+
+*  ```add``` - the object was added.
+* ```changed``` - the object was changed (really you'll only see this in gate traces).
+* ```delete``` - the named object was deleted.
+
+Bindings traces have these operations:
+
+*  ```add``` the named spectrum was bound into display shared memory.
+*  ```remove``` the named spetrum was unbound from display shared memory.
 
 ## SpecTcl Command Simulation
 
