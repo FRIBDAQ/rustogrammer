@@ -1913,5 +1913,171 @@ Bindings traces have these operations:
 
 ## SpecTcl Command Simulation
 
+Applications that are meant to run locally in the SpecTcl interpreter can also be easily ported to run over the ReST server using the SpecTcl command simulation package. This means that those peograms can also control Rustogramer *if* they stick to the set of commands for which there are functioning Rustogramer ReST services.
+
+This section:
+*  Shows how to [start up an application that use  SpecTcl command simulation](#how-to-get-started-with-an-existing-application) and
+*  [Describes the set of supported commands](#support-for-spectcl-commands) as well as which ones are not supported by Rustogramer.
+
+### How to get started with an existing application.
+
+This section presents a pair of sample framing scripts that show how you can use the SpecTcl command simulator to wrap existing applications.
+
+Both scripts assume 
+*  There is an environment variabla named ```RG_ROOT``` with a value that is the installation directory of Rustogramer. 
+*  There is an environment variable named ```RG_HOST``` with a value that is the name of the host on which the server is runing.
+*  There is an environment variable named ```RG_REST``` which has the ReST port on which the server is listening for requests.
+
+#### Wrapping an application using ```source```
+
+This wrapping assumes there is a Tcl script whose path is in the environment variable ```CLIENT_SCRIPT``` It
+*  Sets up the path to the SpecTclRestCommand package and includes it.
+*  Sets up the package to talk to the correct host and port.
+*  Starts the application's script using ```source```  In that case, note that the ```argv``` argument list is available to the application
+
+```tcl
+
+#  The package directory depends on the os:
+set package_dir $::env(RG_ROOT)
+set os $tcl_platform(platform);   # "windows" for windows. unix for linux e.g.
+
+if {$os eq "windows"} {
+    set package_dir [file join $package_dir restclients tcl]
+} elseif {$os eq "unix"} {
+    set package_dir [file join $package_dir share restclients Tcl]
+} else {
+    error "Unsupported operating system platform:  $os"
+}
+
+# Now we can load the package:
+
+lappend auto_path $package_dir
+package require SpecTclRestCommand
+
+#  Set up the package:
+
+set host $::env(RG_HOST)
+set port $::env(RG_REST)
+set debug 0;           # 1 if you want debugging output.
 
 
+SpecTclCommand::initialize $host $port $debug
+maintainVariables 1
+
+#  Start the application:
+
+set application $::env(CLIENT_SCRIPT)
+source $application
+```
+
+
+#### Wrapping an application using ```package require```
+
+This wrapping assumes that
+*  The application is encapsulated in a Tcl package and that loading the package will start the application.
+*  The application's package directory is in the envirionment variable ```APP_DIR```
+*  The application's package name is ```APP_PACKAGE```
+
+much of the code below is identical to that of the [previous example](#wrapping-an-application-using-source).
+
+```tcl
+#  The package directory depends on the os:
+set package_dir $::env(RG_ROOT)
+set os $tcl_platform(platform);   # "windows" for windows. unix for linux e.g.
+
+if {$os eq "windows"} {
+    set package_dir [file join $package_dir restclients tcl]
+} elseif {$os eq "unix"} {
+    set package_dir [file join $package_dir share restclients Tcl]
+} else {
+    error "Unsupported operating system platform:  $os"
+}
+
+# Now we can load the package:
+
+lappend auto_path $package_dir
+package require SpecTclRestCommand
+
+#  Set up the package:
+
+set host $::env(RG_HOST)
+set port $::env(RG_REST)
+set debug 0;           # 1 if you want debugging output.
+
+SpecTclCommand::initialize $host $port $debug
+maintainVariables 1
+
+#  Start the application:
+
+lappend auto_path $::env(APP_DIR)
+package require $::env(APP_PACKAGE)
+
+```
+
+### Support for SpecTcl commands:
+
+If the column labeled ```rustogramer support``` in the table below is empty, full support is available.  Parenthesized notes to the right of a row refer to numbered elements of the list below the table.
+
+```
++--------------------+-----------------+---------------------+
+| Command            | Supported       | rustogramer support |
++====================+=================+=====================+
+| apply              | Yes             |                     |
+| attach             | Yes             | only -file          |
+| sbind              | Yes             |                     |
+| fit                | Yes             | not supported       |
+| fold               | Yes             |                     |
++--------------------+-----------------+---------------------+
+| channel            | Yes             |                     |
+| clear              | Yes             |                     |
+| project            | Yes             |                     |
+| specstats          | Yes             |                     |
+| treeparameter      | Yes             |                     |
++--------------------+-----------------+---------------------+
+| treevariable       | Yes             | not supported       |
+| filter             | Yes             | not supported       |
+| gate               | Yes             | only rg gate types  |
+| integrate          | Yes             |                     |
+| parameter          | Yes             |                     |
++--------------------+-----------------+---------------------+
+| pseudo             | Yes             | not supported       |
+| sread              | Yes             | all but binary fmt  | (1)
+| ringformat         | Yes             |                     |
+| scontents          | Yes             |                     |
+| shmemkey           | Yes             |                     |
++--------------------+-----------------+---------------------+
+| spectrum           | Yes             | only rg spec types  |
+| unbind             | Yes             |                     |
+| ungate             | Yes             |                     |
+| version            | Yes             |                     |
+| swrite             | Yes             | all but binary fmt  | (1)
++--------------------+-----------------+---------------------+
+| start              | Yes             |                     |
+| stop               | Yes             |                     |
+| roottree           | Yes             | Not supported       |
+| pman               | Yes             | Not supported       |
+| evbunpack          | Yes             | not supported       |
++--------------------+-----------------+---------------------+
+| mirror             | Yes             |                     |
+| shmemsize          | Yes             |                     |
+| rootexec           | No              |                     | (2)
+| isRemote           | Yes             |                     |
+| tape               | No              |                     | (3)
++--------------------+-----------------+---------------------+
+| ungate             | Yes             |                     |
++--------------------+-----------------+---------------------+
+
+```
+Notes:
+1.  The sread command over the ReST interface does not support doing an sread from a file descriptor that was opened by the client side script.
+2.  See the execCommand proc however to get SpecTcl to do that.
+3.  This command is deprecated in SpecTcl.
+
+The proc ```maintainVariables``` fetches the current values of the spectcl variables.
+This requires an event loop such as Tk applications have or the ```vwait``` command runs for the duration of the ```vwait```
+If you want to be sure that you have the current values of the SpecTcl variables;  invoke 
+```updateVariables```.  
+
+#### Traces 
+
+The SpecTcl command simulator doe support all tracing.  The first time traces re requrested, the package informs the ReST server of its interest in traces.  It then starts an re-triggered timed proc that fetches and dispatches any traces.  All of this requires an event loop which you get in a Tk application and for the duration of a ```vwait```command.
