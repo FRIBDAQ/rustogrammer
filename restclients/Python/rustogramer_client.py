@@ -25,6 +25,7 @@ class RustogramerException(Exception):
         return f'Server Reported an error: {self.status} : {self.detail}'        
 
 class rustogramer:
+    debug = False
     """
        The rustogramer class is the client side object for Rustogramer
 
@@ -51,7 +52,8 @@ class rustogramer:
         # Create the URI:
 
         uri = "http://" + self.host + ":" + str(self.port) + "/spectcl/" + request
-        print(uri, queryparams)
+        if self.debug:
+            print(uri, queryparams)
         response = requests.get(uri, params=queryparams)
         response.raise_for_status()     # Report response errors.and
         result = response.json()
