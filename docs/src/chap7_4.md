@@ -76,3 +76,94 @@ The ```rustogramer_client.rustogramer``` class is the client for rustogramer's R
 < stuff needed to import rustogramer >
 rustogramer.debug = True    # I want debugging output.
 ```
+
+Below we describe the clent methods.
+
+### __init__ (constructor)
+#### Description 
+Constructs a new instance of the client object.  Note that the connection to the server is not tested.  Only performing actions on the server result in connections to the server as ReST is a single transaction protocol at that level.
+
+#### Parameters
+*  ```connection``` (dict)- This is a dict that decribes how the connection to the server will be done.  The keys determine how the connection is done and where:
+    *  **host** (string) - Required - The host on which the server is running. This can be the DNS name of the system or a dotted IP address.
+    * **port** (unsigned integer) - If using explicit port numbers the value of this key shoulid be the port number.
+    * **service** (string) - if using NSCLDAQ service lookups, this is the name of the service.  In that case, **port** should not be present and **pmanport** must be provided.
+    * **pmanport** (unsigned integer) - the port on which the NSCLDAQ port manager is listening. If service lookup is being used, this must be present. Normally, this will have the value ```30000```
+    * **user** (string) - If using NSLCDAQ service lookups and a user other than the user you are running under registered **service** this should be the username of the user that did.
+
+#### Returns
+
+An instance of a ```rustogramer``` class.  Methods on this object can be called to perform operations with the server.  In general, those operations will return a dict that has keys **status** and **detail**  note that if **status** was not ```OK``` a ```RustogramerException``` will be raised. The useful information will be in the value of the **detail** key.
+
+### apply_gate
+#### Description
+Applies a gate to one or more spectra.  The gate and spectrum must, of course already be defined.
+#### Parameters
+* *gate_name*  (string)- Name of the gate to apply.
+* *spectrum_name* (string or iterable of strings) - If a single string, this is the name of the one spectrum to which *gate_name* will be applied.  If an iterable of strings, this will be e.g. a list of the names of the spectra to which the gate will be applied.
+#### Returns
+ The **detail** key of the the returned dict will have nothing.
+
+### apply_list
+#### Description
+   Returns a list of gate applications.
+#### Parameters
+* *pattern* (Optional string defaults to ```*```) - A pattern that spectrum names must match to be inclded in the list.
+
+#### Returns
+The **detail** key of the returned dict is an iterable that contains dicts with the following keys:
+
+* **spectrum** (string)- name of a spectrum.
+* **gate**  (string)- Name of the gate applied to that spectrum.
+
+### ungate_spectrum
+#### Description
+
+Remove any gate from one or more spectra.
+
+#### Parameters
+* names (string or iterable of strings) - If a single string, the spectrum with that name will be ungated.  If an iterable, all of the named spectra in the iterable will be ungated.
+
+#### Returns
+
+**detail** has nothing useful.
+
+
+### get_chan
+#### Description
+
+Get the value of a spectrum channel.
+
+#### Parameters
+* *name* (string) - name of the specturm.
+* *x*    (number) - X channel.
+* *y*    (number, optional) - Y channel, only required if the spectrum has two axes.
+
+#### Returns
+
+**detail** contains a number  which is the number of counts in the specified bin of the spectrum.
+
+### set_chan
+#### Description
+Sets the contents of a spectrum bin to the desired value.
+
+
+#### Parameters
+* *name* (string) - name of the specturm.
+* *x*    (number) - X channel.
+* *value* (number) - counts to set in the desired channel
+* *y*    (number, optional) - Y channel, only required if the spectrum has two axes.
+
+
+#### Returns
+
+**detail** contains nothing useful.
+
+
+
+
+
+
+
+
+
