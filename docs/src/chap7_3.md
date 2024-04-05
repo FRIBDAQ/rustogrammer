@@ -2081,3 +2081,17 @@ If you want to be sure that you have the current values of the SpecTcl variables
 #### Traces 
 
 The SpecTcl command simulator doe support all tracing.  The first time traces re requrested, the package informs the ReST server of its interest in traces.  It then starts an re-triggered timed proc that fetches and dispatches any traces.  All of this requires an event loop which you get in a Tk application and for the duration of a ```vwait```command.
+
+If you are not a Tk application you can, from time to time enter the event loop for a fixed number of milliseconds using code like this:
+
+```tcl
+proc updateTraces {miliseconds} {
+    after $milliseconds incr ::_trace_update_variable
+    vwait ::_trace_update_variable
+}
+
+...
+updateTraces 100;     #  Enter event loop for 100ms.
+```
+
+Note that the proc ```updateTraces``` above will run for the number of milliseconds specified.
