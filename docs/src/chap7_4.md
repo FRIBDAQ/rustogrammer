@@ -250,7 +250,7 @@ Creat an event built data unpacker.  This is only supported by SpecTcl and is pa
 
 ### evbunpack_add
 #### Description
-Register an event processor to handle data from a source id.  If one has been registered previously it is replaced.   It is legal to register the same event processor to handle more than one source (though it is up to the processor to know how to use the source id to determine which parameters each source should generate).
+Register an event processor to handle data from a source id.  If one has been registered previously it is replaced.   It is legal to register the same event processor to handle more than one source (though it is up to the processor to know how to use the source id to determine which parameters each source should generate).  Only supported by SpecTcl
 #### Parameters
 * *name*  (string)  -name of the event built event procesor.
 * *source_id* (unsigned) - Source id on which to register.
@@ -260,22 +260,89 @@ Register an event processor to handle data from a source id.  If one has been re
 
 ### evbunpack_list
 #### Description
-List the event builder unpackers.
+List the event builder unpackers. Only supported by SpecTcl
 #### Parameters
 None
 #### Returns
-**detail** is an interable of strings.  Each string the name of an event built data unpacker created via e.g. *evbunpack_create*.
+**detail** is an iterable collection of strings.  Each string the name of an event built data unpacker created via e.g. *evbunpack_create*.
 
+### request_exit
+#### Description
+As the server to exit.  Currently this is only supported by Rustogramer.  After returning the response to the request, the server will do an orderly shutdown.
+#### Parameters
+None
+#### Returns
+**detail** has nothing useful
 
+### filter_new
+#### Description
+Create a new filter.  This is only implemented in SpecTcl.
+#### Parameters
+* *name* (string) - name of the filter.
+* *gate* (string) - Gate which will select events that are written by the filter.
+* *parameters* (iterable string collection) - Names of the parameters that will be written for each event that makes *gate* true.
 
+#### Returns
+**detail** is nothing useful.
 
+### filter_delete
+#### Description
+Destroys a filter.  Once deleted a filter will no longer writte data.  This is only implemented in SpecTcl.
+#### Parameters
+* *name* (string) - Name of the filter to delete.
+#### Returns
+**detail** contains nothing useful.
 
+### filter_enable
+#### Description
+Turns on a filter. A filter can be enabled if it is associated with an output file.  Enabling a filter means that it will write events to the output file beginning with the next evnt that satisfied its gate. Only supported by SpecTcl
 
+#### Parameters
+* *name* (string)- name of the filter to enable.
+#### Returns
+**detail** has nothing useful.
 
+### filter_disable
+#### Description
+Turns of a filter.  The filter will no longer write data to its output file until it is once more enabled. Only supported by SpecTcl
+#### Parameters
+* *name* (string) - name of the filter.
+#### Returns
+**detail** has nothing useful.
 
+### filter_regate
+#### Description
+Changes the gate that is used to select events the filter will write. Only supported by SpecTcl
+#### Parameters
+* *name* (string)- name of the filter.
+* *gate_name* (string) - Name of the new gate for the filter.
+#### Returns
+**detail** contains nothing useful.
 
+### filter_setfile
+#### Description
+Sets the output file for the filter.  Since filters are written by the server, the filename/path must make sense in the server's context. Only supported by SpecTcl
 
+#### Parameters
+* *name* (string) - name of the filter.
+* *path* (string) - Path to the file to write, in the context of the server.
+#### Returns
+**detail** contains nothing useful.
 
+### filter_list
+#### Description
+List the properties of filters. Only supported by SpecTcl
+#### Parameters
+None
+#### Returns
+An iterable that contains dictionaries with the following keys:
+
+* **name** (string) - name of the filter.
+* **gate** (string) - name of the gate that determines which events are written to the filter file.
+* **file** (string) - Path to the file the filter will write.  
+* **parameters** (iterable of strings) - Names of parameters that are being written each event.
+* **enabled** (string) - If the filter is enabled, this will be ```enabled``` if not, ```disabled```.
+* **format** (string) - format of the filter file (e.g. ```xdr```).
 
 
 
