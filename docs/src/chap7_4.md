@@ -429,6 +429,203 @@ Unfolds a previously folded spectrum.
 **detail** returns nothing interesting.
 
 
+### condition_list
+#### Description
+Lists the properties of conditions (gates) that have names that match a pattern.
+
+#### Parameters
+* *pattern* (string) - Names of conditions listed must match this optional pattern. If not supplied, this defaults to ```*``` which matches all strings.
+
+#### Returns
+An iterable containing dicts with the following keys.
+
+* **name** (string) - name of the condition.
+* **type** (string) - contidion type. See the ```gate``` command in the [SpecTcl command Reference](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html) for valid type strings.
+* **gates** (iterable) - Iterable containing strings which are the gates this condition depends on if it is a compound gate.
+* **parameters** (iterable) - Iterable containing strings which are the parameters this condition depends on if it is a primitive gate.
+* **points** (iterable) - Iterable containing dicts if the condition is a 2-d geometric shape.  Each dict contains **x** - the X coordinate and **y** the Y coordinate of a point which are floats.  These points define the acceptance region for the condition in accordance with the condition type.
+* **low**, **high** (floats) - the low and high limits of the acceptance region of a condition that represents a 1D acceptance region.
+
+### condition_delete
+#### Description
+Deletes a condition.
+#### Parameters
+* *name* (string) - name of the gate to delete.
+#### Returns
+Nothing.
+
+
+
+Note that if the server is SpecTcl only the appropriate keys may be present.
+
+### condition_make_true
+#### Description
+Creates a condition that is always true.
+#### Parameters
+* *name* (string) - Name of the new condition to create. If there is already a condition with this name it is replaced.
+#### Returns
+Nothing
+
+### condition_make_false
+#### Description
+Create a condition that is never true (always false).
+#### Parameters
+* *name* (string) -Name of the new condition.
+#### Returns
+Nothing
+
+### conditio_make_not
+#### Description
+Makes a condition that is the logical inverse of the dependent codition.
+#### Parameters
+* *name* (string)  - Name of the condition being made.
+* *negated* (string) - The name of the condition that will be negated to make this new condition.
+#### Returns
+Nothing.
+
+### condition_make_or
+#### Description
+Create an or compound gate.  The condition is true when any component condition is true.
+
+#### Parameters
+* *name* (string) - name of the condition.
+* *components* (iterable) - Iterable of the condition names that are evaluated to evaluate this condition.
+#### Returns
+None
+
+### condition_make_and
+#### Description
+Create an and condition.  This condition is true only if *all* of its component conditions are also otrue.
+#### Parameters
+* *name* (string) name of the condition.
+* *components* (iterable) - Iterable of the condition names that are evaulated.
+#### Returns
+None
+
+
+
+
+### condition_make_slice
+#### Description
+Create a 1-d slice gate on a parameter.
+#### Parameters
+* *name* (string) - name of the slice.
+* *parameter* (string) - Parameter that must be inside the slice to make the condition true.
+* *low* *high* (floats) - The low and high limits of the slice's region of acceptance.
+#### Returns
+Nothing
+
+### condition_make_contour
+#### Description
+Create a closed contour condition that is rue whenver the pair of parameters define a point that is inside the contour.  Insidedness is evaluated using the odd crossing rule:  A point is inside the contour if a line drawn in any direction crosses an odd number of figure boundaries. Note that zero is even for this evaluation.
+#### Parameters
+
+* *name* (string)  - name of the contour codition.
+* *xparameter* (string) -name of the parameter that will provide the x coordinate of the point.
+* *yparameter* (string) _ name of the parameter that will provide the Y coordinate of a point.
+*  *coords* (itarable) - Iterable whose values are dicts that have the keys **x** and **y** with values that are floats that are the X and Y coordinates of the figure respectively.
+#### Returns
+Nothing.
+
+### condition_make_band
+#### Description
+Crate a band condition.  A band is defined by an ordered set of points in a 2d parameter space.  The condition is true for points that are below the polyline defined by the points.  If the polyline backtracks the higher of the two line segments in a region defines the band.
+#### Parameters
+* *name* (string) - Name of the band condition.
+* *xparameter* (string) - name of the parameter that contributes the x coordinate of the event.
+* *yparameter* (string) -name of the parameter that contributes the y coordinate of the vent.
+* *coords* (interable) - iterable of dicts that contain the keys:  **x** and **y** which provide x and y floating point coordinates for the band's polyline.
+#### Returns
+Nothing
+
+### condition_make_gamma_slice
+#### Description
+Create a gamma slice. A gamma slice is like a slice, however there are an unbounded number of parameters. The slice is true if any of them make the slice true.  You can, therefore, think of a gamma slice as  the or of identical slices on all of the paramters in the gamma slice.  These slices are also useful as folds.
+#### Parameters
+* *name* (string) - Name of the conditionn.
+* *parameters* (iterable) - each iteration produces a string that is the name of a parameter the condition is checked against.
+* *low*, *high* (floats) - the limits that define the acceptance region for the condition.
+
+#### Returns
+nothing
+
+### condition _make_gamma_contour
+#### Description
+Creates a gamma contour on a set of parameters.  A gamma contouur is like the OR of identical contours defined on all pairs of parmeters as both X and Y parameters.
+#### Parameters
+* *name* (string) - name of the condition.
+* *parameters* (iterable) - Contains the names of the parameters the contour will be evaluated on.
+* *points* (iterable) - Contains the points as dicts with the keys **x** and **y** where each coordinate in the point is a floating point value.
+#### Returns
+Nothing
+
+### condition_make_gamma_band
+#### Description
+Same as a gamma contour, however the ponts define a band not a contour.
+#### Parameters
+* *name* (string) - name of the condition.
+* *parameters* (iterable) - Contains the names of the parameters the band will be evaluated on.
+* *points* (iterable) - Contains the points as dicts with the keys **x** and **y** where each coordinate in the point is a floating point value.
+#### Returns
+Nothing
+
+
+### condition_make_mask_equal
+#### Description
+Makes a condition that is true if the parameter taken as an integer is identical to the mask.
+#### Parameters
+* *name* (string) - name of the condition.
+* *parameter* (string) - parameter to evaluate the condition.
+* *value* (unsigned) - Integer value of the mask.k
+#### Returns
+Nothing
+
+
+### condition_make_mask_and
+#### Description
+Makes a condition that is true if the parameter taken as an integer is identical to the mask.
+#### Parameters
+* *name* (string) - name of the condition.
+* *parameter* (string) - parameter to evaluate the condition.
+* *value* (unsigned) - Integer value of the maskk
+#### Returns
+Nothing
+
+### condition_make_mask_equal
+#### Description
+Makes a condition that is true if the parameter taken as an integer that when bitwise *and*ed with the parameter is identical to the mask.
+#### Parameters
+* *name* (string) - name of the condition.
+* *parameter* (string) - parameter to evaluate the condition.
+* *value* (unsigned) - Integer value of the mask.k
+#### Returns
+Nothing
+
+
+### condition_make_mask_nand
+#### Description
+Makes a condition that is true if the parameter taken as an integer is equal to the bitwise inverse of the mask.
+#### Parameters
+* *name* (string) - name of the condition.
+* *parameter* (string) - parameter to evaluate the condition.
+* *value* (unsigned) - Integer value of the mask.k
+#### Returns
+Nothing
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
