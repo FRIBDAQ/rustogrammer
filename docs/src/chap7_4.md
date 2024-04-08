@@ -77,7 +77,17 @@ The ```rustogramer_client.rustogramer``` class is the client for rustogramer's R
 rustogramer.debug = True    # I want debugging output.
 ```
 
-Below we describe the clent methods.
+Below we describe the clent methods.  Note that all methods also have docstrings in the code so you can interactively get information about them from the Python ```help``` function e.g.:
+
+```
+help(rustogramer.condition_list)
+Help on function condition_list in module rustogramer_client:
+
+condition_list(self, pattern='*')
+    Returns a list of defined conitions.  Conditions returned must
+    have names that match the optional pattern parameter which is a glob pattern.
+    If the pattern is omitted, it defaults to "*" which matches all gates.
+```
 
 ### __init__ (constructor)
 #### Description 
@@ -388,6 +398,36 @@ Returns a Tcl proc that can be evaluated at any point to evaluate the fit (SpecT
 #### Returns
 
 **detail** contains a Tcl procedure which takes a single parameter as an argument.  When called the proc will evaluate the fit at the point passed in.   The proc evaulates the fit only as of the most recent update and is not dynamic (that is if you upate a fit again, you should re-fetch the proc).
+
+### fold_apply
+#### Description
+Apply a fold to a spectrum.  Folded spectra must be gamma spectra.
+
+#### Parameters
+* *fold* (string) - name of the gate used to fold the gamma spectrum.
+* *spectrum* (string) - name of the spectrum to fold.
+
+#### Returns
+**detail** contains nothing.
+
+### fold_list
+#### Description
+List the properties of folds that match the pattern.
+#### Parameters
+* *pattern* (string) - optional pattern that folded spectra must macth to be listed.
+#### Returns
+**detail** consists of an iterable of dicts.  The dicts have the following keys:
+**spectrum** (string) - name of a folded spectrum.
+**gate** (string)  - name of the gate folding the spectrum.
+
+### fold_remove
+#### Description
+Unfolds a previously folded spectrum.
+#### Parameters
+* *spectrum* (string) - name of the spectrum to unfold.
+#### Returns
+**detail** returns nothing interesting.
+
 
 
 
