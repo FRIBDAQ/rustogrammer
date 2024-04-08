@@ -344,6 +344,57 @@ An iterable that contains dictionaries with the following keys:
 * **enabled** (string) - If the filter is enabled, this will be ```enabled``` if not, ```disabled```.
 * **format** (string) - format of the filter file (e.g. ```xdr```).
 
+### fit_create
+#### Description
+Creates a new fit object.  SpecTcl only.
+#### Parameters
+* *name* (string)- name of the fit object
+* *spectrum* (string)  - name of the spectrum on which the fit is defined.
+* *low*, *high* (floats) - Limits over which the fit will be performed.
+* *type* (string) - type of fit to do.  See he documentation of the fit command in the
+[SpecTcl command referend](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html
+#### Returns
+**detail** contains nothing useful.
+
+
+### fit_update
+#### Description 
+Recompute set of fits. SpecTcl only.
+#### Parameters
+* *pattern* (string) - Fits must have names that match the pattern to be updated.  If not provided this defatults to ```*``` which matches all strings.
+#### Returns
+
+A list of dicts. Each dict describves a fit an dcontains the following keys:
+
+* **name** (string)- Name of the fit.
+* **spectrum** (string)- name of the spectrum on which the fit is computed.
+* **type** (string) - type of the fit.
+* **low**, **high** (floats) - Limits of the fit.
+* **parameters** (dict) - Fit parameters.  The keys depend on the fit type, however fits should provide a **chisquare**  which would hold the goodness of the fit.
+
+### fit_delete
+#### Description
+Delete a fit (SpecTcl only).
+#### Parameters
+* *name* (string)- name of the fit to delete.
+#### Returns
+**detail** has nothing useful.
+
+### fit_proc
+#### Description
+Returns a Tcl proc that can be evaluated at any point to evaluate the fit (SpecTcl Only).
+#### Parameters
+* *name* (string) - Name of the fit.
+#### Returns
+
+**detail** contains a Tcl procedure which takes a single parameter as an argument.  When called the proc will evaluate the fit at the point passed in.   The proc evaulates the fit only as of the most recent update and is not dynamic (that is if you upate a fit again, you should re-fetch the proc).
+
+
+
+
+
+
+
 
 
 
