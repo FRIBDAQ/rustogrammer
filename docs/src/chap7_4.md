@@ -236,6 +236,40 @@ This allows the number of events in a batch to be set.  Larger values are more e
 **detail** contains nothing useful.
 
 
+### evbunpack_create
+#### Description
+Creat an event built data unpacker.  This is only supported by SpecTcl and is part of the dynamic event processing pipeline subsystem.  An eventbuilt data unpacker is an event processor that can assign event processors to handle data for fragments from each expected source id.  Unhandled source ids are simply skipped.
+
+#### Parameters
+* *name*  (string) - name by which the event processor will be referred.
+* *frequency* (float) - The event building clock in MHz.  This is used to produce diagnostic parameters.
+* *basename* (string) - The base name from which the diagnostic parameters will be created.  For example, if *basename* is ```evb_diag``` the timestamp in seconds for each event will be called. ```evb_diag.run_time```
+
+#### Returns
+**detail** will contain nothing useful.
+
+### evbunpack_add
+#### Description
+Register an event processor to handle data from a source id.  If one has been registered previously it is replaced.   It is legal to register the same event processor to handle more than one source (though it is up to the processor to know how to use the source id to determine which parameters each source should generate).
+#### Parameters
+* *name*  (string)  -name of the event built event procesor.
+* *source_id* (unsigned) - Source id on which to register.
+* *processor_name* (string) - name of the evnt processor that will handle fragments with the *source_id* specifiedl
+#### Returns
+*detail* has nothing useful.
+
+### evbunpack_list
+#### Description
+List the event builder unpackers.
+#### Parameters
+None
+#### Returns
+**detail** is an interable of strings.  Each string the name of an event built data unpacker created via e.g. *evbunpack_create*.
+
+
+
+
+
 
 
 
