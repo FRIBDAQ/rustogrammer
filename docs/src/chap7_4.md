@@ -160,6 +160,92 @@ Sets the contents of a spectrum bin to the desired value.
 **detail** contains nothing useful.
 
 
+### attach_source
+#### Description
+Attach a data source for analysis.  Note:
+
+*  If a data source is attached it may be detached even if this fails.  
+*  Once a data source is attached, analysis must be explicitly started.
+*  Rustogramer only supports file data sources while SpecTcl supports file and pipe data sources.  See Parameters below.
+
+#### Parameters
+
+*  *type* (string) the type of data source.  This can be either ```file``` or ```pipe```. 
+*  *source* (string) the source for that type:
+    *  If the source is ```file``` this must be the path to that file in the context of the server.
+    *  If the source is ```pipe``` this must be the program invocation line to run on the other end of the pipe. Note that:
+        * PATH is in the context of the server.  
+        * The program will not have a shell. 
+        * The program must emit data in the format expected by the server to its stdout as that will be connected to the write end of the pipe while the server will be connected to the read end.
+* *format* (optional string) - THe format of data produced by the source.  This can be one of:
+    * ```ring``` - the default if not supplied.  Data comes from NSCLDAQ ring buffer based systems (NSCLDAQ 10 and later).
+    * ```nscl``` - Fixed size  buffers in NSCLDAQ 8 or earlier format.  Only supported by SpecTcl.
+    * ```jumbo``` - Fixed sized buffers in NSCLDAQ 8 or later with sizes that can be larger than 64Kbytes. Only supported by SpecTcl.
+    * ```filter```  - XDR Filter format. Only supported by SpecTcl.
+* *size* (optional unsigned) - Size of the reads done on the data source.  For fixed size block formats (```nscl```, ```jumbo``` and ```filter```), this must be the size of the block in the data.  E.g. for ```nscl``` and ```filter``` this must be ```8192```.  For ```ring``` this can be anything as ring items are properly assembled across block boundaries.  THis is actually ignored by Rustogramer which reads one ring item at a time.
+
+
+#### Returns
+Nothing useful in **detail**
+
+### attach_show
+#### Description
+Describes what the attached data source is.
+#### Parameters
+None
+#### Returns
+**detail** is a string that contains a connection description string.  For example, for a  file data source, this will be something like ```File: <path to filename>``` while for a pipe:
+```Pipe: <full program invocation string>```
+
+### detach_source
+#### Description
+Detaches the current data source.  What this means depends on the server.  Rustogramer does support being detached from a data source while SpecTcl does not, therefore this is implemented by attaching SpecTcl to the file ```/dev/nulll```
+#### Parameters
+None
+#### Returns
+**detail** is nothing useful.
+
+### start_analysis
+#### Description
+Start analyzing data from the current data source. 
+
+ SpecTcl is initially attached to a test data source which supplies ring items that contains fixed size test data.  When "detached", SpecTcl is actually attached to ```/dev/null``` and therefore SpecTcl will immediately see an end file.
+
+Rustogramer,  will return an error if the program is not attached to anything.
+#### Parameters
+None
+#### Returns
+**detail** is not useful.
+
+### stop_analysis
+#### Description
+Stops analysis from any current data source.  If analysis is not active an error is returned.
+#### Parameters
+None
+#### Returns
+**detail** as nothing useful.
+
+### set_batch_size
+#### Description
+Rustogramer only.  The input thread in Rustogramer reads a ring item at a time until a *batch* of ring items have been read. At that point, the entire batch of ring item data are submitted to the histograming thread for processing.
+
+This allows the number of events in a batch to be set.  Larger values are more efficient, but the histogram updates will have higher latencies.  Smaller values, reduce the latency but are lesss efficient.
+#### Parameters
+* *num_events*   Number of events in a batch.
+#### Returns
+**detail** contains nothing useful.
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
