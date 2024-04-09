@@ -713,6 +713,108 @@ None
 **detail** is a version string e.g. "2.1"
 
 
+### parameter_create
+#### Description
+Create a new parameter with metadata.  Note that the metadata are passed as a dict where only the keys for the desired metadata need be supplied.
+#### Parameters
+* *name* (string) - name of the parameter. Cannot be the name of an existing parameter.
+* *poperties* (dict) - Dict of the desired metadata.  You only need to supply keys for metadata for which you want to override the defaults.  The defaults are chosen to be close to SpecTcl/treeGUI default metadata for axes.  The following keys in this dict are used (if present) to set metadata
+    * **low** (float) - Suggested low axis limit.  Defaults to 0.0 if not provided.
+    * **high** (float) - Suggested high axis limit.  Defaults to 100.0 if not provided.
+    * **bins** (unsigned > 0) - Suggested axis binning. Defaults to 100 if not provided.
+    * **units** (string) - Units of measure. Defaults to "" if not provided.
+    * **description** (string) - Rustogramer only.  A description that documents the purpose of the parameter.  Defaults to "" if not provided.
+#### Returns
+Nothing useful in **detail** on success.
+
+### parameter_modify
+#### Description
+Modify the metadata for an existing parameter.  
+#### Parameters
+* *name* (string) - name of the parameter.
+* *properties* (dict) - Properties to modify.  See [parameter_create](#parameter_create) for a description of this parameter.
+
+#### Returns
+**detail** has nothing useful.
+
+### parameter_promote
+#### Description
+Given a raw parameter promotes it to a tree parameter.  This is only meaningful in SpecTcl as all Rustogramer parameters are tree parameters.
+#### Parameters
+* *name* (string) - Name of the parameter.
+* *properties* (dict) - Metadata for the parameter.  See [parameter_create](#parameter_create) for a description of the metadata keys.
+#### Returns
+Nothing useful.
+
+### parameter_check
+#### Description
+Returns the check flag for a parameter.  If a parameter's metadata has bee modified, the check flag is set.  This is so that when saving state one can limit the parameter state saved to only those parameters whose definitions have changed at run-time.
+
+See also [parameter_uncheck](#parameter_uncheck)
+
+#### Parameters
+* *name* -name of the parameter to fetch the check flag for.
+#### Returns
+
+**detail** is an integer that is non-zero if the check fla was set.
+
+### parameter_uncheck
+#### Description
+Unsets the parameter's check flag.  See [parameter_check](#parameter_check) for a description of this flag.
+#### Parameters
+* *name* (string) - name of the parameter to modify.
+#### Returns
+Nothing useful.
+
+### rawparameter_create
+#### Description
+Create a raw parameter.  This is really different from [parameter_create](#parameter_create) only for SpecTcl.  Creates a parameter definition and metadata for a parameter that is *not* a tree parameter.  For SpecTcl, this is an important distinction because these parameters:
+*  Are invisible to [parameter_list](#parameter_list), however see [rawparameter_list_by_name](#rawparameter_list_by_name) below.
+*  Cannot be bound via a ```CTreeParameter``` object but only accessed programmatically via an index in ```CEvent```.
+
+
+#### Parameters
+* *name* (string) - Name of the parameter to create, must not be used.
+* *properties* (dict) - properties that contain the proposed metadata for the parameter.  If a key is not provided, that metadata will not be defined for the parameter.
+    * **number** (unsigned) - parameter id - this is required.
+    * **resolution** (unsigned) - This is recommended for parameters that are raw digitizer values.  It represents the number of bits in the digitizer and implies setting the **low** and **high** metadata below.
+    * **low** (float) - recommended low limit for axes on this parameter.
+    * **high** (float) - recommended high limit for axes on this parameter.
+    * **units** (string) - Units of measure.
+
+Note that you should use either **resolution** *or* **low** and **high** but no both.
+
+#### Returns
+Nothing useful.
+
+### rawparamter_list_byname
+#### Description
+Given a pattern, list the raw parameters that match that pattrern and their properties.
+#### Parameters
+* *pattern* (string) - Optional glob pattern that filters the returned to only the parameters that match the pattern.  If omitted, this defaults to ```*``` which maches everything.
+
+#### Returns
+**detail** is an iterable that contains dicts.  The dicts have the following keys.  Keys are only present in SpecTcl if the corresponding metadata was provided for the parameter.  In Rustogramer, the missing keys are there but have the ```null``` value.
+
+* **name** (string) - name of the parameter.
+* **id** (unsigned) - Parmaeter id (set with the **number** metadata).
+* **resolution**(unsigned > 0) -  Only present if the **resolution** metadata was set.
+* **low**, **high** (floats) - recommended axis limits for this parameter.
+* **units** (string) - Units of measure.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
