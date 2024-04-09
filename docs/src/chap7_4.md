@@ -840,6 +840,59 @@ None
 * **major** (unsigned) - major version of the ring format.
 * **minor** (unsigned) - minor version of the ring format (always ```0```).
 
+### sbind_all
+#### Description
+Attempts to bind all spectra to the display shared memory.  This can only fail if either:
+*  There are more spectra than there are spectrum description headers.
+*  The channel soup part of the display shared memory  is not large ennough to accomodate all of the spectra.
+#### Parameters
+None
+#### Returns
+None.
+
+### sbind_spectra
+#### Description
+Bind selected spectra to shared memory.
+#### Parameters
+* *spectra* (iterable) - Iterable of spectrum names that should be bound.
+#### Returns
+None.
+
+### sbind_list
+#### Description
+List bound spectra and their bindings for spectra with names that match a pattern.
+#### Parameters
+* *pattern* (string) - Optional glob pattern. Only bound spectra with names that match *pattern* are listed. Note that if this is omitted the pattern defaults to ```*``` which matchs everything.
+#### Returns
+**detail** is an iterable containing dicts.  The dicts have the following keys:
+* **spectrumid** (unsigned) - Useless integer.
+* **name**  (string) - name of the spectrum.
+* **binding** (unsigned) - Spectrum descriptor slot number that was assigned to the spectrum in the display shared memory.
+
+### sbind_set_update_period
+#### Description
+Rustogramer only.  SpecTcl spectra are incremented directly into shared memory.  The histogram package used by rustogramer does not support this.  Therefore, it is necessary to periodically update the shared memory contents.  This method sets the time between these updates.
+#### Parameters
+* *seconds* (unsigned > 0) - number of seconds between updates.
+#### Returns
+None
+
+### sbind_get_update_period
+#### Description
+Rustogramer only. Return the spectrum shared memory refresh peiord.
+See [sbind_set_update_period](#sbind_set_update_period) for a description of this value.  
+#### Parameters
+None
+#### Returns
+**detail** is an unsigned integer number of seconds between shared memory refreshes.
+
+
+
+
+
+
+
+
 
 
 
