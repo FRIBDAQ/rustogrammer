@@ -804,6 +804,42 @@ Given a pattern, list the raw parameters that match that pattrern and their prop
 
 
 
+### rawparameter_list_byid
+#### Description
+List the properties of a parameter given it sid.
+#### Parameters
+* *id*  The parameter id of the desired paramter.
+#### Returns
+Same as for [rawparameter_list_byname](#rawparamter_list_byname).
+
+
+
+### ringformat_set
+#### Description
+This should be used in conjunction with the attach method to specify a default ringbuffer format.  Prior to starting analysis.  If unspecified, the format is determined by SpecTcl in the following way:
+
+*  If a ```RING_FORMAT``` item is encountered, it sets the data format.
+*  If the ring version was specified but no ```RING_FORMAT``` was specified, that ring version will be used.
+*  IF all else the ring format will default:
+    *  Prior to SpecTcl 5.14 to 10.0
+    *  With SpecTcl 5.14 and later to 11.0
+
+#### Parameters
+* *major* (unsigned) -Major version number.
+#### Returns
+Nothing useful
+
+### ringformat_get
+#### Description
+Rustogramer only - queries the default ring format.
+#### Parameters
+None
+#### Returns
+**detail** is a dict that has the keys
+
+* **major** (unsigned) - major version of the ring format.
+* **minor** (unsigned) - minor version of the ring format (always ```0```).
+
 
 
 
