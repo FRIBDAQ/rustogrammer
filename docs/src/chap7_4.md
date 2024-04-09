@@ -686,6 +686,35 @@ Performs an integration of a spectrum with 2 axes.  Note that this method does n
 * **counts** (unsigned) - total number of counts in the region of integration.
 
 
+### parameter_list
+#### Description
+Describes tree parameters and their metadata.  Not that rustogramer considers all parameters to be tree parameters.  This is not true for SpecTcl
+#### Parameters
+
+* *pattern* (string) - Optional glob pattern.  The listing is  limited to parameters with names that match the pattern.  If not
+supplied, this defaults to ```*``` which matches anything.
+
+#### Returns
+**detail** is an iterable containing dicts.  Each dict describes a parameter and has the following keys:
+
+* **name** (string) - name of the parameter.
+* **id** (unsigned) - integer assigned to the parameter.  This value is used by the histogramer functions in both SpecTcl and Rustogramer, and is not generally relevant.
+* **bins** (unsigned > 0) - Number of bins recommended for spectrum axes on this parameter.
+* **low**, **high** (floats) - Recommended low and high limits for axes on this parameter.
+* **units** (string) - documents the parameter's units of measure.
+* **description** (string) - Rustogramer only.  Reserved for future use in which it will be a description of the parameter for documentation purposes.
+
+### parameter_version
+#### Description
+Return the tree parameter version.  Differing versions of the treee parameter subsystem have somewhat different capabilities.  This returns a version string that gives the tree parameter version of  the server.
+#### Parameters
+None
+#### Returns
+**detail** is a version string e.g. "2.1"
+
+
+
+
 
 
 
