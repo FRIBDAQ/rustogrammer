@@ -960,53 +960,45 @@ computation of the fraction of data analyzed online.  Note that
 Rustogramer always analyzes offline (well there are ways but....).
 *  **RunTitle** (string) - Title string of the most recent run (being) analyzed.
 
+### spectrum_list
+#### Description
+List the properties of selected spectra.
+#### Parameters
+* *pattern* (string) - Optional glob pattern.  Only the spectra with names that match the patern will be included in the listing. If omitted, the pattern defaults to ```*``` which matches everything.
+#### Returns
+**detail** is an iterable that contains maps.  Each map describes one matching spectrum and contains the following keys:
 
+* **id** (unsigned) - integer identifier for the spectrum.  This is not that useful and, in most cases should be ignored.
+* **name** (string) - Name of the spectrum.  This *will* match the *pattern* parameter.
+* **type** (string) - The specturm type;  see the spectrum command in the [SpecTcl command reference](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html) for information about the values thie key might take.
+* **parameters** (iterable) - Containing strings that are the names of of the parameters the spectrum depends on.  In general you should care more about the **xparamters** and **yparameters** below.
+* **xparameters** (iterable) - contains the names of the x parameters for a spectrum.  For gamma summary spectra a comman delimiter is between the parameters for each x-bin.
+* **yparameters** (iterable) - contains the name sof the y parameters for a spectrum.  In SpecTcl this is only present when the spectrum has y parameters.
+* **axes** - Iterable of axis definitions. Each axis definition is a dict with the keys:
+    * **low** (float) - axis low limit.
+    * **high** (float) - axis high limit.
+    * **bins** (unsigned integer) axis high limit.
+* **xaxis** (dict) - X axis definition.
+* **yaxis** (dict) - Y axis definition.
+* **chantype** (string) - The data type for each channel. This can be one of:
+    * **f64** - 64 bit floating point (Rustogramer).
+    * **long** - 32 bit unsigned integer (SpecTcl).
+    * **short** - 16 bit unsigned integer (SpecTcl).
+    * **byte** - 8 bit unsigned integer (SpecTcl).
+* **gate** (string) - The gate applied to the spectrum if any.
 
+### spectrum_delete
+#### Description
+  Delete a specctrum.
+#### Parameters
+* *name* (string) - name of the spectrum to delete.
+#### Returns
+none
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+### <method name>
+#### Description
+#### Parameters
+#### Returns
 
 
 
