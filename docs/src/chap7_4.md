@@ -629,6 +629,61 @@ Note that for Rustogramer, both elements are always present, but the second one 
 By underflow and overflow, we mean the number of events that would have been to the left or below the histogram origin (underflow) or to the right or above the end of the axis.
 
 
+### integrate_1d
+#### Description
+Integrate a 1-d spectrum.  Note that this method does not directly support integrating a slice condition.  To do that, you must fetch the slice definition and extract its limits.
+
+#### Parameters
+* *spectrum* (string) - name of the spectrum which must have only one axis.
+* *low* (float) - low cut off for the integration.
+* *high* (flost) - high cut off for the integration.
+
+
+#### Returns
+
+**detail** is a dict containing the keys:
+
+* **centroid**  - The centroid of the integration. For Rustogramer this is an iterable containing one element while for SpecTcl it is a float.  See below.
+* **fwhm** - The full width at half maximum under gaussian line shape assumptions.  Same type as centroid
+* **counts** (unsigned) - total number of counts in the region of integration.
+
+To unpack **centroid** and **fwhm** the function below is useful:
+
+```python
+def get_value(value):
+    try:
+        for v in value:
+            return v
+    except TypeError:
+        return value
+
+```
+
+If ```value``` is iterable, this method returns the first element of the iteration, otherwise it just returns the value.  This function can be used to extract data from a 1d integration as shown below;
+
+```python
+...
+
+result = client.integrate_1d(sname, low, high)
+centroid = get_value(result['detail']['centroid'])
+fwhm     = get_value(result['detail']['fwhm'])
+counts   = result['detail']['counts']
+...
+```
+
+### integrate_2d
+#### Description
+Performs an integration of a spectrum with 2 axes.  Note that this method does not support integration within a contour. To do that you will need to fetch the definition of the contour and supply its coordinates to ```integrate_2d```
+#### Parameters
+* *spectrum* (string)- Name of the specrum to integrate.
+* *coords* (iterable) - The coordinates of integration.  Each element is a dict that has the keys **X** and **y** which are the x and y coordinates of a contour point respectively.
+
+#### Returns
+**detail** contains a dict with the keys:
+
+* **centroid**  (iterable)- Two items. The centroid of the integration. The first element is the X coordinate of the centroid, the second element is the Y coordinate of the centroid.
+* **fwhm** - The full width at half maximum under gaussian line shape assumptions.  Same type as centroid
+* **counts** (unsigned) - total number of counts in the region of integration.
 
 
 
