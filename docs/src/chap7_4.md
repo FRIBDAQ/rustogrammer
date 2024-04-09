@@ -886,6 +886,36 @@ None
 #### Returns
 **detail** is an unsigned integer number of seconds between shared memory refreshes.
 
+### unbind_by_names
+#### Description
+Removes a set of spectra from display shared memory given their names.  This is the preferred method.
+#### Parameters
+* *names* - iterable containing the names of the spectra to unbind.
+#### Returns
+Nothing useful.
+
+### unbind_by_ids
+#### Description
+Unbinds a set of spectra from the display shared memory given their spctrum is.  It is preferred to use
+[unbind_by_names](#unbind_by_names).
+#### Parameters
+* *ids* (iterable) - iterable containing the ids of the spectra to unbind.  
+#### Returns
+Nothing useful.
+
+### unbind_all
+#### Description
+Remove all spectra from the display shared memory.
+#### Parameters
+none
+#### Returns
+none..
+
+
+
+
+
+
 
 
 
