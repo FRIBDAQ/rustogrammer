@@ -612,6 +612,21 @@ Makes a condition that is true if the parameter taken as an integer is equal to 
 #### Returns
 Nothing
 
+### get_statistics
+#### Description
+Return spectrum overflow/underflow statistics.
+#### Parameters
+* *pattern* (string) - Optional pattern. Spectra with names that match the pattern are returned.  Note that if the pattern is omitted, it defaults to ```*``` which matches all names.
+#### Returns
+**detail** contains an iterable containing dicts that provide the statistics for spectra.   Each dict has the following keys:
+
+* **name** (string) - Spectrum name
+* **underflows** (iterable) - 1 or 2 element iterable with integers that are the number of underflows for first the X axis.
+* **overflows** (iterable) - 1 or 2 element iterable with integers that are the numbe rof overflows for first the X axis and then the Y axis.
+
+Note that for Rustogramer, both elements are always present, but the second one is always 0 for spectra with only one axis. SpecTcl omits the second axis if it does not exist.
+
+By underflow and overflow, we mean the number of events that would have been to the left or below the histogram origin (underflow) or to the right or above the end of the axis.
 
 
 
