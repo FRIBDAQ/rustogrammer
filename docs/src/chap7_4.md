@@ -911,6 +911,54 @@ none
 #### Returns
 none..
 
+### shmem_getkey
+#### Description
+Returns the display shared memory identification.
+#### Parameters
+None
+#### Returns
+**detail** is a string.  The string has one of the following forms:
+
+* Four character string - this is the SYSV shared memory key value.
+* The text ```sysv:``` followed by a four character string. The four character string is the SYSV shared memory key.  The shared memory can be mapped using ```shmget(2)``` to return the shared memory id followed by ```shmat(2)``` to do the actual mapping.
+* The text ```file:``` followed by a string.  The string is the path to a file which can be mapped using mmap(2).
+* The text ```posix:``` folllowed by a  string. The string is the name of a posix shared memory region that can be mapped via ```shm_open```
+
+
+### shmem_getsize
+#### Description
+Return the number of bytes in the spectrum shared memory
+#### Parameters
+None
+#### Returns
+**detail** is an unsigned total number of bytes (specctrum header storage and channel sopu) in the Display shared memory. This can be used for the shared memory size parameter required by all of the mapping methods
+
+### shmem_getvariables
+#### Description
+Return some SpecTcl variables or their Rustogramer equivalets.
+#### Parameters
+None
+#### Returns
+**detail** is a dict containing.
+
+*  **DisplayMegabytes** (unsigned)  - The number of 1024*1024 bytes in the shared memory
+spectrum pool.
+*  **OnlineState** (boolean) - True if connected to an online data source.
+*  **EventListSize** (unsigned > 0) - Number of events in each processing batch.
+*  **ParameterCount** (unsigned) - Number of parameters in the initial flattened
+event.
+*  **SpecTclHome** (String) - the top-level directory of the installation tree.
+*  **LastSequence** (unsigned) - Sequence number of the most recently processed
+data
+*  **RunNumber** (unsigned) - run number of the run being processed.
+*  **RunState** (string) - "Active" if processing is underway, "Inactive" if not.
+*  **DisplayType** (string) - Type of integrated displayer started by the program
+for Rustogramer this is always "None". 
+*  **BuffersAnalyzed** (unsigned) - Number of items that have been analyzed.  For
+SpecTcl (not Rustogramer), this taken with LastSequence allows a rough
+computation of the fraction of data analyzed online.  Note that
+Rustogramer always analyzes offline (well there are ways but....).
+*  **RunTitle** (string) - Title string of the most recent run (being) analyzed.
 
 
 
