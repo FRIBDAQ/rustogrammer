@@ -1376,19 +1376,16 @@ SpecTcl only. Deletes a pseudo parameter definition.  The pseudo will no longer 
 #### Parameters
 * *name* (string) - name of the pseudo parameter to delete.
 #### Returns
+Nothing
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+### project
+#### Description
+Creates a projectsion spectrum.  Projection spectra can be snapshots or connected to analysis.
+#### Parameters
+* *oldname* (string) - name of the source spectrum.
+* *newname* (string) - Name of the spectrum to create.
+* *direction* (string) - ```x``` or ```y``` defining the direction of the projection.
+* *snapshot* (Boolean) - If true, the projection will be  a snapshot.
+* *contour* (string) - optional contour name. If present, this must be the name of a contour that is displayable on the spectrum and only the counts within the contour are projected.   Furthermore, if snapshot is ```False``` then *contour* is applied to the resulting spetrum as a gate to ensure that increments maintain a faithful projection.
+#### Returns
+Nothing
