@@ -995,10 +995,174 @@ List the properties of selected spectra.
 #### Returns
 none
 
-### <method name>
+### spectrum_create1d
 #### Description
+Create a simple 1-d spectrum.  This is a spectrum of type ```1```.
 #### Parameters
+* *name* (string) - name of the spectrum.  Must be unique amongst spectra.
+* *parameter* (string) - name of the parameter that will be histogramed (x axis).
+* *low*, *high* (floats) - X axis low and high limits.
+* *bins* (unsigned > 0) - number of bins on the x axis.
+* *chantype* (string) - Optional channel type specication that defaults to ```f64``` if not supplied.  Note this is only legal for Rustogramer, if SpecTcl is the server, you must explicitly provide a channel type.  Valid channel types are:
+    * ```f64``` -  64 bit floating point. This is only valid for Rustogramer.
+    * ```long``` - 32 bit unsigned integer.  This is only valid for SpecTcl.
+    * ```word``` - 16 bit unsigned integer.   This is only valid for SpecTcl.
+    * ```byte``` - 8 bit unsigned integer.  This is only valid for SpecTcl.
+
 #### Returns
+Nothing
+
+### spectrum_create2d
+#### Description
+Create a simple 2-d specturm.  This is  a spectrum of type ```2```.  These spectra have an x and a y parameter.  If both are present and any gate is true, the x and y parameters define a location in the spectrum that translates to the bin that is located.
+#### Parameters
+* *name* (string) - name of the spectrum.
+* *xparam* (string) - Name of the parameter on the x axis.
+* *yparam* (string) - name of the parameter on the y axis.
+* *xlow*, *xhigh (float) - Low and high limits of the x axis.
+* *xbins* (unsigned > 0) - Number of bins on the x axis.
+* *ylow*, *yhigh (float) - Low and high limits of the y axis.
+* *ybins* (unsigned > 0) - Number of bins on the Y axis.
+* *chantype* (string) - Channel type specification see [spectrum_create1d](#spectrum_create1d) for a description of this argument.
+
+#### Returns
+Nothing
+
+### spectrum_createg1
+#### Description
+Creates a multiply incremented 1-d spectrum, also called a 1d gamma spectrum.   This is SpecTcl type ```g1```.  There are an arbitrary number of parameters associated with this spectrum.  If the gate is true, the histogram is incremented once for each spectrum parameter present in the event.  If the spectrum is folded, the increment is once for every parameter not involved in the fold condition.  
+
+#### Parameters
+* *name* (string) - name of the new spectrum.
+* *parameters* (iterable) - iterable of strings containing the names of the parameters to histogram.
+* *xlow*, *xhigh* (float) - low and high x axis limits.  The y axis is the counts axis.
+* *bins* (unsigned > 0) - Number of bins on the X axis.
+* *chantype* (string) - data type for bins.  See [spectrum_create1d](#spectrum_create1d) for more information about this parameter.
+#### Returns
+Nothing
+### spectrum_createg2
+#### Description
+Create a multiply incremented 2-d spectrum of type ```g2```.  These spectra have an arbitrary number of parameters (at least two).  Each time the spectrum's gate is true, the spectrum is incremented at the bins defined by all unorderd pairs of parameters present in the event. A simple example of what I mean but un-ordered pairs, suppose I've defined this spectrum on parameters ```p1``` and ```p2``` and both a present in the event, Increments will happen at the points defined by (```p1```, ```p2```) *and*  (```p2```, ```p1```).
+
+If the spectrum is folded, then this increment is for all pairs of parameters that are *not* involved in the gate.
+#### Parameters
+* *name* (string) - name of the spectrum.
+* *parameters* (iterable) - Iterable of strings.  Each element is the name of a spectrum parameter.
+* *xlow*, *xhigh (float) - Low and high limits of the x axis.
+* *xbins* (unsigned > 0) - Number of bins on the x axis.
+* *ylow*, *yhigh (float) - Low and high limits of the y axis.
+* *ybins* (unsigned > 0) - Number of bins on the Y axis.
+* *chantype* (string) - Channel type specification see [spectrum_create1d](#spectrum_create1d) for a description of this argument.
+
+#### Returns
+Nothing.
+
+
+### spectrum_creategd
+#### Description
+Creates a 2-d multiply incremented of type ```gd``` this is most often used as a particle-gamma coincidence spectrum.  The spectrum has a set of x parameters and a set of y parameters.  For events where the gate is true, it is incremented for each pair of x and y parameters present in the event.
+
+Suppose, for example, the x parameters are ```x1```, ```x2```, ```x3```, and the Y parameters are ```y1``` and ```y2```.  For an event that has ```x1``` and ```x3```, and ```y2```, increments will happen at the points defined by (```x1```, ```y2```) and (```x3```, ```y2```).
+#### Parameters
+* *name* (string) - name of the spectrum.
+* *xparameters* (iterable) - containing strings that are the names of the x parameters.
+* *yparameters* (iterable) - containing strings that are the names of the y parameters.
+* *xlow*, *xhigh (float) - Low and high limits of the x axis.
+* *xbins* (unsigned > 0) - Number of bins on the x axis.
+* *ylow*, *yhigh (float) - Low and high limits of the y axis.
+* *ybins* (unsigned > 0) - Number of bins on the Y axis.
+* *chantype* (string) - Channel type specification see [spectrum_create1d](#spectrum_create1d) for a description of this argument.
+
+#### Returns
+Nothing.
+
+### spectrum_createsummary
+#### Description
+Creates a spectrum of type ```s```, a summary spectrum. A summary spectrum is a special type of 2-d spectrum.  It has several parameters.  The 1d spectrum of each parameter is allocated an x axis bin and incremeented on the y axis of that bin.  Suppose, for example, the parameters are ```p1,p1,p3,p4,p5```; the X axis will have 5 bins. The y axis, will be specified by this method.
+
+If an event makes the gate for that axis true and has parameters ```p1, p3, p5``` there will be increments on (0, ```p1```), (2, ```p3```) and (4, ```p5```).    This spectrum type is normally used to visualize the health and, if desired, the gain matching of elements of a lage detector array.
+
+#### Parameters
+* *name* (string)  - name of the spectrum.
+* *parameters* (iterable) - Each element of the iterable is a string, parameter name.  The first element is assigned to x axis bin 0, the second to x axis bin 1 and so on.
+* *low*, *high* (float) - Y axis low and high limits.
+* *bins* (unsigned > 0) - number of Y axis bins.  The number of x axis bins is ```len(parameters)```.
+* *chantype* (string) - Channel type specification see [spectrum_create1d](#spectrum_create1d) for a description of this argument.
+
+Note that it is the Y axis that is specified.  The X axis is determined by the *parameter* argument and is defined as between 0 and ```len(parameters)``` with ```len(parameters)``` bins.
+#### Returns
+Nothing.
+
+### spectrum_create2dsum
+#### Description
+Creates a spectrum that is essentially a 2d sum spectrum (type ```m2```).  The spectrum has an equal number of x and y parameters.  For each X parameter there is a corresponding y parameter.  If the gate is true, then all pairs of corresponding parameters in the event cause an increment.
+
+Suppose, for example, we have x parameters (```x1,x2,x3,x4,x5```) and y parameters (```y1,y2,y3,y4,y5```).  Suppose the event has parameters (```x1,x3,x5, y1,y4,y5```).  There will be increments only for (```x1,y1```) and (```x5, y5```). The spectrum type comes from the fact that it is the sum of the 2d spectra for each corresponding x/y pair of parameters.  In our example, the spectrum is the sum of 2d spectra defined on ```(x1,y1), (x2, y2), (x3, y3), (x4,y4), (x5,y5)```.
+#### Parameters
+* *name* (string) - name of the spectrum.
+* *xparameters* (iterable) - containing strings that are the names of the x parameters.
+* *yparameters* (iterable) - containing strings that are the names of the y parameters.
+* *xlow*, *xhigh (float) - Low and high limits of the x axis.
+* *xbins* (unsigned > 0) - Number of bins on the x axis.
+* *ylow*, *yhigh (float) - Low and high limits of the y axis.
+* *ybins* (unsigned > 0) - Number of bins on the Y axis.
+* *chantype* (string) - Channel type specification see [spectrum_create1d](#spectrum_create1d) for a description of this argument.
+#### Returns
+Nothing
+
+### spectrum_createstripchart
+#### Description
+Only available in SpecTcl (```S```).  A strip chart spectrum is a special type of 1d spectrum defined on two parameters, a *time* and *value*  for each event that has the time and value parameters, an X channel is computed from the time.  If the time is out of the axis bounds, the spectrum, contents and axis are shifted to bring the time back into the bounds.  The bin defined by the time is incremented by the value parameter.
+
+Suppose, for example, the axis is defined as 0.0 to 1000.0 with 1000 bins.  An event with time 50 and value 100 will result in bin number 50 incremented by 100.  If the time were 1020, the spectrum would be shifted by at least 21 bins to the left in order to accomodate that time. 
+
+The effect, for monotonic time parameters is that of a strip chart recorder.  Note that shifts can be in either direction.  For example, you might have a time parameter that is zeroed at the beginning of each run. In that case, the spectrum will be shifted to the right rather than the left if needed.
+#### Parameters
+* *name* (string) -  spectrum name.
+* *time* (string) - The time parameter name.
+* *vertical* (string) -the value parameter name.
+* *low*, *high*, (floats) - initial X axis limits.
+* *bins* (unsigned > 0) - the number of x axis bins.  This remains invariant as the spectrum shifts.
+* *chantype* (string) - Channel type specification see [spectrum_create1d](#spectrum_create1d) for a description of this argument.
+
+#### Returns
+Nothing.
+
+### spectrum_createbitmask
+#### Description
+Create a bitmask spectrum (```b```).  The parameter for this spectrum type is taken as an integer.  The spectrum is incremented one for each bit set in that mask.  
+
+#### Parameters
+* *name* (string) - name of the spectrum.
+* *parameter* (string) - name of the parameter to be histogramed.
+* *bits* (unsigned > 0) - The number of bits in  the parameter.  The axis is then defined with a low of 0, a high if *bits* with *bits* bins.
+* *chantype* (string) - Channel type specification see [spectrum_create1d](#spectrum_create1d) for a description of this argument.
+#### Returns
+Nothing.
+
+### spectrum_creategammasummary
+#### Description
+Create a *gamma summary* spectrum (type ```gs```).  This spectrum can be thought of as a summary spectrum where each X axis bin is a ```g1``` spectrum on the y axis.  
+#### Parameters
+* *name* (string) - name of the spectrum.
+* *parameters* (iterable) - Each iteration returns an iterable containing the parameters for an x bin.
+* *ylow*, *yhigh* (floats) - Y axis low/high limits.
+* *ybins* (unsigned > 0) - Number of y axis bins. 
+* *chantype* (string) - Channel type specification see [spectrum_create1d](#spectrum_create1d) for a description of this argument.
+#### Returns
+None.
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
