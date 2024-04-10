@@ -1029,8 +1029,7 @@ class rustogramer:
             -  'json' (Rustogramer only) file is in rustogramr JSON format.
             -  'binary' (SpecTcl only) file is in Smaug binary format (this is
             a pretty obsolete format; SMAUG was a pre NSCL offline analysis program
-            used by the 'Lynch' written by an undergraduate in their employ whose
-            name now escapes me so I can't credit him).
+            used by the 'Lynch' written by an undergraduate named Steve Hanchar
         *  options a dict (defaultsto empty) that can override the options
         that determine how the spectrum is read.  It is optional and the
         following keys matter:
