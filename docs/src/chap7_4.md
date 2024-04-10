@@ -1181,4 +1181,35 @@ Note: ```spectrum_clear_all``` just invokes ```spectrum_clear``` with a default 
 Nothing
 
 
+### spectrum_read
+#### Description
+Read spectrum from a file.  Several file formats are supported:
+* ```ascii``` format is the SpecTcl ASCII file format and is supported by both SpecTcl and Rustogramer.
+* ```json``` format is an ASCII JavaScript Object Notation format.  The schema for that is defined [later in this reference material](./chap7_7.md).  This format was developed for Rustogramer and retrofitted in to SpecTcl begininng with version 5.13.
+* ```binary``` format is a binary format developed by Steven Hanchar many, many years ago and was the spectrum format of the SMAUG analysis program he wrote.  This is only supported by SpecTcl.
+
+Spectra can be read either as snapshot spectra, which will not be incremented, or as ordinary spectra that will, if possible be connected to parameters and incremented as later events are processed.  If spectra with names that match existing names are read in they can optionally ovewrite the existing spectrum or a new spectrum name can be assigned that is unique and similar.  Finally spectra can be bound or not to display shared memory.
+#### Parameters
+* *filename* (string) - path to the file that is to be read.  Since the read is performed in the context of the server this path must make sense in the server's context.  This is an important subltety if the file system of the client does not match that of the server.  A rather interesting edge case is SpecTcl running on windows under WSL and a native windows client, which see very different filesystem layouts.
+* *format* (string) -format specifier,. see the Description for the set of formats that are supported.
+Note that formats are programmatically extensible in SpecTcl (not for Rustogramer which is closed for user code). See chapter 7 of the [SpecTcl programming guide](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/pgmguide/index.html) for more.
+* *options* (dict) - A dict whose keys support overiding the default snapshot, replace ment and binding options.  The keys recognized are:
+    * ```snapshot``` - if present, the value must be a boolean which is true if the spectrum is to be read as a snapshot and false otherwise.  The default, if not specified is ```True```.
+    * ```replace``` - If present, the value must be a boolean which, if true, makes file spectra overwrite the definition and contents of any exising spectra with the same name. IF false, a new, similar names is assigned to the specturm in the file instead.  The default, if not specified, is ```False```.
+    * ```bind``` - If present, the value must be a boolean which is true if the spectrum is to be bound to display memory and false if not.  If not supplied, the default value  is ```True```
+
+
+#### Returns
+Nonthing
+### spectrum_write
+#### Description
+Write spectra to file.  See [spectrum_read](#spectrum_read) for the supported file formats.
+#### Parameters
+* *filename* (string) - Path to the file to write. Note that this path must make sense in the context of the server as it is the entity that actually does the write.
+* *format* (string) - File format.  see [spectrum_read](#spectrum_read) for the file formats.
+* *spectra* (iterable) - Strings that specify the names of the spectra to write to the file.
+#### Returns
+
+
+
 
