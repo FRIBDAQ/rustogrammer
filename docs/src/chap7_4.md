@@ -1212,4 +1212,49 @@ Write spectra to file.  See [spectrum_read](#spectrum_read) for the supported fi
 
 
 
+### unbind_byname
+#### Description
+Remove a spectrum from the display shared memory given its name.
+#### Parameters
+* *name* (string) - name of the spectrum to unbind from shared memory.
+#### Returns
+nothing
+
+### unbind_byid
+#### Description
+Remove a spectrum from display shared memory given its id.
+#### Parameters
+* *id* (unsigned integer) - Id of the spectrum.  This is the spectrum Id and *not* the binding id.
+#### Returns
+nothing
+
+### unbind_all
+#### Description
+Unbind all spectra from the display shared memory
+#### Parameters
+None
+#### Returns
+None.
+
+### list_mirrors
+#### Description
+Provides a list of the mirrors that are being maintained by the server.  Mirrors are copies of the display shared memory that allow remote displayers to operate.  This method exists so that when setting up a mirror you can determine if there is already one present that you can piggy back onto.
+
+#### Parameters
+None
+#### Returns
+Iterable containing dicts with the following keys:
+
+* **host** -DNS name or IP address of the host in which this mirror is located.
+* **shmkey** - Shared memory identification valid with the host that can be used to map to the shared memory mirror.  This has the following forms:
+   *  Four characters - these characters are a SYSV shared memory key that can be used with shmget(2) and shmat(2) to map the shared memory mirror.
+   *  ```sysv:``` followed by four characters - the characters are a SYSV shared memory key.
+   * ```file:``` followed by a string. The string is a path to a file which can be open(2) and mmap(2) to map the shared memory mirror.
+   * ```posix:``` followed by a string.  The string is the name of a POXIS shared memory segment that can be opened using shm_open(2) and mapped with mmap(2).
+
+
+
+
+
+
 
