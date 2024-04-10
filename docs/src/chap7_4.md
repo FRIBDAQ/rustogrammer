@@ -1152,17 +1152,33 @@ Create a *gamma summary* spectrum (type ```gs```).  This spectrum can be thought
 #### Returns
 None.
 
+### spectrum_getcontents
+#### Description
+Return the contents of a rectangular region of interest in a spectrum.
+#### Parameters
+* *name* (string) - name of the spectrum.
+* *xl*, *xh* (unsigned) - X bin range of interest. 
+* *yl*, *yh* (unsigned) - Optional Y bin range of interest. These both default to 0 and only need to be supplied for 2d spectra.
+#### Returns
+A dict that contains:
 
+* **statistics** (dict) - contains over/underflow statistics.  It has the keys **xunderflow**, **xoverflow**, **yunderflow** and **yoverflow**.
+* **channels** (iterable) - iterable that contains dicts descsdribing the spectrum contents:
+    * **x** (float) - x bin.
+    * **y** (float) - ybin.
+    * **v** (float) - contents of bin.
 
+Note that in the **channels** iterable, **v** will never be zero.  Only bins with counts are returned.
 
+### spectrum_clear, spectrum_clear_all
+#### Description
+Sets the counts in all bins of spectra to zero.
+#### Parameters
+* *pattern* (string) - optional glob pattern.  Only spectra with names that match the pattern are cleared.  The pattern defaults to ```*```  which matches anything
 
-
-
-
-
-
-
-
+Note: ```spectrum_clear_all``` just invokes ```spectrum_clear``` with a default pattern of ```*``` and takes no parameters.
+#### Returns
+Nothing
 
 
 
