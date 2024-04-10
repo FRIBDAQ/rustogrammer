@@ -1389,3 +1389,19 @@ Creates a projectsion spectrum.  Projection spectra can be snapshots or connecte
 * *contour* (string) - optional contour name. If present, this must be the name of a contour that is displayable on the spectrum and only the counts within the contour are projected.   Furthermore, if snapshot is ```False``` then *contour* is applied to the resulting spetrum as a gate to ensure that increments maintain a faithful projection.
 #### Returns
 Nothing
+
+### roottree_create
+#### Description
+SpecTcl only.  A root tree is much like a filter, however:
+*  The parameters are output to a CERN Root tree in a file.
+*  Root trees have hooks into the event processing pipeline so that they can open a new file for each run.
+*  Parameters are easier to specify.
+
+See the ```roottree``` command in the [SpecTcl Command Reference](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html) for more about root trees.
+#### Parameters
+* *tree* (string) - name of the root tree.
+* *parameters* (iterable) - iterable containing glob patterns.  The parmaeters written to the tree are those that match any of the patterns in the iterable. For example if *parameter* is ['raw.*', 'coincidence.*'] all of the raw.* *and* coincidence.* parameters are written to the tree.  If you want all parameters written, obviously *parameters* can be ['*']
+* *gate* - optional gate which determines which events are booked into the tree.  If not supplied this is ```None``` which makes the tree ungated (all events are booked).
+#### Returns
+None.
+
