@@ -1160,7 +1160,7 @@ Return the contents of a rectangular region of interest in a spectrum.
 * *xl*, *xh* (unsigned) - X bin range of interest. 
 * *yl*, *yh* (unsigned) - Optional Y bin range of interest. These both default to 0 and only need to be supplied for 2d spectra.
 #### Returns
-A dict that contains:
+**detail** is a dict that contains:
 
 * **statistics** (dict) - contains over/underflow statistics.  It has the keys **xunderflow**, **xoverflow**, **yunderflow** and **yoverflow**.
 * **channels** (iterable) - iterable that contains dicts descsdribing the spectrum contents:
@@ -1200,7 +1200,7 @@ Note that formats are programmatically extensible in SpecTcl (not for Rustograme
 
 
 #### Returns
-Nonthing
+Nothing
 ### spectrum_write
 #### Description
 Write spectra to file.  See [spectrum_read](#spectrum_read) for the supported file formats.
@@ -1209,7 +1209,7 @@ Write spectra to file.  See [spectrum_read](#spectrum_read) for the supported fi
 * *format* (string) - File format.  see [spectrum_read](#spectrum_read) for the file formats.
 * *spectra* (iterable) - Strings that specify the names of the spectra to write to the file.
 #### Returns
-
+nothing
 
 
 ### unbind_byname
@@ -1251,6 +1251,105 @@ Iterable containing dicts with the following keys:
    *  ```sysv:``` followed by four characters - the characters are a SYSV shared memory key.
    * ```file:``` followed by a string. The string is a path to a file which can be open(2) and mmap(2) to map the shared memory mirror.
    * ```posix:``` followed by a string.  The string is the name of a POXIS shared memory segment that can be opened using shm_open(2) and mapped with mmap(2).
+
+
+### pipeline_create
+#### Description
+SpecTcl only.  Creates a named analysis pipeline.  The pipeline initially has no event processors.
+
+As of SpecTcl version 5, dynamic analysis pipelines were introduced into SpecTcl.  See chapter 3 of the [SpecTcl programming guide](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/pgmguide/index.html) for a descritpion of the analysis pipeline.
+
+Dynamic analysis pipelines allow SpecTcl programmers to register a bunch of named event processors and then compose them into pipelines programmatically or at run time as well as selecting which pipline is used to analyze event data at any given time.  
+
+One simple use case for this is analyzing filter data in the same compiled version of SpecTcl that analyzes raw event data.   One can either programmetically, or via scripts, build a raw analysis pipeline and a pipeline that consists only of the filter event processor and then  select the correct pipeline for the data set being analyzed.
+
+Another use case is to dynamically add event processors to an existing pipeline as analysis proceeds. 
+
+Since Rustogramer analyzes parameter data it does not support an analysis pipeline but takes the output of one and therefore does not support any of the pipeline methods.
+
+#### Parameters
+* *name* (string)  - name of the new pipeline to create.
+#### Returns
+nothing
+
+### pipeline_current
+#### Description
+SpecTcl only. Returns the name of the current event processing pipeline.  The current processing pipeline is the one which will be handed events from the data source.
+#### Parameters
+None
+#### Returns
+**detail** contains a string that is the name of the current event processig pipeline.
+
+### pipeline_list_details
+#### Description
+SpecTcl only.  Lists the event processors and their properties.
+#### Parameters
+* *pattern* (string) - optional glob pattern. In order to be included in the list, the name of the pipeline must match the pattern.  If omitted, the pattern defaults to ```*``` which matches everything.
+#### Returns
+**detail** consist of an iterable with dicts that have the following keys:
+* **name** (string) - name of the pipeline.
+* **processors** (iterable) - containing strings that define the order and names of all event processors in the pipeline.
+
+### list_processors
+#### Description
+SpecTcl Only.  Lists the names of event processors.
+#### Parameters
+* *pattern* (string) - optional glob pattern.  Only event processors with names that match *pattern* are listed.  If not supplied, defaults to ```*``` which matches everything.
+#### Returns
+**detail** is an iterable that contains the names of the event processors that have been registered to the analysis pipeline manager.
+
+### pipeline_use
+#### Description
+SpecTcl Only.  Lists current event processing pipeline.  The current event processing pipeline is the one to which events are dispatched for analysis.
+#### Parameters
+* *name* (string) - name of the event processing pipeline to make current.
+#### Returns
+None
+
+### pipeline_add_processor
+#### Description
+SpecTcl Only.  Add an event processor to the end of an analysis pipeline.  Typically event processors are registered with the pipeline manager programmatically at program startup or dynamically by loading a plugin. See
+Chapter 11 of the [SpecTcl programming guide](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/pgmguide/index.html) for a description of plugins and how to write them.
+
+#### Parameters
+* *pipe* (string) - name of the pipeline to edit.
+* *processor* (strign) -name of the event processor to append to *pipe*.
+#### Returns
+Nothing
+
+### pipeline_remove_processor
+
+#### Description
+SpecTcl only. Remove an event processor from a pipeline.
+#### Parameters
+* *pipe* (string) - name of the pipeline to edit.
+* *processor* (string) - name of the event processor to remove from *pipe*
+
+#### Returns
+None
+
+### pipeline_clear
+#### Description
+SpecTcl only.  Removes all event processors from a pipeline.
+#### Parameters
+* *pipe* (string) -name of the pipeline to edit.
+#### Returns
+Nothing
+
+### pipeline_clone
+#### Description
+SpecTcl only. Make a functional duplicate of an event processing pipeline.
+#### Parameters
+* *existing* (string) - name of the existing pipeline.
+* *newpipe* (string) - name of the pipeline to create.
+#### Returns
+nothing
+
+
+
+
+
+
 
 
 
