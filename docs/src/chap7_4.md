@@ -1346,6 +1346,41 @@ SpecTcl only. Make a functional duplicate of an event processing pipeline.
 nothing
 
 
+### pseudo_create
+#### Description
+SpecTcl only.  Pseudo parameters in SpecTcl are parameters that can be defined on the fly and computed via Tcl scripts. This method creates a new pseudo parameter.  See the **pseudo** command in the [SpecTcl Command Reference](https://docs.nscl.msu.edu/daq/newsite/spectcl-5.0/cmdref/index.html) for more information about pseudo parameters.
+#### Parameters
+* *name* (string) - name of the psuedo that is being created.  A parameter with this name must have already been created.
+* *dependent* (iterable) - Iterable containing strings that  are the names of the parmaeters the pseudo parameter requires to be computed.
+* *computation* (string) - Body of the Tcl proc that will be used to compute the parameter.  At present, this must return a float.  There is no provision for the proc not to return a result.
+
+
+#### Returns
+Nothing
+
+### pseudo_list
+#### Description
+SpecTcl only - lists psuedo parameters and their properties.
+#### Parameters
+* *pattern* (string) - If provided a glob pattern.  Only the pseudos that match the pattern will be included in the list.  If not provided, this defaults to ```*``` which matches everything.
+#### Returns
+**detail** is an iterable containing dicts.  Each dict describes one pseudo with the following keys:
+* **name** (string) - name of the pseudo being described.
+* **parameters** (iterable) - contains the names of the parameters the pseudo depends on.
+* **computation** (string) - The proc body.
+
+### pseudo_delete
+#### Description
+SpecTcl only. Deletes a pseudo parameter definition.  The pseudo will no longer be computed, however its parameter is not deleted.
+
+#### Parameters
+* *name* (string) - name of the pseudo parameter to delete.
+#### Returns
+
+
+
+
+
 
 
 
