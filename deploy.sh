@@ -52,7 +52,7 @@ install -m 0644  restclients/Tcl/*    $dest/share/restclients/Tcl
 # Install the documentation:
 
 (cd target/doc; tar czf - .)| (cd $dest/share/docs/internal; tar xzf -)
-(cd docs/book; tar czf -.) | (cd $dest/share/docs/user; tar xzf -)
+(cd docs/book; tar czf - .) | (cd $dest/share/docs/user; tar xzf -)
 
 # Now make a script in bin to run the GUI:
 
