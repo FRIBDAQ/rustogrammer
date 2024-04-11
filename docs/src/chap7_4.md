@@ -1433,3 +1433,60 @@ Only available for SpecTcl.  Ask SpecTcl to execute a script.
 #### Returns
 **detail** will have the string representation of the script result.  Note that in the case of an error, **detail** will have whatever the error result was.  Normally, this is more information about the error.
 
+### trace_establish
+#### Description
+Establish interest in traces and begin accumulation of trace information.  Traces are a compromise between the tracing that SpecTcl supports and what is easy to implement on web protocols.   In both SpecTcl and Rustogramer, establishing a trace:
+*  Creates a trace queue for the client and assignes a token for the client to use to represent that queue.
+*  Associates a minimum lifetime for events in the trace queues.
+
+When traceable events happen, they are queued in all of the trace queues, and events that are older than the retention time associated with a queue are pruned out of that queue.  This pruning ensures that if a tracing program exits without invoking [trace_done](#trace_done), the data in its trace queue will not grow without bounds.
+
+When done tracing or about to exit, a program should invoke [trace_done](#trace_done) to release the storage associated with the token and destroy the trace queue.  From time to time, the client should invoke [trace_fetch](#trace_fetch) to obtain the contents of the trace queue.  This should be done more often than the retention period else events can be missed.
+#### Parameters
+* *retention_secs* (unsigned > 0) - Minimum number of seconds to retain trace information.
+#### Returns
+**detail** Is an unsigned integer called the *trace token* it should be used as the *token* argument for both
+[trace_done](#trace_done) and [trace_fetch](#trace_fetch).
+
+### trace_done
+#### Description
+Stop saving trace data for the client identified with the trace token.  Once this successfully completes, the trace toke is no longer valid.
+#### Parameters
+* *token* (unsigned) - Token returned from the call to [trace_establish](#trace_establish).
+#### Returns
+Nothing.
+
+### trace_fetch
+#### Description
+Destructively fetches the contents of a client's trace queue.  Once fetched, the trace queue associated with the client token is emptied.
+#### Parameters
+* *token* (unsigned) - Token returned from the call to [trace_establish](#trace_establish).
+#### Returns
+*detail* contains a dict with keys for each type of trace:
+
+* **parameter** (iterable) - containing the parameter traces.
+* **spectrum** (iterable) - containing the specturm traces.
+* **gate** (iterable)  - containing the gate/condition traces.
+* **binding** (iterable) - containing the bindings traces.
+
+The value of each trace is an interable containing strings where each string has the form
+```
+op object
+```
+
+Where ```op``` is the operation that fired the trace and ```object``` is the object the operation targeted.
+
+With the exception of the bindings traces all traces have the following operations:
+
+* ```add``` - ```object``` is a new object e.g. for **spectrum** traces a new spectrum named ```object``` was created.
+* ```changed``` - The trace fired because ```object``` was modified, for example a gate was changed.
+* ```delete``` - The trace fired because ```object``` was deleted.
+
+For bindings traces, the operatiosn are:
+
+* ```add``` - The trace fired because ```object``` is a spectrum that was bound into display shared memory.
+* ```remove```- The trace fired because ```object``` is a spectrum that was unbound from dislay shared memory.
+
+
+
+
