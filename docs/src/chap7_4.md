@@ -1540,4 +1540,27 @@ If you have GUI elements with ```-textvariable``` options e.g. linking variables
 #### Returns
 Nothing
 
+### get_version
+#### Description
+Gets version information about the server program.
+#### Parameters
+None
+#### Returns
+**detail** is a dict with the following keys:
+
+* **major** (unsigned) - the major version number of the program.
+* **minor** (unsigned) - the minor version number of the program.
+* **editlevel** (unsigned) - the edit level of the program.
+* **program_name** (string) - This is always present from Rustogramer and contains the string: Rustogramer. It is only present in SpecTcl versions later than 5.14-013 when it contains the string SpecTcl. Therefore the server program is
+    * Rustogramer if program_name is present and contains Rustogramer
+    * SpecTcl if program_name is no present or is present and contains SpecTcl
+
+
+### kill_histogramer
+#### Description
+Rustogramer only.  Requests that the server exit.  
+#### Parameters
+None
+#### Returns
+None, after returning a successful result, the server begins an orderly, clean shutdown.  At that time, no further ReST requests can be made of the server.
 
