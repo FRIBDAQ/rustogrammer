@@ -1405,3 +1405,22 @@ See the ```roottree``` command in the [SpecTcl Command Reference](https://docs.n
 #### Returns
 None.
 
+### roottree_delete
+#### Description
+Deletes a root tree.  If the tree is outputting data it will close its file before it is destroyed.  All resources associated with the tree, other than the files it has written will be destroyed.
+#### Parameters
+* *name* (string) - name of the root tree to destroy.
+#### Returns
+None.
+
+### roottree_list
+#### Description
+LIst properties of root trees.
+#### Parameters
+* *pattern* (string) - if present, this is a glob pattern.  Only trees with names that match the pattern will be listed.  If not supplied, the pattern defaults to ```*``` which matches everything.
+#### Returns
+**detail** is a list of dicts.  Each dict describes one tree and has the following keys:
+
+* **name** (string) -name of the tree.
+* **params** (iterable) - Each iteration returns a string which is a parameter pattern that describe the parameters that will be output to the trees.
+* **gate** (string) - Condition that gates the root tree's events.  If there is no gate, this is an empty string.
