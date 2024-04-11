@@ -1424,3 +1424,12 @@ LIst properties of root trees.
 * **name** (string) -name of the tree.
 * **params** (iterable) - Each iteration returns a string which is a parameter pattern that describe the parameters that will be output to the trees.
 * **gate** (string) - Condition that gates the root tree's events.  If there is no gate, this is an empty string.
+
+### execute_tcl
+#### Description
+Only available for SpecTcl.  Ask SpecTcl to execute a script.
+#### Parameters
+* *script* (string) - script to execute in the SpecTcl interpreter.
+#### Returns
+**detail** will have the string representation of the script result.  Note that in the case of an error, **detail** will have whatever the error result was.  Normally, this is more information about the error.
+
