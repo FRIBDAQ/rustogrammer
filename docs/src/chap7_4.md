@@ -1487,6 +1487,57 @@ For bindings traces, the operatiosn are:
 * ```add``` - The trace fired because ```object``` is a spectrum that was bound into display shared memory.
 * ```remove```- The trace fired because ```object``` is a spectrum that was unbound from dislay shared memory.
 
+### treevariable_list
+#### Description
+Tree variables are only supported by SpecTcl. The represent C/C++ variables that are also bound to Tcl variables.  They are often used to steer computation by event processors.  For example an event processor might compute a calibrated parameter from a raw parameter by applying a linear tranform.  Making the slope and offset of that transform treevariables allows them to be adjusted during run-time.
 
+Tree variables have a name, value and, optionally, units of measure.  The units of measure are generally for documentation purposes only.  
+#### Parameters
+None  unlike other listing methods there is no pattern/filter parameter; you always get all tree parameters.
+#### Returns
+**detail** is an iterable of dicts.  The dicts each describe a treevariable and contain the following keys:
+
+* **name** (string) - Name of the treevariable.
+* **value** (float) - Current value of the tree variable. 
+* **units** (string) - Units of measure.  Will be an empty string if none were set.
+
+### treevariable_set
+#### Description
+SpecTcl only.  Sets the value and optionally the units of a treevariable.
+#### Parameters
+* *name* (string) - Name of the tree variable to modify.
+* *value* (float) - New value to give the tree variable.
+* *units* (string) - Optional units tring.  IF the units are not supplied, an empty string is used.
+#### Returns
+Nothing
+
+### treevariable_check
+#### Description
+SpecTcl only.  Return the value of the treevariable check flag.  This is set to be true by the [treevariable_setchanged](#treevariable_setchanged) method.  Normally this flag is set when a tree variable is modified.  It allows state change methods to filter the saved tree variable state to only the tree variables that actually changed. 
+#### Parameters
+* *name* (string) - name of the variable to check.
+#### Returns
+**detail** is an integer that is non-zero if the flag is set an 0 otherwise.
+
+
+### treevariable_setchanged
+#### Description
+SpecTcl only Sets the changed/check flag.  see [treevariable_check](#treevariable_check) for more information aobu this flag.
+#### Parameters
+* *name* (string) - name of the variable whose flag is set.
+#### Returns
+Nothing.
+
+
+### treevariable_firetraces
+#### Description
+SpecTcl only.  Fires Tcl traces associated with tree variables.  Tcl traces are callbacks that inform scripts of interesting events.  In this case, changes of value or untis.  Traces are needed because, rather than using e.g. Tcl_SetVar to set the value of a tree variable (which would fire traces), the SpecTcl ```treevariable -set``` command modifies the underlying linked C/C++ variable which does not fire traces.
+
+If you have GUI elements with ```-textvariable``` options e.g. linking variables to the display, firing traces is necessary to get the display updated.
+#### Parameters
+* *pattern* (string) - Optional glob pattern.  Traces are onl fired for the tree variables with names that match the pattern.  If *pattern* is not supplied, it defaults to ```*``` which matches everything
+
+#### Returns
+Nothing
 
 
