@@ -150,7 +150,7 @@ pub trait Condition {
     /// *  event - the event to check the fold against.
     ///
     /// ### Returns:
-    /// *  HashSet<u32> - a vector if parameter ids that are outside the
+    /// *  HashSet&lt;u32&gt; - a vector if parameter ids that are outside the
     /// fold AOI.
     ///
     /// There are two cases: 1d and 2d AOIs (e.g. 2d AOI in another

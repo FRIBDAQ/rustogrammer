@@ -30,7 +30,7 @@ pub enum ProjectionDirection {
 /// * direction - Specifies ths projection direction.
 ///
 /// ### Returns:
-///    Result<Vec<f64>, String> On success, this is an initialized
+///    Result&lt;Vec&lt;f64&gt;, String&gt; On success, this is an initialized
 ///  vector large enough to contain the projection.  On failure a string
 ///  error message (e.g. "Spectrum requires both an X and a Y axis.")
 ///
@@ -69,7 +69,7 @@ fn make_sum_vector(
 /// if that channel should be inlcuded in the sum.
 ///
 ///  ### Returns:
-///    Result<Vec<f64>, String> where on success the vector is the projection
+///    Result&lt;Vec&lt;f64&gt;, String&gt; where on success the vector is the projection
 /// while on failure it is a diagnostic string describing the reason for failure.
 ///
 pub fn project_spectrum<F>(

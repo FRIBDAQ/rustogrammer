@@ -12,7 +12,7 @@
 //!  *  twod      - Integrate 2d over contour object.
 //!
 //! Each of these takes what iter gave it and returns
-//! Option<SumElement> object.
+//! Option&lt;SumElement&gt; object.
 //!  Where None indicates the iteration is not to be included in the integration.
 //!  Some  if the integration is included and, in that case,
 //!  the payload are the sum elements for the integration.
