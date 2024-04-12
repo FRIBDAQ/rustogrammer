@@ -74,7 +74,9 @@ Or again to install the debug version:
 
 Beginning with release 1.1.1, the release products include files named:
 * rustogramer-linux.tar.gz - Binary distribution for Linux
-* rustogramer-widows.zip  - Binary distribution for Windows.
+* rustogramer-widows.tar.gz  - Binary distribution for Windows (note that starting with windows 10, tar is included).
+
+
 
 These are made with the scripts
 
@@ -89,4 +91,7 @@ make-windows-binary.bat
 
 in the source distribution.
 
-To install from binaries, grab the distribution approprate to your system and follow the instructions in [Doing the installation](#doing-the-installation) above.
+To install from binaries
+* Grab the distribution approprate to your system.
+* Unwrap the tarball using tar xzf ....
+* Follow the instructions in [Doing the installation](#doing-the-installation) above.
