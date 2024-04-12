@@ -1623,10 +1623,10 @@ snit::type SpecTclRestClient {
     #
     # @param name    - name of the event built event processor.
     # @param source  - Id of the source it processes.
-    # @param pipe    - Name of the pipe to process data from that source.
+    # @param processor    - Name of the processor.
     #
-    method evbAdd {name source pipe} {
-        set qdict [dict create name $name source $source pipe $pipe]
+    method evbAdd {name source processor} {
+        set qdict [dict create name $name source $source pipe $processor]
         $self _request [$self _makeUrl evbunpack/add $qdict]
     }
     ##

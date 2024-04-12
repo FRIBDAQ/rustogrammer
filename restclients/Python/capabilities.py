@@ -318,7 +318,9 @@ def has_rest_runlist():
     ''' 
         True if the program can be asked to process a list of runs (cluster file) via REST:
     '''
-    return False                  # To be added to SpecTcl
+
+    return (get_program() == Program.SpecTcl) and (combined_version >= _make_combined_version(5,14,0))
+    
 
 def can_read_raw_events():
     ''' Return TRUE if .evt files can be read. '''

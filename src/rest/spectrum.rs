@@ -742,15 +742,31 @@ pub fn create_spectrum(
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Channel {
-    xchan: f64,
-    ychan: f64,
-    value: f64,
+    x: f64,
+    y: f64,
+    v: f64,
 }
+#[derive(Serialize, Deserialize)]
+#[serde(crate= "rocket::serde")]
+struct Statistics {
+    xunderflow : u32,
+    xoverflow: u32,
+    yunderflow : Option<u32>,
+    yoverflow : Option<u32>
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(crate= "rocket::serde")]
+struct GetDetail {
+    statistics : Statistics,
+    channels: Vec<Channel>
+}
+
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
 pub struct ContentsResponse {
     status: String,
-    detail: Vec<Channel>,
+    detail: GetDetail,
 }
 
 // Determine if a spectrum type has 2 axes:
@@ -798,7 +814,10 @@ pub fn get_contents(
     if let Err(s) = list {
         return Json(ContentsResponse {
             status: format!("Failed to fetch info for {} : {}", name, s),
-            detail: vec![],
+            detail: GetDetail {
+                statistics: Statistics {xunderflow: 0, xoverflow:0, yunderflow: None, yoverflow: None},
+                channels: vec![]
+            }
         });
     }
     let list = list.unwrap();
@@ -808,7 +827,10 @@ pub fn get_contents(
                 "Failed to fetch info for {} no such spectrum or ambiguous name",
                 name,
             ),
-            detail: vec![],
+            detail: GetDetail {
+                statistics: Statistics{xunderflow: 0, xoverflow:0, yunderflow: None, yoverflow: None},
+                channels: vec![]
+            }
         });
     }
     let description = list[0].clone();
@@ -843,19 +865,25 @@ pub fn get_contents(
     let result = if let Err(s) = contents {
         ContentsResponse {
             status: format!("Failed to get spectrum contents: {}", s),
-            detail: vec![],
+            detail: GetDetail {
+                statistics: Statistics {xunderflow: 0, xoverflow:0, yunderflow: None, yoverflow: None},
+                channels: vec![]
+            }
         }
     } else {
         let mut reply = ContentsResponse {
             status: String::from("OK"),
-            detail: vec![],
+            detail: GetDetail {
+                statistics: Statistics {xunderflow: 0, xoverflow:0, yunderflow: None, yoverflow: None},
+                channels: vec![]
+            }
         };
         let contents = contents.unwrap();
         for c in contents {
-            reply.detail.push(Channel {
-                xchan: c.x,
-                ychan: c.y,
-                value: c.value,
+            reply.detail.channels.push(Channel {
+                x: c.x,
+                y: c.y,
+                v: c.value,
             });
         }
         reply
@@ -2803,7 +2831,7 @@ mod spectrum_tests {
             .expect("Parsing JSON");
 
         assert_eq!("OK", reply.status);
-        assert_eq!(0, reply.detail.len());
+        assert_eq!(0, reply.detail.channels.len());
 
         teardown(chan, &papi, &bind_api);
     }
@@ -2831,9 +2859,9 @@ mod spectrum_tests {
             .expect("Parsing JSON");
 
         assert_eq!("OK", reply.status);
-        assert_eq!(1, reply.detail.len());
-        assert_eq!(512.0, reply.detail[0].xchan);
-        assert_eq!(1.0, reply.detail[0].value);
+        assert_eq!(1, reply.detail.channels.len());
+        assert_eq!(512.0, reply.detail.channels[0].x);
+        assert_eq!(1.0, reply.detail.channels[0].v);
 
         teardown(chan, &papi, &bind_api);
     }
@@ -2861,7 +2889,7 @@ mod spectrum_tests {
             .expect("Parsing JSON");
 
         assert_eq!("OK", reply.status);
-        assert_eq!(0, reply.detail.len());
+        assert_eq!(0, reply.detail.channels.len());
 
         teardown(chan, &papi, &bind_api);
     }
@@ -2889,11 +2917,11 @@ mod spectrum_tests {
             .into_json::<ContentsResponse>()
             .expect("Parsing JSON");
         assert_eq!("OK", reply.status);
-        assert_eq!(1, reply.detail.len());
+        assert_eq!(1, reply.detail.channels.len());
 
-        assert_eq!(512.0, reply.detail[0].xchan);
-        assert_eq!(256.0, reply.detail[0].ychan);
-        assert_eq!(1.0, reply.detail[0].value);
+        assert_eq!(512.0, reply.detail.channels[0].x);
+        assert_eq!(256.0, reply.detail.channels[0].y);
+        assert_eq!(1.0, reply.detail.channels[0].v);
 
         teardown(chan, &papi, &bind_api);
     }
@@ -2921,7 +2949,7 @@ mod spectrum_tests {
             .into_json::<ContentsResponse>()
             .expect("Parsing JSON");
         assert_eq!("OK", reply.status);
-        assert_eq!(0, reply.detail.len());
+        assert_eq!(0, reply.detail.channels.len());
 
         teardown(chan, &papi, &bind_api);
     }

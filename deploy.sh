@@ -33,6 +33,8 @@ fi
 install -d $dest
 install -d $dest/bin
 install -d $dest/share
+install -d $dest/share/docs/user
+install -d $dest/share/docs/internal
 
 # install the binary:
 
@@ -47,8 +49,13 @@ install -d $dest/share/restclients/Tcl
 install -m 0644  restclients/Python/* $dest/share/restclients/Python
 install -m 0644  restclients/Tcl/*    $dest/share/restclients/Tcl
 
+# Install the documentation:
+
+(cd target/doc; tar czf - .)| (cd $dest/share/docs/internal; tar xzf -)
+(cd docs/book; tar czf - .) | (cd $dest/share/docs/user; tar xzf -)
+
 # Now make a script in bin to run the GUI:
 
 echo "#!/bin/bash" > $dest/bin/gui
-echo "(cd $dest/share/restclients/Python; python3 Gui.py)" >> $dest/bin/gui
+echo "(cd $dest/share/restclients/Python; python3 Gui.py" '$@)' >> $dest/bin/gui
 chmod 0755 $dest/bin/gui

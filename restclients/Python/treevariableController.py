@@ -38,7 +38,17 @@ class TreeVariableController:
         view.set.connect(self._set)
     
     def _append(self):
-        self._table.append(self._selected())
+        if self._selector.array():
+            element = self._selected()['name']
+            path =  element.split('.')
+            array = path[0:-1]
+            if len(array) > 0:
+                pattern = '.'.join(array) + '.*'
+                for variable in self._client.treevariable_list()['detail']:
+                    if fnmatch.fnmatch(variable['name'], pattern):
+                        self._table.append(variable)
+        else:
+            self._table.append(self._selected())
     def _replace(self):
         selection = self._table.selection()
         if len(selection) == 1:

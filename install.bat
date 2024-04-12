@@ -28,6 +28,9 @@ mkdir %dest%
 mkdir %dest%\restclients
 mkdir %dest%\restclients\python
 mkdir %dest%\restclients\tcl
+mkdir %dest%\docs
+mkdir %dest%\docs\user
+mkdir %dest%\docs\internal
 
 REM Install rustogramer.exe:
 
@@ -43,8 +46,17 @@ REM Now the batchfile to run the Python GUI
 ECHO CD %dest%\restclients\python  >%dest%\GUI.bat
 ECHO PYTHON Gui.py %%* >>%dest%\GUI.bat
 
+REM Documentation:
+
+XCOPY /E/Q target\doc\ %dest%\docs\internal\
+XCOPY /E/Q docs\book\ %dest%\docs\user\
+
+
 ECHO %dest%\rustogrammer will now run the histogramer.
 ECHO %dest%\GUI   will now run the Python GUI
+ECHO Point a web browser at:
+ECHO %dest%\docs\user\index.html - for user Documentation
+ECHO %dest%\docs\internal\rustogramer\index.html - For internals documentation. 
 ECHO If you have installed CutiePie you can use it as a visualizer
 ECHO for you spectra.
 

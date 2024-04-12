@@ -9,3 +9,4 @@ clippy.txt
 /.vscode
 *-journal
 *.sqlite
+*.tar.gz

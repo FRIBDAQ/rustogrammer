@@ -25,6 +25,7 @@ class RustogramerException(Exception):
         return f'Server Reported an error: {self.status} : {self.detail}'        
 
 class rustogramer:
+    debug = False
     """
        The rustogramer class is the client side object for Rustogramer
 
@@ -51,7 +52,8 @@ class rustogramer:
         # Create the URI:
 
         uri = "http://" + self.host + ":" + str(self.port) + "/spectcl/" + request
-        print(uri, queryparams)
+        if self.debug:
+            print(uri, queryparams)
         response = requests.get(uri, params=queryparams)
         response.raise_for_status()     # Report response errors.and
         result = response.json()
@@ -200,13 +202,13 @@ class rustogramer:
             {"name": name, "frequency" : frequency, "basename": basename}
         )
     
-    def evbunpack_add(self, name, source_id, pipeline_name):
+    def evbunpack_add(self, name, source_id, processor_name):
         """ Set the pipeline that processes fragments from a source id:
           *   name of the event builder unpacker being manipulated.
           *   source_id - source id of the fragments that will be processed
           by this pipeline.
-          *   pipeline_name - name of an event builder pipeline that will
-          be used to process fragments from source_id.  This pipeline
+          *   processor_name - name of an event processor that will
+          be used to process fragments from source_id.  This processor
           must have been registered with the pipeline manager (see the
           pman_* methods)
 
@@ -214,7 +216,7 @@ class rustogramer:
         """
         return self._transaction(
             "evbunpack/add",
-            {"name": name, "source": source_id, "pipe": pipeline_name}
+            {"name": name, "source": source_id, "pipe": processor_name}
         )
     
     def evbunpack_list(self, pattern="*"):
@@ -1027,8 +1029,7 @@ class rustogramer:
             -  'json' (Rustogramer only) file is in rustogramr JSON format.
             -  'binary' (SpecTcl only) file is in Smaug binary format (this is
             a pretty obsolete format; SMAUG was a pre NSCL offline analysis program
-            used by the 'Lynch' written by an undergraduate in their employ whose
-            name now escapes me so I can't credit him).
+            used by the 'Lynch' written by an undergraduate named Steve Hanchar
         *  options a dict (defaultsto empty) that can override the options
         that determine how the spectrum is read.  It is optional and the
         following keys matter:
