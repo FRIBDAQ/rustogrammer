@@ -27,4 +27,4 @@ tar cvzf rustogramer-linux.tar.gz \
        rustogrammer/restclients \
        rustogrammer/deploy.sh
 
-echo rustogramer-linux.tar.gz - is the windows binary distribution.
+echo rustogramer-linux.tar.gz - is the linux  binary distribution.
