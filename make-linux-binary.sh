@@ -18,13 +18,13 @@ mdbook build docs
 # Build a tarball for our stuff:
 
 
-tar cvzf rustogramer-windows.tar.gz \
+tar cvzf rustogramer-linux.tar.gz \
       -C .. \
        rustogrammer/target/debug/rustogrammer \
        rustogrammer/target/release/rustogrammer \
        rustogrammer/target/doc \
        rustogrammer/docs/book \
        rustogrammer/restclients \
-       rustogrammer/install.bat
+       rustogrammer/deploy.sh
 
-echo rustogramer-windows.tar.gz - is the windows binary distribution.
+echo rustogramer-linux.tar.gz - is the windows binary distribution.
