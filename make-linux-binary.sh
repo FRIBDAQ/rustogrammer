@@ -20,8 +20,8 @@ mdbook build docs
 
 tar cvzf rustogramer-windows.tar.gz \
       -C .. \
-       rustogrammer/target/debug/rustogrammer.exe \
-       rustogrammer/target/release/rustogrammer.exe \
+       rustogrammer/target/debug/rustogrammer \
+       rustogrammer/target/release/rustogrammer \
        rustogrammer/target/doc \
        rustogrammer/docs/book \
        rustogrammer/restclients \
