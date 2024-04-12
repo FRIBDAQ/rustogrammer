@@ -422,7 +422,7 @@ pub fn delete_rawparameter() -> Json<GenericResponse> {
 // List new parameters - stub implementation.
 #[derive(Serialize, Deserialize)]
 #[serde(crate = "rocket::serde")]
-struct ListNewResponse {
+pub struct ListNewResponse {
     status : String,
     detail : Vec<String>,
 }
