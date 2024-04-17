@@ -1,7 +1,7 @@
 
 from PyQt5.QtWidgets import (
     QAction, QWizard, QWizardPage, QLabel, QLineEdit, QPushButton, QCheckBox, QFileDialog,
-    QTableWidget, QDialog, QDialogButtonBox,
+    QTableWidget, QDialog, QDialogButtonBox, QRadioButton,
     QVBoxLayout, QHBoxLayout
 )
 from PyQt5.QtCore import QObject
@@ -13,6 +13,7 @@ from gatelist import ConditionChooser, common_condition_model
 from ParameterChooser import ParameterTree, update_model
 from editablelist import EditableList
 from spectrumeditor import error
+import capabilities
 
 class FilterMenu(QObject):
     
@@ -48,10 +49,14 @@ class FilterMenu(QObject):
             parameters = wiz.parameters()
             filename = wiz.file()
             enable = wiz.enable()
+            format = wiz.format()
             
             try:
                 self._client.filter_new(name, gate, parameters)
                 self._client.filter_setfile(name, filename)
+                
+                if format != "":
+                    self._client.filter_setformat(name, format)
                 if enable:
                     self._client.filter_enable(name)
             except Exception as e:
@@ -108,6 +113,8 @@ class FilterWizard(QWizard):
         return self.field('file')
     def enable(self):
         return self.field('enable')
+    def format(self):
+        return self._file.format()
     
 class NamePage(QWizardPage):
     # Introduces the filter wizard and lets the filter name be set:
@@ -138,10 +145,11 @@ let's start with the filter name: \
         self._name = QLineEdit(self)
         prompt.addWidget(self._name)
         layout.addLayout(prompt)
+        
         self.registerField('name', self._name)
         
         self.setLayout(layout)
-        
+
 class GatePage(QWizardPage):
     def __init__(self, client, *args):
         super().__init__(*args)
@@ -233,6 +241,23 @@ class FilePage(QWizardPage):
         file.addWidget(self._browse)
         layout.addLayout(file)
         
+        # Issue #172 - support multiple filter formats:
+        
+        formats = capabilities.supported_filter_formats()
+        self._radios = []
+        #  Only add the widgets if there are formats:
+        
+        if (len(formats) > 0):    
+            layout.addWidget(QLabel('Filter format:'))
+            fmt_layout = QHBoxLayout()
+            for text in formats:
+                r = QRadioButton(text, self)
+                self._radios.append(r)
+                fmt_layout.addWidget(r)
+            self._radios[0].setChecked(True)
+            layout.addLayout(fmt_layout)
+        
+        
         self._enable = QCheckBox('Enable Filter', self)
         self.registerField('enable', self._enable)
         layout.addWidget(self._enable)
@@ -251,7 +276,15 @@ class FilePage(QWizardPage):
         name = file [0]
         if name != '':
             self._file.setText(name)
-            
+    
+    def format(self):
+        ''' return the format string '''
+        result =""
+        for r in self._radios:
+            if r.isChecked():
+                return r.text()
+        
+        return result       
 class EnableFilters(QDialog):
     def __init__(self, filter_info, *args):
         super().__init__(*args)
