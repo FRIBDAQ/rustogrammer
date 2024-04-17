@@ -313,6 +313,16 @@ class rustogramer:
            
         """
         return self._transaction("/filter/list", {})    
+    
+    # issue #172 - select filter formats.
+    
+    def filter_setformat(self, name, fmtstring):
+        ''' Set the format of a filter:
+           name - name of the filter.
+           fmtstring - format string selector e.g. 'xdr'
+        '''
+        self._transaction('filter/format', {'name': name, 'format': fmtstring})
+        
     #--------------------------- fit API.
 
     def fit_create(self, name, spectrum, low, high, type) :
