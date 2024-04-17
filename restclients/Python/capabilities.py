@@ -350,3 +350,25 @@ def _adjust_for_version():
         if combined_version >= _make_combined_version(5, 13, 13):
             supported_spectrum_format_strings[Program.SpecTcl].append('json')
             
+        # Version 5.14-xxx adds support for FRIBPipe filters.
+        if combined_version >= _make_combined_version(5,14,0):
+            spectcl_filter_formats.append("FRIBPipe")
+            
+
+#
+#  Issue #172 - support both xdr and FRIBPipe filter file formats:
+#  Note:  This is only for SpecTcl as there is no support for filters
+#        in rustogramer:
+
+spectcl_filter_formats = ["xdr"]
+
+def supported_filter_formats():
+    '''  Return a list of the supported filter file formats.
+         If not SpecTcl, we return an empty string otherwise
+         spectcl_filter_formats
+    '''
+    program = get_program()
+    if program == Program.SpecTcl:
+        return spectcl_filter_formats
+    else: 
+        return []

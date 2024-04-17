@@ -354,6 +354,19 @@ An iterable that contains dictionaries with the following keys:
 * **enabled** (string) - If the filter is enabled, this will be ```enabled``` if not, ```disabled```.
 * **format** (string) - format of the filter file (e.g. ```xdr```).
 
+### filter_setformat 
+as of 1.1.2
+#### Description
+Sets the format of a filter. Note that as the format selector is a text string, any filter formats added by the application will be usable.
+#### Parameters
+* **name** (string) - name of the filter.
+* **format** (string) - name of the filter format.  SpecTcl has the following filter formats baked in:
+    *  **xdr** - Exchange data representation. 
+    * **FRIBPipe** - (added with SpecTcl 5.14) - Output format of the FRIB analysis pipeline.  Filter files written in this format can be analyzed directly by rustogramer.
+#### Returns
+Nothing
+
+
 ### fit_create
 #### Description
 Creates a new fit object.  SpecTcl only.
