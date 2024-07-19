@@ -1,0 +1,3 @@
+[submodule "restclients/Python"]
+	path = restclients/Python
+	url = https://github.com/FRIBDAQ/SpecTclPythonGUI.git
