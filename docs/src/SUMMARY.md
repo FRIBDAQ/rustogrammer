@@ -11,6 +11,7 @@
     - [The ```Parameters``` Tab](./chap4_2.md)
     - [The ```Variables``` Tab](./chap4_3.md)
     - [The ```Gate``` Tab](./chap4_4.md)
+    - [The ```BindSets``` Tab](./chap4_bindsets.md)
     - [The ```File``` Menu](./chap4_5.md)
     - [The ```Data Source``` Menu](./chap4_6.md)
     - [The ```Filters``` Menu](./chap4_filters.md)

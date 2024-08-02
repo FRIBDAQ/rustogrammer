@@ -252,3 +252,55 @@ CREATE TABLE IF NOT EXISTS treevariables
 * *name* - is the name of a tree variable.
 * *value* - nIs the value of the variable.
 * *units* - is the units of measure of the variable.
+
+## Bindset Schema additions
+
+The python gui will create and populate a schema to save and restore the bindsets it knows 
+about.  SpecTcl, directly does not do that.  The Python GUI load operations can detect the
+lack of the tables descsribed below and operate accordingly.
+
+Two tables are required to save bindsets.  The first one, stores the name and description.
+The second the spectra in each bindset:
+
+```sql
+CREATE TABLE IF NOT EXISTS binding_sets (
+    id            INTEGER PRIMARY KEY,
+    save_id       INTEGER NOT NULL,    -- FK save set id.
+    name          TEXT NOT NULL,
+    description   TEXT DEFAULT NULL
+)
+```
+Where:
+
+* *id* is the row's primary key and is used as a foreign key to identify the bindset.
+* *save_id* is the id of the save set this binding set belongs to.
+* *name* is the name of the binding set.
+* *description* is a longer description of the binding set.
+
+Spectra in a binding set are stored in:
+
+```sql
+CREATE TABLE IF NOT EXISTS bound_spectra (
+    id    INTEGER PRIMARY KEY,
+    bindset_id INTEGER NOT NULL, -- FK to binding_sets which set.
+    spectrum_id INTEGER NOT NULL -- FK to spectrum_defs spectrum in binding set.
+)
+```
+
+* *id*  is the primary key of the bound spectrum.
+* *bindset_id*  is a foreign key containing the primary key of the binding_set in which the
+spectrum lives (from binding_sets).
+* *spectrum_id* is a foreign key from spectrum_defs containing the primary key of the spectrum
+that is a member of the binding set.
+
+For exsample, given a binding set name, the following query returns the names of all spectra
+that are in that binding set:
+
+```sql
+SELECT spectrum_defs.name FROM spectrum_defs
+    INNER JOIN bound_spectra on spectrum_defs.id = bound_spectra.spectrum_id
+    INNER JOIN binding_sets on binding_sets.id = bound_spectra.bindset_id
+    WHERE binding_sets.name = :bset_name
+```
+In the query above, ```:bset_name``` is a bound parameter of the query that will be substituted
+at run-time.

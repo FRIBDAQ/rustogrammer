@@ -1,6 +1,6 @@
 # Chapter 4 - Using the Rustogramer GUI
 
-Rustogrmer suplies a sample GUI that is based on the NSCLSpecTcl treegui with, what I think are, some improvements in how objects are creatd. The GUI is a sample of a REST client written in Python against the [Python Rest API](./chap6_2.md).
+Rustogramer suplies a sample GUI that is based on the NSCLSpecTcl treegui with, what I think are, some improvements in how objects are creatd. The GUI is a sample of a REST client written in Python against the [Python Rest API](./chap6_2.md).
 
 If the envirionment variable ```RUST_TOP``` is defined to point to the top installation directory of Rustogramer, you can run the gui as follows:
 
@@ -32,6 +32,7 @@ For information about the contents of each tab:
 - [The ```Parameters``` Tab](./chap4_2.md)
 - [The ```Variables``` Tab](./chap4_3.md) (SpecTcl only).
 - [The ```Gate``` Tab](./chap4_4.md)
+- [The ```BindSets``` Tab](./chap4_bindsets.md)
 
 For information about the Menus:
 - [The ```File``` Menu](./chap4_5.md)
@@ -39,3 +40,11 @@ For information about the Menus:
 - [The ```Filters``` Menu](./chap4_filters.md) (SpecTcl only).
 - [The ```Spectra``` Menu](./chap4_7.md)
 - [The ```Gate``` Menu](./chap4_8.md)
+
+The rustogramer GUI is now included in SpecTcl (as of version 7.0).  To use it you'll need to setup the ReST server as described in the CutiePie documentation.  You can then start the GUI from ```SpecTclRC.tcl```
+by adding the line:
+
+```tcl
+exec python3 $SpecTclHome/pythontree/Gui.py --port $HTTPDPort &
+```
+towards the end of that file.
