@@ -444,14 +444,14 @@ proc SpecTclRestCommand::shutdown { } {
 #
 # apply
 #    Simulate the apply command.  There are two versions:
-#    -  apply gate spectrum....
-#    -  apply -list ?pattern?
+#    -  applygate gate spectrum....
+#    -  applygate -list ?pattern?
 #  We are a bit more tolerant than the native command.
 #  If there's junk after the pattern in apply -list we ignore it.
 # @parm args - the command parameters.
 # @note - yes we know this masks the apply command.
 #
-proc apply {args} {
+proc applygate {args} {
     if {[llength $args] < 1} {
         error "'apply' command requires parameters"
     }
