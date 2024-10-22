@@ -480,12 +480,12 @@ impl ProcessingThread {
             }
             RequestType::GetVersion => Ok(format!("{}", self.ring_version)),
             RequestType::State => {
-                let mut result = String::new();
+                let result = 
                 if self.processing {
-                    result = String::from("Active")
+                    String::from("Active")
                 } else {
-                    result = String::from("Inactive");
-                }
+                    String::from("Inactive")
+                };
                 Ok(result)
             }
         };
