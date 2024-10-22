@@ -2022,7 +2022,7 @@ If the column labeled ```rustogramer support``` in the table below is empty, ful
 +--------------------+-----------------+---------------------+
 | Command            | Supported       | rustogramer support |
 +====================+=================+=====================+
-| apply              | Yes             |                     |
+| applygate          | Yes             |                     | (4)
 | attach             | Yes             | only -file          |
 | sbind              | Yes             |                     |
 | fit                | Yes             | not supported       |
@@ -2072,6 +2072,8 @@ Notes:
 1.  The sread command over the ReST interface does not support doing an sread from a file descriptor that was opened by the client side script.
 2.  See the execCommand proc however to get SpecTcl to do that.
 3.  This command is deprecated in SpecTcl.
+4.  Starting with SpecTcl 7.0 and later, the ```apply``` command is now ```applygate```.  This was done to prevent
+conflicts with the Tcl core ```apply``` command.  The high level Tcl interface implements the 7.0 command.
 
 The proc ```maintainVariables``` fetches the current values of the spectcl variables.
 This requires an event loop such as Tk applications have or the ```vwait``` command runs for the duration of the ```vwait```
