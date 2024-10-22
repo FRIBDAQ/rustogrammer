@@ -148,7 +148,7 @@ pub fn get_variables(
         instdir: get_instdir(),
         last_seq: String::from(UNDEF),
         run_number: String::from(UNDEF),
-        run_state: String::from(UNDEF),
+        run_state: prcapi.processing_state().unwrap(),
         display_type: String::from("None"),
         buffers_analyzed: String::from(UNDEF),
         title: String::from(UNDEF),
