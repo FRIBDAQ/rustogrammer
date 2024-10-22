@@ -148,7 +148,7 @@ pub fn get_variables(
         instdir: get_instdir(),
         last_seq: String::from(UNDEF),
         run_number: String::from(UNDEF),
-        run_state: String::from(UNDEF),
+        run_state: prcapi.processing_state().unwrap(),
         display_type: String::from("None"),
         buffers_analyzed: String::from(UNDEF),
         title: String::from(UNDEF),
@@ -273,7 +273,7 @@ mod shm_tests {
         assert_eq!(UNDEF, vars.parameter_count);
         assert_eq!(UNDEF, vars.last_seq);
         assert_eq!(UNDEF, vars.run_number);
-        assert_eq!(UNDEF, vars.run_state);
+        assert_eq!("Inactive", vars.run_state);
         assert_eq!(UNDEF, vars.buffers_analyzed);
         assert_eq!(UNDEF, vars.title);
 

@@ -51,9 +51,10 @@ pub enum RequestType {
     ChunkSize(usize), // Set # events per request to Histogramer
     GetChunkSize,     // Return chunksize.
     Exit,             // Exit thread (mostly for testing).
-    List,
-    Version(RingVersion),
-    GetVersion,
+    List,             // Descsribe what's attached.
+    Version(RingVersion), // Version of the Ring.
+    GetVersion,      // Return current ring version
+    State,           //"Active" if processing, "Inactive" otherwise.
 }
 pub struct Request {
     reply_chan: mpsc::Sender<Reply>,
@@ -145,6 +146,9 @@ impl ProcessingApi {
             Ok(str_version) => str_version.parse::<RingVersion>(),
             Err(s) => Err(s),
         }
+    }
+    pub fn processing_state(&self) -> Result<String, String> {
+        self.transaction(RequestType::State)
     }
 }
 /// The processing thread requires state that's held across
@@ -475,6 +479,15 @@ impl ProcessingThread {
                 Ok(String::from(""))
             }
             RequestType::GetVersion => Ok(format!("{}", self.ring_version)),
+            RequestType::State => {
+                let mut result = String::new();
+                if self.processing {
+                    result = String::from("Active")
+                } else {
+                    result = String::from("Inactive");
+                }
+                Ok(result)
+            }
         };
         request
             .reply_chan
