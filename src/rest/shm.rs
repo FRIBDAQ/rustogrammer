@@ -273,7 +273,7 @@ mod shm_tests {
         assert_eq!(UNDEF, vars.parameter_count);
         assert_eq!(UNDEF, vars.last_seq);
         assert_eq!(UNDEF, vars.run_number);
-        assert_eq!(UNDEF, vars.run_state);
+        assert_eq!("Inactive", vars.run_state);
         assert_eq!(UNDEF, vars.buffers_analyzed);
         assert_eq!(UNDEF, vars.title);
 
