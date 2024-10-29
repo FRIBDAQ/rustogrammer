@@ -10,3 +10,5 @@ clippy.txt
 *-journal
 *.sqlite
 *.tar.gz
+*.par
+*.clu
