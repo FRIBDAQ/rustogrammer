@@ -38,7 +38,9 @@ The Spctrum listing part of the Spectrum Tab looks like this:
 
 Note that you can stretch the listing horizontally and, if you stretch the entire GUI vertically, all additional space is added to the listing.
 
-Let's start with the controls at the bottom of the listing.  The ```Filter``` button updates the listing to only show the spectra with names that match the pattern in the editable text field to its right.  This pattern can contain any filesystem wild card characters.  The ```Clear``` button clears the pattern back to the default ```*```, which matches all spectra and updates the list.
+Let's start with the controls at the bottom of the listing.
+The ```Update``` buttons loads the current spectrum definitions from the histogram program.  The displayed list is also updated.
+  The ```Filter``` button updates the listing to only show the spectra with names that match the pattern in the editable text field to its right.  Note that the ```Filter``` button does _not_ update the list from the server, it only filters the last loaded spectrum list.  The filter pattern can contain any filesystem wild card characters.  The ```Clear``` button clears the pattern back to the default ```*```, which matches all spectra and updates the list.
 
 The columns on the table reflect the contents of the column for each spectrumin the list.  From left to right:
 
