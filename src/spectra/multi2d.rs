@@ -230,10 +230,10 @@ impl Multi2d {
             histogram: Rc::new(RefCell::new(ndhistogram!(
                 axis::Uniform::new(
                     x_bins.unwrap() as usize, x_low.unwrap(), x_high.unwrap()
-                ),
+                ).expect("Unable to make multi2d x axis"),
                 axis::Uniform::new(
                     y_bins.unwrap() as usize, y_low.unwrap(), y_high.unwrap()
-                );
+                ).expect("Unable to make multi2d y axis");
                 Sum
             ))),
             param_names: pnames,

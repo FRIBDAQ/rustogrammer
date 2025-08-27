@@ -283,8 +283,10 @@ impl PGamma {
             applied_fold: SpectrumGate::new(),
             name: String::from(name),
             histogram: Rc::new(RefCell::new(ndhistogram!(
-                axis::Uniform::new(x_bins.unwrap() as usize, x_min.unwrap(), x_max.unwrap()),
-                axis::Uniform::new(y_bins.unwrap() as usize, y_min.unwrap(), y_max.unwrap());
+                axis::Uniform::new(x_bins.unwrap() as usize, x_min.unwrap(), x_max.unwrap())
+                    .expect("Failed to make 2d p-gamma x axis"),
+                axis::Uniform::new(y_bins.unwrap() as usize, y_min.unwrap(), y_max.unwrap())
+                    .expect("Failed to make 2d p-gamma y axis");
                 Sum
             ))),
             x_params: xp,

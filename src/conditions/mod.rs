@@ -39,8 +39,6 @@
 //!  *    A signal that we should remove the condition from whatever it's
 //! being used for.
 //!
-//!  Organization of this module is similar to the ring_items module
-//!  We define:
 //!
 //!   *  The traits needed to implement a condition (plural because
 //!  there may need to be traits to get a description of the condition that

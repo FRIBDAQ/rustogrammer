@@ -12,3 +12,5 @@ clippy.txt
 *.tar.gz
 *.par
 *.clu
+*.log
+

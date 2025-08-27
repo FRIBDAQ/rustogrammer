@@ -9,7 +9,6 @@ mod parameters;
 mod processing;
 mod projections;
 mod rest;
-mod ring_items;
 mod sharedmem;
 mod spectclio;
 mod spectra;

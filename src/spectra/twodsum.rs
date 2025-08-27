@@ -225,8 +225,10 @@ impl TwodSum {
             applied_gate: SpectrumGate::new(),
             name: String::from(name),
             histogram: Rc::new(RefCell::new(ndhistogram!(
-                axis::Uniform::new(x_bins.unwrap() as usize, x_low.unwrap(), x_high.unwrap()),
-                axis::Uniform::new(y_bins.unwrap() as usize, y_low.unwrap(), y_high.unwrap());
+                axis::Uniform::new(x_bins.unwrap() as usize, x_low.unwrap(), x_high.unwrap())
+                    .expect("Failed to make 2d x axis"),
+                axis::Uniform::new(y_bins.unwrap() as usize, y_low.unwrap(), y_high.unwrap())
+                    .expect("Failed to make 2d y axis");
                 Sum
             ))),
             parameters: params,
