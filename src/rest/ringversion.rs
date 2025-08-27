@@ -10,7 +10,7 @@ use rocket::serde::{json::Json, Deserialize, Serialize};
 use rocket::State;
 
 use super::*;
-use crate::ring_items::RingVersion;
+use rust_ringitem_format::RingVersion;
 
 /// Set the ring item version.
 ///
