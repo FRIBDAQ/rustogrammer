@@ -93,7 +93,7 @@ impl Oned {
                 applied_gate: SpectrumGate::new(),
                 name: String::from(spectrum_name),
                 histogram: Rc::new(RefCell::new(ndhistogram!(
-                    axis::Uniform::new(bin_count as usize, low_lim, high_lim);
+                    axis::Uniform::new(bin_count as usize, low_lim, high_lim).expect("could not make 1d histogram axis");
                     Sum
                 ))),
                 parameter_name: String::from(param_name),

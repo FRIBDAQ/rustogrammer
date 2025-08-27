@@ -175,8 +175,8 @@ impl Summary {
             applied_gate: SpectrumGate::new(),
             name: String::from(name),
             histogram: Rc::new(RefCell::new(ndhistogram!(
-                axis::Uniform::new(param_names.len(), 0.0, param_names.len() as f64),
-                axis::Uniform::new(nbins as usize, low,  high);
+                axis::Uniform::new(param_names.len(), 0.0, param_names.len() as f64).expect("Failed to make paramter axis"),
+                axis::Uniform::new(nbins as usize, low,  high).expect("Failed to make counts axis");
                 Sum
             ))),
             param_names: param_names.clone(),

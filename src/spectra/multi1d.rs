@@ -182,7 +182,7 @@ impl Multi1d {
             applied_fold: SpectrumGate::new(),
             name: String::from(name),
             histogram: Rc::new(RefCell::new(ndhistogram!(
-                axis::Uniform::new(xbins.unwrap() as usize, xlow.unwrap(), xmax.unwrap());
+                axis::Uniform::new(xbins.unwrap() as usize, xlow.unwrap(), xmax.unwrap()).expect("Unable to make x axis");
                 Sum
             ))),
             param_names,

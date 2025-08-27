@@ -107,8 +107,8 @@ impl Twod {
                     applied_gate: SpectrumGate::new(),
                     name: String::from(spectrum_name),
                     histogram: Rc::new(RefCell::new(ndhistogram!(
-                        axis::Uniform::new(xaxis_info.2 as usize, xaxis_info.0, xaxis_info.1),
-                        axis::Uniform::new(yaxis_info.2 as usize, yaxis_info.0, yaxis_info.1)
+                        axis::Uniform::new(xaxis_info.2 as usize, xaxis_info.0, xaxis_info.1).expect("Could not make x axis"),
+                        axis::Uniform::new(yaxis_info.2 as usize, yaxis_info.0, yaxis_info.1).expect("Could not make y axis")
                         ; Sum
                     ))),
                     x_name: String::from(xname),
