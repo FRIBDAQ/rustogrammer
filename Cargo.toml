@@ -35,9 +35,13 @@ portman_client="0.2.0"
 serde = {version = "1.0.188", features = ["derive"]}
 chrono="0.4.41"
 scan_fmt="0.2.6"
-# For tests that need unique filenames.
-names = {version = "0.14.0", default-features = false}
+rust_ringitem_format = "0.1.2"
 md5 = "0.8.0"
+
+[dev-dependencies]
+names = {version = "0.14.0", default-features = false}
+
+
 
 [dependencies.rocket]
 version="0.5.0-rc.3"
