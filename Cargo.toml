@@ -1,6 +1,6 @@
 [package]
 name = "rustogramer"
-version = "1.1.2"
+version = "1.2.0"
 edition = "2021"
 authors = ["Ron Fox fox@frib.msu.edu"]
 description="A generic histogramer intended for nuclear science data from the FRIB"
