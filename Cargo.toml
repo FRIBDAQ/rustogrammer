@@ -1,6 +1,6 @@
 [package]
 name = "rustogramer"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2021"
 authors = ["Ron Fox fox@frib.msu.edu"]
 description="A generic histogramer intended for nuclear science data from the FRIB"
@@ -25,7 +25,6 @@ path="src/main.rs"
 [dependencies]
 ndhistogram = "0.10.0"
 humantime = "2.1.0"
-tempfile  = "3.21.0"    # For tests that create ring item files.
 libm = "0.2.15"
 glob = "0.3.3"
 memmap = "0.7.0"
@@ -37,6 +36,7 @@ chrono="0.4.41"
 scan_fmt="0.2.6"
 rust_ringitem_format = "0.1.2"
 md5 = "0.8.0"
+tempfile  = "3.21.0"
 
 [dev-dependencies]
 names = {version = "0.14.0", default-features = false}
