@@ -12,7 +12,7 @@
 //!
 //!
 use super::*;
-use memmap;
+use memmap2 as memmap;      // Issue #186.
 use std::collections::hash_map::Values;
 use std::collections::HashMap;
 use std::fs::File;
