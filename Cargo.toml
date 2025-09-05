@@ -27,7 +27,7 @@ ndhistogram = "0.10.0"
 humantime = "2.1.0"
 libm = "0.2.15"
 glob = "0.3.3"
-memmap = "0.7.0"
+memmap2 = "0.9.8"
 dirs = "6.0.0"
 clap = { version = "4.5.47", features = ["derive"] }
 portman_client="0.2.0"

@@ -243,7 +243,7 @@ impl StorageAllocator {
 pub struct SharedMemory {
     bindings: Vec<String>,
     backing_store: tempfile::NamedTempFile,
-    map: memmap::MmapMut,
+    map: memmap2::MmapMut,
     allocator: StorageAllocator,
     total_size: usize,
 }
@@ -322,7 +322,7 @@ impl SharedMemory {
         }
         // Finally we can make the memory map:
 
-        let mut map = match unsafe { memmap::MmapMut::map_mut(file.as_file()) } {
+        let mut map = match unsafe { memmap2::MmapMut::map_mut(file.as_file()) } {
             Ok(m) => m,
             Err(e) => {
                 return Err(format!("Failed to map file: {}", e));
