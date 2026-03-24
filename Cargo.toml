@@ -37,12 +37,9 @@ scan_fmt="0.2.6"
 rust_ringitem_format = "0.1.2"
 md5 = "0.8.0"
 tempfile  = "3.27.0"
+rocket = {version="0.5.1", features=["json"]}
 
 [dev-dependencies]
 names = {version = "0.14.0", default-features = false}
 
 
-
-[dependencies.rocket]
-version="0.5.1"
-features=["json"]
