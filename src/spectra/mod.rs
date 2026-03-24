@@ -72,7 +72,7 @@ pub mod pgamma;
 pub use pgamma::*;
 
 pub mod integration;
-pub use integration::*;
+
 
 ///
 /// Gated spectra have this.  The condition_name just documents
@@ -350,6 +350,7 @@ pub trait Spectrum {
 
     ///  Override to return true if the spectrum can be folded.
     ///
+    #[allow(unused)]
     fn can_fold(&self) -> bool {
         false
     }
